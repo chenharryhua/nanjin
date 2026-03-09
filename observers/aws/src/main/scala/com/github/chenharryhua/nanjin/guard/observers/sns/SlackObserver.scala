@@ -37,11 +37,11 @@ final class SlackObserver[F[_]: Clock](
     *
     * ServiceStop
     */
-  def at(supporters: String): SlackObserver[F] = {
+//  def at(supporters: String): SlackObserver[F] = {
 //    val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
 //    val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    new SlackObserver[F](client, translator)
-  }
+//    new SlackObserver[F](client, translator)
+//  }
 
   override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))

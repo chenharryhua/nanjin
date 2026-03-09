@@ -39,7 +39,7 @@ class ImmigrateTest extends AnyFunSuite {
   val v6s: Schema = SchemaFor[version6.KeyBoard].schema
   val v7s: Schema = SchemaFor[version7.KeyBoard2].schema
 
-  val v1d: Record = RecordFormat[version1.Tiger].to(version1.Tiger(1))
+  val v1d: Record = RecordFormat[version1.Tiger](v1s).to(version1.Tiger(1))
   val v2d: Record = RecordFormat[version2.Cat].to(version2.Cat(1))
   val v3d: Record = RecordFormat[version3.Tiger].to(version3.Tiger(1, Some("b")))
   val v4d: Record = RecordFormat[version4.Tiger].to(version4.Tiger(1, Some("c")))

@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.circe.syntax.EncoderOps
-import io.scalaland.chimney.dsl.TransformerOps
+import io.scalaland.chimney.dsl.transformInto
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.DecoderFactory

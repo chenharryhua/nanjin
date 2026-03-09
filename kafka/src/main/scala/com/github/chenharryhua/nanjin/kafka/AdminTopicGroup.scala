@@ -88,7 +88,7 @@ final private class AdminTopicGroupImpl[F[_]: Sync](
       curr <- adminClient
         .listConsumerGroupOffsets(groupId.value)
         .partitionsToOffsetAndMetadata
-        .map(_.filter(_._1.topic() === topicName.name.value).map { case (k, v) => k -> Offset(v) })
+        .map(_.filter(_._1.topic() === topicName.value).map { case (k, v) => k -> Offset(v) })
         .map(TopicPartitionMap(_))
     } yield calculate.admin_lagBehind(ends, curr)
 
@@ -102,7 +102,7 @@ final private class AdminTopicGroupImpl[F[_]: Sync](
     consumerClient.commitSync(offsets)
 
   override def commitSync(partition: Int, offset: Long): F[Unit] = {
-    val tp = new TopicPartition(topicName.name.value, partition)
+    val tp = new TopicPartition(topicName.value, partition)
     val oam = new OffsetAndMetadata(offset)
     commitSync(Map(tp -> oam))
   }

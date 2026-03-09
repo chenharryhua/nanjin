@@ -66,8 +66,8 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
   private val VALUE: String = "value"
 
   private case class SchemaLocation(topicName: TopicName) {
-    val keyLoc: String = s"${topicName.name.value}-$KEY"
-    val valLoc: String = s"${topicName.name.value}-$VALUE"
+    val keyLoc: String = s"${topicName.value}-$KEY"
+    val valLoc: String = s"${topicName.value}-$VALUE"
   }
 
   private def key_meta_data(topicName: TopicName): F[SchemaMetadata] = {

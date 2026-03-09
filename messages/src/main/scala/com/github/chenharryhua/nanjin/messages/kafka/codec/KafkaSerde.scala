@@ -17,10 +17,10 @@ import scala.jdk.CollectionConverters.*
   */
 final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A]) {
   private val ser: Serializer[A] = registered.serde.serializer()
-  def serialize(a: A): Array[Byte] = ser.serialize(topicName.name.value, a)
+  def serialize(a: A): Array[Byte] = ser.serialize(topicName.value, a)
 
   private val deser: Deserializer[A] = registered.serde.deserializer()
-  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.name.value, ab)
+  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.value, ab)
 }
 
 final class Registered[A] private[codec] (

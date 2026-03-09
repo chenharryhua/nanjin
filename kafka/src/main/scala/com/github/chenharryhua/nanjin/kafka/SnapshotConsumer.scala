@@ -37,18 +37,18 @@ private object KafkaConsumerOps {
   def apply[F[_]: Monad](topicName: TopicName)(implicit F: Ask[F, KafkaByteConsumer]): KafkaConsumerOps[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
-  final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(implicit
+  final private class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(implicit
     kbc: Ask[F, KafkaByteConsumer]
   ) extends KafkaConsumerOps[F] {
 
     override val partitionsFor: F[ListOfTopicPartitions] =
       kbc.ask.map { c =>
         val ret: List[TopicPartition] = c
-          .partitionsFor(topicName.name.value)
+          .partitionsFor(topicName.value)
           .asScala
           .toList
           .mapFilter(Option(_))
-          .map(info => new TopicPartition(topicName.name.value, info.partition))
+          .map(info => new TopicPartition(topicName.value, info.partition))
         ListOfTopicPartitions(ret)
       }
 
@@ -74,7 +74,7 @@ private object KafkaConsumerOps {
       partition: Partition,
       offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       kbc.ask.map { consumer =>
-        val tp = new TopicPartition(topicName.name.value, partition.value)
+        val tp = new TopicPartition(topicName.value, partition.value)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset.value)
         consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
@@ -112,10 +112,10 @@ private object SnapshotConsumer {
 final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)
     extends SnapshotConsumer[F] {
 
-  private[this] val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
+  private val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
     KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]](topicName)
 
-  private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
+  private def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
     r.run(consumer)
 
   override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =

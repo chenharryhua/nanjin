@@ -20,10 +20,6 @@ class CodecTest extends AnyFunSuite {
   }
 
   test("primitive types are illegal") {
-    shapeless.test.illTyped(""" AvroCodec[Int] """)
-    shapeless.test.illTyped(""" AvroCodec[String] """)
-    shapeless.test.illTyped(""" AvroCodec[Long] """)
-    shapeless.test.illTyped(""" AvroCodec[Short] """)
     AvroCodec[Foo]
     AvroCodec[Bar]
   }

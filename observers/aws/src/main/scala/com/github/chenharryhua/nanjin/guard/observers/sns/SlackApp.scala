@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
 
-import cats.Show
-import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.guard.translator.TextEntry
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
@@ -43,12 +41,12 @@ object Section {
   }
 }
 
-final case class JuxtaposeSection(first: TextField, second: TextField) extends Section
-final case class KeyValueSection(tag: String, value: String) extends Section
-final case class MarkdownSection(text: String) extends Section
-final case class HeaderSection(text: String) extends Section
+final case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Codec.AsObject
+final case class KeyValueSection(tag: String, value: String) extends Section derives Codec.AsObject
+final case class MarkdownSection(text: String) extends Section derives Codec.AsObject
+final case class HeaderSection(text: String) extends Section derives Codec.AsObject
 
-final case class Attachment(color: String, blocks: List[Section])
+final case class Attachment(color: String, blocks: List[Section]) derives Codec.AsObject
 
 final case class SlackApp(username: String, attachments: List[Attachment]) derives Codec.AsObject {
   // before first section
@@ -71,5 +69,5 @@ final case class SlackApp(username: String, attachments: List[Attachment]) deriv
 }
 
 object SlackApp {
-  implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
+ // implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
 }

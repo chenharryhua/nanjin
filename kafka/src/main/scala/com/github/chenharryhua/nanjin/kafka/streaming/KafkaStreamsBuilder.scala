@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistry
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
-import io.scalaland.enumz.Enum
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, Topology}
 
@@ -23,12 +22,11 @@ private object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams we
 final case class StateUpdate(newState: State, oldState: State)
 
 object StateUpdate {
-  private val es: Enum[State] = Enum[State]
 
   implicit final val stateUpdateEncoder: Encoder[StateUpdate] = (a: StateUpdate) =>
     Json.obj(
-      "oldState" -> Json.fromString(es.getName(a.oldState)),
-      "newState" -> Json.fromString(es.getName(a.newState))
+      "oldState" -> Json.fromString(a.oldState.name()),
+      "newState" -> Json.fromString(a.newState.name())
     )
 }
 

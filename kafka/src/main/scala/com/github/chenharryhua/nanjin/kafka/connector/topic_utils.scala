@@ -22,7 +22,7 @@ private object topic_utils {
     client: KafkaTopicsV2[F],
     topicName: TopicName,
     dtr: DateTimeRange): F[TopicPartitionMap[OffsetRange]] =
-    client.partitionsFor(topicName.name.value).flatMap { pis =>
+    client.partitionsFor(topicName.value).flatMap { pis =>
       val tps = pis.map(pi => new TopicPartition(pi.topic(), pi.partition()))
 
       val start_offsets: F[TopicPartitionMap[Long]] = {
@@ -55,14 +55,14 @@ private object topic_utils {
     topicName: TopicName,
     pos: Map[Int, (Long, Long)]): F[TopicPartitionMap[OffsetRange]] =
     for {
-      pis <- client.partitionsFor(topicName.name.value)
+      pis <- client.partitionsFor(topicName.value)
       tps = pis.map(pi => new TopicPartition(pi.topic(), pi.partition())).toSet
       topic_begin <- client.beginningOffsets(tps).map(TopicPartitionMap(_))
       topic_end <- client.endOffsets(tps).map(TopicPartitionMap(_))
     } yield {
       val origin: TopicPartitionMap[OffsetRange] =
         TopicPartitionMap(pos.map { case (partition, (from, until)) =>
-          new TopicPartition(topicName.name.value, partition) -> OffsetRange(Offset(from), Offset(until))
+          new TopicPartition(topicName.value, partition) -> OffsetRange(Offset(from), Offset(until))
         }).flatten
 
       val topic_range: TopicPartitionMap[OffsetRange] =

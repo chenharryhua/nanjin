@@ -102,10 +102,10 @@ final private class AdminTopicImpl[F[_]: Sync](
   topicName: TopicName)
     extends AdminTopic[F] {
   override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
-    adminClient.deleteTopic(topicName.name.value)
+    adminClient.deleteTopic(topicName.value)
 
   override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-    adminClient.createTopic(new NewTopic(topicName.name.value, numPartition, numReplica))
+    adminClient.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
 
   override def newTopic(description: TopicDescription): F[Unit] = {
     val partitions = description.partitions().size()
@@ -115,10 +115,10 @@ final private class AdminTopicImpl[F[_]: Sync](
 
   override def mirrorTo(other: TopicName): F[Unit] =
     for {
-      desc <- adminClient.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
+      desc <- adminClient.describeTopics(List(topicName.value)).map(_(topicName.value))
       _ <- adminClient.createTopic(
         new NewTopic(
-          other.name.value,
+          other.value,
           desc.partitions().size(),
           desc.partitions().get(0).replicas().size().toShort))
     } yield ()
@@ -130,7 +130,7 @@ final private class AdminTopicImpl[F[_]: Sync](
         adminClient
           .listConsumerGroupOffsets(gid)
           .partitionsToOffsetAndMetadata
-          .map(m => if (m.keySet.map(_.topic()).contains(topicName.name.value)) Some(gid) else None))
+          .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
     } yield ids.distinct.map(GroupId(_))
 
   override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =

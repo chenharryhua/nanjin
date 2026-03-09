@@ -48,15 +48,15 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
    */
 
   lazy val subscribe: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.name.value))).flatMap(_.stream)
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
   lazy val assign: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    clientS.evalTap(_.assign(topicName.name.value)).flatMap(_.stream)
+    clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
   def assign(
     partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] = {
     val topic_offset: Map[TopicPartition, Long] =
-      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.name.value, p) -> o }
+      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(topic_offset.keySet)) match {
       case None      => Stream.empty
@@ -76,8 +76,8 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
       .stream(consumerSettings)
       .evalTap { c =>
         for {
-          _ <- c.assign(topicName.name.value)
-          partitions <- c.partitionsFor(topicName.name.value)
+          _ <- c.assign(topicName.value)
+          partitions <- c.partitionsFor(topicName.value)
           tps = partitions.map { pi =>
             new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
           }.toMap
@@ -99,7 +99,7 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
   lazy val manualCommitStream: Stream[F, ManualCommitStream[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.name.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(kc =>
         kc.partitionsMapStream.map { pms =>
           new ManualCommitStream[F, Array[Byte], Array[Byte]] {

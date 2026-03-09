@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, Record, SchemaFor}
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 
@@ -10,8 +8,11 @@ final class AvroCodec[A] private (
   val schemaFor: SchemaFor[A],
   val avroDecoder: AvroDecoder[A],
   val avroEncoder: AvroEncoder[A]) {
-  private val decoder: Any => A = avroDecoder.decode(schemaFor.schema)
-  private val encoder: A => AnyRef = avroEncoder.encode(schemaFor.schema)
+    
+  val schema:Schema = schemaFor.schema
+
+  private val decoder: Any => A = avroDecoder.decode(schema)
+  private val encoder: A => AnyRef = avroEncoder.encode(schema)
 
   def idConversion(a: A): A = decoder(encoder(a))
 
@@ -30,9 +31,8 @@ final class AvroCodec[A] private (
     *
     * empty namespace is not allowed
     */
-  private type Namespace = MatchesRegex["^[a-zA-Z0-9_.]+$"]
-  def withNamespace(namespace: String Refined Namespace): AvroCodec[A] =
-    withSchema(replaceNamespace(schemaFor.schema, namespace.value))
+  def withNamespace(namespace: String): AvroCodec[A] =
+    withSchema(replaceNamespace(schemaFor.schema, namespace))
 
   def withoutNamespace: AvroCodec[A] = withSchema(removeNamespace(schemaFor.schema))
   def withoutDefaultField: AvroCodec[A] = withSchema(removeDefaultField(schemaFor.schema))

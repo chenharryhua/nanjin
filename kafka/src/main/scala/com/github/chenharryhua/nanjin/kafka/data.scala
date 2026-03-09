@@ -8,7 +8,6 @@ import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
-import io.circe.generic.JsonCodec
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
@@ -91,8 +90,7 @@ object PartitionRange {
   implicit val showPartitionRange: Show[PartitionRange] = Show.fromToString[PartitionRange]
 }
 
-@JsonCodec
-final case class LagBehind private (current: Long, end: Long, lag: Long)
+final case class LagBehind private (current: Long, end: Long, lag: Long) derives Codec.AsObject
 object LagBehind {
   def apply(current: Offset, end: Offset): LagBehind =
     LagBehind(current.value, end.value, end - current)

@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
@@ -138,7 +138,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   /** Create a raw byte consumer for the topic name.
     */
-  def consumeBytes(topicName: TopicNameL)(implicit F: Async[F]): ConsumeBytes[F] =
+  def consumeBytes(topicName: String)(implicit F: Async[F]): ConsumeBytes[F] =
     new ConsumeBytes[F](TopicName(topicName), byteConsumerSetting)
 
   /** Create a consumer that produces Avro GenericRecord values.
@@ -217,7 +217,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  def admin(topicName: TopicNameL, groupId: String)(implicit F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+  def admin(topicName: String, groupId: String)(implicit F: Async[F]): Resource[F, AdminTopicGroup[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
@@ -230,7 +230,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       )
     } yield new AdminTopicGroupImpl(admin, consumer, TopicName(topicName), GroupId(groupId))
 
-  def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
+  def admin(topicName: String)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
@@ -264,12 +264,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value)))
       .flatMap(
         _.traverse { tn =>
-          new SnapshotConsumerImpl[F](TopicName.unsafeFrom(tn), consumer).partitionsFor
+          new SnapshotConsumerImpl[F](TopicName(tn), consumer).partitionsFor
             .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
             .attempt
             .map {
               case Left(_)  => None
-              case Right(_) => Some(TopicName.unsafeFrom(tn))
+              case Right(_) => Some(TopicName(tn))
             }
         }
       )

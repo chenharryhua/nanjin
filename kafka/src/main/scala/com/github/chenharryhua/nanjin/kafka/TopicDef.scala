@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.{Endo, Show}
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
 
@@ -22,13 +22,13 @@ sealed trait KafkaTopic[K, V] {
 final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPair[K, V])
     extends KafkaTopic[K, V] {
 
-  override def toString: String = topicName.name.value
+  override def toString: String = topicName.value
 
-  def withTopicName(tn: TopicNameL): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
+  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
-    withTopicName(TopicName.unsafeFrom(f(topicName.name.value)).name)
+    withTopicName(TopicName(f(topicName.value)).name)
 
-  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.name.value, k, v)
+  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -57,7 +57,7 @@ object AvroTopic {
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     apply[K, V](AvroFor[K], AvroFor[V], topicName)
 
-  def apply[K: AvroFor, V: AvroFor](topicName: TopicNameL): AvroTopic[K, V] =
+  def apply[K: AvroFor, V: AvroFor](topicName: String): AvroTopic[K, V] =
     apply[K, V](TopicName(topicName))
 }
 
@@ -87,7 +87,7 @@ object ProtoTopic {
   def apply[K: ProtoFor, V: ProtoFor](topicName: TopicName): ProtoTopic[K, V] =
     apply[K, V](ProtoFor[K], ProtoFor[V], topicName)
 
-  def apply[K: ProtoFor, V: ProtoFor](topicName: TopicNameL): ProtoTopic[K, V] =
+  def apply[K: ProtoFor, V: ProtoFor](topicName: String): ProtoTopic[K, V] =
     apply[K, V](TopicName(topicName))
 }
 
@@ -115,6 +115,6 @@ object JsonTopic {
   def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
     apply[K, V](JsonFor[K], JsonFor[V], topicName)
 
-  def apply[K: JsonFor, V: JsonFor](topicName: TopicNameL): JsonTopic[K, V] =
+  def apply[K: JsonFor, V: JsonFor](topicName: String): JsonTopic[K, V] =
     apply[K, V](TopicName(topicName))
 }
