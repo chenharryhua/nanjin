@@ -17,7 +17,7 @@ val avro4sV = "4.1.2"
 val awsV = "2.42.8"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
-val catsEffectV = "3.6.3"
+val catsEffectV = "3.7.0"
 val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
@@ -359,15 +359,14 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(
-    libraryDependencies ++= List(
-      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-      // java
-      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
-      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
-      "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-    ) ++ jacksonLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+    // java
+    "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+    "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+    "org.apache.kafka" % "kafka-streams"                % kafkaV,
+    "ch.qos.logback"   % "logback-classic"              % logbackV % Test
+  ) ++ jacksonLib ++ testLib)
 
 // ==========================
 // Pipes
