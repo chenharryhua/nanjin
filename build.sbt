@@ -97,7 +97,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "2.0.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
-  "org.typelevel" %% "munit-cats-effect"                      % "2.1.0",
+  "org.typelevel" %% "munit-cats-effect"                      % "2.2.0",
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.19",
   "dev.optics" %% "monocle-law"                               % monocleV,
@@ -359,15 +359,14 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(
-    libraryDependencies ++= List(
-      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-      // java
-      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
-      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
-      "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-    ) ++ jacksonLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+    // java
+    "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+    "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+    "org.apache.kafka" % "kafka-streams"                % kafkaV,
+    "ch.qos.logback"   % "logback-classic"              % logbackV % Test
+  ) ++ jacksonLib ++ testLib)
 
 // ==========================
 // Pipes
