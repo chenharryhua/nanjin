@@ -8,13 +8,13 @@ import scala.compiletime.constValueTuple
 
 /** Typeclass for CSV header of a case class `A`. */
 sealed trait CsvHeaderOf[A] {
+
   /** explicit header */
   def header: Header.Explicit
 
   /** modify each field name with a function `f` */
-  final def modify(f: Endo[String]): Header.Explicit = {
+  final def modify(f: Endo[String]): Header.Explicit =
     header.focus(_.header).modify(_.map(f))
-  }
 }
 
 object CsvHeaderOf {
@@ -23,17 +23,15 @@ object CsvHeaderOf {
   def apply[A](implicit ev: CsvHeaderOf[A]): ev.type = ev
 
   /** internal helper to build CsvHeaderOf without inline anonymous duplication */
-  private def fromLabels(labels: List[String]): CsvHeaderOf[Any] = {
+  private def fromLabels(labels: List[String]): CsvHeaderOf[Any] =
     new CsvHeaderOf[Any] {
       override val header: Header.Explicit = Header.Explicit(labels)
     }
-  }
 
   /** fully generic derivation for case classes, no duplicate anonymous class warning */
-  inline given derived[A](using m: Mirror.ProductOf[A]): CsvHeaderOf[A] = {
+  inline given derived[A](using m: Mirror.ProductOf[A]): CsvHeaderOf[A] =
     fromLabels(
       constValueTuple[m.MirroredElemLabels].productIterator.toList
         .asInstanceOf[List[String]]
     ).asInstanceOf[CsvHeaderOf[A]] // scalafix:ok
-  }
 }

@@ -6,7 +6,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import io.circe.Codec
 
-sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression) derives Codec.AsObject {
+sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression)
+    derives Codec.AsObject {
   final val fileName: String = compression.fileName(fileFormat)
 
   final def fileName(time: LocalDateTime): String = {

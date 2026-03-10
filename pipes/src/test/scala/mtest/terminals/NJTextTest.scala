@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.jawn
@@ -71,7 +71,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, TextFile(_.Deflate(8)), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Deflate(Level(8))), TestData.tigerSet)
   }
 
   test("laziness") {

@@ -5,7 +5,8 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.Decoder.Result
+import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
 import org.slf4j.event.Level
 
 import java.time.{Duration, ZoneId}
@@ -83,16 +84,25 @@ object Brief {
   implicit val decoderServiceBrief: Decoder[Brief] = Decoder.instance(_.as[Json]).map(Brief(_))
 }
 
-final case class UpTime(value: Duration) extends AnyVal
-object UpTime {
-  implicit val showUpTime: Show[UpTime] = ut => durationFormatter.format(ut.value)
-  implicit val encoderUpTime: Encoder[UpTime] = Encoder.encodeDuration.contramap(_.value)
-  implicit val decoderUpTime: Decoder[UpTime] = Decoder.decodeDuration.map(UpTime(_))
-}
+object data:
+  opaque type TimeZone = ZoneId
+  object TimeZone:
+    def apply(zoneId: ZoneId): TimeZone = zoneId
+    extension (tz: TimeZone) def value: ZoneId = tz
+    given Show[TimeZone] = Show.fromToString
+    given Codec[TimeZone] with
+      override def apply(c: HCursor): Result[TimeZone] =
+        Decoder.decodeZoneId(c)
+      override def apply(a: TimeZone): Json =
+        Encoder.encodeZoneId.apply(a.value)
 
-final case class TimeZone(value: ZoneId) extends AnyVal
-object TimeZone {
-  implicit val showTimeZone: Show[TimeZone] = _.value.toString
-  implicit val encoderTimeZone: Encoder[TimeZone] = Encoder.encodeZoneId.contramap(_.value)
-  implicit val decoderTimeZone: Decoder[TimeZone] = Decoder.decodeZoneId.map(TimeZone(_))
-}
+  opaque type UpTime = Duration
+  object UpTime:
+    def apply(duration: Duration): UpTime = duration
+    extension (upTime: UpTime) def value: Duration = upTime
+    given Show[UpTime] = durationFormatter.format(_)
+    given Codec[UpTime] with
+      override def apply(c: HCursor): Result[UpTime] =
+        Decoder.decodeDuration.apply(c)
+      override def apply(a: UpTime): Json =
+        Encoder.encodeDuration.apply(a.value)

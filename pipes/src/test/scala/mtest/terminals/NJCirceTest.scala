@@ -6,7 +6,6 @@ import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
-import eu.timepit.refined.auto.*
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
@@ -68,7 +67,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Deflate(Level(4))), TestData.tigerSet)
   }
 
   test("laziness") {

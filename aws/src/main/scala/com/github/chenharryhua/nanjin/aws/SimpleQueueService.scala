@@ -180,7 +180,8 @@ object sqsS3Parser {
     val url: String = s"s3://$bucket/$key"
   }
 
-  final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String) derives Codec.AsObject
+  final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
+      derives Codec.AsObject
 
   /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html`
     */

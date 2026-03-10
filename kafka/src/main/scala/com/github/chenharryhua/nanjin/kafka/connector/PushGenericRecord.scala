@@ -47,9 +47,9 @@ final private class PushGenericRecord(
       case Schema.Type.INT =>
         val ser = Serdes.Integer().serializer()
         (_: AnyRef) match {
-          case null          => null
+          case null                    => null
           case data: java.lang.Integer => ser.serialize(topic, data)
-          case _             => sys.error("not an integer")
+          case _                       => sys.error("not an integer")
         }
       case Schema.Type.LONG =>
         val ser = Serdes.Long().serializer()
@@ -126,9 +126,9 @@ final private class PushGenericRecord(
       case Schema.Type.FLOAT =>
         val ser = Serdes.Float().serializer()
         (_: AnyRef) match {
-          case null        => null
+          case null                  => null
           case data: java.lang.Float => ser.serialize(topic, data)
-          case _           => sys.error("not a float")
+          case _                     => sys.error("not a float")
 
         }
       case Schema.Type.DOUBLE =>

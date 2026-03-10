@@ -43,7 +43,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .through(ctx.sharedProduce(topicDef.pair).sink)
 
   (ctx
-    .admin(topic.topicName.name)
+    .admin(topic.topicName)
     .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()
 

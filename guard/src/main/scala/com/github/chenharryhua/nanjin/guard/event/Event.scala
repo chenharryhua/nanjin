@@ -2,14 +2,15 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
+import com.github.chenharryhua.nanjin.guard.config.data.UpTime
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
 import monocle.{Optional, Prism}
 
-sealed trait Event extends Product derives Codec.AsObject{
+sealed trait Event extends Product derives Codec.AsObject {
   def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 

@@ -8,9 +8,8 @@ import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObser
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sns.SlackObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
-import eu.timepit.refined.auto.*
 import software.amazon.awssdk.regions.Region
-
+import io.github.iltotore.iron.given
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
 

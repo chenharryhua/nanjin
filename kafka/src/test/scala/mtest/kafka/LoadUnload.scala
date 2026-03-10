@@ -9,13 +9,14 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 
 final case class Simple(name: String, count: Int)
 
 class LoadUnload extends AnyFunSuite {
 
-  val avro: AvroTopic[Integer, Simple] = AvroTopic[Integer, Simple]("spark-avro-simple")
-  val json: JsonTopic[Integer, Simple] = JsonTopic[Integer, Simple]("spark-json-simple")
+  val avro: AvroTopic[Integer, Simple] = AvroTopic[Integer, Simple](TopicName("spark-avro-simple"))
+  val json: JsonTopic[Integer, Simple] = JsonTopic[Integer, Simple](TopicName("spark-json-simple"))
 
   val data: List[(Integer, Simple)] =
     List.range(1, 10).map(a => Integer.valueOf(a) -> Simple("simple", Random.nextInt(99)))

@@ -69,5 +69,5 @@ final case class SlackApp(username: String, attachments: List[Attachment]) deriv
 }
 
 object SlackApp {
- // implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
+  // implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
 }

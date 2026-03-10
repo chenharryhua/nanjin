@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KafkaSerde}
 import org.apache.kafka.common.serialization.Serde

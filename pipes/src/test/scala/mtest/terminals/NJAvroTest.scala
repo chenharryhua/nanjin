@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
+import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -45,7 +46,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("deflate 6 avro") {
-    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(NJCompressionLevel(6))), pandaSet)
+    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(Level(6))), pandaSet)
   }
 
   test("uncompressed avro") {
@@ -53,7 +54,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("xz 1 avro") {
-    fs2(fs2Root, AvroFile(_.Xz(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.Xz(Level(1))), pandaSet)
   }
 
   test("bzip2 avro") {
@@ -61,7 +62,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("zstandard avro") {
-    fs2(fs2Root, AvroFile(_.Zstandard(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.Zstandard(Level(1))), pandaSet)
   }
 
   test("laziness") {

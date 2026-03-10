@@ -44,7 +44,7 @@ class AwsObserverTest extends AnyFunSuite {
       EmailObserver(ses_client)
         .withPolicy(_.fixedDelay(5.seconds))
         .withZoneId(sydneyTime)
-        .withCapacity((200))
+        .withCapacity(200)
         .withOldestFirst
 
     service

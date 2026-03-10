@@ -9,8 +9,6 @@ import fs2.Chunk
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
 import io.circe.{Codec, HCursor, Json}
-import io.github.iltotore.iron.RefinedType
-import io.github.iltotore.iron.constraint.numeric.Interval.Closed
 import io.lemonlabs.uri.{Uri, Url}
 import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.Header
@@ -37,9 +35,6 @@ package object terminals {
     override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
     override def apply(a: Url): Json = a.toJavaURI.asJson
   }
-
-  type NJCompressionLevel = NJCompressionLevel.T
-  object NJCompressionLevel extends RefinedType[Int, Closed[1, 9]]
 
   def csvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
     val sw = new StringWriter()

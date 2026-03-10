@@ -4,15 +4,15 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.database.*
 import com.github.chenharryhua.nanjin.database.*
 import munit.CatsEffectSuite
-
+import io.github.iltotore.iron.*
 import scala.language.implicitConversions
 
 val testDb: Postgres = Postgres(
-  host = Host.unsafeFrom("localhost"),
-  port = Port.unsafeFrom(5432),
-  database = DatabaseName.unsafeFrom("postgres"),
-  username = Username.unsafeFrom("postgres"),
-  password = Password.unsafeFrom("postgres")
+  host = "localhost",
+  port = 5432,
+  database = "postgres",
+  username = "postgres",
+  password = "postgres"
 )
 
 class DBConfigSuite extends CatsEffectSuite {
@@ -45,11 +45,11 @@ class DBConfigSuite extends CatsEffectSuite {
   test("DBConfig.testConnection returns false on invalid DB") {
     val invalidDb =
       Postgres(
-        Username.unsafeFrom("unknown"),
-        Password.unsafeFrom("unknown"),
-        Host.unsafeFrom("localhost"),
-        Port.unsafeFrom(5432),
-        DatabaseName.unsafeFrom("postgres")
+        "unknown",
+        "unknown",
+        "localhost",
+        5432,
+        "postgres"
       )
     val dbConfig = DBConfig(invalidDb)
     dbConfig.testConnection[IO].map { result =>

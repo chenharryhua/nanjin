@@ -11,7 +11,6 @@ import scala.concurrent.duration.Duration
 
 class SkunkSessionSuite extends CatsEffectSuite {
 
-
   // Dummy Trace for testing propagation
   val dummyTrace: Trace[IO] = Trace.Implicits.noop[IO]
 

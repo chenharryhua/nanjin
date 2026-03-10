@@ -1,6 +1,7 @@
 package mtest.terminals
 
 import com.github.chenharryhua.nanjin.terminals.*
+import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -13,9 +14,9 @@ class NJCompressionTest extends AnyFunSuite {
     val c5: TextCompression = Compression.Lz4
     val c6: Compression = Compression.Brotli
     val c7: Compression = Compression.Lzo
-    val c8: BinaryAvroCompression = Compression.Deflate(NJCompressionLevel(1))
-    val c9: AvroCompression = Compression.Xz(NJCompressionLevel(2))
-    val c10: ParquetCompression = Compression.Zstandard(NJCompressionLevel(3))
+    val c8: BinaryAvroCompression = Compression.Deflate(Level(1))
+    val c9: AvroCompression = Compression.Xz(Level(2))
+    val c10: ParquetCompression = Compression.Zstandard(Level(3))
 
     assert(decode[CirceCompression](c1.asJson.noSpaces).toOption.get === c1)
     assert(decode[Compression](c2.asJson.noSpaces).toOption.get === c2)

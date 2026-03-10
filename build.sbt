@@ -74,14 +74,14 @@ lazy val commonSettings = List(
 )
 
 val testLib = List(
-  "org.typelevel" %% "cats-effect-testing-scalatest" % "1.7.0",
+  "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
   "org.typelevel" %% "cats-effect-testkit"           % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
   "org.typelevel" %% "discipline-munit"              % "2.0.0",
   "org.typelevel" %% "cats-laws"                     % catsCoreV,
   "org.typelevel" %% "algebra-laws"                  % catsCoreV,
-  "org.typelevel" %% "munit-cats-effect"             % "2.1.0",
+  "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
   "org.scalatest" %% "scalatest"                     % "3.2.19",
   "dev.optics" %% "monocle-law"                      % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
@@ -359,21 +359,14 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-hdfs-client"
 ).map(_ % hadoopV)
 
-val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv"
-//  "com.nrinaudo" %% "kantan.csv-java8",
-//  "com.nrinaudo" %% "kantan.csv-generic",
-//  "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantanV).map(_.cross(CrossVersion.for3Use2_13))
-
 lazy val pipes = (project in file("pipes"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
-      "co.fs2" %% "fs2-io" % fs2V,
-      //  "com.nrinaudo" %% "kantan.csv"              % kantanV,
+      "co.fs2" %% "fs2-io"                        % fs2V,
+      "io.github.kantan-scala" %% "kantan.csv"    % "0.11.0",
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
       "io.circe" %% "circe-jawn"                  % circeV,
@@ -388,7 +381,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"            % "xz"             % "1.12",
       "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
-    ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
+    ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
     "io.airlift"        % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
@@ -396,40 +389,6 @@ lazy val pipes = (project in file("pipes"))
     "io.netty"          % "netty-codec-http" % nettyV, // snyk by hadoop-common
     "io.netty"          % "netty-codec-smtp" % nettyV // snyk by hadoop-client
   ))
-
-// ==========================
-// Spark
-// ==========================
-//val sparkLib = List(
-//  "org.apache.spark" %% "spark-catalyst",
-//  "org.apache.spark" %% "spark-core",
-//  "org.apache.spark" %% "spark-sql",
-//  "org.apache.spark" %% "spark-avro"
-//).map(_ % sparkV).map(_.exclude("org.lz4", "lz4-java"))
-//  .map(_.cross(CrossVersion.for3Use2_13))
-//
-//lazy val spark = (project in file("spark"))
-//  .dependsOn(kafka)
-//  .dependsOn(pipes)
-//  .dependsOn(database)
-//  .settings(commonSettings *)
-//  .settings(name := "nj-spark")
-//  .settings(
-//    libraryDependencies ++= List(
-//      "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
-//      // "io.circe" %% "circe-shapes"             % circeV   % Test,
-//      // java
-//      "org.apache.avro" % "avro-mapred"     % avroV,
-//      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
-//      "org.postgresql"  % "postgresql"      % postgresV % Test
-//    ) ++ jacksonLib ++ sparkLib ++ testLib
-//  )
-//  .settings(dependencyOverrides ++= List(
-//    "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-//    "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
-//    "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
-//    "io.airlift"               % "aircompressor"    % "2.0.3" // snyk by spark-sql
-//  ))
 
 // ==========================
 // Example
@@ -443,7 +402,6 @@ lazy val example = (project in file("example"))
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
-  // .dependsOn(spark)
   .dependsOn(guard)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
@@ -472,7 +430,6 @@ lazy val nanjin =
       pipes,
       kafka,
       database,
-      //    spark,
       guard,
       observer_aws,
       observer_database,

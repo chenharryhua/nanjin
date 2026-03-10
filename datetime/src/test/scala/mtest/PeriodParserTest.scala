@@ -40,9 +40,9 @@ class PeriodParserTest extends AnyFunSuite {
 
     val p = period("2 years").toEither.toOption.get
     assert(today.minus(p) == LocalDate.of(2010, 10, 26))
-    val (p2) = period("2 years 3 month").toEither.toOption.get
+    val p2 = period("2 years 3 month").toEither.toOption.get
     assert(today.minus(p2) == LocalDate.of(2010, 7, 26))
-    val (p3) = period("2 years 3 month 6 days").toEither.toOption.get
+    val p3 = period("2 years 3 month 6 days").toEither.toOption.get
     assert(today.minus(p3) == LocalDate.of(2010, 7, 20))
   }
 }

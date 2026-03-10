@@ -11,7 +11,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
-import cats.{ Endo, MonadError}
+import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, MetricsHub}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter

@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
@@ -139,7 +139,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   /** Create a raw byte consumer for the topic name.
     */
   def consumeBytes(topicName: TopicName)(implicit F: Async[F]): ConsumeBytes[F] =
-    new ConsumeBytes[F]((topicName), byteConsumerSetting)
+    new ConsumeBytes[F](topicName, byteConsumerSetting)
 
   /** Create a consumer that produces Avro GenericRecord values.
     *
@@ -221,26 +221,26 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
-        (topicName),
+        topicName,
         PureConsumerSettings
           .withProperties(settings.consumerSettings.properties)
           .withAutoOffsetReset(AutoOffsetReset.None)
           .withEnableAutoCommit(false)
           .withGroupId(groupId)
       )
-    } yield new AdminTopicGroupImpl(admin, consumer,  (topicName), GroupId(groupId))
+    } yield new AdminTopicGroupImpl(admin, consumer, topicName, GroupId(groupId))
 
   def admin(topicName: TopicName)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
-        (topicName),
+        topicName,
         PureConsumerSettings
           .withProperties(settings.consumerSettings.properties)
           .withAutoOffsetReset(AutoOffsetReset.None)
           .withEnableAutoCommit(false)
       )
-    } yield new AdminTopicImpl(admin, consumer, (topicName))
+    } yield new AdminTopicImpl(admin, consumer, topicName)
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
     *

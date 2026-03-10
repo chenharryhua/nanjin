@@ -69,8 +69,8 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
 
   test("send EmailContent returns SendEmailResponse with fake messageId") {
     val content = EmailContent(
-      from =  ("from@example.com"),
-      to = NonEmptyList.one( ("to@example.com")),
+      from = "from@example.com",
+      to = NonEmptyList.one("to@example.com"),
       cc = Nil,
       bcc = Nil,
       subject = "subject",

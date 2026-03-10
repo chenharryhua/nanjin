@@ -35,7 +35,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = (100),
+      capacity = 100,
       policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -112,8 +112,7 @@ final class EmailObserver[F[_]] private (
         EmailContent(from, to, subject, content)
       } else {
         val text =
-          p(b(
-            s"Message body size exceeds ${maximumMessageSize.value.toString()}, which contains ${data.size} events."))
+          p(b(s"Message body size exceeds ${maximumMessageSize.value.toString()}, which contains ${data.size} events."))
         val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }
