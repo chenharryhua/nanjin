@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.Show
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -80,7 +80,7 @@ final case class JobResultState(job: BatchJob, took: Duration, done: Boolean) {
 object JobResultState {
   implicit val encoderJobResultState: Encoder[JobResultState] =
     (a: JobResultState) =>
-      Json.obj("took" -> Json.fromString(durationFormatter.format(a.took))).deepMerge(a.job.asJson)
+      Json.obj("took" -> Json.fromString(defaultFormatter.format(a.took))).deepMerge(a.job.asJson)
 }
 
 final case class JobResultValue[A](resultState: JobResultState, value: A) {
@@ -103,7 +103,7 @@ object BatchResultState {
       "batch_id" -> br.batchId.asJson,
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
-      "spent" -> Json.fromString(durationFormatter.format(br.spent)),
+      "spent" -> Json.fromString(defaultFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
       "results" -> br.jobs
@@ -111,7 +111,7 @@ object BatchResultState {
           Json.obj(
             show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
             "kind" -> Json.fromString(jr.job.kind.show),
-            "took" -> Json.fromString(durationFormatter.format(jr.took)),
+            "took" -> Json.fromString(defaultFormatter.format(jr.took)),
             "done" -> Json.fromBoolean(jr.done)
           ))
         .asJson

@@ -12,9 +12,9 @@ import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
 import cats.{Endo, MonadError}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, MetricsHub}
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.Monocle.focus
@@ -67,7 +67,7 @@ object Batch {
     if (results.isEmpty) Json.Null
     else {
       val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (jrs: JobResultState) =>
-        val took: String = durationFormatter.format(jrs.took)
+        val took: String = defaultFormatter.format(jrs.took)
         val result: String = if (jrs.done) took else s"$took (failed)"
         jrs.job.displayName -> result.asJson
       }

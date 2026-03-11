@@ -29,7 +29,7 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
   def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event]
 }
 
-final private class ServiceGuardImpl[F[_]: {Network, Async, Console}] private[guard](
+final private class ServiceGuardImpl[F[_]: {Network, Async, Console}] private[guard] (
   serviceName: Service,
   config: ServiceConfig[F])
     extends ServiceGuard[F] { self =>

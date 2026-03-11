@@ -9,7 +9,7 @@ import fs2.io.net.Network
 
 /** poor man's telemetry
   */
-final class TaskGuard[F[_]: {Async, Network, Console}] private(serviceConfig: ServiceConfig[F])
+final class TaskGuard[F[_]: {Async, Network, Console}] private (serviceConfig: ServiceConfig[F])
     extends UpdateConfig[ServiceConfig[F], TaskGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig[F]]): TaskGuard[F] =

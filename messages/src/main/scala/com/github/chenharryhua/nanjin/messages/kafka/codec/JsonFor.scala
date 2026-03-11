@@ -7,9 +7,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
 import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason.CustomReason
-import io.circe.{DecodingFailure, HCursor, Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, DecodingFailure, Encoder as JsonEncoder, HCursor, Json}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
-import io.confluent.kafka.serializers.json.{KafkaJsonSchemaDeserializer, KafkaJsonSchemaDeserializerConfig, KafkaJsonSchemaSerializer}
+import io.confluent.kafka.serializers.json.{
+  KafkaJsonSchemaDeserializer,
+  KafkaJsonSchemaDeserializerConfig,
+  KafkaJsonSchemaSerializer
+}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 

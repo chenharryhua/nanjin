@@ -9,13 +9,13 @@ import java.time.ZonedDateTime
 object MetricsEvent {
 
   sealed trait Index extends Product derives Codec.AsObject {
-    def launchTime: ZonedDateTime
+    def scrapeTime: ZonedDateTime
   }
 
   object Index {
-    final case class Adhoc(launchTime: ZonedDateTime) extends Index
+    final case class Adhoc(scrapeTime: ZonedDateTime) extends Index
     final case class Periodic(tick: Tick) extends Index {
-      override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
+      override val scrapeTime: ZonedDateTime = tick.zoned(_.conclude)
     }
   }
 
@@ -27,6 +27,6 @@ object MetricsEvent {
     final case class Report(policy: Policy) extends Kind
     final case class Reset(policy: Policy) extends Kind
 
-    implicit val showMetricsKind: Show[Kind] = Show.fromToString
+    given Show[Kind] = Show.fromToString
   }
 }

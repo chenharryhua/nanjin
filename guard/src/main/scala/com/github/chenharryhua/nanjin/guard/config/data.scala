@@ -2,100 +2,87 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.syntax.show.toShow
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import io.circe.{Decoder, Encoder, Json}
-import org.slf4j.event.Level
 
 import java.time.{Duration, ZoneId}
 import java.util.UUID
 
-sealed abstract class AlarmLevel(override val value: Int, val level: Level)
-    extends IntEnumEntry with Product {
-  val entryName: String = this.productPrefix.toLowerCase()
-}
+opaque type Task = String
+object Task:
+  def apply(value: String): Task = value
+  extension (t: Task) inline def value: String = t
 
-object AlarmLevel
-    extends CatsOrderValueEnum[Int, AlarmLevel] with IntEnum[AlarmLevel] with IntCirceEnum[AlarmLevel]
-    with CatsValueEnum[Int, AlarmLevel] {
-  override val values: IndexedSeq[AlarmLevel] = findValues
+  given Show[Task] = _.value
+  given Encoder[Task] = Opaque.lift[Task, String, Encoder]
+  given Decoder[Task] = Opaque.lift[Task, String, Decoder]
+end Task
 
-  case object Error extends AlarmLevel(4, Level.ERROR)
-  case object Warn extends AlarmLevel(3, Level.WARN)
-  case object Good extends AlarmLevel(2, Level.INFO)
-  case object Info extends AlarmLevel(1, Level.INFO)
-  case object Debug extends AlarmLevel(0, Level.DEBUG)
-}
+opaque type Service = String
+object Service:
+  def apply(value: String): Service = value
+  extension (s: Service) inline def value: String = s
 
-sealed trait LogFormat extends EnumEntry
-object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] with CatsEnum[LogFormat] {
-  override def values: IndexedSeq[LogFormat] = findValues
+  given Show[Service] = _.value
+  given Encoder[Service] = Opaque.lift[Service, String, Encoder]
+  given Decoder[Service] = Opaque.lift[Service, String, Decoder]
+end Service
 
-  case object Console_PlainText extends LogFormat
-  case object Console_Json_OneLine extends LogFormat
-  case object Console_Json_MultiLine extends LogFormat
-  case object Console_JsonVerbose extends LogFormat
+opaque type ServiceId = UUID
+object ServiceId:
+  def apply(value: UUID): ServiceId = value
+  extension (s: ServiceId) inline def value: UUID = s
 
-  case object Slf4j_PlainText extends LogFormat
-  case object Slf4j_Json_OneLine extends LogFormat
-  case object Slf4j_Json_MultiLine extends LogFormat
-}
+  given Show[ServiceId] = _.value.show
+  given Encoder[ServiceId] = Opaque.lift[ServiceId, UUID, Encoder]
+  given Decoder[ServiceId] = Opaque.lift[ServiceId, UUID, Decoder]
+end ServiceId
 
-final case class Task(value: String) extends AnyVal
-object Task {
-  implicit val showTask: Show[Task] = _.value
-  implicit val encoderTask: Encoder[Task] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderTask: Decoder[Task] = Decoder.decodeString.map(Task(_))
-}
+opaque type Homepage = String
+object Homepage:
+  def apply(value: String): Homepage = value
+  extension (h: Homepage) inline def value: String = h
 
-final case class Service(value: String) extends AnyVal
-object Service {
-  implicit val showService: Show[Service] = _.value
-  implicit val encoderService: Encoder[Service] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderService: Decoder[Service] = Decoder.decodeString.map(Service(_))
-}
+  given Encoder[Homepage] = Opaque.lift[Homepage, String, Encoder]
+  given Decoder[Homepage] = Opaque.lift[Homepage, String, Decoder]
+end Homepage
 
-final case class ServiceId(value: UUID) extends AnyVal
-object ServiceId {
-  implicit val showServiceId: Show[ServiceId] = _.value.show
-  implicit val encoderServiceId: Encoder[ServiceId] = Encoder.encodeUUID.contramap(_.value)
-  implicit val decoderServiceId: Decoder[ServiceId] = Decoder.decodeUUID.map(ServiceId(_))
-}
+opaque type Port = Int
+object Port:
+  def apply(value: Int): Port = value
+  extension (p: Port) inline def value: Int = p
 
-final case class Homepage(value: String) extends AnyVal
-object Homepage {
-  implicit val encoderHomepage: Encoder[Homepage] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderHomepage: Decoder[Homepage] = Decoder.decodeString.map(Homepage(_))
-}
+  given Show[Port] = _.value.toString
+  given Encoder[Port] = Opaque.lift[Port, Int, Encoder]
+  given Decoder[Port] = Opaque.lift[Port, Int, Decoder]
+end Port
 
-final case class Port(value: Int) extends AnyVal
-object Port {
-  implicit val showPort: Show[Port] = _.value.toString
-  implicit val encoderPort: Encoder[Port] = Encoder.encodeInt.contramap(_.value)
-  implicit val decoderPort: Decoder[Port] = Decoder.decodeInt.map(Port(_))
-}
+opaque type Brief = Json
+object Brief:
+  def apply(value: Json): Brief = value
+  extension (b: Brief) inline def value: Json = b
 
-final case class Brief(value: Json) extends AnyVal
-object Brief {
-  implicit val showServiceBrief: Show[Brief] = _.value.spaces2
-  implicit val encoderServiceBrief: Encoder[Brief] = _.value
-  implicit val decoderServiceBrief: Decoder[Brief] = Decoder.instance(_.as[Json]).map(Brief(_))
-}
+  given Show[Brief] = _.value.spaces2
+  given Encoder[Brief] = Opaque.lift[Brief, Json, Encoder]
+  given Decoder[Brief] = Opaque.lift[Brief, Json, Decoder]
+end Brief
 
-object data:
-  opaque type TimeZone = ZoneId
-  object TimeZone:
-    def apply(zoneId: ZoneId): TimeZone = zoneId
-    extension (tz: TimeZone) def value: ZoneId = tz
-    given Show[TimeZone] = Show.fromToString
-    given Encoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Encoder]
-    given Decoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Decoder]
+opaque type TimeZone = ZoneId
+object TimeZone:
+  def apply(zoneId: ZoneId): TimeZone = zoneId
+  extension (tz: TimeZone) inline def value: ZoneId = tz
+  
+  given Show[TimeZone] = Show.fromToString
+  given Encoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Encoder]
+  given Decoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Decoder]
+end TimeZone
 
-  opaque type UpTime = Duration
-  object UpTime:
-    def apply(duration: Duration): UpTime = duration
-    extension (upTime: UpTime) def value: Duration = upTime
-    given Show[UpTime] = durationFormatter.format(_)
-    given Encoder[UpTime] = Opaque.lift[UpTime, Duration, Encoder]
-    given Decoder[UpTime] = Opaque.lift[UpTime, Duration, Decoder]
+opaque type UpTime = Duration
+object UpTime:
+  def apply(duration: Duration): UpTime = duration
+  extension (upTime: UpTime) inline def value: Duration = upTime
+  
+  given Show[UpTime] = defaultFormatter.format(_)
+  given Encoder[UpTime] = Opaque.lift[UpTime, Duration, Encoder]
+  given Decoder[UpTime] = Opaque.lift[UpTime, Duration, Decoder]
+end UpTime

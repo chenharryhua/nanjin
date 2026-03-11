@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedV
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import io.circe.syntax.given 
+import io.circe.syntax.given
 class PolicyTest extends AnyFunSuite {
 
   test("policy") {

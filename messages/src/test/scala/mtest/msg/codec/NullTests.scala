@@ -42,9 +42,7 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.serialize(null) === null)
     assert(byteArrayCodec.serialize(null) === null)
     assert(PrimitiveTypeCombined.primitiviesCodec.serialize(null) === null)
-    assert(
-      PrimitiveTypeCombined.jsonPrimCodec.serialize(
-        null.asInstanceOf[Json]) === null)
+    assert(PrimitiveTypeCombined.jsonPrimCodec.serialize(null.asInstanceOf[Json]) === null)
   }
 
   test("immigrate null") {
@@ -54,7 +52,7 @@ class NullTests extends AnyFunSuite {
   test("kjson codec null") {
     val js = AvroFor[Json]
     assert(js.asKey(Map.empty).serde.serializer.serialize("", null.asInstanceOf[Json]) == null)
-    assert(js.asKey(Map.empty).serde.serializer.serialize("", (null)) == null)
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", null) == null)
     assert(js.asKey(Map.empty).serde.deserializer.deserialize("", null) == null)
   }
 }

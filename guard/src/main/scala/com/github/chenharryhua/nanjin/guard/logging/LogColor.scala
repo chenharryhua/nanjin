@@ -13,7 +13,6 @@ sealed private trait LogColor:
   def debug: String => String
 end LogColor
 
-
 private object LogColor {
   private def colorize(alarm: AlarmLevel, code: String)(name: String): String =
     show"${alarm.level.name()} -- $code$name${AnsiColor.RESET}"

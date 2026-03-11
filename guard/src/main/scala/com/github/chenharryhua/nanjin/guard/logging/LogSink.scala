@@ -25,7 +25,6 @@ sealed trait LogSink[F[_]]:
   def write(event: Event): F[Unit]
 end LogSink
 
-
 object LogSink {
   def apply[F[_]: {Sync, Console}](
     logFormat: LogFormat,

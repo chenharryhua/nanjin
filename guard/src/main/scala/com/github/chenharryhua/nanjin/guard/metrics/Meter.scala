@@ -11,7 +11,7 @@ import squants.{Quantity, UnitOfMeasure}
 trait Meter[F[_]]:
   def mark(num: Long): F[Unit]
 
-  final def mark(num: Int): F[Unit] = 
+  final def mark(num: Int): F[Unit] =
     mark(num.toLong)
 end Meter
 
