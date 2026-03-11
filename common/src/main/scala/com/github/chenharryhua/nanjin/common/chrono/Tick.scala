@@ -132,8 +132,8 @@ object Tick {
     )
 
   def zeroth[F[_]](zoneId: ZoneId)(implicit F: Sync[F]): F[Tick] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
-      UUIDGen.fromSecureRandom[F].randomUUID.flatMap { uuid =>
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
+      UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
         F.realTimeInstant.map { now =>
           zeroth(uuid, zoneId, now)
         }
@@ -142,7 +142,7 @@ object Tick {
 
   private val fmt = DurationFormatter.defaultFormatter
 
-  implicit val encoderTick: Encoder[Tick] =
+  given Encoder[Tick] =
     (a: Tick) =>
       Json.obj(
         "index" -> Json.fromLong(a.index),
@@ -157,7 +157,7 @@ object Tick {
         "zone_id" -> a.zoneId.asJson
       )
 
-  implicit val decoderTick: Decoder[Tick] =
+  given Decoder[Tick] =
     (c: HCursor) =>
       for {
         sequenceId <- c.get[UUID]("sequence_id")
@@ -177,7 +177,7 @@ object Tick {
         conclude = conclude.atZone(zoneId).toInstant
       )
 
-  implicit val showTick: Show[Tick] = Show.fromToString[Tick]
+  given Show[Tick] = Show.fromToString[Tick]
 }
 
 /** A value annotated with the `Tick` (time-frame) in which it was produced or observed.
@@ -192,8 +192,7 @@ object Tick {
   *
   * `TickedValue` forms a lawful `Functor`, mapping over the value while preserving the associated `Tick`.
   */
-final case class TickedValue[A](tick: Tick, value: A) derives Functor {
-  def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
+final case class TickedValue[A](tick: Tick, value: A) derives Functor, Show, Encoder, Decoder:
 
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
     copy(tick = tick.withSnoozeStretch(delay))
@@ -203,15 +202,3 @@ final case class TickedValue[A](tick: Tick, value: A) derives Functor {
 
   def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
     TimeStamped[A](f(tick), value)
-}
-
-object TickedValue {
-  implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
-    io.circe.generic.semiauto.deriveEncoder[TickedValue[A]]
-
-  implicit def decoderTickedValue[A: Decoder]: Decoder[TickedValue[A]] =
-    io.circe.generic.semiauto.deriveDecoder[TickedValue[A]]
-
-  implicit def showTickedValue[A: Show]: Show[TickedValue[A]] =
-    cats.derived.semiauto.show[TickedValue[A]]
-}

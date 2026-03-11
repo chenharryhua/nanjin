@@ -1,15 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.guard.config.TypeName
 import io.circe.{Encoder, Json}
 
-import scala.reflect.ClassTag
+import scala.annotation.publicInBinary
 
 final case class TextEntry(tag: String, text: String) {
   def toPair: (String, String) = (tag, text)
 }
 
-final class Attribute[A] private (value: A, typeName: String) {
+final class Attribute[A] @publicInBinary private (value: A, typeName: String) {
   private lazy val snakeName: String =
     typeName.replaceAll("([a-z0-9])([A-Z])", "$1_$2").replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2").toLowerCase
 
@@ -28,14 +29,14 @@ final class Attribute[A] private (value: A, typeName: String) {
   def fold[B](f: (String, A) => B): B = f(typeName, value)
 }
 
-object Attribute {
-  def apply[A](a: A)(implicit tag: ClassTag[A]): Attribute[A] =
-    new Attribute[A](a, tag.runtimeClass.getName)
+object Attribute:
 
-  def apply[A](oa: Option[A])(implicit tag: ClassTag[A]): Attribute[Option[A]] =
-    new Attribute[Option[A]](oa, tag.runtimeClass.getName)
+  def apply[A](oa: Option[A])(using tn: TypeName[A]): Attribute[Option[A]] =
+    new Attribute(oa, tn.value)
 
-  implicit val functorAttribute: Functor[Attribute] = new Functor[Attribute] {
+  def apply[A](a: A)(using tn: TypeName[A]): Attribute[A] =
+    new Attribute[A](a, tn.value)
+
+  given Functor[Attribute] = new Functor[Attribute] {
     override def map[A, B](fa: Attribute[A])(f: A => B): Attribute[B] = fa.map(f)
   }
-}

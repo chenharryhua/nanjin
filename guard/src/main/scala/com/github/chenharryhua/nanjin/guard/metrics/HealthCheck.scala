@@ -14,7 +14,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-trait HealthCheck[F[_]] {
+trait HealthCheck[F[_]]:
   def register(hc: F[Boolean]): Resource[F, Unit]
 
   /** heath check sometimes is expensive.
@@ -22,7 +22,7 @@ trait HealthCheck[F[_]] {
     *   health check method.
     */
   def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit]
-}
+end HealthCheck
 
 object HealthCheck {
   def noop[F[_]]: HealthCheck[F] =

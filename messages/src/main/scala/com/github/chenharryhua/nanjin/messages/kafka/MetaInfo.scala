@@ -2,11 +2,12 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
+import io.circe.Codec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
-import io.circe.Codec
+
 import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import scala.util.Try
 

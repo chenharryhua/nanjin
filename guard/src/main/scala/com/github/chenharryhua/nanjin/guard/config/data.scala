@@ -5,8 +5,7 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
-import io.circe.Decoder.Result
-import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
+import io.circe.{Decoder, Encoder, Json}
 import org.slf4j.event.Level
 
 import java.time.{Duration, ZoneId}
@@ -90,19 +89,13 @@ object data:
     def apply(zoneId: ZoneId): TimeZone = zoneId
     extension (tz: TimeZone) def value: ZoneId = tz
     given Show[TimeZone] = Show.fromToString
-    given Codec[TimeZone] with
-      override def apply(c: HCursor): Result[TimeZone] =
-        Decoder.decodeZoneId(c)
-      override def apply(a: TimeZone): Json =
-        Encoder.encodeZoneId.apply(a.value)
+    given Encoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Encoder]
+    given Decoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Decoder]
 
   opaque type UpTime = Duration
   object UpTime:
     def apply(duration: Duration): UpTime = duration
     extension (upTime: UpTime) def value: Duration = upTime
     given Show[UpTime] = durationFormatter.format(_)
-    given Codec[UpTime] with
-      override def apply(c: HCursor): Result[UpTime] =
-        Decoder.decodeDuration.apply(c)
-      override def apply(a: UpTime): Json =
-        Encoder.encodeDuration.apply(a.value)
+    given Encoder[UpTime] = Opaque.lift[UpTime, Duration, Encoder]
+    given Decoder[UpTime] = Opaque.lift[UpTime, Duration, Decoder]

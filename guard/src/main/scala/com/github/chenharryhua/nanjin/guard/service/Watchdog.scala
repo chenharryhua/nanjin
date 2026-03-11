@@ -25,15 +25,14 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublishe
   private def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
       val tickStatus: PolicyTick[F] =
-        serviceParams.servicePolicies.restart.threshold match {
+        serviceParams.servicePolicies.restart.threshold match
           case Some(threshold) =>
             // if the duration between last recover and this failure is larger than threshold,
             // start over policy
-            if (Duration.between(status.tick.conclude, now) > threshold)
+            if Duration.between(status.tick.conclude, now) > threshold then
               status.renewPolicy(serviceParams.servicePolicies.restart.policy)
             else status
           case None => status
-        }
 
       val stackTrace: StackTrace = StackTrace(ex)
 

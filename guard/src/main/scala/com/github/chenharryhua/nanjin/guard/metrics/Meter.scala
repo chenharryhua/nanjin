@@ -8,12 +8,12 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Quantity, UnitOfMeasure}
-trait Meter[F[_]] {
+trait Meter[F[_]]:
   def mark(num: Long): F[Unit]
 
-  final def mark(num: Int): F[Unit] = mark(num.toLong)
-
-}
+  final def mark(num: Int): F[Unit] = 
+    mark(num.toLong)
+end Meter
 
 object Meter {
   def noop[F[_]](implicit F: Applicative[F]): Meter[F] = new Meter[F] {

@@ -18,12 +18,12 @@ import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-trait Gauge[F[_]] {
+trait Gauge[F[_]]:
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
   def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit]
 
   def ref[A: Encoder](value: A): Resource[F, Ref[F, A]]
-}
+end Gauge
 
 object Gauge {
   def noop[F[_]: Concurrent]: Gauge[F] =

@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 
 /** adhoc metrics report and reset
   */
-trait AdhocMetrics[F[_]] {
+trait AdhocMetrics[F[_]]:
 
   /** reset all counters to zero
     */
@@ -16,4 +16,5 @@ trait AdhocMetrics[F[_]] {
   def report: F[Unit]
 
   def cheapSnapshot(tick: Tick): F[MetricsSnapshot]
-}
+
+end AdhocMetrics

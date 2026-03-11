@@ -31,7 +31,9 @@ object CsvHeaderOf {
   /** fully generic derivation for case classes, no duplicate anonymous class warning */
   inline given derived[A](using m: Mirror.ProductOf[A]): CsvHeaderOf[A] =
     fromLabels(
-      constValueTuple[m.MirroredElemLabels].productIterator.toList
+      constValueTuple[m.MirroredElemLabels]
+        .productIterator
+        .toList
         .asInstanceOf[List[String]]
     ).asInstanceOf[CsvHeaderOf[A]] // scalafix:ok
 }

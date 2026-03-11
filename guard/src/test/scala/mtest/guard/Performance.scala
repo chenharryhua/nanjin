@@ -88,7 +88,7 @@ class Performance extends AnyFunSuite {
   test("6.performance timer") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsed(1000).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsedNano(1000).map(_ => i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

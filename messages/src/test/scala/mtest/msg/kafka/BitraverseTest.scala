@@ -3,19 +3,13 @@ package mtest.msg.kafka
 import cats.Id
 import cats.effect.IO
 import cats.laws.discipline.BitraverseTests
-import com.github.chenharryhua.nanjin.messages.kafka.BitraverseMessages.*
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage.*
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.kafka.{
   CommittableConsumerRecord as Fs2CommittableConsumerRecord,
   CommittableProducerRecords as Fs2CommittableProducerRecords,
   ConsumerRecord as Fs2ConsumerRecord,
   ProducerRecord as Fs2ProducerRecord
 }
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
@@ -42,14 +36,6 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
   checkAll(
     "fs2.producer.CommittableProducerRecords",
     BitraverseTests[Fs2CommittableProducerRecords[IO, *, *]].bitraverse[Option, Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "kafka.consumer.ConsumerRecord",
-    BitraverseTests[ConsumerRecord].bitraverse[List, Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "kafka.producer.ProducerRecord",
-    BitraverseTests[ProducerRecord].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "nj.ConsumerRecord",

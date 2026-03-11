@@ -106,7 +106,7 @@ final private class MetricsPublisher[F[_]] private (
 }
 
 private object MetricsPublisher {
-  def apply[F[_]: Async: Console](
+  def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     channel: Channel[F, Event]): Stream[F, MetricsPublisher[F]] = {

@@ -6,7 +6,7 @@ import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 
-private[kafka] trait Isos extends MessageTransformers {
+object instances extends MessageTransformers with EqMessage {
 
   implicit def isoIdentityProducerRecord[K, V]: Iso[JavaProducerRecord[K, V], JavaProducerRecord[K, V]] =
     Iso[JavaProducerRecord[K, V], JavaProducerRecord[K, V]](identity)(identity)

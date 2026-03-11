@@ -9,11 +9,12 @@ import com.github.chenharryhua.nanjin.guard.event.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Quantity, UnitOfMeasure}
 
-trait Histogram[F[_]] {
+trait Histogram[F[_]]:
   def update(num: Long): F[Unit]
 
-  final def update(num: Int): F[Unit] = update(num.toLong)
-}
+  final def update(num: Int): F[Unit] =
+    update(num.toLong)
+end Histogram
 
 object Histogram {
   def noop[F[_]](implicit F: Applicative[F]): Histogram[F] =

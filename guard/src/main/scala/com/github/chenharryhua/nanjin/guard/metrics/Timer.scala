@@ -12,26 +12,27 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-trait Timer[F[_]] {
+trait ToNanos[A]:
+  def apply(a: A): Long
+object ToNanos:
+  given ToNanos[FiniteDuration] = _.toNanos
+  given ToNanos[JavaDuration] = _.toNanos
+end ToNanos
 
-  def elapsed(jd: JavaDuration): F[Unit]
-  def elapsed(num: Long): F[Unit]
-
+trait Timer[F[_]]:
+  def elapsedNano(num: Long): F[Unit]
   def timing[A](fa: F[A]): F[A]
 
-  final def elapsed(fd: FiniteDuration): F[Unit] =
-    elapsed(fd.toNanos)
-
-  final def run(num: Long): F[Unit] = elapsed(num)
-
-}
+  final def elapsedNano(num: Int): F[Unit] =
+    elapsedNano(num.toLong)
+  final def elapsed[A: ToNanos](nano: A): F[Unit] =
+    elapsedNano(summon[ToNanos[A]](nano))
+end Timer
 
 object Timer {
   def noop[F[_]](implicit F: Applicative[F]): Timer[F] =
     new Timer[F] {
-      override def elapsed(jd: JavaDuration): F[Unit] = F.unit
-      override def elapsed(num: Long): F[Unit] = F.unit
-
+      override def elapsedNano(num: Long): F[Unit] = F.unit
       override def timing[A](fa: F[A]): F[A] = fa
     }
 
@@ -55,8 +56,7 @@ object Timer {
 
     private lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
 
-    override def elapsed(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
-    override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
+    override def elapsedNano(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
 
     override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>
       timer.update(fd.toNanos, TimeUnit.NANOSECONDS)

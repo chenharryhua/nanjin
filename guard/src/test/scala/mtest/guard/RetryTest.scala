@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{retrieveCounter, Event}
 import com.github.chenharryhua.nanjin.guard.service.{Agent, TaskGuard}

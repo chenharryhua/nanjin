@@ -2,20 +2,23 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
+import cats.implicits.catsSyntaxApplicativeId
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
-trait Counter[F[_]] {
+trait Counter[F[_]]:
   def inc(num: Long): F[Unit]
-  final def inc(num: Int): F[Unit] = inc(num.toLong)
-}
+  extension (c: Counter[F])
+    def inc(num: Int): F[Unit] = c.inc(num.toLong)
+    def inc(): F[Unit] = c.inc(1)
+end Counter
 
 object Counter {
-  def noop[F[_]](implicit F: Applicative[F]): Counter[F] =
-    (_: Long) => F.unit
+  def noop[F[_]: Applicative]: Counter[F] =
+    (_: Long) => ().pure[F]
 
   private class Impl[F[_]: Sync](
     private val label: MetricLabel,

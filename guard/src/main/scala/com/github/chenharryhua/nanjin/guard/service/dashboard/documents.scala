@@ -110,12 +110,10 @@ private object documents {
     panics.lastOption match {
       case None      => Right(deps_health_check)
       case Some(evt) =>
-        if (evt.tick.conclude.isAfter(now)) {
+        if evt.tick.conclude.isAfter(now) then
           val recover = Duration.between(now, evt.tick.conclude)
           Left(s"Service panic detected. Restarting in ${durationFormatter.format(recover)}")
-        } else {
-          Right(deps_health_check)
-        }
+        else Right(deps_health_check)
     }
   }
 

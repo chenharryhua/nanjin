@@ -149,7 +149,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
-        .use(_.run(30.seconds.toNanos) >> agent.adhoc.report)
+        .use(_.elapsedNano(30.seconds.toNanos) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val timer = retrieveTimer(mr.snapshot.timers).values.head
     assert(timer.max == 30.seconds.toJava)
@@ -161,7 +161,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))))
-        .use(_.run(10) >> agent.adhoc.report)
+        .use(_.elapsedNano(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveTimer(mr.snapshot.timers).isEmpty)
