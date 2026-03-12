@@ -95,9 +95,9 @@ object Category {
 final case class MetricName private (name: String, age: Long, private val uniqueToken: Int)
     derives Codec.AsObject
 object MetricName {
-  implicit val eqMetricName: Eq[MetricName] = Eq.fromUniversalEquals
+  given Eq[MetricName] = Eq.fromUniversalEquals
 
-  def apply[F[_]: Applicative](name: String)(implicit U: Unique[F], C: Clock[F]): F[MetricName] =
+  def apply[F[_]: Applicative](name: String)(using U: Unique[F], C: Clock[F]): F[MetricName] =
     (C.monotonic, U.unique).mapN((age, token) =>
       MetricName(name, age.toNanos, Hash[Unique.Token].hash(token)))
 }

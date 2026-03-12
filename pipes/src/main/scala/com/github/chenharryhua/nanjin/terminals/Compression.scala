@@ -92,7 +92,7 @@ object Compression {
   type Level = Level.T
   object Level extends RefinedType[Int, Closed[1, 9]]
 
-  implicit final val encoderNJCompression: Encoder[Compression] =
+  given encoderCompression: Encoder[Compression] =
     Encoder.instance[Compression] {
       case Uncompressed         => Json.fromString(Uncompressed.shortName)
       case Snappy               => Json.fromString(Snappy.shortName)
@@ -111,7 +111,7 @@ object Compression {
     Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
       .flatMap(Level.either)
 
-  implicit final val decoderNJCompression: Decoder[Compression] =
+  given decoderCompression: Decoder[Compression] =
     Decoder[String].emap[Compression] {
       case Uncompressed.shortName => Right(Uncompressed)
       case Snappy.shortName       => Right(Snappy)
@@ -127,66 +127,59 @@ object Compression {
       case unknown                => Left(s"unknown compression: $unknown")
     }
 
-  implicit final val encoderAvroCompression: Encoder[AvroCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderAvroCompression: Decoder[AvroCompression] =
-    decoderNJCompression.emap {
+  given Encoder[AvroCompression] = encoderCompression.contramap(identity)
+  given Decoder[AvroCompression] =
+    decoderCompression.emap {
       case compression: AvroCompression => Right(compression)
       case unknown                      => Left(s"avro does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderBinaryAvroCompression: Encoder[BinaryAvroCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderBinaryAvroCompression: Decoder[BinaryAvroCompression] =
-    decoderNJCompression.emap {
+  given Encoder[BinaryAvroCompression] = encoderCompression.contramap(identity)
+  given Decoder[BinaryAvroCompression] =
+    decoderCompression.emap {
       case compression: BinaryAvroCompression => Right(compression)
       case unknown => Left(s"binary avro does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderParquetCompression: Encoder[ParquetCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderParquetCompression: Decoder[ParquetCompression] =
-    decoderNJCompression.emap {
+  given Encoder[ParquetCompression] = encoderCompression.contramap(identity)
+
+  given Decoder[ParquetCompression] =
+    decoderCompression.emap {
       case compression: ParquetCompression => Right(compression)
       case unknown                         => Left(s"parquet does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderCirceCompression: Encoder[CirceCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderCirceCompression: Decoder[CirceCompression] =
-    decoderNJCompression.emap {
+  given Encoder[CirceCompression] = encoderCompression.contramap(identity)
+  given Decoder[CirceCompression] =
+    decoderCompression.emap {
       case compression: CirceCompression => Right(compression)
       case unknown                       => Left(s"circe json does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderJacksonCompression: Encoder[JacksonCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderJacksonCompression: Decoder[JacksonCompression] =
-    decoderNJCompression.emap {
+  given Encoder[JacksonCompression] = encoderCompression.contramap(identity)
+  given Decoder[JacksonCompression] =
+    decoderCompression.emap {
       case compression: JacksonCompression => Right(compression)
       case unknown                         => Left(s"jackson does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderKantanCompression: Encoder[KantanCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderKantanCompression: Decoder[KantanCompression] =
-    decoderNJCompression.emap {
+  given Encoder[KantanCompression] = encoderCompression.contramap(identity)
+  given Decoder[KantanCompression] =
+    decoderCompression.emap {
       case compression: KantanCompression => Right(compression)
       case unknown                        => Left(s"kantan csv does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderTextCompression: Encoder[TextCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderTextCompression: Decoder[TextCompression] =
-    decoderNJCompression.emap {
+  given Encoder[TextCompression] = encoderCompression.contramap(identity)
+  given Decoder[TextCompression] =
+    decoderCompression.emap {
       case compression: TextCompression => Right(compression)
       case unknown                      => Left(s"text does not support: ${unknown.productPrefix}")
     }
 
-  implicit final val encoderProtobufCompression: Encoder[ProtobufCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderProtobufCompression: Decoder[ProtobufCompression] =
-    decoderNJCompression.emap {
+  given Encoder[ProtobufCompression] = encoderCompression.contramap(identity)
+  given Decoder[ProtobufCompression] =
+    decoderCompression.emap {
       case compression: ProtobufCompression => Right(compression)
       case unknown                          => Left(s"protobuf does not support: ${unknown.productPrefix}")
     }

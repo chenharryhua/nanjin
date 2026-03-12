@@ -55,7 +55,8 @@ package object auth {
     client: Resource[F, Client[F]],
     credential: ClientCredentials
   ): Resource[F, Login[F]] =
-    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { sr =>
+      given dummy: SecureRandom[F] = sr
       new ClientCredentialsAuth[F](credential, client, UUIDGen.randomUUID)
     })
 
@@ -77,7 +78,8 @@ package object auth {
     client: Resource[F, Client[F]],
     credential: AuthorizationCode
   ): Resource[F, Login[F]] =
-    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { sr =>
+      given dummy: SecureRandom[F] = sr
       new AuthorizationCodeAuth[F](credential, client, UUIDGen.randomUUID)
     })
 }

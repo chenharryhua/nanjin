@@ -43,8 +43,8 @@ final case class SkunkSession[F[_]](
 
   def withTrace(trace: Trace[F]): SkunkSession[F] = copy(trace = Some(trace))
 
-  def pooled(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
-    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
+  def pooled(using C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
+    given tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session
       .pooled(
         host = postgres.host,
@@ -66,8 +66,8 @@ final case class SkunkSession[F[_]](
       .flatMap(identity)
   }
 
-  def single(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
-    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
+  def single(using C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
+    given tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session.single(
       host = postgres.host,
       port = postgres.port,

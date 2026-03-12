@@ -29,7 +29,7 @@ object KafkaObserver {
     new KafkaObserver[F](ctx, Translator.idTranslator[F])
 }
 
-final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(implicit F: Async[F])
+final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(using F: Async[F])
     extends UpdateTranslator[F, Event, KafkaObserver[F]] {
 
   private val name: String = "Kafka Observer"

@@ -35,7 +35,7 @@ private object HadoopReader {
   def parquetS[F[_]](
     readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
     url: Url,
-    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     Stream
       .bracket(F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(toHadoopPath(url)).build()))(r =>
         F.blocking(r.close()))
@@ -64,7 +64,7 @@ private object HadoopReader {
    * input stream based
    */
 
-  private def inputStreamR[F[_]](configuration: Configuration, url: Url)(implicit
+  private def inputStreamR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, InputStream] = {
     val path = toHadoopPath(url)
     Resource.fromAutoCloseable(F.blocking(path.getFileSystem(configuration).open(path))).flatMap { is =>
@@ -80,12 +80,12 @@ private object HadoopReader {
     }
   }
 
-  private def inputStreamS[F[_]](configuration: Configuration, url: Url)(implicit
+  private def inputStreamS[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Stream[F, InputStream] = Stream.resource[F, InputStream](inputStreamR(configuration, url))
 
   // DataFileStream does not own resources beyond the InputStream
   def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize, readerSchema: Option[Schema])(
-    implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    using F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val dfs = new DataFileStream[GenericData.Record](
         is,
@@ -97,7 +97,7 @@ private object HadoopReader {
     }
 
   // respect chunk size
-  def byteS[F[_]](configuration: Configuration, url: Url, bs: Information)(implicit
+  def byteS[F[_]](configuration: Configuration, url: Url, bs: Information)(using
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = bs.toBytes.toInt
@@ -114,7 +114,7 @@ private object HadoopReader {
         F.blocking(go(offset, Array.ofDim[Byte](bufferSize))))
     }
 
-  def jawnS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(implicit
+  def jawnS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = 131072
@@ -147,7 +147,7 @@ private object HadoopReader {
       Stream.unfoldChunkLoopEval[F, Chunk[Json], Json](Chunk.empty)(ck => F.blocking(go(ck, ck.size)))
     }
 
-  def stringS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(implicit
+  def stringS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val reader = new InputStreamReader(is, StandardCharsets.UTF_8)
@@ -160,7 +160,7 @@ private object HadoopReader {
     configuration: Configuration,
     url: Url,
     chunkSize: ChunkSize,
-    csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): Stream[F, Seq[String]] =
+    csvConfiguration: CsvConfiguration)(using F: Sync[F]): Stream[F, Seq[String]] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val cr: CsvReader[ReadResult[Seq[String]]] =
         ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
@@ -178,7 +178,7 @@ private object HadoopReader {
     writerSchema: Schema,
     readerSchema: Schema,
     url: Url,
-    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](writerSchema, readerSchema)
@@ -207,7 +207,7 @@ private object HadoopReader {
     writerSchema: Schema,
     readerSchema: Schema,
     url: Url,
-    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
       getDecoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(writerSchema, is),
       configuration = configuration,
@@ -222,7 +222,7 @@ private object HadoopReader {
     writerSchema: Schema,
     readerSchema: Schema,
     url: Url,
-    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
       getDecoder = (is: InputStream) => DecoderFactory.get.binaryDecoder(is, null),
       configuration = configuration,
@@ -239,7 +239,7 @@ private object HadoopReader {
   def protobufS[F[_]: Sync, A <: GeneratedMessage](
     configuration: Configuration,
     url: Url,
-    chunkSize: ChunkSize)(implicit gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
+    chunkSize: ChunkSize)(using gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     inputStreamS[F](configuration, url).flatMap { is =>
       Stream.fromBlockingIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize)
     }

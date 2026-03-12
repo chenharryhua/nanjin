@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
-import io.circe.Json
+import io.circe.{Codec, Json}
 import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.Logger
@@ -21,7 +21,6 @@ import java.time.ZoneId
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.DurationConverters.JavaDurationOps
-import io.circe.Codec
 
 /** Represents a single SQS message along with metadata for batch processing.
   *
@@ -106,7 +105,7 @@ object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
-  def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(implicit
+  def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(using
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
@@ -115,8 +114,8 @@ object SimpleQueueService {
       }
     } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
 
-  final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(
-    implicit F: Async[F])
+  final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(using
+    F: Async[F])
       extends SimpleQueueService[F] {
 
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {

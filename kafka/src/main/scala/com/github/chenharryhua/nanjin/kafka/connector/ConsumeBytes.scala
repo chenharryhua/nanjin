@@ -10,7 +10,7 @@ import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.orderingTopicPartition
+import com.github.chenharryhua.nanjin.kafka.given
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata

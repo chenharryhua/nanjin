@@ -32,7 +32,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     *   true if deletion succeeded, false otherwise
     */
-  def delete(path: Url)(implicit F: Sync[F]): F[Boolean] =
+  def delete(path: Url)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
       val fs: FileSystem = hp.getFileSystem(config)
@@ -44,7 +44,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param path
     *   Path to check
     */
-  def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] =
+  def isExist(path: Url)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
       val fs: FileSystem = hp.getFileSystem(config)
@@ -64,7 +64,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     *   All located file statuses
     */
-  def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] =
+  def locatedFileStatus(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]] =
     F.blocking {
       val ri: RemoteIterator[LocatedFileStatus] = remote_iterator(path)
       val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
@@ -79,7 +79,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param path
     *   Search root
     */
-  def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] =
+  def dataFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
     F.blocking {
       val ri: RemoteIterator[LocatedFileStatus] = remote_iterator(path)
       val lb: mutable.Set[Path] = collection.mutable.Set.empty
@@ -98,7 +98,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param filter
     *   Hadoop path filter
     */
-  def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] =
+  def filesIn(path: Url, filter: PathFilter)(using F: Sync[F]): F[List[Url]] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
       val fs: FileSystem = hp.getFileSystem(config)
@@ -113,7 +113,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
           .toList
     }
 
-  def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] =
+  def filesIn(path: Url)(using F: Sync[F]): F[List[Url]] =
     filesIn(path, HiddenFileFilter.INSTANCE)
 
   /** Select the best matching sub-path according to a sequence of rules.
@@ -132,7 +132,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     *   Best matching path, if any
     */
-  def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(implicit
+  def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(using
     F: Sync[F],
     Ord: Ordering[T]): F[Option[Url]] = F.blocking {
     val hp: Path = toHadoopPath(path)
@@ -159,19 +159,19 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     *   the path which has the latest one or None
     */
-  def latestYmd(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
+  def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
 
-  def latestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
+  def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
-  def earliestYmd(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day))(
+  def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] =
+    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day))(using
       F,
       Ordering[Int].reverse)
 
-  def earliestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day, codec.hour))(
+  def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] =
+    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day, codec.hour))(using
       F,
       Ordering[Int].reverse)
 
@@ -185,7 +185,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param keeps
     *   Dates to retain
     */
-  def dateFolderRetention(path: Url, keeps: List[LocalDate])(implicit
+  def dateFolderRetention(path: Url, keeps: List[LocalDate])(using
     F: Sync[F]): F[List[RetentionFolderStatus]] =
     dataFolders(path).flatMap(_.traverse { url =>
       extractDate(url) match {
@@ -209,7 +209,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     *   backward days
     * @return
     */
-  def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(implicit
+  def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(using
     F: Sync[F]): F[List[RetentionFolderStatus]] = {
     val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
     dateFolderRetention(path, keeps)
@@ -219,15 +219,15 @@ final class Hadoop[F[_]] private (config: Configuration) {
    * source and sink
    */
 
-  def source(url: Url)(implicit F: Sync[F]): FileSource[F] = new FileSourceImpl[F](config, url)
+  def source(url: Url)(using F: Sync[F]): FileSource[F] = new FileSourceImpl[F](config, url)
 
-  def sink(url: Url)(implicit F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
+  def sink(url: Url)(using F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
 
   /** Create a policy-based rotating sink.
     *
     * Rotation is driven by an externally provided tick stream.
     */
-  def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateByPolicy[F] =
+  def rotateSink(ticks: Stream[F, TickedValue[Url]])(using F: Async[F]): RotateByPolicy[F] =
     new RotateByPolicySink[F](config, ticks)
 
   /** Create a policy-based rotating sink using a time policy.
@@ -239,7 +239,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param pathBuilder
     *   Builds output paths for each rotation
     */
-  def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(implicit
+  def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(using
     F: Async[F]): RotateByPolicy[F] =
     rotateSink(tickStream.tickFuture[F](zoneId, f).map { tick =>
       val cfe = CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
@@ -255,7 +255,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param size
     *   Maximum elements per file (must be > 0)
     */
-  def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(implicit
+  def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(using
     F: Async[F]): RotateBySize[F] = {
     require(size > 0L, "size should be bigger than zero")
     new RotateBySizeSink[F](config, zoneId, pathBuilder, size)

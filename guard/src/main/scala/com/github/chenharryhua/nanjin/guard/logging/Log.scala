@@ -64,7 +64,7 @@ import io.circe.Encoder
   * val log: Log[F] = agent.logger |+| agent.herald
   * }}}
   */
-abstract class Log[F[_]](implicit F: MonadError[F, Throwable]) {
+abstract class Log[F[_]](using F: MonadError[F, Throwable]) {
   // create must be sink-independent
   private[logging] def create[S: Encoder](
     message: S,
@@ -103,7 +103,7 @@ abstract class Log[F[_]](implicit F: MonadError[F, Throwable]) {
 
 object Log {
 
-  implicit def semigroupLog[F[_]](implicit F: MonadCancel[F, Throwable]): Semigroup[Log[F]] =
+  given [F[_]](using F: MonadCancel[F, Throwable]): Semigroup[Log[F]] =
     new Semigroup[Log[F]] {
       override def combine(x: Log[F], y: Log[F]): Log[F] = new Log[F] {
         override private[logging] def create[S: Encoder](

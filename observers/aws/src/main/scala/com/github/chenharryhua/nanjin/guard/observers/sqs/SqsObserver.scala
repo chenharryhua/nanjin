@@ -28,7 +28,7 @@ object SqsObserver {
 
 final class SqsObserver[F[_]: Clock: UUIDGen](
   client: Resource[F, SimpleQueueService[F]],
-  translator: Translator[F, Event])(implicit F: Concurrent[F])
+  translator: Translator[F, Event])(using F: Concurrent[F])
     extends UpdateTranslator[F, Event, SqsObserver[F]] {
 
   private def translate(evt: Event): F[Option[Json]] =

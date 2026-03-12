@@ -1,6 +1,15 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.syntax.either.catsSyntaxEither
 import cron4s.{Cron, CronExpr}
+import io.circe.{Decoder, Encoder}
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+given Encoder[CronExpr] =
+  Encoder[String].contramap(_.toString)
+
+given Decoder[CronExpr] =
+  Decoder[String].emap(Cron.parse(_).leftMap(ex => ExceptionUtils.getMessage(ex)))
 
 object crontabs {
 

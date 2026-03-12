@@ -30,7 +30,7 @@ trait Timer[F[_]]:
 end Timer
 
 object Timer {
-  def noop[F[_]](implicit F: Applicative[F]): Timer[F] =
+  def noop[F[_]](using F: Applicative[F]): Timer[F] =
     new Timer[F] {
       override def elapsedNano(num: Long): F[Unit] = F.unit
       override def timing[A](fa: F[A]): F[A] = fa
@@ -79,7 +79,7 @@ object Timer {
       new Builder(isEnabled, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Timer[F]] = {
+      using F: Sync[F]): Resource[F, Timer[F]] = {
       val timer: Resource[F, Timer[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](

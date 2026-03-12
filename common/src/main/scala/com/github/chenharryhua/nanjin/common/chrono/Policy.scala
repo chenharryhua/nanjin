@@ -135,7 +135,7 @@ private object PolicyF {
         }
     }
 
-  def evaluatePolicy[F[_]: Random: Monad](policy: Fix[PolicyF]): LazyList[CalcTick[F]] =
+  def evaluatePolicy[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[CalcTick[F]] =
     scheme.cata(algebra(Random[F])).apply(policy)
 
   private val EMPTY: String = "empty"
@@ -346,15 +346,10 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
 object Policy {
   import PolicyF.{Crontab, Empty, FixedDelay, FixedRate}
 
-  implicit val showPolicy: Show[Policy] = Show.fromToString
-
-  implicit val encoderPolicy: Encoder[Policy] =
-    (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)
-
-  implicit val decoderPolicy: Decoder[Policy] =
-    (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
-
-  implicit val eqPolicy: Eq[Policy] = Eq.fromUniversalEquals[Policy]
+  given Show[Policy] = Show.fromToString
+  given Encoder[Policy] = (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)
+  given Decoder[Policy] = (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
+  given Eq[Policy] = Eq.fromUniversalEquals[Policy]
 
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))

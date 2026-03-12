@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.{Applicative, Traverse}
 import cats.syntax.all.*
+import cats.{Applicative, Traverse}
 import higherkindness.droste.data.{Attr, Coattr, Fix}
 import monocle.Traversal
 import monocle.function.Plated
@@ -12,13 +12,13 @@ object fixpoint extends FixPointTrait
 
 sealed trait FixPointTrait {
 
-  implicit final def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
+  given [G[_]: Traverse] => Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {
       override def modifyA[F[_]: Applicative](f: Fix[G] => F[Fix[G]])(s: Fix[G]): F[Fix[G]] =
         Fix.un(s).traverse(f).map(ga => Fix(ga))
     })
 
-  implicit final def platedAttr[G[_]: Traverse, A]: Plated[Attr[G, A]] =
+  given [G[_]: Traverse, A] => Plated[Attr[G, A]] =
     Plated[Attr[G, A]](new Traversal[Attr[G, A], Attr[G, A]] {
       override def modifyA[F[_]: Applicative](
         f: Attr[G, A] => F[Attr[G, A]])(s: Attr[G, A]): F[Attr[G, A]] = {
@@ -27,7 +27,7 @@ sealed trait FixPointTrait {
       }
     })
 
-  implicit final def platedCoattr[G[_]: Traverse, A]: Plated[Coattr[G, A]] =
+  given [G[_]: Traverse, A] => Plated[Coattr[G, A]] =
     Plated[Coattr[G, A]](new Traversal[Coattr[G, A], Coattr[G, A]] {
       override def modifyA[F[_]: Applicative](f: Coattr[G, A] => F[Coattr[G, A]])(
         s: Coattr[G, A]): F[Coattr[G, A]] = Coattr.un(s) match {

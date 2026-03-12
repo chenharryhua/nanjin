@@ -11,9 +11,9 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
 
 sealed trait KafkaTopic[K, V] {
   def topicName: TopicName
-  def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(implicit
+  def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(using
     F: Sync[F]): ConsumerSettings[F, K, V]
-  def producerSettings[F[_]](srs: SchemaRegistrySettings, ps: KafkaProducerSettings)(implicit
+  def producerSettings[F[_]](srs: SchemaRegistrySettings, ps: KafkaProducerSettings)(using
     F: Sync[F]): ProducerSettings[F, K, V]
 
   def register(srs: SchemaRegistrySettings): TopicSerde[K, V]
@@ -49,7 +49,7 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
 
 object AvroTopic {
 
-  implicit def showTopicDef[K, V]: Show[AvroTopic[K, V]] = Show.fromToString
+  given [K, V]: Show[AvroTopic[K, V]] = _.toString
 
   def apply[K, V](key: AvroFor[K], value: AvroFor[V], topicName: TopicName): AvroTopic[K, V] =
     new AvroTopic(topicName, AvroForPair(key, value))

@@ -100,7 +100,7 @@ final case class DateTimeRange(
     withStartTime(ts).withEndTime(LocalDateTime.of(ts, LocalTime.MAX))
 
   def withOneDay(ts: String): DateTimeRange =
-    DateTimeParser.localDateParser.parse(ts).map(withOneDay) match {
+    summon[DateTimeParser[LocalDate]].parse(ts).map(withOneDay) match {
       case Left(ex)   => throw ex.parseException(ts) // scalafix:ok
       case Right(day) => day
     }
@@ -142,7 +142,7 @@ object DateTimeRange {
   final private type TimeTypes =
     NJTimestamp | LocalDateTime | String // date-time in string, like "03:12"
 
-  implicit final val partialOrderNJDateTimeRange: PartialOrder[DateTimeRange] & Show[DateTimeRange] =
+  given partialOrderNJDateTimeRange: PartialOrder[DateTimeRange] & Show[DateTimeRange] =
     new PartialOrder[DateTimeRange] with Show[DateTimeRange] {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
@@ -176,14 +176,14 @@ object DateTimeRange {
 
     }
 
-  implicit val encoderDateTimeRange: Encoder[DateTimeRange] =
+  given Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
       Json.obj(
         "zone_id" -> a.zoneId.asJson,
         "start" -> a.zonedStartTime.map(_.toLocalDateTime).asJson,
         "end" -> a.zonedEndTime.map(_.toLocalDateTime).asJson)
 
-  implicit val decoderDateTimeRange: Decoder[DateTimeRange] =
+  given Decoder[DateTimeRange] =
     (c: HCursor) =>
       for {
         zoneId <- c.get[ZoneId]("zone_id")

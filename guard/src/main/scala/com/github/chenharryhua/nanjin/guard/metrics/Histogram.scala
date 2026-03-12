@@ -17,7 +17,7 @@ trait Histogram[F[_]]:
 end Histogram
 
 object Histogram {
-  def noop[F[_]](implicit F: Applicative[F]): Histogram[F] =
+  def noop[F[_]](using F: Applicative[F]): Histogram[F] =
     new Histogram[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
@@ -70,7 +70,7 @@ object Histogram {
       new Builder(isEnabled, squants, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Histogram[F]] = {
+      using F: Sync[F]): Resource[F, Histogram[F]] = {
       val histogram: Resource[F, Histogram[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](

@@ -6,7 +6,7 @@ import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
-import doobie.implicits.toSqlInterpolator
+import doobie.syntax.string.toSqlInterpolator
 import doobie.util.log.LogHandler
 import fs2.Stream
 

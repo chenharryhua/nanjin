@@ -10,7 +10,7 @@ final case class TextField(tag: String, value: String)
 object TextField {
   def apply(te: TextEntry): TextField = TextField(te.tag, te.text)
 
-  implicit val encodeTextField: Encoder[TextField] = tf => {
+  given Encoder[TextField] = tf => {
     val str = s"*${tf.tag}*\n${tf.value}"
     Json.obj("type" -> Json.fromString("mrkdwn"), "text" -> Json.fromString(str))
   }
@@ -18,7 +18,7 @@ object TextField {
 // slack format
 sealed trait Section
 object Section {
-  implicit val encodeSection: Encoder[Section] = Encoder.instance {
+  given Encoder[Section] = Encoder.instance {
     case JuxtaposeSection(first, second) =>
       Json.obj("type" -> Json.fromString("section"), "fields" -> List(first, second).asJson)
 
@@ -66,8 +66,4 @@ final case class SlackApp(username: String, attachments: List[Attachment]) deriv
     }
     SlackApp(username, updated.reverse)
   }
-}
-
-object SlackApp {
-  // implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.server.middleware
 
 import cats.data.{Kleisli, OptionT}
-import cats.effect.implicits.monadCancelOps
+import cats.effect.syntax.monadCancel.monadCancelOps
 import cats.effect.kernel.{MonadCancel, Outcome, Resource}
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
@@ -38,7 +38,7 @@ object TraceServer {
     */
   def apply[F[_]](
     entryPoint: Resource[F, EntryPoint[F]]
-  )(routes: Span[F] => HttpRoutes[F])(implicit F: MonadCancel[F, Throwable]): HttpRoutes[F] =
+  )(routes: Span[F] => HttpRoutes[F])(using F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     Kleisli { req =>
       val kernelHeaders = req.headers.headers.collect {
         case header if !ExcludedHeaders.contains(header.name) => header.name -> header.value
@@ -83,6 +83,6 @@ object TraceServer {
 
   def apply[F[_]](
     entryPoint: EntryPoint[F]
-  )(routes: Span[F] => HttpRoutes[F])(implicit F: MonadCancel[F, Throwable]): HttpRoutes[F] =
+  )(routes: Span[F] => HttpRoutes[F])(using F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     apply(Resource.pure[F, EntryPoint[F]](entryPoint))(routes)
 }

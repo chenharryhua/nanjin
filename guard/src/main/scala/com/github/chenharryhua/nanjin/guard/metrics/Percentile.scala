@@ -47,7 +47,7 @@ trait Percentile[F[_]] {
 }
 
 object Percentile {
-  def noop[F[_]](implicit F: Applicative[F]): Percentile[F] =
+  def noop[F[_]](using F: Applicative[F]): Percentile[F] =
     new Percentile[F] {
       override def incNumerator(numerator: Long): F[Unit] = F.unit
       override def incDenominator(denominator: Long): F[Unit] = F.unit

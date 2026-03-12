@@ -29,7 +29,7 @@ package object logging {
     domain: Domain,
     message: S,
     level: AlarmLevel,
-    stackTrace: Option[StackTrace])(implicit F: Sync[F]): F[ReportedEvent] =
+    stackTrace: Option[StackTrace])(using F: Sync[F]): F[ReportedEvent] =
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ReportedEvent(
         serviceParams = serviceParams,

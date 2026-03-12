@@ -18,7 +18,7 @@ import java.time.Duration
 import scala.jdk.CollectionConverters.*
 
 sealed trait KafkaConsumerOps[F[_]] {
-  def partitionsFor: F[ListOfTopicPartitions]
+  def partitionsFor: F[TopicPartitionList]
   def beginningOffsets: F[TopicPartitionMap[Option[Offset]]]
   def endOffsets: F[TopicPartitionMap[Option[Offset]]]
   def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]]
@@ -34,14 +34,14 @@ sealed trait KafkaConsumerOps[F[_]] {
 
 private object KafkaConsumerOps {
 
-  def apply[F[_]: Monad](topicName: TopicName)(implicit F: Ask[F, KafkaByteConsumer]): KafkaConsumerOps[F] =
+  def apply[F[_]: Monad](topicName: TopicName)(using F: Ask[F, KafkaByteConsumer]): KafkaConsumerOps[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
-  final private class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(implicit
+  final private class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(using
     kbc: Ask[F, KafkaByteConsumer]
   ) extends KafkaConsumerOps[F] {
 
-    override val partitionsFor: F[ListOfTopicPartitions] =
+    override val partitionsFor: F[TopicPartitionList] =
       kbc.ask.map { c =>
         val ret: List[TopicPartition] = c
           .partitionsFor(topicName.value)
@@ -49,19 +49,19 @@ private object KafkaConsumerOps {
           .toList
           .mapFilter(Option(_))
           .map(info => new TopicPartition(topicName.value, info.partition))
-        ListOfTopicPartitions(ret)
+        TopicPartitionList(ret)
       }
 
     override val beginningOffsets: F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
-        ret <- kbc.ask.map(_.beginningOffsets(tps.asJava).asScala)
+        ret <- kbc.ask.map(_.beginningOffsets(tps.javaList).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
-        ret <- kbc.ask.map(_.endOffsets(tps.asJava).asScala)
+        ret <- kbc.ask.map(_.endOffsets(tps.javaList).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
@@ -184,7 +184,7 @@ final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consu
       } yield calculate.consumer_offsetRange(oft, end)
     }
 
-  override val partitionsFor: F[ListOfTopicPartitions] =
+  override val partitionsFor: F[TopicPartitionList] =
     execute(kpc.partitionsFor)
 
   override val beginningOffsets: F[TopicPartitionMap[Option[Offset]]] =

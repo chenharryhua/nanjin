@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.effect.kernel.{Async, Deferred, Ref}
 import cats.effect.syntax.monadCancel.monadCancelOps_

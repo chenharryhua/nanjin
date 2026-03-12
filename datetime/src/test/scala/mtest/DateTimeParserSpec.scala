@@ -1,7 +1,9 @@
 package mtest
 
+import cats.Alternative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, FailedParsers}
+//import com.github.chenharryhua.nanjin.datetime.instances.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.*
@@ -11,13 +13,13 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- LocalDate parser ---
   test("LocalDate parses ISO date string") {
-    val parser = DateTimeParser.localDateParser
+    val parser = DateTimeParser[LocalDate]
     val result = parser.parse("2026-02-01")
     assert(result.contains(LocalDate.of(2026, 2, 1)))
   }
 
   test("LocalDate parser fails on invalid string") {
-    val parser = DateTimeParser.localDateParser
+    val parser = DateTimeParser[LocalDate]
     val result = parser.parse("not-a-date")
     assert(result.isLeft)
     assert(result.left.exists(_.parsers.exists(_ == "LocalDate")))
@@ -25,13 +27,13 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- LocalTime parser ---
   test("LocalTime parses ISO time string") {
-    val parser = DateTimeParser.localTimeParser
+    val parser = DateTimeParser[LocalTime]
     val result = parser.parse("13:45:30")
     assert(result.contains(LocalTime.of(13, 45, 30)))
   }
 
   test("LocalTime parser fails on invalid string") {
-    val parser = DateTimeParser.localTimeParser
+    val parser = DateTimeParser[LocalTime]
     val result = parser.parse("25:99")
     assert(result.isLeft)
     assert(result.left.exists(_.parsers.exists(_ == "LocalTime")))
@@ -39,21 +41,21 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- LocalDateTime parser ---
   test("LocalDateTime parses ISO datetime string") {
-    val parser = DateTimeParser.localDateTimeParser
+    val parser = DateTimeParser[LocalDateTime]
     val result = parser.parse("2026-02-01T13:45:30")
     assert(result.contains(LocalDateTime.of(2026, 2, 1, 13, 45, 30)))
   }
 
   // --- Instant parser ---
   test("Instant parses ISO instant string") {
-    val parser = DateTimeParser.instantParser
+    val parser = DateTimeParser[Instant]
     val result = parser.parse("2026-02-01T13:45:30Z")
     assert(result.contains(Instant.parse("2026-02-01T13:45:30Z")))
   }
 
   // --- ZonedDateTime parser ---
   test("ZonedDateTime parses ISO string") {
-    val parser = DateTimeParser.zonedParser
+    val parser = DateTimeParser[ZonedDateTime]
     val str = "2026-02-01T13:45:30+02:00[Europe/Berlin]"
     val result = parser.parse(str)
     assert(result.contains(ZonedDateTime.parse(str)))
@@ -61,7 +63,7 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- OffsetDateTime parser ---
   test("OffsetDateTime parses ISO string") {
-    val parser = DateTimeParser.offsetParser
+    val parser = DateTimeParser[OffsetDateTime]
     val str = "2026-02-01T13:45:30+02:00"
     val result = parser.parse(str)
     assert(result.contains(OffsetDateTime.parse(str)))
@@ -69,8 +71,8 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- Alternative.combineK tests ---
   test("combineK tries second parser if first fails") {
-    val p1 = DateTimeParser.localDateParser
-    val p2 = DateTimeParser.localDateTimeParser
+    val p1 = DateTimeParser[LocalDate]
+    val p2 = DateTimeParser[LocalDateTime]
       .asInstanceOf[DateTimeParser[LocalDate]] // not meaningful, just to test combineK
     val combined = p1 <+> p2 // combining same parser for simplicity
 
@@ -82,8 +84,8 @@ class DateTimeParserSpec extends AnyFunSuite {
   }
 
   test("combineK aggregates failures from both parsers") {
-    val p1 = DateTimeParser.localDateParser
-    val p2 = DateTimeParser.localTimeParser
+    val p1 = DateTimeParser[LocalDate]
+    val p2 = DateTimeParser[LocalTime]
       .asInstanceOf[DateTimeParser[LocalDate]] // forced cast to test failure aggregation
     val combined = p1 <+> p2
 
@@ -96,7 +98,7 @@ class DateTimeParserSpec extends AnyFunSuite {
 
   // --- Alternative.ap tests ---
   test("ap applies function parser to value parser") {
-    val alt = DateTimeParser.alternativeDateTimeParser
+    val alt = Alternative[DateTimeParser]
     val funcParser: DateTimeParser[Int => Int] = alt.pure((x: Int) => x + 1)
     val valueParser: DateTimeParser[Int] = alt.pure(41)
     val applied = funcParser.ap(valueParser)

@@ -3,7 +3,7 @@ package example
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
+import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub

@@ -2,7 +2,7 @@ package mtest.msg.kafka
 
 import cats.kernel.laws.discipline.EqTests
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.given
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader

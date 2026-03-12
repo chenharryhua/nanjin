@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import cats.implicits.catsSyntaxOptionId
+import cats.syntax.option.catsSyntaxOptionId
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.ProtoPrimitive.{ProtoInt, ProtoLong, ProtoString}
 import com.google.protobuf.DynamicMessage
@@ -18,7 +18,7 @@ sealed trait ProtoFor[A] extends UnregisteredSerde[A] {
 }
 
 object ProtoFor {
-  def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
+  def apply[A](using ev: ProtoFor[A]): ProtoFor[A] = ev
 
   opaque type FromBroker = DynamicMessage
   object FromBroker:
@@ -36,8 +36,7 @@ object ProtoFor {
   /*
    * Specific
    */
-
-  implicit object protoForString extends ProtoFor[String] {
+  given ProtoFor[String] = new ProtoFor[String] {
     override val isPrimitive: Boolean = true
     override protected val unregisteredSerde: Serde[String] = Serdes.String()
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoString.javaDescriptor).some

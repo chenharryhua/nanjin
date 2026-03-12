@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.effect.implicits.genTemporalOps
+import cats.effect.syntax.temporal.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.toFunctorOps

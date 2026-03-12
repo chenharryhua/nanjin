@@ -1,13 +1,13 @@
 package mtest
 
-import cats.Eq
+import cats.{Alternative, Eq}
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
 import cats.syntax.all.*
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import com.github.chenharryhua.nanjin.datetime.*
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.datetime.instances.given
 import io.circe.syntax.EncoderOps
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
@@ -31,8 +31,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogen: Cogen[DateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
-  implicit val arbParser: Arbitrary[DateTimeParser[Instant]] = Arbitrary(
-    Gen.const(DateTimeParser.instantParser))
+  implicit val arbParser: Arbitrary[DateTimeParser[Instant]] = Arbitrary(Gen.const(DateTimeParser[Instant]))
   implicit val cogenInstant: Cogen[Instant] = Cogen((i: Instant) => i.getEpochSecond)
 
   implicit val eqInstant: Eq[DateTimeParser[Instant]] = new Eq[DateTimeParser[Instant]] {
@@ -51,7 +50,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val arbFunction: Arbitrary[DateTimeParser[Instant => Instant]] = Arbitrary(
     Gen
       .function1[Instant, Instant](genZonedDateTime.map(_.toInstant))
-      .map(f => DateTimeParser.alternativeDateTimeParser.pure(f)))
+      .map(f => Alternative[DateTimeParser].pure(f)))
 
   checkAll("NJDateTimeRange-UpperBounded", PartialOrderTests[DateTimeRange].partialOrder)
   checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[DateTimeRange].partialOrder)

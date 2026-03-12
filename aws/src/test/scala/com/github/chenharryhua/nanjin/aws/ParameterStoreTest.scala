@@ -8,6 +8,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ssm.SsmClient
 import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse, Parameter}
 
+import java.util.Base64
 import scala.jdk.CollectionConverters.*
 
 class ParameterStoreTest extends AnyFunSuite {
@@ -53,6 +54,8 @@ class ParameterStoreTest extends AnyFunSuite {
             case None    => throw new NoSuchElementException(s"No parameter found at ${path.value}")
           }
         }
+      override def base64(path: ParameterStorePath): IO[Array[Byte]] =
+        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
 
   test("fetch returns the correct parameter") {

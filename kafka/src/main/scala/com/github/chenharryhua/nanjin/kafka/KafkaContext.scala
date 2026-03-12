@@ -82,7 +82,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @throws java.lang.IllegalStateException
     *   if the URL config is absent
     */
-  def schemaRegistry(implicit F: Sync[F]): SchemaRegistryApi[F] = {
+  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url: String =
       settings.schemaRegistrySettings.config.getOrElse(
@@ -105,7 +105,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @return
     *   Effect producing `true` if backward compatible, `false` otherwise
     */
-  def isCompatible[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): F[Boolean] =
+  def isCompatible[K, V](topic: KafkaTopic[K, V])(using F: Sync[F]): F[Boolean] =
     topic match {
       case topic @ AvroTopic(_, pair) =>
         schemaRegistry.fetchOptionalAvroSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
@@ -126,19 +126,19 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @return
     *   ConsumeKafka instance
     */
-  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Async[F]): ConsumeKafka[F, K, V] =
+  def consume[K, V](topic: KafkaTopic[K, V])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
       topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
     )
 
-  private def byteConsumerSetting(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
+  private def byteConsumerSetting(using F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
     ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
       .withProperties(settings.consumerSettings.properties)
 
   /** Create a raw byte consumer for the topic name.
     */
-  def consumeBytes(topicName: TopicName)(implicit F: Async[F]): ConsumeBytes[F] =
+  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeBytes[F] =
     new ConsumeBytes[F](topicName, byteConsumerSetting)
 
   /** Create a consumer that produces Avro GenericRecord values.
@@ -146,7 +146,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @note
     *   May fetch schemas from Schema Registry on construction.
     */
-  def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+  def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(using
     F: Async[F]): ConsumeGenericRecord[F, K, V] =
     new ConsumeGenericRecord[F, K, V](
       avroTopic,
@@ -162,7 +162,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @note
     *   The returned producer checks schema compatibility before producing.
     */
-  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Async[F]): ProduceKafka[F, K, V] =
+  def produce[K, V](topic: KafkaTopic[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
       topic.producerSettings(settings.schemaRegistrySettings, settings.producerSettings),
@@ -170,7 +170,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
 
   /** Shared producer for a SerdePair without a specific topic. */
-  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Async[F]): ProduceShared[F, K, V] =
+  def sharedProduce[K, V](pair: SerdePair[K, V])(using F: Async[F]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
@@ -180,7 +180,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @note
     *   May fetch schema from Schema Registry.
     */
-  def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+  def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(using
     F: Async[F]): ProduceGenericRecord[F, K, V] =
     new ProduceGenericRecord[F, K, V](
       avroTopic,
@@ -201,7 +201,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @param topology
     *   Function to build the topology, receives a `StreamsBuilder` and `StreamsSerde`.
     */
-  def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(implicit
+  def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(using
     F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](
       applicationId,
@@ -214,10 +214,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   // --------------------------------------------------------------------------
 
   /** Resource for a KafkaAdminClient. */
-  def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
+  def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  def admin(topicName: TopicName, groupId: String)(implicit F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+  def admin(topicName: TopicName, groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
@@ -230,7 +230,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       )
     } yield new AdminTopicGroupImpl(admin, consumer, topicName, GroupId(groupId))
 
-  def admin(topicName: TopicName)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
+  def admin(topicName: TopicName)(using F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
@@ -254,7 +254,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @note
     *   Errors during deletion are ignored.
     */
-  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(implicit F: Async[F]): F[List[TopicName]] = {
+  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))

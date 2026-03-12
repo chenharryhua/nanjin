@@ -23,7 +23,7 @@ final case class StateUpdate(newState: State, oldState: State)
 
 object StateUpdate {
 
-  implicit final val stateUpdateEncoder: Encoder[StateUpdate] = (a: StateUpdate) =>
+  given Encoder[StateUpdate] = (a: StateUpdate) =>
     Json.obj(
       "oldState" -> Json.fromString(a.oldState.name()),
       "newState" -> Json.fromString(a.newState.name())
@@ -35,7 +35,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   streamSettings: KafkaStreamSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
-  startUpTimeout: Duration)(implicit F: Async[F])
+  startUpTimeout: Duration)(using F: Async[F])
     extends HasProperties {
 
   final private class StateChange(

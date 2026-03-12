@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
 import cats.effect.Temporal
@@ -54,7 +54,7 @@ trait Retry[F[_]] {
 
 object Retry {
 
-  final private class Impl[F[_]](initTS: PolicyTick[F])(implicit F: Temporal[F]) {
+  final private class Impl[F[_]](initTS: PolicyTick[F])(using F: Temporal[F]) {
 
     def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): F[A] =
       F.tailRecM[PolicyTick[F], A](initTS) { status =>
@@ -80,7 +80,7 @@ object Retry {
       Hotswap.create[F, A].evalMap(hotswap => retryLoop(hotswap.clear >> hotswap.swap(rfa), decide))
   }
 
-  final class Builder[F[_]] private[Retry] (
+  final class Builder[F[_]] private[Retry](
     policy: Policy,
     decide: TickedValue[Throwable] => F[TickedValue[Boolean]]) {
 
@@ -98,7 +98,7 @@ object Retry {
     def withPolicy(f: Policy.type => Policy): Builder[F] =
       new Builder[F](f(Policy), decide)
 
-    private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): F[Retry[F]] =
+    private[Retry] def build(zoneId: ZoneId)(using F: Async[F]): F[Retry[F]] =
       PolicyTick.zeroth[F](zoneId, policy).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {

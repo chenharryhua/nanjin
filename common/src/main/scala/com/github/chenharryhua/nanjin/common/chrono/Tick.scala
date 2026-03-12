@@ -131,7 +131,7 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]](zoneId: ZoneId)(implicit F: Sync[F]): F[Tick] =
+  def zeroth[F[_]](zoneId: ZoneId)(using F: Sync[F]): F[Tick] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
       UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
         F.realTimeInstant.map { now =>

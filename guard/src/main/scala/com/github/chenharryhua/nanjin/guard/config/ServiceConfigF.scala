@@ -1,4 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.config
+import cats.derived.derived
 import cats.effect.kernel.Clock
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
@@ -38,7 +39,7 @@ final case class Host(name: HostName, port: Option[Port]) derives Codec.AsObject
     }
 }
 object Host {
-  implicit val showHost: Show[Host] = Show.fromToString[Host]
+  given Show[Host] = Show.fromToString[Host]
 }
 
 final case class ServiceParams(
@@ -97,10 +98,9 @@ object ServiceParams {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[X] extends Product
+sealed private[guard] trait ServiceConfigF[X] extends Product derives Functor
 
 private object ServiceConfigF {
-  implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
 

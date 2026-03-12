@@ -66,7 +66,7 @@ final case class RotateFile(open: LocalDateTime, close: LocalDateTime, url: Url,
 }
 
 object RotateFile {
-  implicit val encoderRotateFile: Encoder[RotateFile] =
+  given Encoder[RotateFile] =
     (a: RotateFile) =>
       Json.obj(
         "open" -> a.open.asJson,
@@ -76,7 +76,7 @@ object RotateFile {
         "recordCount" -> Json.fromLong(a.recordCount)
       )
 
-  implicit val decoderRotateFile: Decoder[RotateFile] =
+  given Decoder[RotateFile] =
     (c: HCursor) =>
       for {
         open <- c.get[LocalDateTime]("open")

@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.Show
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.Opaque
 import io.circe.{Decoder, Encoder, Json}
 
 import java.time.{Duration, ZoneId}
@@ -71,7 +72,7 @@ opaque type TimeZone = ZoneId
 object TimeZone:
   def apply(zoneId: ZoneId): TimeZone = zoneId
   extension (tz: TimeZone) inline def value: ZoneId = tz
-  
+
   given Show[TimeZone] = Show.fromToString
   given Encoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Encoder]
   given Decoder[TimeZone] = Opaque.lift[TimeZone, ZoneId, Decoder]
@@ -81,7 +82,7 @@ opaque type UpTime = Duration
 object UpTime:
   def apply(duration: Duration): UpTime = duration
   extension (upTime: UpTime) inline def value: Duration = upTime
-  
+
   given Show[UpTime] = defaultFormatter.format(_)
   given Encoder[UpTime] = Opaque.lift[UpTime, Duration, Encoder]
   given Decoder[UpTime] = Opaque.lift[UpTime, Duration, Decoder]

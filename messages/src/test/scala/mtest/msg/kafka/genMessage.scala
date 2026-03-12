@@ -2,7 +2,7 @@ package mtest.msg.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.given
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords as Fs2CommittableProducerRecords,

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.implicits.showInterpolator
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.database.*
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 

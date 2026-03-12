@@ -23,7 +23,7 @@ final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
   zoneId: ZoneId,
   pathBuilder: CreateRotateFile => Url,
-  sizeLimit: Long)(implicit F: Async[F])
+  sizeLimit: Long)(using F: Async[F])
     extends RotateBySize[F] {
 
   private type GetWriter[A] = Reader[CreateRotateFile, Resource[F, HadoopWriter[F, A]]]

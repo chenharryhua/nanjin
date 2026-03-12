@@ -27,7 +27,7 @@ sealed private trait HadoopWriter[F[_], A] {
 
 private object HadoopWriter {
 
-  def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, url: Url)(implicit
+  def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
       .fromAutoCloseable(F.blocking {
@@ -48,7 +48,7 @@ private object HadoopWriter {
         }
       }
 
-  def parquetR[F[_]](writeBuilder: Reader[Url, AvroParquetWriter.Builder[GenericRecord]], url: Url)(implicit
+  def parquetR[F[_]](writeBuilder: Reader[Url, AvroParquetWriter.Builder[GenericRecord]], url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
       .fromAutoCloseable(F.blocking(writeBuilder.run(url).build()))
@@ -72,11 +72,11 @@ private object HadoopWriter {
     }
   }
 
-  private def outputStreamR[F[_]](configuration: Configuration, url: Url)(implicit
+  private def outputStreamR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStream] =
     Resource.fromAutoCloseable(F.blocking(fileOutputStream(configuration, url)))
 
-  def byteR[F[_]](configuration: Configuration, url: Url)(implicit
+  def byteR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     outputStreamR[F](configuration, url).map(os =>
       new HadoopWriter[F, Byte] {
@@ -88,7 +88,7 @@ private object HadoopWriter {
           }
       })
 
-  def protobufR[F[_]](configuration: Configuration, url: Url)(implicit
+  def protobufR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
     outputStreamR[F](configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
@@ -105,7 +105,7 @@ private object HadoopWriter {
     getEncoder: OutputStream => Encoder,
     configuration: Configuration,
     schema: Schema,
-    url: Url)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+    url: Url)(using F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     outputStreamR[F](configuration, url).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       val encoder = getEncoder(os)
@@ -119,7 +119,7 @@ private object HadoopWriter {
       }
     }
 
-  def jacksonR[F[_]](configuration: Configuration, schema: Schema, url: Url)(implicit
+  def jacksonR[F[_]](configuration: Configuration, schema: Schema, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     genericRecordWriterR[F](
       (os: OutputStream) => EncoderFactory.get().jsonEncoder(schema, os),
@@ -127,7 +127,7 @@ private object HadoopWriter {
       schema,
       url)
 
-  def binAvroR[F[_]](configuration: Configuration, schema: Schema, url: Url)(implicit
+  def binAvroR[F[_]](configuration: Configuration, schema: Schema, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     genericRecordWriterR[F](
       (os: OutputStream) => EncoderFactory.get().binaryEncoder(os, null),
@@ -135,7 +135,7 @@ private object HadoopWriter {
       schema,
       url)
 
-  def jsonNodeR[F[_]](configuration: Configuration, url: Url)(implicit
+  def jsonNodeR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
     outputStreamR[F](configuration, url).map { os =>
       val writer: ObjectWriter = objectMapper.writer()
@@ -156,12 +156,12 @@ private object HadoopWriter {
    * output stream writer based
    */
 
-  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(implicit
+  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStreamWriter] =
     Resource.fromAutoCloseable(
       F.blocking(new OutputStreamWriter(fileOutputStream(configuration, url), StandardCharsets.UTF_8)))
 
-  def stringR[F[_]](configuration: Configuration, url: Url)(implicit
+  def stringR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
@@ -176,7 +176,7 @@ private object HadoopWriter {
           }
       })
 
-  def csvStringR[F[_]](configuration: Configuration, url: Url)(implicit
+  def csvStringR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
@@ -189,7 +189,7 @@ private object HadoopWriter {
           }
       })
 
-  def circeR[F[_]](configuration: Configuration, url: Url)(implicit
+  def circeR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Json]] =
     outputStreamWriterR[F](configuration, url).map { writer =>
       val printer = Printer.noSpaces

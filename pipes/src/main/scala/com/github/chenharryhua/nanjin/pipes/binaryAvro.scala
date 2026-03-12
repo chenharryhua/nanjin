@@ -23,7 +23,7 @@ object binaryAvro {
     }
   }
 
-  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {
+  def fromBytes[F[_]](schema: Schema)(using F: Async[F]): Pipe[F, Byte, GenericRecord] = {
     (ss: Stream[F, Byte]) =>
       val datumReader = new GenericDatumReader[GenericRecord](schema)
       ss.through(toInputStream).flatMap { is =>

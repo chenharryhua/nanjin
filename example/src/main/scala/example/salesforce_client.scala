@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
-import org.http4s.implicits.*
+import org.http4s.syntax.all.*
 
 import scala.concurrent.duration.DurationInt
 

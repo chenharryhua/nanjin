@@ -1,7 +1,7 @@
 package mtest.msg.kafka
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.given
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
 import io.scalaland.chimney.dsl.*

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.config
+package com.github.chenharryhua.nanjin.common
 
 import scala.quoted.*
 

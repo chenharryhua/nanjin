@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.toFunctorOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchClientBuilder}
 import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
+import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchClientBuilder}
 
 /** A simplified Cats Effect wrapper for AWS CloudWatch.
   *
@@ -54,7 +54,7 @@ object CloudWatch {
     * @return
     *   a resource wrapping `CloudWatch` implementation
     */
-  def apply[F[_]](f: Endo[CloudWatchClientBuilder])(implicit F: Async[F]): Resource[F, CloudWatch[F]] =
+  def apply[F[_]](f: Endo[CloudWatchClientBuilder])(using F: Async[F]): Resource[F, CloudWatch[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(CloudWatchClient.builder()).build())) {
@@ -63,10 +63,10 @@ object CloudWatch {
       }
     } yield new AwsCloudWatch[F](client, logger)
 
-  final private class AwsCloudWatch[F[_]](client: CloudWatchClient, logger: Logger[F])(implicit F: Sync[F])
-      extends CloudWatch[F] {
+  final private class AwsCloudWatch[F[_]: Sync](client: CloudWatchClient, logger: Logger[F])
+      extends CloudWatch[F]:
 
     override def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse] =
       blockingF(client.putMetricData(request), request.toString, logger)
-  }
+
 }

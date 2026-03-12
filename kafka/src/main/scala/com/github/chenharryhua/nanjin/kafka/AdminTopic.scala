@@ -73,7 +73,7 @@ trait AdminTopic[F[_]] {
     * @return
     *   a `ListOfTopicPartitions` containing partition information
     */
-  def partitionsFor: F[ListOfTopicPartitions]
+  def partitionsFor: F[TopicPartitionList]
 
   /** Compute offset ranges for the topic for a given time window.
     *
@@ -136,7 +136,7 @@ final private class AdminTopicImpl[F[_]: Sync](
   override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
     consumerClient.offsetRangeFor(dtr)
 
-  override def partitionsFor: F[ListOfTopicPartitions] =
+  override def partitionsFor: F[TopicPartitionList] =
     consumerClient.partitionsFor
 
   override def retrieveRecord(

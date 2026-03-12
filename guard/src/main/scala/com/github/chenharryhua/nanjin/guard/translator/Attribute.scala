@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.guard.config.TypeName
+import com.github.chenharryhua.nanjin.common.TypeName
 import io.circe.{Encoder, Json}
 
 import scala.annotation.publicInBinary
@@ -18,12 +18,12 @@ final class Attribute[A] @publicInBinary private (value: A, typeName: String) {
 
   def entry[B](f: A => B): (String, B) = (typeName, f(value))
 
-  def labelledText(implicit show: Show[A]): String = s"$typeName:${show.show(value)}"
+  def labelledText(using show: Show[A]): String = s"$typeName:${show.show(value)}"
 
-  def snakeJsonEntry(implicit enc: Encoder[A]): (String, Json) = snakeName -> enc.apply(value)
-  def camelJsonEntry(implicit enc: Encoder[A]): (String, Json) = camelName -> enc.apply(value)
+  def snakeJsonEntry(using enc: Encoder[A]): (String, Json) = snakeName -> enc.apply(value)
+  def camelJsonEntry(using enc: Encoder[A]): (String, Json) = camelName -> enc.apply(value)
 
-  def textEntry(implicit show: Show[A]): TextEntry = TextEntry(typeName, show.show(value))
+  def textEntry(using show: Show[A]): TextEntry = TextEntry(typeName, show.show(value))
 
   def map[B](f: A => B): Attribute[B] = new Attribute[B](f(value), typeName)
   def fold[B](f: (String, A) => B): B = f(typeName, value)

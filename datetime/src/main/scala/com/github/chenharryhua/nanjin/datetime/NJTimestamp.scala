@@ -96,7 +96,7 @@ object NJTimestamp {
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp = NJTimestamp(Instant.now)
 
-  implicit final val njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
+  given njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
       override def hash(x: NJTimestamp): Int = x.hashCode
 

@@ -30,7 +30,7 @@ object Herald {
     alarmLevel: Ref[F, Option[AlarmLevel]],
     alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
-    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(implicit F: Sync[F])
+    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(using F: Sync[F])
       extends Log[F] {
 
     override def create[S: Encoder](

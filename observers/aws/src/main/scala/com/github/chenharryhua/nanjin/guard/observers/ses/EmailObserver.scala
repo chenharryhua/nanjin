@@ -47,7 +47,7 @@ final class EmailObserver[F[_]] private (
   isNewestFirst: Boolean,
   capacity: ChunkSize,
   policy: Policy.type => Policy,
-  zoneId: ZoneId)(implicit F: Async[F])
+  zoneId: ZoneId)(using F: Async[F])
     extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
   private def copy(

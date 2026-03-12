@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Eq
+import cats.derived.derived
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoHeader
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroName, AvroNamespace}
@@ -12,9 +13,8 @@ import org.apache.kafka.common.header.internals.RecordHeader
 
 @AvroName("header")
 @AvroNamespace("nanjin.kafka")
-final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject
+final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject, Eq
 object NJHeader {
-  implicit val eqNJHeader: Eq[NJHeader] = cats.derived.semiauto.eq
 
   implicit val transformerHeaderNJFs2: Transformer[NJHeader, Header] =
     (src: NJHeader) => Header(src.key, src.value.toArray)

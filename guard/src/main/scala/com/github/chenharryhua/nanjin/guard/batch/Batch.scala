@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
-import cats.effect.implicits.{clockOps, concurrentParTraverseOps, monadCancelOps, monadCancelOps_}
+import cats.effect.syntax.monadCancel.{monadCancelOps, monadCancelOps_}
+import cats.effect.syntax.clock.clockOps
 import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
+import cats.effect.kernel.syntax.concurrent.concurrentParTraverseOps
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.eq.catsSyntaxEq
@@ -82,7 +84,7 @@ object Batch {
     def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
-  private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: JobKind, mode: BatchMode)(implicit
+  private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: JobKind, mode: BatchMode)(using
     F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
@@ -97,7 +99,7 @@ object Batch {
       },
       active)
 
-  private def createPanel[F[_]](mtx: MetricsHub[F])(implicit F: Async[F]): Resource[F, BatchMetrics[F]] =
+  private def createPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
@@ -109,7 +111,7 @@ object Batch {
   ///
 
   private def handle_outcome[F[_], A](job: BatchJob, jobHook: JobHook[F, A], updatePanel: UpdatePanel[F])(
-    outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
+    outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(using F: MonadError[F, Throwable]): F[Unit] =
     outcome.fold(
       canceled = jobHook.canceled(job),
       // Outcome.Errored should be impossible because job effects are wrapped in attempt
@@ -341,7 +343,7 @@ object Batch {
     renameJob: Option[Endo[String]],
     batchId: UUID)
 
-  final class JobBuilder[F[_]] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID])(implicit
+  final class JobBuilder[F[_]] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID])(using
     F: Async[F]) {
 
     private val mode: BatchMode = BatchMode.Monadic

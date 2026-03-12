@@ -10,12 +10,8 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{
-  orderingTopicPartition,
-  AvroTopic,
-  OptionalAvroSchemaPair,
-  TopicPartitionMap
-}
+import com.github.chenharryhua.nanjin.kafka.given
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, OptionalAvroSchemaPair, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.Schema

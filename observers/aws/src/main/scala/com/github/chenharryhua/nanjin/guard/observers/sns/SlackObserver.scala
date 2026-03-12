@@ -28,7 +28,7 @@ object SlackObserver {
 
 final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
-  translator: Translator[F, SlackApp])(implicit F: Concurrent[F])
+  translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
   /** supporters will be notified:

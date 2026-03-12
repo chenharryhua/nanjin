@@ -4,8 +4,8 @@ import cats.effect.kernel.{Async, Ref}
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.SingleFlight
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import com.github.chenharryhua.nanjin.guard.event.MetricID
 import fs2.{Pipe, Stream}
 import io.circe.Json

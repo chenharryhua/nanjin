@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.catsSyntaxApplicativeId
+import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
@@ -52,7 +52,7 @@ object Counter {
       new Builder(isEnabled, isRisk)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Counter[F]] = {
+      using F: Sync[F]): Resource[F, Counter[F]] = {
       val counter: Resource[F, Counter[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label, metricRegistry, isRisk, metricName)

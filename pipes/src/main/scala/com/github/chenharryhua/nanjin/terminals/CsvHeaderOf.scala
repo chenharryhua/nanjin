@@ -20,7 +20,7 @@ sealed trait CsvHeaderOf[A] {
 object CsvHeaderOf {
 
   /** summon the typeclass for `A` */
-  def apply[A](implicit ev: CsvHeaderOf[A]): ev.type = ev
+  def apply[A](using ev: CsvHeaderOf[A]): ev.type = ev
 
   /** internal helper to build CsvHeaderOf without inline anonymous duplication */
   private def fromLabels(labels: List[String]): CsvHeaderOf[Any] =

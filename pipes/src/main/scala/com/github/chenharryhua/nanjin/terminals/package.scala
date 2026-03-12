@@ -31,7 +31,7 @@ import scala.util.Try
 
 package object terminals {
 
-  implicit val codecUrl: Codec[Url] = new Codec[Url] {
+  given Codec[Url] = new Codec[Url] {
     override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
     override def apply(a: Url): Json = a.toJavaURI.asJson
   }

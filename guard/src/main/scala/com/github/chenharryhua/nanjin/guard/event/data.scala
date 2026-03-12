@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.Unique
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.{DurationFormatter, Opaque}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.config.Opaque
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -49,7 +48,6 @@ object Took:
   given Encoder[Took] = Opaque.lift[Took, Duration, Encoder]
   given Decoder[Took] = Opaque.lift[Took, Duration, Decoder]
 end Took
-  
 
 // ---------------- Active ----------------
 opaque type Active = Duration
@@ -91,7 +89,7 @@ opaque type Message = Json
 object Message:
   def apply(value: Json): Message = value
   extension (m: Message) inline def value: Json = m
-  
+
   given Show[Message] = _.value.spaces2
   given Encoder[Message] = Opaque.lift[Message, Json, Encoder]
   given Decoder[Message] = Opaque.lift[Message, Json, Decoder]

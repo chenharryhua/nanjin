@@ -13,26 +13,25 @@ import scala.jdk.OptionConverters.RichOptional
 private[kafka] trait EqMessage {
 
   // kafka
-  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) =>
-    x.key() === y.key() && x.value().sameElements(y.value())
+  given Eq[Header] = (x: Header, y: Header) => x.key() === y.key() && x.value().sameElements(y.value())
 
-  implicit val eqHeaders: Eq[Headers] = (x: Headers, y: Headers) => {
+  given Eq[Headers] = (x: Headers, y: Headers) => {
     val xa = x.toArray
     val ya = y.toArray
     xa.size === ya.size && xa.zip(ya).forall { case (x, y) => x === y }
   }
 
-  implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =
+  given Eq[Optional[java.lang.Integer]] =
     (x: Optional[Integer], y: Optional[Integer]) =>
       x.toScala.flatMap(Option(_).map(_.toInt)) === y.toScala.flatMap(Option(_).map(_.toInt))
 
-  implicit val eqTopicPartition: Eq[TopicPartition] =
+  given Eq[TopicPartition] =
     (x: TopicPartition, y: TopicPartition) => x.equals(y)
 
-  implicit val eqOffsetAndMetadata: Eq[OffsetAndMetadata] =
+  given Eq[OffsetAndMetadata] =
     (x: OffsetAndMetadata, y: OffsetAndMetadata) => x.equals(y)
 
-  implicit final def eqConsumerRecord[K: Eq, V: Eq]: Eq[ConsumerRecord[K, V]] =
+  given [K: Eq, V: Eq] => Eq[ConsumerRecord[K, V]] =
     (x: ConsumerRecord[K, V], y: ConsumerRecord[K, V]) =>
       x.topic() === y.topic &&
         x.partition() === y.partition() &&
@@ -46,7 +45,7 @@ private[kafka] trait EqMessage {
         x.headers() === y.headers() &&
         x.leaderEpoch() === y.leaderEpoch()
 
-  implicit final def eqProducerRecord[K: Eq, V: Eq]: Eq[ProducerRecord[K, V]] =
+  given [K: Eq, V: Eq] => Eq[ProducerRecord[K, V]] =
     (x: ProducerRecord[K, V], y: ProducerRecord[K, V]) =>
       x.topic() === y.topic() &&
         x.partition().equals(y.partition()) &&

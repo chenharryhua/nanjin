@@ -17,7 +17,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
 final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V],
-  isCompatible: F[Boolean])(implicit F: Async[F])
+  isCompatible: F[Boolean])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties
     with ProducerService[F, (K, V)] {
 

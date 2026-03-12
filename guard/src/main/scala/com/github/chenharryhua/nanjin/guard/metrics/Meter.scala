@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.toFunctorOps
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.CategoryKind.MeterKind
@@ -16,7 +16,7 @@ trait Meter[F[_]]:
 end Meter
 
 object Meter {
-  def noop[F[_]](implicit F: Applicative[F]): Meter[F] = new Meter[F] {
+  def noop[F[_]](using F: Applicative[F]): Meter[F] = new Meter[F] {
     override def mark(num: Long): F[Unit] = F.unit
   }
 
@@ -53,7 +53,7 @@ object Meter {
       new Builder(isEnabled, Squants(um))
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Meter[F]] = {
+      using F: Sync[F]): Resource[F, Meter[F]] = {
       val meter: Resource[F, Meter[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)

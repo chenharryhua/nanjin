@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
 import cats.effect.kernel.{Async, Outcome, Resource}
@@ -20,7 +20,7 @@ trait CircuitBreaker[F[_]] {
 
 object CircuitBreaker {
   sealed trait State extends Product
-  implicit val encoderState: Encoder[State] = {
+  given Encoder[State] = {
     case State.Closed(failures) =>
       Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
     case State.HalfOpen | State.HalfOpenRunning =>
@@ -40,7 +40,7 @@ object CircuitBreaker {
     override def fillInStackTrace(): Throwable = this
   }
 
-  final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(implicit F: Async[F]) {
+  final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(using F: Async[F]) {
 
     private val initClosed: State = State.Closed(0)
     private val initOpen: State = State.Open(0)

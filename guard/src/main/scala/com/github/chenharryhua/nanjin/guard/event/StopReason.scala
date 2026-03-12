@@ -18,14 +18,14 @@ object StopReason {
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"
 
-  implicit val showStopReason: Show[StopReason] = {
+  given Show[StopReason] = {
     case Successfully            => SUCCESSFULLY
     case Maintenance             => MAINTENANCE
     case ByCancellation          => BY_CANCELLATION
     case ByException(stackTrace) => stackTrace.show
   }
 
-  implicit val encoderStopReason: Encoder[StopReason] =
+  given Encoder[StopReason] =
     Encoder.instance {
       case Successfully   => Json.fromString(SUCCESSFULLY)
       case ByCancellation => Json.fromString(BY_CANCELLATION)
@@ -34,7 +34,7 @@ object StopReason {
       case ByException(stackTrace) => stackTrace.asJson
     }
 
-  implicit val decoderStopReason: Decoder[StopReason] =
+  given Decoder[StopReason] =
     List[Decoder[StopReason]](
       _.as[String].flatMap {
         case SUCCESSFULLY    => Right(Successfully)

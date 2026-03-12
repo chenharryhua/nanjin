@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.effect.implicits.clockOps
+import cats.effect.syntax.clock.clockOps
 import cats.effect.kernel.Sync
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
@@ -234,7 +234,7 @@ private[guard] object Snapshot extends duration {
     Snapshot(counters = counters, meters = meters, timers = timers, histograms = histograms, gauges = gauges)
   }
 
-  def timed[F[_]](metricRegistry: MetricRegistry, mode: ScrapeMode)(implicit
+  def timed[F[_]](metricRegistry: MetricRegistry, mode: ScrapeMode)(using
     F: Sync[F]): F[(Duration, Snapshot)] =
     F.blocking(buildFrom(metricRegistry, mode)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

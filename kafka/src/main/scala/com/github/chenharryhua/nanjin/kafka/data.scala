@@ -1,60 +1,54 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.order.catsSyntaxPartialOrder
-import cats.syntax.traverse.toTraverseOps
 import cats.{Order, PartialOrder, Show}
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import io.circe.*
-import io.circe.Decoder.Result
+import com.github.chenharryhua.nanjin.common.Opaque
+import io.circe.{Codec, Decoder, Encoder}
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
-import java.{lang, util}
-import scala.collection.immutable.TreeMap
-import scala.jdk.CollectionConverters.*
+opaque type GroupId = String
+object GroupId:
+  def apply(value: String): GroupId = value
+  extension (gid: GroupId) inline def value: String = gid
 
-final case class GroupId(value: String) extends AnyVal
-object GroupId {
-  implicit val codecGroupId: Codec[GroupId] = new Codec[GroupId] {
-    override def apply(c: HCursor): Result[GroupId] = Decoder.decodeString(c).map(GroupId(_))
-    override def apply(a: GroupId): Json = Encoder.encodeString(a.value)
-  }
-}
+  given Show[GroupId] = _.value
+  given Encoder[GroupId] = Opaque.lift[GroupId, String, Encoder]
+  given Decoder[GroupId] = Opaque.lift[GroupId, String, Decoder]
+end GroupId
 
-final case class Offset(value: Long) extends AnyVal {
-  def asLast: Offset = Offset(Math.max(0, value - 1)) // represent last message
-  def -(other: Offset): Long = value - other.value
-}
-
-object Offset {
+opaque type Offset = Long
+object Offset:
+  def apply(value: Long): Offset = value
   def apply(oam: OffsetAndMetadata): Offset = Offset(oam.offset())
   def apply(oat: OffsetAndTimestamp): Offset = Offset(oat.offset())
 
-  implicit val codecOffset: Codec[Offset] = new Codec[Offset] {
-    override def apply(c: HCursor): Result[Offset] = Decoder.decodeLong(c).map(Offset(_))
-    override def apply(a: Offset): Json = Encoder.encodeLong(a.value)
-  }
+  extension (offset: Offset)
+    inline def value: Long = offset
+    def asLast: Offset = Offset(Math.max(0, offset - 1))
+    def -(other: Offset): Long = offset - other.value
 
-  implicit val orderingOffset: Ordering[Offset] = Ordering.by(_.value)
-  implicit val orderOffset: Order[Offset] = Order.fromOrdering
-}
+  given Show[Offset] = _.value.toString
+  given Encoder[Offset] = Opaque.lift[Offset, Long, Encoder]
+  given Decoder[Offset] = Opaque.lift[Offset, Long, Decoder]
+  given Ordering[Offset] = Ordering.by(_.value)
+  given Order[Offset] = Order.fromOrdering
+end Offset
 
-final case class Partition(value: Int) extends AnyVal {
-  def -(other: Partition): Int = value - other.value
-}
+opaque type Partition = Int
+object Partition:
+  def apply(value: Int): Partition = value
+  extension (p: Partition)
+    inline def value: Int = p
+    def -(other: Partition): Int = p - other.value
 
-object Partition {
-
-  implicit val codecPartition: Codec[Partition] = new Codec[Partition] {
-    override def apply(c: HCursor): Result[Partition] = Decoder.decodeInt(c).map(Partition(_))
-    override def apply(a: Partition): Json = Encoder.encodeInt(a.value)
-  }
-
-  implicit val orderingPartition: Ordering[Partition] = Ordering.by(_.value)
-  implicit val orderPartition: Order[Partition] = Order.fromOrdering
-}
+  given Show[Partition] = _.value.toString
+  given Encoder[Partition] = Opaque.lift[Partition, Int, Encoder]
+  given Decoder[Partition] = Opaque.lift[Partition, Int, Decoder]
+  given Ordering[Partition] = Ordering.by(_.value)
+  given Order[Partition] = Order.fromOrdering
+end Partition
 
 final case class OffsetRange private (from: Long, until: Long) {
   val distance: Long = until - from
@@ -68,7 +62,7 @@ object OffsetRange {
     else
       None
 
-  implicit val poOffsetRange: PartialOrder[OffsetRange] =
+  given PartialOrder[OffsetRange] =
     (x: OffsetRange, y: OffsetRange) =>
       (x, y) match {
         case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf >= yf && xu < yu =>
@@ -87,105 +81,13 @@ final case class PartitionRange(topicPartition: TopicPartition, offsetRange: Off
 }
 
 object PartitionRange {
-  implicit val showPartitionRange: Show[PartitionRange] = Show.fromToString[PartitionRange]
+  given Show[PartitionRange] = Show.fromToString[PartitionRange]
 }
 
 final case class LagBehind private (current: Long, end: Long, lag: Long) derives Codec.AsObject
 object LagBehind {
   def apply(current: Offset, end: Offset): LagBehind =
     LagBehind(current.value, end.value, end - current)
-}
-
-final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
-
-  def javaTimed(ldt: NJTimestamp): util.Map[TopicPartition, lang.Long] =
-    value.map(tp => tp -> ldt.javaLong).toMap.asJava
-
-  def asJava: util.List[TopicPartition] = value.asJava
-}
-
-object ListOfTopicPartitions {
-  implicit val codecListOfTopicPartitions: Codec[ListOfTopicPartitions] = new Codec[ListOfTopicPartitions] {
-    override def apply(a: ListOfTopicPartitions): Json =
-      Encoder.encodeList[TopicPartition].apply(a.value.sortBy(_.partition()))
-    override def apply(c: HCursor): Result[ListOfTopicPartitions] =
-      Decoder.decodeList[TopicPartition].apply(c).map(ListOfTopicPartitions(_))
-  }
-}
-
-// TreeMap because it is ammonite friendly
-final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends AnyVal {
-  def nonEmpty: Boolean = value.nonEmpty
-  def isEmpty: Boolean = value.isEmpty
-
-  def get(tp: TopicPartition): Option[V] = value.get(tp)
-
-  def get(topic: String, partition: Int): Option[V] =
-    value.get(new TopicPartition(topic, partition))
-
-  def mapValues[W](f: V => W): TopicPartitionMap[W] =
-    copy(value = TreeMap.from(value.map { case (k, v) => k -> f(v) }))
-
-  def map[W](f: (TopicPartition, V) => W): TopicPartitionMap[W] =
-    copy(value = value.map { case (k, v) => k -> f(k, v) })
-
-  def intersectCombine[U, W](other: TopicPartitionMap[U])(fn: (V, U) => W): TopicPartitionMap[W] = {
-    val res: List[(TopicPartition, W)] = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
-      (value.get(tp), other.value.get(tp)).mapN((f, s) => tp -> fn(f, s))
-    }
-    TopicPartitionMap(TreeMap.from(res))
-  }
-
-  def leftCombine[U, W](
-    other: TopicPartitionMap[U])(fn: (V, U) => Option[W]): TopicPartitionMap[Option[W]] = {
-    val res: Map[TopicPartition, Option[W]] =
-      value.map { case (tp, v) =>
-        tp -> other.value.get(tp).flatMap(fn(v, _))
-      }
-    TopicPartitionMap(res)
-  }
-
-  def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
-
-  def flatten[W](implicit ev: V <:< Option[W]): TopicPartitionMap[W] =
-    copy(value = value.flatMap { case (k, v) => ev(v).map(k -> _) })
-}
-
-object TopicPartitionMap {
-  def apply[V](it: IterableOnce[(TopicPartition, V)]): TopicPartitionMap[V] =
-    TopicPartitionMap(TreeMap.from(it))
-
-  implicit def encoderTopicPartitionMap[V: Encoder]: Encoder[TopicPartitionMap[V]] =
-    (a: TopicPartitionMap[V]) =>
-      Encoder
-        .encodeList[Json]
-        .apply(a.value.map { case (tp, v) =>
-          Json.obj(
-            TOPIC -> Json.fromString(tp.topic()),
-            PARTITION -> Json.fromInt(tp.partition()),
-            "value" -> Encoder[V].apply(v))
-        }.toList)
-
-  implicit def decoderTopicPartitionMap[V: Decoder]: Decoder[TopicPartitionMap[V]] =
-    (c: HCursor) =>
-      Decoder
-        .decodeList[Json]
-        .flatMap { jsons =>
-          Decoder.instance(_ =>
-            jsons.traverse { json =>
-              val hc = json.hcursor
-              for {
-                t <- hc.downField(TOPIC).as[String]
-                p <- hc.downField(PARTITION).as[Int]
-                v <- hc.downField("value").as[V]
-              } yield new TopicPartition(t, p) -> v
-            }.map(lst => TopicPartitionMap(TreeMap.from(lst))))
-        }
-        .apply(c)
-
-  def empty[V]: TopicPartitionMap[V] = TopicPartitionMap(Map.empty[TopicPartition, V])
-
-  val emptyOffset: TopicPartitionMap[Offset] = empty[Offset]
 }
 
 final case class RegisteredSchemaID(key: Option[Int], value: Option[Int])

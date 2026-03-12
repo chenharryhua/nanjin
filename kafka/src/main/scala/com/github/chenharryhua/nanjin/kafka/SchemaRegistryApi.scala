@@ -58,7 +58,7 @@ final case class SchemaNotFound(topicName: TopicName, keyOrValue: String, schema
 final case class DeleteSchemaException(topicName: TopicName, keyOrValue: String, cause: Throwable)
     extends Exception(cause)
 
-final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClient)(implicit F: Sync[F])
+final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClient)(using F: Sync[F])
     extends SchemaRegistryApi[F] {
 
   private val KEY: String = "key"

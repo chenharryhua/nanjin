@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.{Applicative, Endo}
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -53,15 +53,14 @@ trait ParameterStore[F[_]] {
     * val bytesF: F[Array[Byte]] = parameterStore.base64(path)
     * }}}
     */
-  final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
-    fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+  def base64(path: ParameterStorePath): F[Array[Byte]]
 }
 
 object ParameterStore {
 
   private val name = "aws.ParameterStore"
 
-  def apply[F[_]](f: Endo[SsmClientBuilder])(implicit F: Async[F]): Resource[F, ParameterStore[F]] =
+  def apply[F[_]](f: Endo[SsmClientBuilder])(using F: Async[F]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(SsmClient.builder()).build())) { client =>
@@ -69,11 +68,14 @@ object ParameterStore {
       }
     } yield new AwsPS[F](client, logger)
 
-  final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(implicit F: Async[F])
+  final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(using F: Async[F])
       extends ParameterStore[F] {
 
     override def fetch(request: GetParametersRequest): F[GetParametersResponse] =
       blockingF(client.getParameters(request), request.toString, logger)
+
+    override def base64(path: ParameterStorePath): F[Array[Byte]] =
+      fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
       val request = GetParametersRequest.builder().names(path.value).withDecryption(path.isSecure).build()

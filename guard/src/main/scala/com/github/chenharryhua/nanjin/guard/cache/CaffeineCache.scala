@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.cache
 
-import cats.effect.implicits.monadCancelOps_
+import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.effect.kernel.{Async, Deferred, Ref, Resource}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.apply.catsSyntaxApplyOps
@@ -45,7 +45,7 @@ object CaffeineCache {
 
   final private class Impl[F[_], K, V](
     cache: Cache[K, V],
-    inFlight: Ref[F, Map[K, Deferred[F, Either[Throwable, V]]]])(implicit F: Async[F])
+    inFlight: Ref[F, Map[K, Deferred[F, Either[Throwable, V]]]])(using F: Async[F])
       extends CaffeineCache[F, K, V] {
 
     override def getIfPresent(key: K): F[Option[V]] =
@@ -99,7 +99,7 @@ object CaffeineCache {
     }
   }
 
-  def apply[F[_], K, V](cache: Cache[K, V])(implicit F: Async[F]): Resource[F, CaffeineCache[F, K, V]] =
+  def apply[F[_], K, V](cache: Cache[K, V])(using F: Async[F]): Resource[F, CaffeineCache[F, K, V]] =
     Resource.make(Ref.of[F, Map[K, Deferred[F, Either[Throwable, V]]]](Map.empty).map(new Impl(cache, _)))(
       _.cleanUp)
 }

@@ -45,7 +45,8 @@ final private class ServiceGuardImpl[F[_]: {Network, Async, Console}] private[gu
     uuidGenerator: F[UUID])
 
   private def kicking_off: F[KickedOff] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
+      given dummy: SecureRandom[F] = sr
       for {
         launchTime <- F.realTimeInstant
         jsons <- config.briefs

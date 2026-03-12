@@ -13,7 +13,7 @@ package object metrics {
   private[metrics] def run_gauge_job_background[F[_], A](
     fa: F[A],
     zoneId: ZoneId,
-    policy: Policy.type => Policy)(implicit F: Async[F]): Resource[F, Ref[F, A]] =
+    policy: Policy.type => Policy)(using F: Async[F]): Resource[F, Ref[F, A]] =
     for {
       init <- Resource.eval(fa)
       ref <- Resource.eval(F.ref(init))

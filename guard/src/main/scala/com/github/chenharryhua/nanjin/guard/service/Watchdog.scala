@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.implicits.monadCancelOps_
+import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.effect.kernel.Async
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
