@@ -3,8 +3,13 @@ package com.github.chenharryhua.nanjin.common
 import cats.data.NonEmptyList
 import io.circe.Codec
 import io.github.iltotore.iron.constraint.all.ValidURL
+import io.github.iltotore.iron.constraint.numeric.Positive
 import io.github.iltotore.iron.constraint.string.{EndWith, Match}
 import io.github.iltotore.iron.{:|, DescribedAs, Not}
+
+type EmailAddr = String :| Match["""^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$"""]
+
+type ChunkSize = Int :| Positive
 
 object aws {
   type IamArn = String :| Match["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
