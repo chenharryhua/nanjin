@@ -384,10 +384,11 @@ lazy val pipes = (project in file("pipes"))
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
-    "io.airlift"        % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
-    "org.eclipse.jetty" % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-    "io.netty"          % "netty-codec-http" % nettyV, // snyk by hadoop-common
-    "io.netty"          % "netty-codec-smtp" % nettyV // snyk by hadoop-client
+    "org.apache.zookeeper" % "zookeeper"        % "3.9.5", // snyk by hadoop-auth
+    "io.airlift"           % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
+    "org.eclipse.jetty"    % "jetty-server"     % "12.1.7", // snyk by hadoop-common
+    "io.netty"             % "netty-codec-http" % nettyV, // snyk by hadoop-common
+    "io.netty"             % "netty-codec-smtp" % nettyV // snyk by hadoop-client
   ))
 
 // ==========================
