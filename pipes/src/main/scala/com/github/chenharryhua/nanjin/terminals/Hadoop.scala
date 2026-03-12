@@ -6,7 +6,6 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
-import com.github.chenharryhua.nanjin.datetime.codec
 import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
 import org.apache.hadoop.conf.Configuration
@@ -159,21 +158,25 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     *   the path which has the latest one or None
     */
-  def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] =
-    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
+  def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+    import partitionPath.{year, month, day}
+    best[Int](path, NonEmptyList.of(year, month, day))
+  }
 
-  def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] =
-    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
+  def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+    import partitionPath.{year, month, day, hour}
+    best[Int](path, NonEmptyList.of(year, month, day, hour))
+  }
 
-  def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day))(using
-      F,
-      Ordering[Int].reverse)
+  def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+    import partitionPath.{year, month, day}
+    best(path, NonEmptyList.of[String => Option[Int]](year, month, day))(using F, Ordering[Int].reverse)
+  }
 
-  def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day, codec.hour))(using
-      F,
-      Ordering[Int].reverse)
+  def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+    import partitionPath.{year, month, day, hour}
+    best(path, NonEmptyList.of[String => Option[Int]](year, month, day, hour))(using F, Ordering[Int].reverse)
+  }
 
   /** Apply date-based retention on folders.
     *

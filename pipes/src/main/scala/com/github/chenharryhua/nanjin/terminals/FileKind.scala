@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import com.github.chenharryhua.nanjin.datetime.codec
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import io.circe.Codec
@@ -23,7 +21,7 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   }
 
   final def ymdFileName(cfe: CreateRotateFile): String = {
-    val ymd = codec.year_month_day(cfe.openTime.toLocalDate)
+    val ymd = partitionPath.ymd(cfe.openTime.toLocalDate)
     s"$ymd/${fileName(cfe)}"
   }
 }

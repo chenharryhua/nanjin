@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.datetime.codec
 import fs2.Chunk
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
@@ -64,11 +63,11 @@ package object terminals {
     def go(ps: List[String]): Option[LocalDate] =
       ps match {
         case head :: next =>
-          codec.year(head) match {
+          partitionPath.year(head) match {
             case Some(year) =>
               next match {
                 case month :: day :: _ =>
-                  (codec.month(month), codec.day(day)).flatMapN { case (m, d) =>
+                  (partitionPath.month(month), partitionPath.day(day)).flatMapN { case (m, d) =>
                     Try(LocalDate.of(year, m, d)).toOption
                   }
                 case _ => None

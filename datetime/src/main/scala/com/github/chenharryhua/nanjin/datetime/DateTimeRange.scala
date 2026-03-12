@@ -44,8 +44,6 @@ final case class DateTimeRange(
       s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
     }.flatten
 
-  def dayStrings: List[String] = days.map(d => NJTimestamp(d, zoneId).`Year=yyyy/Month=mm/Day=dd`(zoneId))
-
   def subranges(interval: FiniteDuration): List[DateTimeRange] =
     (startTimestamp, endTimestamp).traverseN { (s, e) =>
       s.milliseconds

@@ -130,11 +130,6 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       assert(e.sqlTimestamp.compareTo(s.sqlTimestamp) > 0)
       assert(e.javaLong.compareTo(s.javaLong) > 0)
 
-      assert(
-        e.`Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(
-          sydneyTime) == "Year=2020/Month=12/Day=29/Hour=01/Minute=00")
-      assert(e.`Year=yyyy/Month=mm/Day=dd/Hour=hh`(sydneyTime) == "Year=2020/Month=12/Day=29/Hour=01")
-      assert(e.`Year=yyyy/Month=mm/Day=dd`(sydneyTime) == "Year=2020/Month=12/Day=29")
       e - s
     }.get.toDays == 8)
     assert(dr.days.length == 10)

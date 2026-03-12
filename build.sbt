@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.0-SNAPSHOT"
+ThisBuild / version      := "0.21.1-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.2"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -40,7 +40,6 @@ val natchezV = "0.3.9"
 val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
-val refinedV = "0.11.3"
 val shapelessV = "3.5.0"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
@@ -116,7 +115,6 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "io.github.iltotore" %% "iron"                   % "3.3.0",
-      "io.github.iltotore" %% "iron-circe"             % "3.3.0",
       // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ enumLib ++ testLib
@@ -360,7 +358,7 @@ val hadoopLib = List(
 ).map(_ % hadoopV)
 
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(datetime)
+  .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-pipes")
   .settings(
