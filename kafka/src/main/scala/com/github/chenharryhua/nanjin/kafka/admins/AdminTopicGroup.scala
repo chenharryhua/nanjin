@@ -1,11 +1,12 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.kafka.{GroupId, LagBehind, Offset, TopicPartitionMap}
 import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition

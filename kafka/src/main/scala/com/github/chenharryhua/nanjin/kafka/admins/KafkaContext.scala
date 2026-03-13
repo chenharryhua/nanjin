@@ -1,16 +1,35 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.admins.{
+  AdminTopic,
+  AdminTopicGroup,
+  AdminTopicGroupImpl,
+  AdminTopicImpl
+}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
+import com.github.chenharryhua.nanjin.kafka.{
+  makePureConsumer,
+  streaming,
+  AvroTopic,
+  GroupId,
+  JsonTopic,
+  KafkaSettings,
+  KafkaTopic,
+  ProtoTopic,
+  PureConsumerSettings,
+  SerdePair,
+  TopicSerde
+}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient

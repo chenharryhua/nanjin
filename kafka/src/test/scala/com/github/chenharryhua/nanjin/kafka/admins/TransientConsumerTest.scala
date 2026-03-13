@@ -1,11 +1,13 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumerImpl
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
+import com.github.chenharryhua.nanjin.kafka.{Offset, TopicPartitionMap, buildConsumer}
 import fs2.kafka.ConsumerSettings
 import fs2.kafka.consumer.MkConsumer
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp

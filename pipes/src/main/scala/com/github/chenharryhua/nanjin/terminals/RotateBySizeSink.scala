@@ -60,22 +60,22 @@ final private class RotateBySizeSink[F[_]](
     getWriter: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     data: Stream[F, A],
-    previousTick: TickedValue[Url],
+    previousTick: TickedValue[CreateRotateFile],
     count: Long
   ): Pull[F, TickedValue[RotateFile], Unit] = {
     def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
       Pull.eval(hotswap.get.use(_.write(as)))
-        .adaptError(ex => RotateWriteException(previousTick, ex))
+        .adaptError(ex => RotateWriteException(previousTick.map(pathBuilder), ex))
 
     data.pull.uncons.flatMap {
       case None =>
         for {
           now <- Pull.eval(F.realTimeInstant)
-          currentTick = previousTick.advanceTick(previousTick.tick.conclude, now).map { url =>
+          currentTick = previousTick.advanceTick(previousTick.tick.conclude, now).map { crf =>
             RotateFile(
-              open = previousTick.tick.local(_.conclude),
+              open = crf.openTime.toLocalDateTime,
               close = now.atZone(previousTick.tick.zoneId).toLocalDateTime,
-              url = url,
+              url = pathBuilder(crf),
               recordCount = count
             )
           }
@@ -94,29 +94,27 @@ final private class RotateBySizeSink[F[_]](
             _ <- writeChunk(first)
             now <- Pull.eval(F.realTimeInstant)
             currentTick = previousTick.advanceTick(previousTick.tick.conclude, now)
-            url = pathBuilder(CreateRotateFile(currentTick.tick))
-            _ <- Pull.eval(hotswap.swap(getWriter(url)))
-            _ <- Pull.output1[F, TickedValue[RotateFile]](
-              currentTick.map { url =>
-                RotateFile(
-                  open = currentTick.tick.local(_.commence),
-                  close = currentTick.tick.local(_.conclude),
-                  url = url,
-                  recordCount = count + first.size
-                )
-              }
-            )
-            _ <- doWork(getWriter, hotswap, stream.cons(second), currentTick.as(url), 0L)
+            crf = CreateRotateFile(currentTick.tick)
+            _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(crf))))
+            _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick.map { crf =>
+              RotateFile(
+                open = crf.openTime.toLocalDateTime,
+                close = currentTick.tick.local(_.conclude), // == now
+                url = pathBuilder(crf),
+                recordCount = count + first.size
+              )
+            })
+            _ <- doWork(getWriter, hotswap, stream.cons(second), currentTick.as(crf), 0L)
           } yield ()
         }
     }
   }
 
   private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, TickedValue[RotateFile]] = {
-    val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], TickedValue[Url])] =
+    val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], TickedValue[CreateRotateFile])] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
-        val url = pathBuilder(CreateRotateFile(tick))
-        NonEmptyHotswap(getWriter(url)).map((_, TickedValue(tick, url)))
+        val crf = CreateRotateFile(tick)
+        NonEmptyHotswap(getWriter(pathBuilder(crf))).map((_, TickedValue(tick, crf)))
       }
 
     Stream.resource(resources).flatMap { case (hotswap, tv) =>

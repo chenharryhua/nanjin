@@ -17,7 +17,7 @@ import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 
-private object topic_utils {
+private object topicUtils {
   private def get_offset_range_by_time[F[_]: Monad](
     client: KafkaTopicsV2[F],
     topicName: TopicName,

@@ -1,14 +1,24 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.{catsSyntaxMonadError, catsSyntaxMonadErrorRethrow}
 import cats.syntax.option.catsSyntaxOptionId
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{
+  AvroTopic,
+  JsonTopic,
+  KafkaTopic,
+  OptionalAvroSchemaPair,
+  OptionalJsonSchemaPair,
+  OptionalProtobufSchemaPair,
+  ProtoTopic,
+  RegisteredSchemaID
+}
 import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}

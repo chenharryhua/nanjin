@@ -1,15 +1,25 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.Monad
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync}
 import cats.mtl.Ask
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.kafka.given
+import com.github.chenharryhua.nanjin.kafka.{
+  makePureConsumer,
+  Offset,
+  OffsetRange,
+  Partition,
+  PureConsumerSettings,
+  TopicPartitionList,
+  TopicPartitionMap
+}
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.{Metric, MetricName, TopicPartition}

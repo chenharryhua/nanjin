@@ -1,6 +1,7 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import com.github.chenharryhua.nanjin.kafka.{LagBehind, Offset, OffsetRange, TopicPartitionMap}
 
 private object calculate {
   def admin_lagBehind(

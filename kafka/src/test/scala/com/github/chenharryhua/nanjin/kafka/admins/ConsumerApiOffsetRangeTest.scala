@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.Id
 import cats.effect.IO
@@ -7,9 +7,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
-import fs2.{Chunk, Stream}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, Offset, OffsetRange, TopicPartitionMap}
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerRecords}
+import fs2.{Chunk, Stream}
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.RecordMetadata

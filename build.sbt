@@ -367,7 +367,7 @@ lazy val pipes = (project in file("pipes"))
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
       "io.circe" %% "circe-jawn"                  % circeV,
-      "org.typelevel" %% "jawn-fs2"               % "2.4.0" % Test,
+      "org.typelevel" %% "jawn-fs2"               % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
       // java
       "software.amazon.awssdk" % "bundle"         % awsV,

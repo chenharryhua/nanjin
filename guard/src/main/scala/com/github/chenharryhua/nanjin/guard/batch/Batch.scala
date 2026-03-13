@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
-import cats.effect.syntax.monadCancel.{monadCancelOps, monadCancelOps_}
-import cats.effect.syntax.clock.clockOps
-import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
 import cats.effect.kernel.syntax.concurrent.concurrentParTraverseOps
+import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
+import cats.effect.syntax.clock.clockOps
+import cats.effect.syntax.monadCancel.{monadCancelOps, monadCancelOps_}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.eq.catsSyntaxEq
@@ -25,30 +25,7 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-trait JobHandler[A] { outer =>
-  def predicate(a: A): Boolean
-  def translate(a: A, jrs: JobResultState): Json
-
-  final def contramap[B](f: B => A): JobHandler[B] =
-    new JobHandler[B] {
-      override def predicate(b: B): Boolean = outer.predicate(f(b))
-      override def translate(b: B, jrs: JobResultState): Json =
-        outer.translate(f(b), jrs)
-    }
-
-  final def withPredicate(f: A => Boolean): JobHandler[A] =
-    new JobHandler[A] {
-      override def predicate(a: A): Boolean = f(a)
-      override def translate(a: A, jrs: JobResultState): Json = outer.translate(a, jrs)
-    }
-}
-
 object Batch {
-
-  /*
-   * methods
-   */
-
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
 

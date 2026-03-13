@@ -36,13 +36,13 @@ final private class RotateByPolicySink[F[_]: Async](
       case None =>
         for {
           now <- Pull.eval(Async[F].realTimeInstant)
-          _ <- Pull.output1[F, TickedValue[RotateFile]](
-            currentTick.map { url =>
-              RotateFile(
-                open = currentTick.tick.local(_.acquires),
-                close = now.atZone(currentTick.tick.zoneId).toLocalDateTime,
-                url = url,
-                recordCount = count)})
+          _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick.map { url =>
+            RotateFile(
+              open = currentTick.tick.local(_.acquires),
+              close = now.atZone(currentTick.tick.zoneId).toLocalDateTime,
+              url = url,
+              recordCount = count)
+          })
         } yield ()
 
       case Some((head, tail)) =>
