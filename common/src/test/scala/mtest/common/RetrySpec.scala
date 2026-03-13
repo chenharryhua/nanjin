@@ -1,6 +1,6 @@
 package mtest.common
 
-import cats.effect.{IO, Resource}
+import cats.effect.IO
 import munit.CatsEffectSuite
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.resilience.Retry
@@ -52,40 +52,6 @@ class RetrySpec extends CatsEffectSuite {
           assertEquals(ex.getMessage, "fail 3") // only last failure
           assertEquals(counter, 3)
         case Right(_) => fail("Expected failure, got success")
-      }
-    }
-  }
-
-  test("Retry: resource acquisition retries on failure") {
-    val zoneId = ZoneId.systemDefault()
-    val maxAttempts = 3
-    val state = mutable.ListBuffer.empty[String]
-
-    var counter = 0
-    val riskyResource: Resource[IO, Int] = Resource.make {
-      IO {
-        counter += 1
-        state += s"acquire $counter"
-        if (counter < 3) throw new RuntimeException(s"fail $counter")
-        else counter
-      }
-    }(_ => IO(state += s"release $counter") >> IO.println("released"))
-
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(10.millis).limited(maxAttempts)))
-
-    retryIO.flatMap { retry =>
-      retry(riskyResource).use { r =>
-        IO {
-          assertEquals(r, 3)
-          assertEquals(
-            state.toList,
-            List(
-              "acquire 1",
-              "acquire 2",
-              "acquire 3"
-            )
-          )
-        }
       }
     }
   }

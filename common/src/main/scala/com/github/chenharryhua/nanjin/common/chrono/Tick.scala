@@ -102,12 +102,12 @@ final case class Tick(
   def isWithinClosedOpen(now: Instant): Boolean =
     (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)
 
-  def nextTick(now: Instant, wakeup: Instant): Tick =
+  def nextTick(acquires: Instant, conclude: Instant): Tick =
     copy(
       commence = this.conclude,
       index = this.index + 1,
-      acquires = now,
-      conclude = wakeup
+      acquires = acquires,
+      conclude = conclude
     )
 
   override def toString: String = {
@@ -202,3 +202,6 @@ final case class TickedValue[A](tick: Tick, value: A) derives Functor, Show, Enc
 
   def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
     TimeStamped[A](f(tick), value)
+
+  def advanceTick(acquires: Instant, conclude: Instant): TickedValue[A] =
+    TickedValue(tick.nextTick(acquires, conclude), value)

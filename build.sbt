@@ -14,10 +14,9 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.11"
+val awsV = "2.42.12"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
-val catsEffectV = "3.7.0"
 val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
@@ -27,7 +26,7 @@ val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
 val enumeratumV = "1.9.6"
 val fs2KafkaV = "3.9.1"
-val fs2V = "3.12.2"
+val fs2V = "3.13.0"
 val hadoopV = "3.4.3"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.1"
@@ -74,7 +73,7 @@ lazy val commonSettings = List(
 
 val testLib = List(
   "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
-  "org.typelevel" %% "cats-effect-testkit"           % catsEffectV,
+  "org.typelevel" %% "cats-effect-testkit"           % "3.7.0",
   "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
   "org.typelevel" %% "discipline-munit"              % "2.0.0",
@@ -423,7 +422,7 @@ lazy val nanjin =
     .aggregate(
       common,
       datetime,
-      http,
+   //   http,
       aws,
       messages,
       pipes,

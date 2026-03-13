@@ -21,7 +21,6 @@ import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
-  def fileUrl: Url
   def write(ck: Chunk[A]): F[Unit]
 }
 
@@ -39,7 +38,6 @@ private object HadoopWriter {
       })
       .map { (dfw: DataFileWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
-          override val fileUrl: Url = url
           override def write(cgr: Chunk[GenericRecord]): F[Unit] =
             F.blocking {
               cgr.foreach(dfw.append)
@@ -54,7 +52,6 @@ private object HadoopWriter {
       .fromAutoCloseable(F.blocking(writeBuilder.run(url).build()))
       .map((pw: ParquetWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
-          override val fileUrl: Url = url
           override def write(cgr: Chunk[GenericRecord]): F[Unit] =
             F.blocking(cgr.foreach(pw.write))
         })
@@ -80,7 +77,6 @@ private object HadoopWriter {
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     outputStreamR[F](configuration, url).map(os =>
       new HadoopWriter[F, Byte] {
-        override val fileUrl: Url = url
         override def write(cb: Chunk[Byte]): F[Unit] =
           F.blocking {
             os.write(cb.toArray)
@@ -92,7 +88,6 @@ private object HadoopWriter {
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
     outputStreamR[F](configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
-        override val fileUrl: Url = url
         override def write(cgm: Chunk[GeneratedMessage]): F[Unit] =
           F.blocking {
             cgm.foreach(_.writeDelimitedTo(os))
@@ -110,7 +105,6 @@ private object HadoopWriter {
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       val encoder = getEncoder(os)
       new HadoopWriter[F, GenericRecord] {
-        override val fileUrl: Url = url
         override def write(cgr: Chunk[GenericRecord]): F[Unit] =
           F.blocking {
             cgr.foreach(gr => datumWriter.write(gr, encoder))
@@ -140,7 +134,6 @@ private object HadoopWriter {
     outputStreamR[F](configuration, url).map { os =>
       val writer: ObjectWriter = objectMapper.writer()
       new HadoopWriter[F, JsonNode] {
-        override val fileUrl: Url = url
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
           F.blocking {
             cjn.foreach { jn =>
@@ -165,7 +158,6 @@ private object HadoopWriter {
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
-        override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
             cs.foreach { s =>
@@ -180,7 +172,6 @@ private object HadoopWriter {
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
-        override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
           // already has new line separator
           F.blocking {
@@ -194,7 +185,6 @@ private object HadoopWriter {
     outputStreamWriterR[F](configuration, url).map { writer =>
       val printer = Printer.noSpaces
       new HadoopWriter[F, Json] {
-        override val fileUrl: Url = url
         override def write(cs: Chunk[Json]): F[Unit] =
           F.blocking {
             cs.foreach { json =>

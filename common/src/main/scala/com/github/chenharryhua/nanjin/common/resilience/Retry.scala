@@ -2,11 +2,10 @@ package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
 import cats.effect.Temporal
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.Hotswap
+import cats.effect.kernel.Async
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.either.catsSyntaxEitherId
-import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
+import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, TickedValue}
 
@@ -39,17 +38,6 @@ trait Retry[F[_]] {
     * Only the last failure is propagated if execution ultimately fails.
     */
   def apply[A](fa: F[A]): F[A]
-
-  /** Executes the acquisition of the given resource, retrying acquisition failures according to the
-    * configured policy and decision function.
-    *
-    * Only resource acquisition is retried; failures during resource usage are not intercepted.
-    *
-    * Resource finalizers may be invoked multiple times if retries occur.
-    *
-    * Only the last acquisition failure is propagated if all retries fail.
-    */
-  def apply[A](rfa: Resource[F, A]): Resource[F, A]
 }
 
 object Retry {
@@ -71,16 +59,9 @@ object Retry {
           }
         }
       }
-
-    // Drop any previously acquired resource before retrying acquisition.
-    // A failed acquisition poisons the previous resource; retries must start fresh.
-    def resource[A](
-      rfa: Resource[F, A],
-      decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): Resource[F, A] =
-      Hotswap.create[F, A].evalMap(hotswap => retryLoop(hotswap.clear >> hotswap.swap(rfa), decide))
   }
 
-  final class Builder[F[_]] private[Retry](
+  final class Builder[F[_]] private[Retry] (
     policy: Policy,
     decide: TickedValue[Throwable] => F[TickedValue[Boolean]]) {
 
@@ -104,9 +85,6 @@ object Retry {
         new Retry[F] {
           override def apply[A](fa: F[A]): F[A] =
             impl.retryLoop(fa, decide)
-
-          override def apply[A](rfa: Resource[F, A]): Resource[F, A] =
-            impl.resource(rfa, decide)
         }
       }
   }

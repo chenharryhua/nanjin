@@ -20,7 +20,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.github.iltotore.iron.*
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.*
 
 class NJTextTest extends AnyFunSuite {
   val zoneId: ZoneId = ZoneId.systemDefault()
@@ -89,7 +89,9 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / fk.fileName(t)).text)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / fk.fileName(t)).text)
+      .evalTap(tv => IO.println(tv.value.window))
+      .debug()
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -107,7 +109,7 @@ class NJTextTest extends AnyFunSuite {
 
   test("rotation - size") {
     val path = fs2Root / "rotation" / "index"
-    val number = 10000L
+    val number = 10002L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
     val processedSize = Stream
@@ -116,6 +118,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(sydneyTime, 1000)(t => path / fk.fileName(t)).text)
+      .debug()
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

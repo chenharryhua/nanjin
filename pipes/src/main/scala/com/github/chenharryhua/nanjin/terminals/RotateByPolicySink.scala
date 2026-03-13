@@ -3,10 +3,11 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.Hotswap
+import cats.effect.std.NonEmptyHotswap
+import cats.syntax.all.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadError
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -25,51 +26,44 @@ final private class RotateByPolicySink[F[_]: Async](
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
 
   private def doWork[A](
-    currentTick: Tick,
     getWriter: GetWriter[A],
-    hotswap: Hotswap[F, HadoopWriter[F, A]],
-    writer: HadoopWriter[F, A],
+    hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     merged: Stream[F, Either[Chunk[A], TickedValue[Url]]],
+    currentTick: TickedValue[Url],
     count: Long
   ): Pull[F, TickedValue[RotateFile], Unit] =
     merged.pull.uncons1.flatMap {
       case None =>
         for {
-          _ <- Pull.eval(hotswap.clear)
           now <- Pull.eval(Async[F].realTimeInstant)
           _ <- Pull.output1[F, TickedValue[RotateFile]](
-            TickedValue(
-              currentTick,
+            currentTick.map { url =>
               RotateFile(
-                open = currentTick.local(_.acquires),
-                close = now.atZone(currentTick.zoneId).toLocalDateTime,
-                url = writer.fileUrl,
-                recordCount = count
-              )
-            ))
+                open = currentTick.tick.local(_.acquires),
+                close = now.atZone(currentTick.tick.zoneId).toLocalDateTime,
+                url = url,
+                recordCount = count)})
         } yield ()
 
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
             Pull
-              .eval(writer.write(data))
-              .adaptError(ex => RotateWriteException(TickedValue(currentTick, writer.fileUrl), ex)) >>
-              doWork(currentTick, getWriter, hotswap, writer, tail, count + data.size)
+              .eval(hotswap.get.use(_.write(data)))
+              .adaptError(ex => RotateWriteException(currentTick, ex)) >>
+              doWork(getWriter, hotswap, tail, currentTick, count + data.size)
           case Right(nextTick) =>
             for {
-              newWriter <- Pull.eval(hotswap.swap(getWriter(nextTick.value)))
+              _ <- Pull.eval(hotswap.swap(getWriter(nextTick.value)))
               _ <- Pull.output1[F, TickedValue[RotateFile]](
-                TickedValue(
-                  currentTick,
+                currentTick.map(url =>
                   RotateFile(
-                    open = currentTick.local(_.acquires),
+                    open = currentTick.tick.local(_.acquires),
                     close = nextTick.tick.local(_.acquires),
-                    url = writer.fileUrl,
+                    url = url,
                     recordCount = count
-                  )
-                ))
-              _ <- doWork(nextTick.tick, getWriter, hotswap, newWriter, tail, 0L)
+                  )))
+              _ <- doWork(getWriter, hotswap, tail, nextTick, 0L)
             } yield ()
         }
     }
@@ -82,14 +76,13 @@ final private class RotateByPolicySink[F[_]: Async](
       case None               => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
-          .resource(Hotswap(getWriter(head.value)))
-          .flatMap { case (hotswap, writer) =>
+          .resource(NonEmptyHotswap(getWriter(head.value)))
+          .flatMap { hotswap =>
             doWork(
-              currentTick = head.tick,
               getWriter = getWriter,
               hotswap = hotswap,
-              writer = writer,
               merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
+              currentTick = head,
               count = 0L).stream
           }
           .pull
