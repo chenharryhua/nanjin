@@ -4,7 +4,6 @@ import cats.Bifunctor
 import cats.data.Cont
 import cats.syntax.eq.catsSyntaxEq
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header, Headers, ProducerRecord}
@@ -30,7 +29,7 @@ final case class NJProducerRecord[K, V](
   value: Option[V]
 ) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
+  def withTopicName(name: String): NJProducerRecord[K, V] = copy(topic = name)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
   def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withKey(k: K): NJProducerRecord[K, V] = copy(key = Some(k))
@@ -55,9 +54,9 @@ object NJProducerRecord {
   def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
     pr.transformInto[NJProducerRecord[K, V]]
 
-  def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
+  def apply[K, V](topicName: String, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(
-      topic = topicName.value,
+      topic = topicName,
       partition = None,
       offset = None,
       timestamp = None,

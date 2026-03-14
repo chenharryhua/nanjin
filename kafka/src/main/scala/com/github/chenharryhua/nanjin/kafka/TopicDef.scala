@@ -43,8 +43,8 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 
 object AvroTopic {
@@ -74,8 +74,8 @@ final case class ProtoTopic[K, V] private (topicName: TopicName, pair: ProtoForP
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 
 object ProtoTopic {
@@ -101,8 +101,8 @@ final case class JsonTopic[K, V] private (topicName: TopicName, pair: JsonForPai
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 object JsonTopic {
   def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =

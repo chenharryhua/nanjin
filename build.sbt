@@ -100,6 +100,10 @@ lazy val common = (project in file("common"))
   .settings(commonSettings *)
   .settings(name := "nj-common")
   .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
+  .settings(
     libraryDependencies ++= List(
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
@@ -249,6 +253,10 @@ lazy val observer_aws = (project in file("observers/aws"))
   .settings(commonSettings *)
   .settings(name := "nj-observer-aws")
   .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
+  .settings(
     libraryDependencies ++= testLib
   )
 
@@ -266,6 +274,10 @@ lazy val observer_database = (project in file("observers/database"))
   .dependsOn(database)
   .settings(commonSettings *)
   .settings(name := "nj-observer-database")
+  .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
   .settings(
     libraryDependencies ++= List(
       "org.tpolecat" %% "skunk-circe" % skunkV
@@ -332,6 +344,10 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
+  .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
   .settings(libraryDependencies ++= List(
     ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
     // java

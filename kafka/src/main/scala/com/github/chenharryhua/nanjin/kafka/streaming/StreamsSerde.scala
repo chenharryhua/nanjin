@@ -41,8 +41,8 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
     store[K, V](topic.topicName)(using topic.pair.key, topic.pair.value)
 
   def keySerde[K: AvroFor](topicName: TopicName): KafkaSerde[K] =
-    AvroFor[K].asKey(schemaRegistrySettings.config).withTopic(topicName)
+    AvroFor[K].asKey(schemaRegistrySettings.config).withTopic(topicName.value)
 
   def valueSerde[V: AvroFor](topicName: TopicName): KafkaSerde[V] =
-    AvroFor[V].asValue(schemaRegistrySettings.config).withTopic(topicName)
+    AvroFor[V].asValue(schemaRegistrySettings.config).withTopic(topicName.value)
 }

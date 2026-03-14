@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.*
@@ -15,12 +14,12 @@ import scala.jdk.CollectionConverters.*
   * @tparam A
   *   schema related type
   */
-final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A]) {
+final class KafkaSerde[A] private[codec] (val registered: Registered[A], topicName: String) {
   private val ser: Serializer[A] = registered.serde.serializer()
-  def serialize(a: A): Array[Byte] = ser.serialize(topicName.value, a)
+  def serialize(a: A): Array[Byte] = ser.serialize(topicName, a)
 
   private val deser: Deserializer[A] = registered.serde.deserializer()
-  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.value, ab)
+  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName, ab)
 }
 
 final class Registered[A] private[codec] (
@@ -41,6 +40,6 @@ final class Registered[A] private[codec] (
     }
   }
 
-  def withTopic(topicName: TopicName): KafkaSerde[A] =
-    new KafkaSerde[A](topicName, this)
+  def withTopic(topicName: String): KafkaSerde[A] =
+    new KafkaSerde[A](this, topicName)
 }
