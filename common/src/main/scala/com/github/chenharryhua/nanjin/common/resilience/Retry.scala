@@ -47,7 +47,7 @@ object Retry {
     def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): F[A] =
       F.tailRecM[PolicyTick[F], A](initTS) { status =>
         F.handleErrorWith(fa.map[Either[PolicyTick[F], A]](Right(_))) { ex =>
-          F.realTimeInstant.flatMap(status.next).flatMap {
+          status.advance.flatMap {
             case None     => F.raiseError(ex) // run out of policy
             case Some(ts) => // respect user's decision
               decide(TickedValue(ts.tick, ex)).flatMap { tv =>

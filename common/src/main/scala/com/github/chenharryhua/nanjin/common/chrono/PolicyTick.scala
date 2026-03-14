@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.Monad
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.{Random, SecureRandom}
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.flatMap.toFlatMapOps
@@ -33,6 +33,9 @@ final class PolicyTick[F[_]: {Random, Monad}] private (
 
       case _ => none[PolicyTick[F]].pure[F]
     }
+
+  def advance(using C: Clock[F]): F[Option[PolicyTick[F]]] =
+    C.realTimeInstant.flatMap(next)
 }
 
 object PolicyTick {

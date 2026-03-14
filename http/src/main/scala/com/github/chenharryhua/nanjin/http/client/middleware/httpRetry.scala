@@ -25,7 +25,7 @@ object httpRetry {
   def apply[F[_]: Async](
     zoneId: ZoneId,
     f: Policy.type => Policy,
-    retriable: Retriable[F] = RetryPolicy.defaultRetriable[F](_, _))(client: Client[F]): Client[F] =
+    retriable: Retriable[F] = RetryPolicy.defaultRetriable[F])(client: Client[F]): Client[F] =
     impl[F](zoneId, f(Policy), retriable)(client)
 
   def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] =
@@ -36,7 +36,7 @@ object httpRetry {
 
   final private case class RetryAttempt[F[_]](
     request: Request[F],
-    tickStatus: PolicyTick[F],
+    policyTick: PolicyTick[F],
     hotswap: NonEmptyHotswap[F, Either[Throwable, Response[F]]],
     retryAfter: Option[`Retry-After`]
   )
@@ -46,41 +46,44 @@ object httpRetry {
     policy: Policy,
     retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
 
-    def nextAttempt(next: RetryAttempt[F]): F[Response[F]] = {
+    def nextAttempt(ra: RetryAttempt[F]): F[Response[F]] = {
       val effectiveDelay: F[FiniteDuration] =
-        next.retryAfter.traverse { h =>
+        ra.retryAfter.traverse { h =>
           h.retry match {
             case Left(date)  => Clock[F].realTime.map(n => (date.toDuration - n).max(0.seconds))
             case Right(secs) => secs.seconds.pure[F]
           }
         }.map {
-          case Some(after) => after.max(next.tickStatus.tick.snooze.toScala)
-          case None        => next.tickStatus.tick.snooze.toScala
+          case Some(after) => after.max(ra.policyTick.tick.snooze.toScala)
+          case None        => ra.policyTick.tick.snooze.toScala
         }
 
       effectiveDelay.flatMap(Temporal[F].sleep(_)) >>
-        next.hotswap.swap(client.run(next.request).attempt) >>
-        retryLoop(next)
+        ra.hotswap.swap(client.run(ra.request).attempt) >>
+        retryLoop(ra)
     }
 
     def retryLoop(ra: RetryAttempt[F]): F[Response[F]] =
       ra.hotswap.get.use {
         case Left(ex) =>
-          Clock[F].realTimeInstant.flatMap(ra.tickStatus.next).flatMap {
-            case Some(ts) => Right(ra).pure[F]
+          ra.policyTick.advance.flatMap {
+            case Some(ts) => Right(ra.focus(_.policyTick).replace(ts)).pure[F]
             case None     => ex.raiseError
           }
         case Right(response) =>
           if (retriable(ra.request, Right(response))) {
-            Clock[F].realTimeInstant.flatMap(ra.tickStatus.next).map {
-              case Some(ts) => Right(ra.focus(_.retryAfter).replace(response.headers.get[`Retry-After`]))
-              case None     => Left(response)
+            ra.policyTick.advance.map {
+              case Some(ts) =>
+                val next = RetryAttempt(ra.request, ts, ra.hotswap, response.headers.get[`Retry-After`])
+                Right(next)
+              case None => Left(response)
             }
           } else Left(response).pure[F]
-      }.flatMap {
-        case Left(response) => response.pure[F]
-        case Right(next)    => nextAttempt(next)
-      }
+      } // consume the response before next attempt
+        .flatMap {
+          case Left(response) => response.pure[F]
+          case Right(next)    => nextAttempt(next)
+        }
 
     Client[F] { (req: Request[F]) =>
       NonEmptyHotswap(client.run(req).attempt).flatMap { hotswap =>

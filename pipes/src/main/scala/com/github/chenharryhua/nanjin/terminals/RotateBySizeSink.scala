@@ -71,7 +71,7 @@ final private class RotateBySizeSink[F[_]](
       case None =>
         for {
           now <- Pull.eval(F.realTimeInstant)
-          currentTick = previousTick.advanceTick(previousTick.tick.conclude, now).map { crf =>
+          currentTick = previousTick.withNextTick(previousTick.tick.conclude, now).map { crf =>
             RotateFile(
               open = crf.openTime.toLocalDateTime,
               close = now.atZone(previousTick.tick.zoneId).toLocalDateTime,
@@ -93,7 +93,7 @@ final private class RotateBySizeSink[F[_]](
           for {
             _ <- writeChunk(first)
             now <- Pull.eval(F.realTimeInstant)
-            currentTick = previousTick.advanceTick(previousTick.tick.conclude, now)
+            currentTick = previousTick.withNextTick(previousTick.tick.conclude, now)
             crf = CreateRotateFile(currentTick.tick)
             _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(crf))))
             _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick.map { crf =>

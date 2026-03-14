@@ -200,8 +200,8 @@ final case class TickedValue[A](tick: Tick, value: A) derives Functor, Show, Enc
   def withConclude(newConclude: Instant): TickedValue[A] =
     copy(tick = tick.withConclude(newConclude))
 
+  def withNextTick(acquires: Instant, conclude: Instant): TickedValue[A] =
+    TickedValue(tick.nextTick(acquires, conclude), value)
+
   def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
     TimeStamped[A](f(tick), value)
-
-  def advanceTick(acquires: Instant, conclude: Instant): TickedValue[A] =
-    TickedValue(tick.nextTick(acquires, conclude), value)
