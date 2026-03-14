@@ -15,7 +15,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.concurrent.duration.*
 
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -78,7 +78,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(
-        hdp.rotateSink(sydneyTime, _.fixedDelay(1.second))(t => path / file.fileName(t)).avro(_.Uncompressed))
+        hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

@@ -14,7 +14,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationDouble
+import scala.concurrent.duration.*
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 

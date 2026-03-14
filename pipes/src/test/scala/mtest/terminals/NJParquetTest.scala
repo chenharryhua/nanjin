@@ -16,7 +16,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.concurrent.duration.*
 import scala.util.Try
 
 class NJParquetTest extends AnyFunSuite {
@@ -86,7 +86,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / file.ymdFileName(t)).parquet)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second))(t => path / file.ymdFileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
