@@ -177,7 +177,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     HadoopReader.binAvroS[F](configuration, writerSchema, readerSchema, url, ChunkSize(chunkSize))
 
   override def binAvro(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record] =
-    binAvro((chunkSize), schema, schema)
+    binAvro(chunkSize, schema, schema)
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
     val size = bufferSize.toBytes.toInt
@@ -195,13 +195,13 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     HadoopReader.jacksonS[F](configuration, writerSchema, readerSchema, url, ChunkSize(chunkSize))
 
   override def jackson(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record] =
-    jackson((chunkSize), schema, schema)
+    jackson(chunkSize, schema, schema)
 
   override def kantan(chunkSize: Int, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
     HadoopReader.kantanS[F](configuration, url, ChunkSize(chunkSize), csvConfiguration)
 
   override def kantan(chunkSize: Int, f: Endo[CsvConfiguration]): Stream[F, Seq[String]] =
-    kantan((chunkSize), f(CsvConfiguration.rfc))
+    kantan(chunkSize, f(CsvConfiguration.rfc))
 
   override def kantan(chunkSize: Int): Stream[F, Seq[String]] =
     kantan(chunkSize, CsvConfiguration.rfc)
@@ -225,8 +225,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   override def text(chunkSize: Int): Stream[F, String] =
     HadoopReader.stringS[F](configuration, url, ChunkSize(chunkSize))
 
-  override def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](
-    chunkSize: Int): Stream[F, A] =
+  override def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: Int): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, ChunkSize(chunkSize))
 
   override def jsonNode(chunkSize: Int): Stream[F, JsonNode] = {

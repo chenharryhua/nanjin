@@ -6,8 +6,8 @@ import org.scalatest.funsuite.AnyFunSuite
 object CodecTestData {
   final case class Foo(a: String, b: Int)
   final case class Bar(a: Int, b: String)
-  val fooCodec: KafkaSerde[Foo] = AvroFor[Foo].asValue(sr).withTopic(("avro.test"))
-  val barCodec: KafkaSerde[Bar] = AvroFor[Bar].asKey(sr).withTopic(("avro.test"))
+  val fooCodec: KafkaSerde[Foo] = AvroFor[Foo].asValue(sr).withTopic("avro.test")
+  val barCodec: KafkaSerde[Bar] = AvroFor[Bar].asKey(sr).withTopic("avro.test")
 }
 
 class CodecTest extends AnyFunSuite {

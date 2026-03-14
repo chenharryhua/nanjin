@@ -15,8 +15,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationDouble
-import io.github.iltotore.iron.*
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 
@@ -63,7 +61,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("6.deflate - 1") {
-    fs2(fs2Root, JacksonFile(_.Deflate(Level(5))), pandaSet)
+    fs2(fs2Root, JacksonFile(_.Deflate(_.Five)), pandaSet)
   }
 
   test("7.laziness") {

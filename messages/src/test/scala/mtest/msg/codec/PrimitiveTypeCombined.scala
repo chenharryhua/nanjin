@@ -12,8 +12,8 @@ final case class PrimitiveTypeCombined(
 )
 object PrimitiveTypeCombined {
   val primitiviesCodec: KafkaSerde[PrimitiveTypeCombined] =
-    AvroFor[PrimitiveTypeCombined].asKey(sr).withTopic(("topic.avro"))
+    AvroFor[PrimitiveTypeCombined].asKey(sr).withTopic("topic.avro")
 
   val jsonPrimCodec: KafkaSerde[Json] =
-    AvroFor[Json].asValue(sr).withTopic(("topic.json"))
+    AvroFor[Json].asValue(sr).withTopic("topic.json")
 }

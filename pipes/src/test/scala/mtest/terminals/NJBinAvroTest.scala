@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, FileKind}
 import fs2.Stream
 import io.circe.jawn
@@ -14,7 +13,6 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import io.github.iltotore.iron.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
@@ -64,7 +62,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, BinAvroFile(_.Deflate(Level(2))), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.Deflate(_.Two)), pandaSet)
   }
 
   test("laziness") {

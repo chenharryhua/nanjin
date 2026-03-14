@@ -117,7 +117,6 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-core"                       % circeV,
       "io.circe" %% "circe-generic"                    % circeV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "io.github.iltotore" %% "iron"                   % "3.3.0",
       // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ enumLib ++ testLib
@@ -161,6 +160,7 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"        % "3.3.0",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV
@@ -293,6 +293,7 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"    % "3.3.0",
       "org.tpolecat" %% "doobie-core"   % doobieV,
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,

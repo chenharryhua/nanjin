@@ -20,7 +20,7 @@ import org.apache.hadoop.conf.Configuration
 import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.admins.KafkaContext
 
 object kafka_connector_s3 {

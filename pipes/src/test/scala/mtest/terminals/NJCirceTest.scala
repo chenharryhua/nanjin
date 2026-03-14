@@ -20,7 +20,6 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 import squants.information.InformationConversions.InformationConversions
-import io.github.iltotore.iron.*
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 
@@ -67,7 +66,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(_.Deflate(Level(4))), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Deflate(_.Four)), TestData.tigerSet)
   }
 
   test("laziness") {

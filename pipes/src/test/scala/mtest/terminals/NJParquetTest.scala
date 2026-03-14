@@ -5,7 +5,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import fs2.Stream
 import io.circe.jawn
@@ -15,7 +14,6 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import io.github.iltotore.iron.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
@@ -63,7 +61,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("Zstandard parquet - 1") {
-    fs2(fs2Root, ParquetFile(_.Zstandard(Level(7))), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Zstandard(_.Seven)), pandaSet)
   }
 
   ignore("LZO parquet") {

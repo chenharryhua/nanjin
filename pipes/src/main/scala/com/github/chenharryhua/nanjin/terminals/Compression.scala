@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.bifunctor.toBifunctorOps
 import com.github.chenharryhua.nanjin.terminals.Compression.Level
+import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import io.circe.{Decoder, Encoder, Json}
-import io.github.iltotore.iron.RefinedType
-import io.github.iltotore.iron.constraint.numeric.Interval.Closed
 import org.apache.avro.file.CodecFactory
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -89,8 +88,24 @@ sealed trait AvroCompression extends Compression {
 }
 
 object Compression {
-  type Level = Level.T
-  object Level extends RefinedType[Int, Closed[1, 9]]
+  sealed abstract class Level(override val value: Int) extends IntEnumEntry with Product
+
+  object Level
+      extends CatsOrderValueEnum[Int, Level] with IntEnum[Level] with IntCirceEnum[Level]
+      with CatsValueEnum[Int, Level] {
+
+    override val values: IndexedSeq[Level] = findValues
+
+    case object One extends Level(1)
+    case object Two extends Level(2)
+    case object Three extends Level(3)
+    case object Four extends Level(4)
+    case object Five extends Level(5)
+    case object Six extends Level(6)
+    case object Seven extends Level(7)
+    case object Eight extends Level(8)
+    case object Nine extends Level(9)
+  }
 
   given encoderCompression: Encoder[Compression] =
     Encoder.instance[Compression] {
@@ -102,14 +117,14 @@ object Compression {
       case Lz4_Raw              => Json.fromString(Lz4_Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
-      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level}") // hadoop convention
-      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level}")
-      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level}")
+      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.value}") // hadoop convention
+      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level.value}")
+      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.value}")
     }
 
   private def convertLevel(lvl: String): Either[String, Level] =
     Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
-      .flatMap(Level.either)
+      .flatMap(Level.withValueEither(_).leftMap(_.getMessage))
 
   given decoderCompression: Decoder[Compression] =
     Decoder[String].emap[Compression] {
@@ -238,31 +253,37 @@ object Compression {
     override val fileExtension: String = ".lzo"
   }
 
-  final case class Deflate(level: Level)
+  final case class Deflate(value: Level)
       extends Compression with BinaryAvroCompression with AvroCompression with CirceCompression
       with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String = "deflate"
     override val fileExtension: String = ".deflate"
   }
+  object Deflate:
+    def apply(f: Level.type => Level): Deflate = Deflate(f(Level))
 
-  final case class Xz(level: Level) extends Compression with AvroCompression {
+  final case class Xz(value: Level) extends Compression with AvroCompression {
     override val shortName: String = "xz"
     override val fileExtension: String = ".xz"
   }
+  object Xz:
+    def apply(f: Level.type => Level): Xz = Xz(f(Level))
 
-  final case class Zstandard(level: Level) extends Compression with AvroCompression with ParquetCompression {
+  final case class Zstandard(value: Level) extends Compression with AvroCompression with ParquetCompression {
     override val shortName: String = "zstd"
     override val fileExtension: String = ".zst"
   }
+  object Zstandard:
+    def apply(f: Level.type => Level): Zstandard = Zstandard(f(Level))
 }
 
 object AvroCompression {
   val Uncompressed: AvroCompression = Compression.Uncompressed
   val Snappy: AvroCompression = Compression.Snappy
   val Bzip2: AvroCompression = Compression.Bzip2
-  def Deflate(level: Level): AvroCompression = Compression.Deflate(level)
-  def Xz(level: Level): AvroCompression = Compression.Xz(level)
-  def Zstandard(level: Level): AvroCompression = Compression.Zstandard(level)
+  def Deflate(f: Level.type => Level): AvroCompression = Compression.Deflate(f)
+  def Xz(f: Level.type => Level): AvroCompression = Compression.Xz(f)
+  def Zstandard(f: Level.type => Level): AvroCompression = Compression.Zstandard(f)
 }
 
 object BinaryAvroCompression {
@@ -272,7 +293,7 @@ object BinaryAvroCompression {
   val Gzip: BinaryAvroCompression = Compression.Gzip
   val Lz4: BinaryAvroCompression = Compression.Lz4
   val Lz4_Raw: BinaryAvroCompression = Compression.Lz4_Raw
-  def Deflate(level: Level): BinaryAvroCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): BinaryAvroCompression = Compression.Deflate(f)
 }
 
 object JacksonCompression {
@@ -282,7 +303,7 @@ object JacksonCompression {
   val Gzip: JacksonCompression = Compression.Gzip
   val Lz4: JacksonCompression = Compression.Lz4
   val Lz4_Raw: JacksonCompression = Compression.Lz4_Raw
-  def Deflate(level: Level): JacksonCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): JacksonCompression = Compression.Deflate(f)
 }
 
 object CirceCompression {
@@ -292,7 +313,7 @@ object CirceCompression {
   val Gzip: CirceCompression = Compression.Gzip
   val Lz4: CirceCompression = Compression.Lz4
   val Lz4_Raw: CirceCompression = Compression.Lz4_Raw
-  def Deflate(level: Level): CirceCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): CirceCompression = Compression.Deflate(f)
 }
 
 object KantanCompression {
@@ -302,7 +323,7 @@ object KantanCompression {
   val Gzip: KantanCompression = Compression.Gzip
   val Lz4: KantanCompression = Compression.Lz4
   val Lz4_Raw: KantanCompression = Compression.Lz4_Raw
-  def Deflate(level: Level): KantanCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): KantanCompression = Compression.Deflate(f)
 }
 
 object TextCompression {
@@ -312,7 +333,7 @@ object TextCompression {
   val Gzip: TextCompression = Compression.Gzip
   val Lz4: TextCompression = Compression.Lz4
   val Lz4_Raw: TextCompression = Compression.Lz4_Raw
-  def Deflate(level: Level): TextCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): TextCompression = Compression.Deflate(f)
 }
 
 object ParquetCompression {
@@ -323,7 +344,7 @@ object ParquetCompression {
   val Lz4_Raw: ParquetCompression = Compression.Lz4_Raw
   val Brotli: ParquetCompression = Compression.Brotli
   val Lzo: ParquetCompression = Compression.Lzo
-  def Zstandard(level: Level): ParquetCompression = Compression.Zstandard(level)
+  def Zstandard(f: Level.type => Level): ParquetCompression = Compression.Zstandard(f)
 }
 
 object ProtobufCompression {
@@ -332,5 +353,5 @@ object ProtobufCompression {
   val Bzip2: ProtobufCompression = Compression.Bzip2
   val Gzip: ProtobufCompression = Compression.Gzip
   val Lz4: ProtobufCompression = Compression.Lz4
-  def Deflate(level: Level): ProtobufCompression = Compression.Deflate(level)
+  def Deflate(f: Level.type => Level): ProtobufCompression = Compression.Deflate(f)
 }

@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -14,7 +13,6 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import io.github.iltotore.iron.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
@@ -46,7 +44,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("deflate 6 avro") {
-    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(Level(6))), pandaSet)
+    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(_.Six)), pandaSet)
   }
 
   test("uncompressed avro") {
@@ -54,7 +52,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("xz 1 avro") {
-    fs2(fs2Root, AvroFile(_.Xz(Level(1))), pandaSet)
+    fs2(fs2Root, AvroFile(_.Xz(_.One)), pandaSet)
   }
 
   test("bzip2 avro") {
@@ -62,7 +60,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("zstandard avro") {
-    fs2(fs2Root, AvroFile(_.Zstandard(Level(1))), pandaSet)
+    fs2(fs2Root, AvroFile(_.Zstandard(_.One)), pandaSet)
   }
 
   test("laziness") {

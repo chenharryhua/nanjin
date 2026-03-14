@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.jawn
@@ -17,7 +16,6 @@ import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import io.github.iltotore.iron.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
@@ -71,7 +69,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, TextFile(_.Deflate(Level(8))), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Deflate(_.Eight)), TestData.tigerSet)
   }
 
   test("laziness") {

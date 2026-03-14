@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
 import fs2.Stream
 import io.circe.jawn
@@ -14,7 +13,6 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import io.github.iltotore.iron.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationDouble
@@ -73,7 +71,7 @@ class NJJsonNodeTest extends AnyFunSuite {
   }
 
   test("6.deflate - 1") {
-    fs2(fs2Root, JacksonFile(_.Deflate(Level(5))), pandaSet)
+    fs2(fs2Root, JacksonFile(_.Deflate(_.Nine)), pandaSet)
   }
 
   test("8.rotation - policy") {
