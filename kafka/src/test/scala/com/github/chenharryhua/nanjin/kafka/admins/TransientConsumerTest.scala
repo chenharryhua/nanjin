@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumerImpl
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
-import com.github.chenharryhua.nanjin.kafka.{Offset, TopicPartitionMap, buildConsumer}
+import com.github.chenharryhua.nanjin.kafka.{buildConsumer, Offset, TopicPartitionMap}
 import fs2.kafka.ConsumerSettings
 import fs2.kafka.consumer.MkConsumer
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp

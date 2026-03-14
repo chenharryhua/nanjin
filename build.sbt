@@ -422,7 +422,7 @@ lazy val nanjin =
     .aggregate(
       common,
       datetime,
-   //   http,
+      http,
       aws,
       messages,
       pipes,
