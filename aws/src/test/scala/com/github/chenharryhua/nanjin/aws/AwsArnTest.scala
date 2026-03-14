@@ -40,7 +40,7 @@ class AwsArnTest extends AnyFunSuite {
   }
 
   test("chunk.size") {
-    val ck: ChunkSize = 100
+    val ck: ChunkSize = ChunkSize(100)
     println(ck)
   }
 }

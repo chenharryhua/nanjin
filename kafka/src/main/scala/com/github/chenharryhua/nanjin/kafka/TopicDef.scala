@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.{Endo, Show}
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
 
@@ -24,7 +23,7 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName.applyUnsafe(tn), pair)
+  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
     withTopicName(f(topicName.value))
 

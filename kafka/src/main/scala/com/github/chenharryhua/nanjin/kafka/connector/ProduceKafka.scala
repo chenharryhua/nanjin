@@ -6,7 +6,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.foldable.toFoldableOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.{Chunk, Pipe, Stream}
 import fs2.kafka.*
 import org.apache.kafka.clients.producer.RecordMetadata

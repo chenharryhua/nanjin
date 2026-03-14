@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverseFilter.toTraverseFilterOps
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   GroupId,

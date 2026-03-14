@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.guard.observers.kafka.KafkaObserver
 import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import com.github.chenharryhua.nanjin.kafka.KafkaSettings

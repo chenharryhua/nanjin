@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.traverse.toTraverseOps
 import cats.{Applicative, Monad}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange, TopicPartitionMap}
 import fs2.Stream

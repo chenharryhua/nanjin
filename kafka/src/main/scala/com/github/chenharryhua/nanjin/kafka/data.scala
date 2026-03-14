@@ -8,6 +8,16 @@ import io.circe.{Codec, Decoder, Encoder}
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
+opaque type TopicName = String
+object TopicName:
+  def apply(value: String): TopicName = value
+  extension (tn: TopicName) inline def value: String = tn
+
+  given Show[TopicName] = _.value
+  given Encoder[TopicName] = OpaqueLift.lift[TopicName, String, Encoder]
+  given Decoder[TopicName] = OpaqueLift.lift[TopicName, String, Decoder]
+end TopicName
+
 opaque type GroupId = String
 object GroupId:
   def apply(value: String): GroupId = value

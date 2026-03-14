@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,
   AdminTopicGroup,
@@ -283,12 +283,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value)))
       .flatMap(
         _.traverse { tn =>
-          new SnapshotConsumerImpl[F](TopicName.applyUnsafe(tn), consumer).partitionsFor
+          new SnapshotConsumerImpl[F](TopicName(tn), consumer).partitionsFor
             .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
             .attempt
             .map {
               case Left(_)  => None
-              case Right(_) => Some(TopicName.applyUnsafe(tn))
+              case Right(_) => Some(TopicName(tn))
             }
         }
       )

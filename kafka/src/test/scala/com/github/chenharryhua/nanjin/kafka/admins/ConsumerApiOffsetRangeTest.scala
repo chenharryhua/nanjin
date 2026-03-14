@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka

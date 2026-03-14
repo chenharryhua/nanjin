@@ -9,7 +9,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 
 final case class Simple(name: String, count: Int)
 

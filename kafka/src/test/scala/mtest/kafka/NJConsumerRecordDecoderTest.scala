@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite

@@ -19,7 +19,6 @@ import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
 import squants.information.{Bytes, Information, Megabytes}
-import io.github.iltotore.iron.autoRefine
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -34,7 +33,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = 100,
+      capacity = ChunkSize(100),
       policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -61,7 +60,7 @@ final class EmailObserver[F[_]] private (
     copy(translator = f(translator))
 
   def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
-  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
+  def withCapacity(cs: Int): EmailObserver[F] = copy(capacity = ChunkSize(cs))
   def withPolicy(f: Policy.type => Policy): EmailObserver[F] = copy(policy = f)
   def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
 
@@ -149,7 +148,7 @@ final class EmailObserver[F[_]] private (
               val send_and_update: F[Unit] = translate(event).flatMap {
                 case Some(ct) =>
                   cache.flatModify { tags =>
-                    if (tags.size < capacity)
+                    if (tags.size < capacity.value)
                       (tags ++ Chunk.singleton(ct)) -> F.unit
                     else
                       Chunk.singleton(ct) -> send_email(tags)

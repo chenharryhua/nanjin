@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.{catsSyntaxMonadError, catsSyntaxMonadErrorRethrow}
 import cats.syntax.option.catsSyntaxOptionId
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{
   AvroTopic,
   JsonTopic,

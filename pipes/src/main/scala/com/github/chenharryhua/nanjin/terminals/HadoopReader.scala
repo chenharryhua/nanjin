@@ -28,6 +28,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 private object HadoopReader {
 
@@ -44,7 +45,7 @@ private object HadoopReader {
           var keepGoing: Boolean = true // scalafix:ok
           val builder = Vector.newBuilder[GenericData.Record]
 
-          while (keepGoing && (counter < chunkSize)) { // scalafix:ok
+          while (keepGoing && (counter < chunkSize.value)) { // scalafix:ok
             val gr: GenericData.Record = reader.read()
             if (gr eq null) {
               keepGoing = false
@@ -92,7 +93,7 @@ private object HadoopReader {
           case Some(schema) => new GenericDatumReader(null, schema)
           case None         => new GenericDatumReader()
         })
-      Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize)
+      Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
     }
 
   // respect chunk size
@@ -133,10 +134,10 @@ private object HadoopReader {
             case Right(value) =>
               val size = value.size
               val jsons = Chunk.from(value)
-              if ((existCount + size) < chunkSize)
+              if ((existCount + size) < chunkSize.value)
                 go(existing ++ jsons, existCount + size)
               else {
-                val (first, second) = jsons.splitAt(chunkSize - existCount)
+                val (first, second) = jsons.splitAt(chunkSize.value - existCount)
                 (existing ++ first, second.some)
               }
           }
@@ -152,7 +153,7 @@ private object HadoopReader {
       val reader = new InputStreamReader(is, StandardCharsets.UTF_8)
       val buffered = new BufferedReader(reader)
       val iterator = buffered.lines().iterator().asScala
-      Stream.fromBlockingIterator[F](iterator, chunkSize)
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
   def kantanS[F[_]](
@@ -164,7 +165,7 @@ private object HadoopReader {
       val cr: CsvReader[ReadResult[Seq[String]]] =
         ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
       val reader = if (csvConfiguration.hasHeader) cr.drop(1) else cr
-      Stream.fromBlockingIterator[F](reader.iterator, chunkSize).rethrow
+      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
     }
 
   /*
@@ -187,7 +188,7 @@ private object HadoopReader {
         val builder = Vector.newBuilder[GenericData.Record]
         var counter: Int = 0 // scalafix:ok
         try {
-          while (counter < chunkSize) { // scalafix:ok
+          while (counter < chunkSize.value) { // scalafix:ok
             builder += datumReader.read(null, decoder)
             counter += 1
           }
@@ -240,7 +241,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize)(using gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     inputStreamS[F](configuration, url).flatMap { is =>
-      Stream.fromBlockingIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize)
+      Stream.fromBlockingIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
 
 }

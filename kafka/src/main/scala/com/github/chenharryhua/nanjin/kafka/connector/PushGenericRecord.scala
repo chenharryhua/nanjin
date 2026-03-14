@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import fs2.kafka.ProducerRecord

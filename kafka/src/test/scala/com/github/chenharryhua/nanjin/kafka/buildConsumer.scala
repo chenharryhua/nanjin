@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.kafka.consumer.MkConsumer
 import fs2.kafka.{ConsumerSettings, KafkaByteConsumer}
 import org.apache.kafka.clients.consumer.*
