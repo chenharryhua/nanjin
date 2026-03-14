@@ -4,7 +4,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.Endo
-import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse}

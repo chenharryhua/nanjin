@@ -3,8 +3,7 @@ package mtest.database
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
-import com.github.chenharryhua.nanjin.common.database.*
-import com.github.chenharryhua.nanjin.database.DBConfig
+import com.github.chenharryhua.nanjin.database.*
 import doobie.ConnectionIO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ssm.SsmClient

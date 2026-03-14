@@ -1,5 +1,8 @@
 package com.github.chenharryhua.nanjin.common
 
+import io.github.iltotore.iron.:|
+import io.github.iltotore.iron.constraint.numeric.Positive
+
 import scala.quoted.*
 
 trait TypeName[A]:
@@ -21,3 +24,5 @@ object OpaqueLift:
   inline def lift[A, B, TC[_]](using tc: TC[B]): TC[A] =
     tc.asInstanceOf[TC[A]] // scalafix:ok
 end OpaqueLift
+
+type ChunkSize = Int :| Positive

@@ -9,9 +9,8 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}

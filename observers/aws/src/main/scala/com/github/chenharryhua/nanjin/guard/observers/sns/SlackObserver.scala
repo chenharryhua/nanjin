@@ -8,7 +8,7 @@ import cats.syntax.foldable.toFoldableOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart

@@ -5,7 +5,6 @@ import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.syntax.option.catsSyntaxOptionId
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Chunk, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade

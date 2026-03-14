@@ -10,7 +10,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
-import com.github.chenharryhua.nanjin.common.aws.SqsUrl
+import com.github.chenharryhua.nanjin.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor

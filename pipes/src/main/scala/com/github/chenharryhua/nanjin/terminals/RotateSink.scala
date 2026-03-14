@@ -18,6 +18,8 @@ import scalapb.GeneratedMessage
 import java.time.{Duration, LocalDateTime, ZonedDateTime}
 import java.util.UUID
 
+type ChunkSize = com.github.chenharryhua.nanjin.common.ChunkSize
+
 /** Instruction to create a new rotated file.
   *
   * This event marks the beginning of a new `Tick` window. A writer opened from this information will accept
@@ -37,6 +39,7 @@ final case class CreateRotateFile(
   index: Long,
   openTime: ZonedDateTime
 )
+
 object CreateRotateFile:
   def apply(tick: Tick): CreateRotateFile =
     new CreateRotateFile(

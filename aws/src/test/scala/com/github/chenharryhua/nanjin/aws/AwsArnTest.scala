@@ -1,7 +1,7 @@
-package mtest.common
+package com.github.chenharryhua.nanjin.aws
 
-import com.github.chenharryhua.nanjin.common.aws.*
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
+import com.github.chenharryhua.nanjin.aws.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import io.github.iltotore.iron.autoRefine
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -43,5 +43,4 @@ class AwsArnTest extends AnyFunSuite {
     val ck: ChunkSize = 100
     println(ck)
   }
-
 }

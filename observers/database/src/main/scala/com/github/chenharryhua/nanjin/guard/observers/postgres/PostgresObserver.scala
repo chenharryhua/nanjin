@@ -7,7 +7,7 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.foldable.toFoldableOps
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart

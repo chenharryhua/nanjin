@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ses.{SesClient, SesClientBuilder}

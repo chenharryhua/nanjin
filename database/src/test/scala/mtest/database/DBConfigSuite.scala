@@ -1,7 +1,6 @@
 package mtest.database
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.database.*
 import com.github.chenharryhua.nanjin.database.*
 import munit.CatsEffectSuite
 import io.github.iltotore.iron.*
