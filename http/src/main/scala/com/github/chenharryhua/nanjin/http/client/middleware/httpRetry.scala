@@ -28,11 +28,10 @@ object httpRetry {
     retriable: Retriable[F] = RetryPolicy.defaultRetriable[F])(client: Client[F]): Client[F] =
     impl[F](zoneId, f(Policy), retriable)(client)
 
-  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] =
-    apply[F](
-      zoneId,
-      f,
-      (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex))(client)
+  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] = {
+    val g = (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex)
+    apply[F](zoneId, f, g)(client)
+  }
 
   final private case class RetryAttempt[F[_]](
     request: Request[F],

@@ -16,8 +16,8 @@ object TypeName:
     '{ new TypeName[A] { def value: String = ${ Expr(TypeRepr.of[A].typeSymbol.name) } } }
 end TypeName
 
-object Opaque:
+object OpaqueLift:
   /** Lift any typeclass from representation type `B` to opaque type `A` */
   inline def lift[A, B, TC[_]](using tc: TC[B]): TC[A] =
     tc.asInstanceOf[TC[A]] // scalafix:ok
-end Opaque
+end OpaqueLift

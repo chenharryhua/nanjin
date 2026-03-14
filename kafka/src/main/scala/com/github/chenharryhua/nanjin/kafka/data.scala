@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.order.catsSyntaxPartialOrder
 import cats.{Order, PartialOrder, Show}
-import com.github.chenharryhua.nanjin.common.Opaque
+import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Codec, Decoder, Encoder}
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
@@ -14,8 +14,8 @@ object GroupId:
   extension (gid: GroupId) inline def value: String = gid
 
   given Show[GroupId] = _.value
-  given Encoder[GroupId] = Opaque.lift[GroupId, String, Encoder]
-  given Decoder[GroupId] = Opaque.lift[GroupId, String, Decoder]
+  given Encoder[GroupId] = OpaqueLift.lift[GroupId, String, Encoder]
+  given Decoder[GroupId] = OpaqueLift.lift[GroupId, String, Decoder]
 end GroupId
 
 opaque type Offset = Long
@@ -30,8 +30,8 @@ object Offset:
     def -(other: Offset): Long = offset - other.value
 
   given Show[Offset] = _.value.toString
-  given Encoder[Offset] = Opaque.lift[Offset, Long, Encoder]
-  given Decoder[Offset] = Opaque.lift[Offset, Long, Decoder]
+  given Encoder[Offset] = OpaqueLift.lift[Offset, Long, Encoder]
+  given Decoder[Offset] = OpaqueLift.lift[Offset, Long, Decoder]
   given Ordering[Offset] = Ordering.by(_.value)
   given Order[Offset] = Order.fromOrdering
 end Offset
@@ -44,8 +44,8 @@ object Partition:
     def -(other: Partition): Int = p - other.value
 
   given Show[Partition] = _.value.toString
-  given Encoder[Partition] = Opaque.lift[Partition, Int, Encoder]
-  given Decoder[Partition] = Opaque.lift[Partition, Int, Decoder]
+  given Encoder[Partition] = OpaqueLift.lift[Partition, Int, Encoder]
+  given Decoder[Partition] = OpaqueLift.lift[Partition, Int, Decoder]
   given Ordering[Partition] = Ordering.by(_.value)
   given Order[Partition] = Order.fromOrdering
 end Partition

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.Unique
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, Opaque}
+import com.github.chenharryhua.nanjin.common.{DurationFormatter, OpaqueLift}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -19,8 +19,8 @@ object StackTrace:
   def apply(ex: Throwable): StackTrace =
     ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
   extension (st: StackTrace) inline def value: List[String] = st
-  given Encoder[StackTrace] = Opaque.lift[StackTrace, List[String], Encoder]
-  given Decoder[StackTrace] = Opaque.lift[StackTrace, List[String], Decoder]
+  given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
+  given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
   given Show[StackTrace] = _.mkString("\n\t")
 end StackTrace
 
@@ -34,8 +34,8 @@ object Correlation:
   extension (c: Correlation) inline def value: String = c
 
   given Show[Correlation] = _.value
-  given Encoder[Correlation] = Opaque.lift[Correlation, String, Encoder]
-  given Decoder[Correlation] = Opaque.lift[Correlation, String, Decoder]
+  given Encoder[Correlation] = OpaqueLift.lift[Correlation, String, Encoder]
+  given Decoder[Correlation] = OpaqueLift.lift[Correlation, String, Decoder]
 end Correlation
 
 // ---------------- Took ----------------
@@ -45,8 +45,8 @@ object Took:
   extension (t: Took) inline def value: Duration = t
 
   given Show[Took] = t => DurationFormatter.defaultFormatter.format(t.value)
-  given Encoder[Took] = Opaque.lift[Took, Duration, Encoder]
-  given Decoder[Took] = Opaque.lift[Took, Duration, Decoder]
+  given Encoder[Took] = OpaqueLift.lift[Took, Duration, Encoder]
+  given Decoder[Took] = OpaqueLift.lift[Took, Duration, Decoder]
 end Took
 
 // ---------------- Active ----------------
@@ -56,8 +56,8 @@ object Active:
   extension (a: Active) inline def value: Duration = a
 
   given Show[Active] = a => defaultFormatter.format(a.value)
-  given Encoder[Active] = Opaque.lift[Active, Duration, Encoder]
-  given Decoder[Active] = Opaque.lift[Active, Duration, Decoder]
+  given Encoder[Active] = OpaqueLift.lift[Active, Duration, Encoder]
+  given Decoder[Active] = OpaqueLift.lift[Active, Duration, Decoder]
 end Active
 
 // ---------------- Snooze ----------------
@@ -67,8 +67,8 @@ object Snooze:
   extension (s: Snooze) inline def value: Duration = s
 
   given Show[Snooze] = s => defaultFormatter.format(s.value)
-  given Encoder[Snooze] = Opaque.lift[Snooze, Duration, Encoder]
-  given Decoder[Snooze] = Opaque.lift[Snooze, Duration, Decoder]
+  given Encoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Encoder]
+  given Decoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Decoder]
 end Snooze
 
 // ---------------- Timestamp ----------------
@@ -80,8 +80,8 @@ object Timestamp:
   given Show[Timestamp] =
     _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
-  given Encoder[Timestamp] = Opaque.lift[Timestamp, ZonedDateTime, Encoder]
-  given Decoder[Timestamp] = Opaque.lift[Timestamp, ZonedDateTime, Decoder]
+  given Encoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Encoder]
+  given Decoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Decoder]
 end Timestamp
 
 // ---------------- Message ----------------
@@ -91,8 +91,8 @@ object Message:
   extension (m: Message) inline def value: Json = m
 
   given Show[Message] = _.value.spaces2
-  given Encoder[Message] = Opaque.lift[Message, Json, Encoder]
-  given Decoder[Message] = Opaque.lift[Message, Json, Decoder]
+  given Encoder[Message] = OpaqueLift.lift[Message, Json, Encoder]
+  given Decoder[Message] = OpaqueLift.lift[Message, Json, Decoder]
 end Message
 
 // ---------------- Domain ----------------
@@ -102,8 +102,8 @@ object Domain:
   extension (d: Domain) inline def value: String = d
 
   given Show[Domain] = _.value
-  given Encoder[Domain] = Opaque.lift[Domain, String, Encoder]
-  given Decoder[Domain] = Opaque.lift[Domain, String, Decoder]
+  given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
+  given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
 
 // ---------------- Label ----------------
@@ -113,6 +113,6 @@ object Label:
   extension (l: Label) inline def value: String = l
 
   given Show[Label] = _.value
-  given Encoder[Label] = Opaque.lift[Label, String, Encoder]
-  given Decoder[Label] = Opaque.lift[Label, String, Decoder]
+  given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
+  given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
 end Label
