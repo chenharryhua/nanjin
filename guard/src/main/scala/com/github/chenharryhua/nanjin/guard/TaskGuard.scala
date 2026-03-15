@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard
 
 import cats.Endo
 import cats.effect.kernel.Async
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{Service, ServiceConfig, Task}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import fs2.io.net.Network
 
 /** poor man's telemetry
@@ -16,7 +17,7 @@ final class TaskGuard[F[_]: {Async, Network, Console}] private (serviceConfig: S
     new TaskGuard[F](f(serviceConfig))
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuardImpl[F](
+    ServiceGuard[F](
       serviceName = Service(serviceName),
       config = serviceConfig
     )

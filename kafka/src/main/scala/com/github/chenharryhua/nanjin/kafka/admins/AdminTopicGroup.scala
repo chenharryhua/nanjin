@@ -76,45 +76,54 @@ sealed trait AdminTopicGroup[F[_]] {
 
 }
 
-final private class AdminTopicGroupImpl[F[_]: Sync](
-  override val adminClient: KafkaAdminClient[F],
-  consumerClient: SnapshotConsumer[F],
-  topicName: TopicName,
-  groupId: GroupId
-) extends AdminTopicGroup[F] {
+private[kafka] object AdminTopicGroup {
+  def apply[F[_]: Sync](
+    adminClient: KafkaAdminClient[F],
+    consumerClient: SnapshotConsumer[F],
+    topicName: TopicName,
+    groupId: GroupId): AdminTopicGroup[F] =
+    new AdminTopicGroupImpl[F](adminClient, consumerClient, topicName, groupId)
 
-  override def lagBehind: F[TopicPartitionMap[Option[LagBehind]]] =
-    for {
-      ends <- consumerClient.endOffsets
-      curr <- adminClient
-        .listConsumerGroupOffsets(groupId.value)
-        .partitionsToOffsetAndMetadata
-        .map(_.filter(_._1.topic() === topicName.value).map { case (k, v) => k -> Offset(v) })
-        .map(TopicPartitionMap(_))
-    } yield calculate.admin_lagBehind(ends, curr)
+  final private class AdminTopicGroupImpl[F[_]: Sync](
+    override val adminClient: KafkaAdminClient[F],
+    consumerClient: SnapshotConsumer[F],
+    topicName: TopicName,
+    groupId: GroupId
+  ) extends AdminTopicGroup[F] {
 
-  override def deleteConsumerGroupOffsets: F[Unit] =
-    for {
-      tps <- consumerClient.partitionsFor
-      _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet)
-    } yield ()
+    override def lagBehind: F[TopicPartitionMap[Option[LagBehind]]] =
+      for {
+        ends <- consumerClient.endOffsets
+        curr <- adminClient
+          .listConsumerGroupOffsets(groupId.value)
+          .partitionsToOffsetAndMetadata
+          .map(_.filter(_._1.topic() === topicName.value).map { case (k, v) => k -> Offset(v) })
+          .map(TopicPartitionMap(_))
+      } yield calculate.admin_lagBehind(ends, curr)
 
-  override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
-    consumerClient.commitSync(offsets)
+    override def deleteConsumerGroupOffsets: F[Unit] =
+      for {
+        tps <- consumerClient.partitionsFor
+        _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet)
+      } yield ()
 
-  override def commitSync(partition: Int, offset: Long): F[Unit] = {
-    val tp = new TopicPartition(topicName.value, partition)
-    val oam = new OffsetAndMetadata(offset)
-    commitSync(Map(tp -> oam))
+    override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
+      consumerClient.commitSync(offsets)
+
+    override def commitSync(partition: Int, offset: Long): F[Unit] = {
+      val tp = new TopicPartition(topicName.value, partition)
+      val oam = new OffsetAndMetadata(offset)
+      commitSync(Map(tp -> oam))
+    }
+
+    override def resetOffsetsToBegin: F[Unit] =
+      consumerClient.resetOffsetsToBegin
+
+    override def resetOffsetsToEnd: F[Unit] =
+      consumerClient.resetOffsetsToEnd
+
+    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+      consumerClient.resetOffsetsForTimes(ts)
+
   }
-
-  override def resetOffsetsToBegin: F[Unit] =
-    consumerClient.resetOffsetsToBegin
-
-  override def resetOffsetsToEnd: F[Unit] =
-    consumerClient.resetOffsetsToEnd
-
-  override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
-    consumerClient.resetOffsetsForTimes(ts)
-
 }

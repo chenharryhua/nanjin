@@ -6,10 +6,10 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toShow}
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 

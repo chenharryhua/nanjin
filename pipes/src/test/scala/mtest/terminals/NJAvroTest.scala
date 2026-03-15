@@ -77,8 +77,8 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(
-        hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).avro(
+        _.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

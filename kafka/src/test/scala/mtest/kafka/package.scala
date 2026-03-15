@@ -1,8 +1,7 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.admins.KafkaContext
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaSettings}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 

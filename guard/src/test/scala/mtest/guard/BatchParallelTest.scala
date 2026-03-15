@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.semigroupk.toSemigroupKOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
   JobHook,
@@ -11,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 

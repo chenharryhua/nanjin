@@ -242,6 +242,9 @@ lazy val guard = (project in file("guard"))
     ),
     buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
     buildInfoOptions += BuildInfoOption.ToJson
+  ).settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
   )
 
 // ==========================
@@ -403,7 +406,10 @@ lazy val pipes = (project in file("pipes"))
     "org.eclipse.jetty"    % "jetty-server"     % "12.1.7", // snyk by hadoop-common
     "io.netty"             % "netty-codec-http" % nettyV, // snyk by hadoop-common
     "io.netty"             % "netty-codec-smtp" % nettyV // snyk by hadoop-client
-  ))
+  )).settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
 
 // ==========================
 // Example

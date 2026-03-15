@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.admins
+package com.github.chenharryhua.nanjin.kafka
 
 import cats.Endo
 import cats.effect.Resource
@@ -8,18 +8,16 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,
   AdminTopicGroup,
-  AdminTopicGroupImpl,
-  AdminTopicImpl
+  SchemaRegistryApi,
+  SnapshotConsumer
 }
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.kafka.{
   makePureConsumer,
-  streaming,
   AvroTopic,
   GroupId,
   JsonTopic,
@@ -28,6 +26,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   ProtoTopic,
   PureConsumerSettings,
   SerdePair,
+  TopicName,
   TopicSerde
 }
 import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
@@ -114,7 +113,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
 
-    new SchemaRegistryApiImpl[F](new CachedSchemaRegistryClient(url, cacheCapacity))
+    SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
   /** Check if the local topic schemas are backward compatible with broker schemas.
@@ -247,7 +246,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
           .withEnableAutoCommit(false)
           .withGroupId(groupId)
       )
-    } yield new AdminTopicGroupImpl(admin, consumer, topicName, GroupId(groupId))
+    } yield AdminTopicGroup(admin, consumer, topicName, GroupId(groupId))
 
   def admin(topicName: TopicName)(using F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
@@ -259,7 +258,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
           .withAutoOffsetReset(AutoOffsetReset.None)
           .withEnableAutoCommit(false)
       )
-    } yield new AdminTopicImpl(admin, consumer, topicName)
+    } yield AdminTopic(admin, consumer, topicName)
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
     *
@@ -283,7 +282,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value)))
       .flatMap(
         _.traverse { tn =>
-          new SnapshotConsumerImpl[F](TopicName(tn), consumer).partitionsFor
+          SnapshotConsumer[F](TopicName(tn), consumer).partitionsFor
             .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
             .attempt
             .map {

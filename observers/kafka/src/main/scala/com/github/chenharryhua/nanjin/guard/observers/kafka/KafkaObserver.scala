@@ -7,14 +7,13 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import com.github.chenharryhua.nanjin.kafka.AvroForPair
-import com.github.chenharryhua.nanjin.kafka.admins.KafkaContext
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}

@@ -3,7 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.group.catsSyntaxSemigroup
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

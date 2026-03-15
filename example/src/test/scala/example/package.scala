@@ -1,6 +1,5 @@
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.KafkaSettings
-import com.github.chenharryhua.nanjin.kafka.admins.KafkaContext
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import org.apache.kafka.clients.consumer.ConsumerConfig
  
 package object example {

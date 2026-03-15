@@ -7,7 +7,7 @@ import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTrav
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
@@ -21,7 +21,6 @@ import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.admins.KafkaContext
 
 object kafka_connector_s3 {
   val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)

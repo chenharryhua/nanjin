@@ -8,17 +8,17 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.given
 import com.github.chenharryhua.nanjin.kafka.{
   makePureConsumer,
   Offset,
   OffsetRange,
   Partition,
   PureConsumerSettings,
+  TopicName,
   TopicPartitionList,
-  TopicPartitionMap
+  TopicPartitionMap,
+  given
 }
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
@@ -113,120 +113,125 @@ sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
   def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
-private object SnapshotConsumer {
+private[kafka] object SnapshotConsumer {
 
   def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings): Resource[F, SnapshotConsumer[F]] =
     makePureConsumer(cs).map(consumer => new SnapshotConsumerImpl(topicName, consumer))
-}
+  def apply[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer): SnapshotConsumer[F] =
+    new SnapshotConsumerImpl[F](topicName, consumer)
 
-final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)
-    extends SnapshotConsumer[F] {
+  final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)
+      extends SnapshotConsumer[F] {
+    def withTopicName(name: String): SnapshotConsumerImpl[F] =
+      new SnapshotConsumerImpl[F](TopicName(name), consumer)
 
-  private val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
-    KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]](topicName)
+    private val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
+      KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]](topicName)
 
-  private def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
-    r.run(consumer)
+    private def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
+      r.run(consumer)
 
-  override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
-    execute {
-      for {
-        from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
-        end <- kpc.endOffsets
-        to <- dtr.endTimestamp.traverse(kpc.offsetsForTimes)
-      } yield calculate.consumer_offsetRange(from, end, to)
-    }
+    override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
+      execute {
+        for {
+          from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
+          end <- kpc.endOffsets
+          to <- dtr.endTimestamp.traverse(kpc.offsetsForTimes)
+        } yield calculate.consumer_offsetRange(from, end, to)
+      }
 
-  override def offsetRangeFor(
-    start: NJTimestamp,
-    end: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
-    execute {
-      for {
-        from <- kpc.offsetsForTimes(start)
-        to <- kpc.offsetsForTimes(end)
-      } yield calculate.consumer_offsetRange(from, to)
-    }
+    override def offsetRangeFor(
+      start: NJTimestamp,
+      end: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
+      execute {
+        for {
+          from <- kpc.offsetsForTimes(start)
+          to <- kpc.offsetsForTimes(end)
+        } yield calculate.consumer_offsetRange(from, to)
+      }
 
-  override val retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    execute {
-      for {
-        end <- kpc.endOffsets
-        rec <- end.value.toList.traverse { case (tp, of) =>
-          of.filter(_.value > 0)
-            .flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset.asLast))
-        }
-      } yield rec.flatten.sortBy(_.partition())
-    }
+    override val retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      execute {
+        for {
+          end <- kpc.endOffsets
+          rec <- end.value.toList.traverse { case (tp, of) =>
+            of.filter(_.value > 0)
+              .flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset.asLast))
+          }
+        } yield rec.flatten.sortBy(_.partition())
+      }
 
-  override val retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    execute {
-      for {
-        beg <- kpc.beginningOffsets
-        rec <- beg.value.toList.traverse { case (tp, of) =>
-          of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
-        }
-      } yield rec.flatten.sortBy(_.partition())
-    }
+    override val retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      execute {
+        for {
+          beg <- kpc.beginningOffsets
+          rec <- beg.value.toList.traverse { case (tp, of) =>
+            of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
+          }
+        } yield rec.flatten.sortBy(_.partition())
+      }
 
-  override def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    execute {
-      for {
-        oft <- kpc.offsetsForTimes(ts)
-        rec <- oft.value.toList.traverse { case (tp, of) =>
-          of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
-        }
-      } yield rec.flatten
-    }
+    override def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      execute {
+        for {
+          oft <- kpc.offsetsForTimes(ts)
+          rec <- oft.value.toList.traverse { case (tp, of) =>
+            of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
+          }
+        } yield rec.flatten
+      }
 
-  override val offsetRangeForAll: F[TopicPartitionMap[Option[OffsetRange]]] =
-    execute {
-      for {
-        beg <- kpc.beginningOffsets
-        end <- kpc.endOffsets
-      } yield calculate.consumer_offsetRange(beg, end)
-    }
+    override val offsetRangeForAll: F[TopicPartitionMap[Option[OffsetRange]]] =
+      execute {
+        for {
+          beg <- kpc.beginningOffsets
+          end <- kpc.endOffsets
+        } yield calculate.consumer_offsetRange(beg, end)
+      }
 
-  override def numOfRecordsSince(ts: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
-    execute {
-      for {
-        oft <- kpc.offsetsForTimes(ts)
-        end <- kpc.endOffsets
-      } yield calculate.consumer_offsetRange(oft, end)
-    }
+    override def numOfRecordsSince(ts: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
+      execute {
+        for {
+          oft <- kpc.offsetsForTimes(ts)
+          end <- kpc.endOffsets
+        } yield calculate.consumer_offsetRange(oft, end)
+      }
 
-  override val partitionsFor: F[TopicPartitionList] =
-    execute(kpc.partitionsFor)
+    override val partitionsFor: F[TopicPartitionList] =
+      execute(kpc.partitionsFor)
 
-  override val beginningOffsets: F[TopicPartitionMap[Option[Offset]]] =
-    execute(kpc.beginningOffsets)
+    override val beginningOffsets: F[TopicPartitionMap[Option[Offset]]] =
+      execute(kpc.beginningOffsets)
 
-  override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
-    execute(kpc.endOffsets)
+    override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
+      execute(kpc.endOffsets)
 
-  override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
-    execute(kpc.offsetsForTimes(ts))
+    override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
+      execute(kpc.offsetsForTimes(ts))
 
-  override def retrieveRecord(
-    partition: Partition,
-    offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    execute(kpc.retrieveRecord(partition, offset))
+    override def retrieveRecord(
+      partition: Partition,
+      offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      execute(kpc.retrieveRecord(partition, offset))
 
-  override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
-    execute(kpc.commitSync(offsets))
+    override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
+      execute(kpc.commitSync(offsets))
 
-  private def offsetsOf(offsets: TopicPartitionMap[Option[Offset]]): Map[TopicPartition, OffsetAndMetadata] =
-    offsets.flatten.value.map { case (k, offset) => k -> new OffsetAndMetadata(offset.value) }
+    private def offsetsOf(
+      offsets: TopicPartitionMap[Option[Offset]]): Map[TopicPartition, OffsetAndMetadata] =
+      offsets.flatten.value.map { case (k, offset) => k -> new OffsetAndMetadata(offset.value) }
 
-  override val resetOffsetsToBegin: F[Unit] =
-    execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
+    override val resetOffsetsToBegin: F[Unit] =
+      execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
 
-  override val resetOffsetsToEnd: F[Unit] =
-    execute(kpc.endOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
+    override val resetOffsetsToEnd: F[Unit] =
+      execute(kpc.endOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
 
-  override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
-    execute(kpc.offsetsForTimes(ts).flatMap(x => kpc.commitSync(offsetsOf(x))))
+    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+      execute(kpc.offsetsForTimes(ts).flatMap(x => kpc.commitSync(offsetsOf(x))))
 
-  override val metrics: F[Map[MetricName, Metric]] =
-    execute(kpc.metrics)
+    override val metrics: F[Map[MetricName, Metric]] =
+      execute(kpc.metrics)
 
+  }
 }

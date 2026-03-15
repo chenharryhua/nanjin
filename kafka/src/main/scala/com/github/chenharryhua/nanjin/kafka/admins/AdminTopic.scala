@@ -4,13 +4,13 @@ import cats.effect.kernel.Sync
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverseFilter.toTraverseFilterOps
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   GroupId,
   Offset,
   OffsetRange,
   Partition,
+  TopicName,
   TopicPartitionList,
   TopicPartitionMap
 }
@@ -104,52 +104,60 @@ trait AdminTopic[F[_]] {
   def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
 }
 
-final private class AdminTopicImpl[F[_]: Sync](
-  override val adminClient: KafkaAdminClient[F],
-  consumerClient: SnapshotConsumer[F],
-  topicName: TopicName)
-    extends AdminTopic[F] {
-  override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
-    adminClient.deleteTopic(topicName.value)
+private[kafka] object AdminTopic {
+  def apply[F[_]: Sync](
+    adminClient: KafkaAdminClient[F],
+    consumerClient: SnapshotConsumer[F],
+    topicName: TopicName): AdminTopic[F] =
+    new AdminTopicImpl[F](adminClient, consumerClient, topicName)
 
-  override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-    adminClient.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
+  final private class AdminTopicImpl[F[_]: Sync](
+    override val adminClient: KafkaAdminClient[F],
+    consumerClient: SnapshotConsumer[F],
+    topicName: TopicName)
+      extends AdminTopic[F] {
+    override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
+      adminClient.deleteTopic(topicName.value)
 
-  override def newTopic(description: TopicDescription): F[Unit] = {
-    val partitions = description.partitions().size()
-    val replicas = description.partitions().get(0).replicas().size().toShort
-    newTopic(partitions, replicas)
+    override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
+      adminClient.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
+
+    override def newTopic(description: TopicDescription): F[Unit] = {
+      val partitions = description.partitions().size()
+      val replicas = description.partitions().get(0).replicas().size().toShort
+      newTopic(partitions, replicas)
+    }
+
+    override def mirrorTo(other: TopicName): F[Unit] =
+      for {
+        desc <- adminClient.describeTopics(List(topicName.value)).map(_(topicName.value))
+        _ <- adminClient.createTopic(
+          new NewTopic(
+            other.value,
+            desc.partitions().size(),
+            desc.partitions().get(0).replicas().size().toShort))
+      } yield ()
+
+    override def groups: F[List[GroupId]] =
+      for {
+        gIds <- adminClient.listConsumerGroups.groupIds
+        ids <- gIds.traverseFilter(gid =>
+          adminClient
+            .listConsumerGroupOffsets(gid)
+            .partitionsToOffsetAndMetadata
+            .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
+      } yield ids.distinct.map(GroupId(_))
+
+    override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
+      consumerClient.offsetRangeFor(dtr)
+
+    override def partitionsFor: F[TopicPartitionList] =
+      consumerClient.partitionsFor
+
+    override def retrieveRecord(
+      partition: Int,
+      offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      consumerClient.retrieveRecord(Partition(partition), Offset(offset))
+
   }
-
-  override def mirrorTo(other: TopicName): F[Unit] =
-    for {
-      desc <- adminClient.describeTopics(List(topicName.value)).map(_(topicName.value))
-      _ <- adminClient.createTopic(
-        new NewTopic(
-          other.value,
-          desc.partitions().size(),
-          desc.partitions().get(0).replicas().size().toShort))
-    } yield ()
-
-  override def groups: F[List[GroupId]] =
-    for {
-      gIds <- adminClient.listConsumerGroups.groupIds
-      ids <- gIds.traverseFilter(gid =>
-        adminClient
-          .listConsumerGroupOffsets(gid)
-          .partitionsToOffsetAndMetadata
-          .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
-    } yield ids.distinct.map(GroupId(_))
-
-  override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
-    consumerClient.offsetRangeFor(dtr)
-
-  override def partitionsFor: F[TopicPartitionList] =
-    consumerClient.partitionsFor
-
-  override def retrieveRecord(
-    partition: Int,
-    offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    consumerClient.retrieveRecord(Partition(partition), Offset(offset))
-
 }

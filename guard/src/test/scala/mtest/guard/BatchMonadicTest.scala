@@ -11,13 +11,14 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 import cats.syntax.group.catsSyntaxSemigroup
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 
 class BatchMonadicTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =

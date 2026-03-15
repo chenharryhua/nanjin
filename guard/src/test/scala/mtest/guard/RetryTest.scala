@@ -4,9 +4,10 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import cats.syntax.functor.toFunctorOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{retrieveCounter, Event}
-import com.github.chenharryhua.nanjin.guard.service.{Agent, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt

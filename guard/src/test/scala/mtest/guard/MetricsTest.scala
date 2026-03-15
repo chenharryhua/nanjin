@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveCounter,
   retrieveHistogram,
@@ -17,7 +18,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   MetricName
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
-import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Information}

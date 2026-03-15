@@ -5,9 +5,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.port
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import io.circe.{jawn, Json}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite

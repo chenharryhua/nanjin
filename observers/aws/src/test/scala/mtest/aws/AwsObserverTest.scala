@@ -5,11 +5,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.semigroup.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
 import squants.mass.Micrograms
