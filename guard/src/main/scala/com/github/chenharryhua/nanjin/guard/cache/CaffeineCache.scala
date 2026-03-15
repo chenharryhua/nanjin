@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.cache
 
-import cats.effect.implicits.monadCancelOps_
+import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.effect.kernel.{Async, Deferred, Ref, Resource}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.apply.catsSyntaxApplyOps
@@ -10,9 +10,9 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
-import io.circe.generic.JsonCodec
 
 import scala.jdk.CollectionConverters.MapHasAsJava
+import io.circe.Codec
 
 trait CaffeineCache[F[_], K, V] {
   def getIfPresent(key: K): F[Option[V]]
@@ -31,8 +31,7 @@ trait CaffeineCache[F[_], K, V] {
 }
 
 object CaffeineCache {
-  @JsonCodec
-  final case class Stats(hits: Long, misses: Long, cached: Long, inFlights: Int)
+  final case class Stats(hits: Long, misses: Long, cached: Long, inFlights: Int) derives Codec.AsObject
 
   private object Stats {
 
@@ -46,7 +45,7 @@ object CaffeineCache {
 
   final private class Impl[F[_], K, V](
     cache: Cache[K, V],
-    inFlight: Ref[F, Map[K, Deferred[F, Either[Throwable, V]]]])(implicit F: Async[F])
+    inFlight: Ref[F, Map[K, Deferred[F, Either[Throwable, V]]]])(using F: Async[F])
       extends CaffeineCache[F, K, V] {
 
     override def getIfPresent(key: K): F[Option[V]] =
@@ -100,7 +99,7 @@ object CaffeineCache {
     }
   }
 
-  def apply[F[_], K, V](cache: Cache[K, V])(implicit F: Async[F]): Resource[F, CaffeineCache[F, K, V]] =
+  def apply[F[_], K, V](cache: Cache[K, V])(using F: Async[F]): Resource[F, CaffeineCache[F, K, V]] =
     Resource.make(Ref.of[F, Map[K, Deferred[F, Either[Throwable, V]]]](Map.empty).map(new Impl(cache, _)))(
       _.cleanUp)
 }

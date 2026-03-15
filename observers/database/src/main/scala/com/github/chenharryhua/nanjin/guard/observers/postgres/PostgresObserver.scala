@@ -7,7 +7,7 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.foldable.toFoldableOps
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
@@ -17,7 +17,7 @@ import fs2.{Pipe, Stream}
 import io.circe.Json
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import skunk.circe.codec.json.json
-import skunk.implicits.toStringOps
+import skunk.syntax.stringcontext.sql
 import skunk.{Command, PreparedCommand, Session}
 
 /** DDL:
@@ -31,7 +31,7 @@ object PostgresObserver {
     new PostgresObserver[F](session, PrettyJsonTranslator[F])
 }
 
-final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json])(implicit
+final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json])(using
   F: Async[F])
     extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
@@ -44,7 +44,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
     pg.execute(msg).void
 
   def observe(tableName: TableName): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
-    val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
+    val cmd: Command[Json] = sql"INSERT INTO #${tableName} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       log <- Stream.eval(Slf4jLogger.create[F])

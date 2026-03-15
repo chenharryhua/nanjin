@@ -8,8 +8,8 @@ import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.{MetricLabel, Squants}
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
@@ -55,7 +55,7 @@ object MetricsHub {
     dispatcher: Dispatcher[F],
     zoneId: ZoneId)
       extends MetricsHub[F] {
-    private[this] val F = Async[F]
+    private val F = Async[F]
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] = {
       val initial: Counter.Builder = new Counter.Builder(isEnabled = true, isRisk = false)
@@ -107,7 +107,7 @@ object MetricsHub {
           for {
             pre <- lastUpdate.get
             now <- F.monotonic
-          } yield durationFormatter.format(now - pre)
+          } yield defaultFormatter.format(now - pre)
         )
       } yield new IdleGauge[F] {
         override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
@@ -119,7 +119,7 @@ object MetricsHub {
         kickoff <- Resource.eval(F.monotonic)
         _ <- gauge(name, f).register(
           active.get
-            .ifM(F.monotonic.map(now => durationFormatter.format(now - kickoff).some), F.pure(none[String])))
+            .ifM(F.monotonic.map(now => defaultFormatter.format(now - kickoff).some), F.pure(none[String])))
       } yield new ActiveGauge[F] {
         override val deactivate: F[Unit] = active.set(false)
       }

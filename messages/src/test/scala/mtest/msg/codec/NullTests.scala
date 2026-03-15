@@ -9,11 +9,11 @@ class NullTests extends AnyFunSuite {
 
   test("decode null should return null") {
     assert(avro.deserialize(null) == null)
-    assert(avroU.deserialize(null) == null)
-    assert(avroU.deserialize(null) == null)
+    assert(avroU.deserialize(null) === null)
+    assert(avroU.deserialize(null) === null)
     assert(jsonSchema.deserialize(null) == null)
-    assert(jsonSchemaU.deserialize(null) == null)
-    assert(protobufU.deserialize(null) == null)
+    assert(jsonSchemaU.deserialize(null) === null)
+    assert(protobufU.deserialize(null) === null)
 
     assert(intCodec.deserialize(null) === null)
     assert(longCodec.deserialize(null) === null)
@@ -42,9 +42,7 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.serialize(null) === null)
     assert(byteArrayCodec.serialize(null) === null)
     assert(PrimitiveTypeCombined.primitiviesCodec.serialize(null) === null)
-    assert(
-      PrimitiveTypeCombined.jsonPrimCodec.serialize(
-        null.asInstanceOf[AvroFor.KJson[PrimitiveTypeCombined]]) === null)
+    assert(PrimitiveTypeCombined.jsonPrimCodec.serialize(null.asInstanceOf[Json]) === null)
   }
 
   test("immigrate null") {
@@ -52,9 +50,9 @@ class NullTests extends AnyFunSuite {
   }
 
   test("kjson codec null") {
-    val js = AvroFor[AvroFor.KJson[Json]]
-    assert(js.asKey(Map.empty).serde.serializer.serialize("", null.asInstanceOf[AvroFor.KJson[Json]]) == null)
-    assert(js.asKey(Map.empty).serde.serializer.serialize("", AvroFor.KJson(null)) == null)
+    val js = AvroFor[Json]
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", null.asInstanceOf[Json]) == null)
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", null) == null)
     assert(js.asKey(Map.empty).serde.deserializer.deserialize("", null) == null)
   }
 }

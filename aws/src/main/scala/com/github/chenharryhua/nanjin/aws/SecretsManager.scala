@@ -46,8 +46,7 @@ object SecretsManager {
 
   private val name = "aws.SecretsManager"
 
-  def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(implicit
-    F: Async[F]): Resource[F, SecretsManager[F]] =
+  def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(using F: Async[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(SecretsManagerClient.builder()).build())) {
@@ -55,11 +54,10 @@ object SecretsManager {
       }
     } yield new SecretsManagerImpl(client, logger)
 
-  final private class SecretsManagerImpl[F[_]](
+  final private class SecretsManagerImpl[F[_]: Sync](
     client: SecretsManagerClient,
     logger: Logger[F]
-  )(implicit F: Sync[F])
-      extends SecretsManager[F] {
+  ) extends SecretsManager[F] {
 
     override def getValue(req: GetSecretValueRequest): F[GetSecretValueResponse] =
       blockingF(client.getSecretValue(req), req.toString, logger)

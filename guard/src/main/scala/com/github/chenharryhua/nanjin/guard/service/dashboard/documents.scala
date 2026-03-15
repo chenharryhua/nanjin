@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.toShow
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
 import com.github.chenharryhua.nanjin.guard.event.{
@@ -11,12 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Timestamp,
   Took
 }
-import com.github.chenharryhua.nanjin.guard.translator.{
-  durationFormatter,
-  htmlColoring,
-  Attribute,
-  SnapshotPolyglot
-}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute, SnapshotPolyglot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.localtimeInstances
@@ -32,7 +28,7 @@ private object documents {
     val json: Json = text.asJson
   }
   private case class Age(value: Duration) {
-    val json: Json = durationFormatter.format(value).asJson
+    val json: Json = defaultFormatter.format(value).asJson
   }
 
   /*
@@ -49,7 +45,7 @@ private object documents {
       Attribute(serviceParams.serviceName).snakeJsonEntry,
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       "is_active" -> Json.fromBoolean(active),
-      Attribute(Present(now)).snakeJsonEntry(_.json),
+      Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
       Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
@@ -110,12 +106,10 @@ private object documents {
     panics.lastOption match {
       case None      => Right(deps_health_check)
       case Some(evt) =>
-        if (evt.tick.conclude.isAfter(now)) {
+        if evt.tick.conclude.isAfter(now) then
           val recover = Duration.between(now, evt.tick.conclude)
-          Left(s"Service panic detected. Restarting in ${durationFormatter.format(recover)}")
-        } else {
-          Right(deps_health_check)
-        }
+          Left(s"Service panic detected. Restarting in ${defaultFormatter.format(recover)}")
+        else Right(deps_health_check)
     }
   }
 
@@ -144,7 +138,7 @@ private object documents {
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
     val spend = Attribute(Took(took)).textEntry
-    val present = Attribute(Present(now)).textEntry(_.text)
+    val present = Attribute(Present(now)).map(_.text).textEntry
 
     table(
       tr(

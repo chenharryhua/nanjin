@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.implicits.catsSyntaxOptionId
+import cats.kernel.Eq
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
+import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason.CustomReason
-import io.circe.{Decoder as JsonDecoder, DecodingFailure, Encoder as JsonEncoder, HCursor}
+import io.circe.{Decoder as JsonDecoder, DecodingFailure, Encoder as JsonEncoder, HCursor, Json}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.confluent.kafka.serializers.json.{
   KafkaJsonSchemaDeserializer,
@@ -28,21 +30,25 @@ sealed trait JsonFor[A] extends UnregisteredSerde[A] {
 object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
-  final class FromBroker private[JsonFor] (val value: JsonNode)
-  object FromBroker {
-    implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
-      (a: FromBroker) =>
+  opaque type FromBroker = JsonNode
+  object FromBroker:
+    private[JsonFor] def apply(jn: JsonNode): FromBroker = jn
+    extension (jn: JsonNode) def value: JsonNode = jn
+    given JsonEncoder[FromBroker] with
+      override def apply(a: FromBroker): Json =
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
           case Left(value)  => throw value // scalafix:ok
           case Right(value) => value
         }
-    implicit val jsonDecoderUniversal: JsonDecoder[FromBroker] =
-      (c: HCursor) =>
+    given JsonDecoder[FromBroker] with
+      override def apply(c: HCursor): Result[FromBroker] =
         Try(globalObjectMapper.convertValue[JsonNode](c.value.noSpaces)) match {
-          case Failure(ex)    => Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))
-          case Success(value) => Right(new FromBroker(value))
+          case Failure(ex) =>
+            Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))
+          case Success(value) =>
+            Right(value)
         }
-  }
+    given Eq[FromBroker] = Eq.fromUniversalEquals
 
   private def buildSchema(klass: Class[?]): JsonSchema =
     new JsonSchema(new JsonSchemaGenerator(globalObjectMapper).generateJsonSchema(klass))
@@ -85,7 +91,7 @@ object JsonFor {
     override protected val unregisteredSerde: Serde[FromBroker] =
       new Serde[FromBroker] {
         override val serializer: Serializer[FromBroker] = new Serializer[FromBroker] {
-          private[this] val ser = new KafkaJsonSchemaSerializer[JsonNode]()
+          private val ser = new KafkaJsonSchemaSerializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
@@ -93,11 +99,11 @@ object JsonFor {
           override def close(): Unit = ser.close()
 
           override def serialize(topic: String, data: FromBroker): Array[Byte] =
-            Option(data).flatMap(u => Option(u.value)).map(jn => ser.serialize(topic, jn)).orNull
+            Option(data).map(jn => ser.serialize(topic, jn)).orNull
         }
 
         override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
-          private[this] val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
+          private val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = {
             val sm = configs.asScala.toMap
@@ -114,7 +120,7 @@ object JsonFor {
 
           override def deserialize(topic: String, data: Array[Byte]): FromBroker =
             Option(deSer.deserialize(topic, data))
-              .map(new FromBroker(_))
+              .map(FromBroker(_))
               .orNull
 
         }
@@ -133,7 +139,7 @@ object JsonFor {
     override protected val unregisteredSerde: Serde[A] =
       new Serde[A] {
         override val serializer: Serializer[A] = new Serializer[A] {
-          private[this] val ser = new KafkaJsonSchemaSerializer[JsonNode]()
+          private val ser = new KafkaJsonSchemaSerializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
@@ -148,7 +154,7 @@ object JsonFor {
         }
 
         override val deserializer: Deserializer[A] = new Deserializer[A] {
-          private[this] val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
+          private val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = {
             val sm = configs.asScala.toMap
@@ -167,7 +173,6 @@ object JsonFor {
             Option(deSer.deserialize(topic, data))
               .map(jn => globalObjectMapper.convertValue[A](jn))
               .orNull
-
         }
       }
   }

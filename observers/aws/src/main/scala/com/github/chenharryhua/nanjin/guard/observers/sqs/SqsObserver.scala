@@ -10,7 +10,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
-import com.github.chenharryhua.nanjin.common.aws.SqsUrl
+import com.github.chenharryhua.nanjin.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -28,7 +28,7 @@ object SqsObserver {
 
 final class SqsObserver[F[_]: Clock: UUIDGen](
   client: Resource[F, SimpleQueueService[F]],
-  translator: Translator[F, Event])(implicit F: Concurrent[F])
+  translator: Translator[F, Event])(using F: Concurrent[F])
     extends UpdateTranslator[F, Event, SqsObserver[F]] {
 
   private def translate(evt: Event): F[Option[Json]] =
@@ -57,7 +57,7 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
 
   // events order should be preserved
   def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
-    internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
+    internal(SendMessageRequest.builder().queueUrl(url).messageGroupId(messageGroupId))
 
   override def updateTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))

@@ -9,7 +9,7 @@ import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 class JacksonAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
-  val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
+  val encoder: ToRecord[Tiger] = Tiger.to
   val schema: Schema = AvroSchema[Tiger]
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
 
@@ -19,7 +19,7 @@ class JacksonAvroPipeTest extends AnyFunSuite {
         .map(encoder.to)
         .through(jackson.toBytes(schema))
         .through(jackson.fromBytes(schema))
-        .map(Tiger.avroDecoder.decode)
+        .map(Tiger.from.from)
         .compile
         .toList
         .unsafeRunSync() === tigers)

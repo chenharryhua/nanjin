@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.kernel.{Async, Clock, Resource, Temporal}
-import cats.effect.std.Hotswap
+import cats.effect.std.NonEmptyHotswap
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.applicativeError.catsSyntaxApplicativeErrorId
 import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
+import monocle.Monocle.focus
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.headers.`Retry-After`
@@ -24,63 +25,69 @@ object httpRetry {
   def apply[F[_]: Async](
     zoneId: ZoneId,
     f: Policy.type => Policy,
-    retriable: Retriable[F] = RetryPolicy.defaultRetriable[F](_, _))(client: Client[F]): Client[F] =
+    retriable: Retriable[F] = RetryPolicy.defaultRetriable[F])(client: Client[F]): Client[F] =
     impl[F](zoneId, f(Policy), retriable)(client)
 
-  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] =
-    apply[F](
-      zoneId,
-      f,
-      (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex))(client)
+  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] = {
+    val g = (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex)
+    apply[F](zoneId, f, g)(client)
+  }
+
+  final private case class RetryAttempt[F[_]](
+    request: Request[F],
+    policyTick: PolicyTick[F],
+    hotswap: NonEmptyHotswap[F, Either[Throwable, Response[F]]],
+    retryAfter: Option[`Retry-After`]
+  )
 
   private def impl[F[_]: Async](
     zoneId: ZoneId,
     policy: Policy,
     retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
 
-    def nextAttempt(
-      req: Request[F],
-      tickStatus: PolicyTick[F],
-      retryHeader: Option[`Retry-After`],
-      hotswap: Hotswap[F, Either[Throwable, Response[F]]]
-    ): F[Response[F]] = {
-      val effective_delay: F[FiniteDuration] =
-        retryHeader.traverse { h =>
+    def nextAttempt(ra: RetryAttempt[F]): F[Response[F]] = {
+      val effectiveDelay: F[FiniteDuration] =
+        ra.retryAfter.traverse { h =>
           h.retry match {
             case Left(date)  => Clock[F].realTime.map(n => (date.toDuration - n).max(0.seconds))
             case Right(secs) => secs.seconds.pure[F]
           }
         }.map {
-          case Some(after) => after.max(tickStatus.tick.snooze.toScala)
-          case None        => tickStatus.tick.snooze.toScala
+          case Some(after) => after.max(ra.policyTick.tick.snooze.toScala)
+          case None        => ra.policyTick.tick.snooze.toScala
         }
-      effective_delay.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
+
+      effectiveDelay.flatMap(Temporal[F].sleep(_)) >>
+        ra.hotswap.swap(client.run(ra.request).attempt) >>
+        retryLoop(ra)
     }
 
-    def retryLoop(
-      req: Request[F],
-      tickStatus: PolicyTick[F],
-      hotswap: Hotswap[F, Either[Throwable, Response[F]]]
-    ): F[Response[F]] =
-      hotswap.clear >>
-        hotswap.swap(client.run(req).attempt).flatMap {
-          case Left(ex) =>
-            Clock[F].realTimeInstant.flatMap(tickStatus.next).flatMap {
-              case Some(ts) => nextAttempt(req, ts, None, hotswap)
-              case None     => ex.raiseError
+    def retryLoop(ra: RetryAttempt[F]): F[Response[F]] =
+      ra.hotswap.get.use {
+        case Left(ex) =>
+          ra.policyTick.advance.flatMap {
+            case Some(ts) => Right(ra.focus(_.policyTick).replace(ts)).pure[F]
+            case None     => ex.raiseError
+          }
+        case Right(response) =>
+          if (retriable(ra.request, Right(response))) {
+            ra.policyTick.advance.map {
+              case Some(ts) =>
+                val next = RetryAttempt(ra.request, ts, ra.hotswap, response.headers.get[`Retry-After`])
+                Right(next)
+              case None => Left(response)
             }
-          case Right(response) =>
-            if (retriable(req, Right(response))) {
-              Clock[F].realTimeInstant.flatMap(tickStatus.next).flatMap {
-                case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
-                case None     => response.pure[F]
-              }
-            } else response.pure[F]
+          } else Left(response).pure[F]
+      } // consume the response before next attempt
+        .flatMap {
+          case Left(response) => response.pure[F]
+          case Right(next)    => nextAttempt(next)
         }
 
     Client[F] { (req: Request[F]) =>
-      Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
-        Resource.eval(PolicyTick.zeroth[F](zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
+      NonEmptyHotswap(client.run(req).attempt).flatMap { hotswap =>
+        Resource.eval(PolicyTick.zeroth[F](zoneId, policy).flatMap(ts =>
+          retryLoop(RetryAttempt[F](req, ts, hotswap, None))))
       }
     }
   }

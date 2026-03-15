@@ -13,19 +13,19 @@ import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
 private trait MessageTransformers {
 
-  implicit val transformHeaderJavaFs2: Transformer[JavaHeader, Header] =
+  given Transformer[JavaHeader, Header] =
     (src: JavaHeader) => Header(src.key(), src.value())
 
-  implicit val transformHeadersJavaFs2: Transformer[JavaHeaders, Headers] =
+  given Transformer[JavaHeaders, Headers] =
     (src: JavaHeaders) => Headers.fromSeq(src.toArray.transformInto[Seq[Header]])
 
-  implicit val transformHeaderFs2Java: Transformer[Header, JavaHeader] =
+  given Transformer[Header, JavaHeader] =
     (src: Header) => src
 
-  implicit val transformHeadersFs2Java: Transformer[Headers, JavaHeaders] =
+  given Transformer[Headers, JavaHeaders] =
     (src: Headers) => src.asJava
 
-  implicit def transformCRJavaFs2[K, V]: Transformer[JavaConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  given [K, V]: Transformer[JavaConsumerRecord[K, V], ConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>
       Cont
         .pure(
@@ -55,7 +55,7 @@ private trait MessageTransformers {
         .eval
         .value
 
-  implicit def transformCRFs2Java[K, V]: Transformer[ConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
+  given [K, V]: Transformer[ConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
     (src: ConsumerRecord[K, V]) => {
       val (timestampType, timestamp) =
         src.timestamp.createTime
@@ -79,7 +79,7 @@ private trait MessageTransformers {
       )
     }
 
-  implicit def transformPRFs2Java[K, V]: Transformer[ProducerRecord[K, V], JavaProducerRecord[K, V]] =
+  given [K, V]: Transformer[ProducerRecord[K, V], JavaProducerRecord[K, V]] =
     (src: ProducerRecord[K, V]) =>
       new JavaProducerRecord[K, V](
         src.topic,
@@ -90,7 +90,7 @@ private trait MessageTransformers {
         src.headers.transformInto[JavaHeaders]
       )
 
-  implicit def transformPRJavaFs2[K, V]: Transformer[JavaProducerRecord[K, V], ProducerRecord[K, V]] = {
+  given [K, V]: Transformer[JavaProducerRecord[K, V], ProducerRecord[K, V]] = {
     (src: JavaProducerRecord[K, V]) =>
       Cont
         .pure(

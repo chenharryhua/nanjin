@@ -3,10 +3,9 @@ package com.github.chenharryhua.nanjin.database
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
-import doobie.implicits.toSqlInterpolator
+import doobie.syntax.string.toSqlInterpolator
 import doobie.util.log.LogHandler
 import fs2.Stream
 
@@ -44,9 +43,9 @@ object DBConfig {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
-      cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database.value}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database}")
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg
     }
     new DBConfig(initConfig, Nil) {}
@@ -56,9 +55,9 @@ object DBConfig {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
-      cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database.value}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database}")
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg.addDataSourceProperty("ssl", "true")
       cfg.addDataSourceProperty("sslfactory", "com.amazon.redshift.ssl.NonValidatingFactory")
       cfg
@@ -70,9 +69,9 @@ object DBConfig {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-      cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database.value}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database}")
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg
     }
     new DBConfig(initConfig, Nil) {}

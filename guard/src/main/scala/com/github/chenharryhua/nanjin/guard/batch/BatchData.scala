@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.Show
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -15,14 +15,13 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 sealed trait JobKind
-object JobKind {
+object JobKind:
   case object Quasi extends JobKind
   case object Value extends JobKind
-  implicit val showJobKind: Show[JobKind] = {
+  given Show[JobKind] =
     case Quasi => "quasi" // tolerable - exception will be ignored
     case Value => "value" // intolerable - exception will be propagated
-  }
-}
+end JobKind
 
 sealed trait BatchMode
 object BatchMode {
@@ -30,18 +29,18 @@ object BatchMode {
   case object Sequential extends BatchMode
   case object Monadic extends BatchMode
 
-  implicit val showBatchMode: Show[BatchMode] = {
+  given Show[BatchMode] = {
     case Parallel(parallelism) => s"parallel-$parallelism"
     case Sequential            => "sequential"
     case Monadic               => "monadic"
   }
 
-  implicit val encoderBatchMode: Encoder[BatchMode] =
+  given Encoder[BatchMode] =
     (a: BatchMode) => Json.fromString(a.show)
 
   private val Pattern: Regex = raw"parallel-(\d+)".r
 
-  implicit val decodeBatchMode: Decoder[BatchMode] = Decoder[String].emap {
+  given Decoder[BatchMode] = Decoder[String].emap {
     case "sequential" => Right(Sequential)
     case "monadic"    => Right(Monadic)
     case Pattern(par) =>
@@ -56,13 +55,14 @@ final case class BatchJob(
   label: MetricLabel,
   mode: BatchMode,
   kind: JobKind,
-  batchId: UUID) {
+  batchId: UUID):
   val batch: String = label.label
   val domain: String = label.domain.value
   def displayName: String = s"job-$index $name"
-}
+end BatchJob
+
 object BatchJob {
-  implicit val encoderBatchJob: Encoder[BatchJob] =
+  given Encoder[BatchJob] =
     (a: BatchJob) =>
       Json.obj(
         show"job-${a.index}" -> Json.fromString(a.name),
@@ -74,18 +74,16 @@ object BatchJob {
       )
 }
 
-final case class JobResultState(job: BatchJob, took: Duration, done: Boolean) {
+final case class JobResultState(job: BatchJob, took: Duration, done: Boolean):
   val fail: Boolean = !done
-}
-object JobResultState {
-  implicit val encoderJobResultState: Encoder[JobResultState] =
-    (a: JobResultState) =>
-      Json.obj("took" -> Json.fromString(durationFormatter.format(a.took))).deepMerge(a.job.asJson)
-}
 
-final case class JobResultValue[A](resultState: JobResultState, value: A) {
+object JobResultState:
+  given Encoder[JobResultState] =
+    (a: JobResultState) =>
+      Json.obj("took" -> Json.fromString(defaultFormatter.format(a.took))).deepMerge(a.job.asJson)
+
+final case class JobResultValue[A](resultState: JobResultState, value: A):
   def map[B](f: A => B): JobResultValue[B] = copy(value = f(value))
-}
 
 final case class JobResultError(resultState: JobResultState, error: Throwable)
 
@@ -96,14 +94,14 @@ final case class BatchResultState(
   batchId: UUID,
   jobs: List[JobResultState])
 object BatchResultState {
-  implicit val encoderBatchResultState: Encoder[BatchResultState] = { (br: BatchResultState) =>
+  given Encoder[BatchResultState] = { (br: BatchResultState) =>
     val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
       "batch" -> Json.fromString(br.label.label),
       "batch_id" -> br.batchId.asJson,
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
-      "spent" -> Json.fromString(durationFormatter.format(br.spent)),
+      "spent" -> Json.fromString(defaultFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
       "results" -> br.jobs
@@ -111,7 +109,7 @@ object BatchResultState {
           Json.obj(
             show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
             "kind" -> Json.fromString(jr.job.kind.show),
-            "took" -> Json.fromString(durationFormatter.format(jr.took)),
+            "took" -> Json.fromString(defaultFormatter.format(jr.took)),
             "done" -> Json.fromBoolean(jr.done)
           ))
         .asJson
@@ -119,13 +117,12 @@ object BatchResultState {
   }
 }
 
-final case class BatchResultValue[A](resultState: BatchResultState, value: A) {
+final case class BatchResultValue[A](resultState: BatchResultState, value: A):
   def map[B](f: A => B): BatchResultValue[B] = copy(value = f(value))
-}
-object BatchResultValue {
-  implicit def encoderBatchResultValue[A: Encoder]: Encoder[BatchResultValue[A]] =
+
+object BatchResultValue:
+  given [A: Encoder] => Encoder[BatchResultValue[A]] =
     (a: BatchResultValue[A]) => Json.obj("batch" -> a.resultState.asJson, "value" -> a.value.asJson)
-}
 
 final case class PostConditionUnsatisfied(job: BatchJob)
     extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")

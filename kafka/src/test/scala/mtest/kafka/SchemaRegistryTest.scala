@@ -1,9 +1,8 @@
 package mtest.kafka
 
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class SchemaRegistryTest extends AnyFunSuite {

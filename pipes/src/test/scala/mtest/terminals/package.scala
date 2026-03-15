@@ -17,7 +17,7 @@ package object terminals {
       new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toString(StandardCharsets.UTF_8)
-    }(_.close())
+    }
 
   def genericRecord2Circe(genericRecord: GenericRecord): Try[Json] =
     genericRecord2Jackson(genericRecord).flatMap(jawn.parse(_).toTry)
@@ -28,14 +28,14 @@ package object terminals {
       new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toByteArray
-    }(_.close())
+    }
 
   def jackson2GenericRecord(schema: Schema, jackson: String): Try[GenericData.Record] =
     Using(new ByteArrayInputStream(jackson.getBytes)) { bais =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, bais)
       val datumReader = new GenericDatumReader[GenericData.Record](schema)
       datumReader.read(null, jsonDecoder)
-    }(_.close())
+    }
 
   val objectMapper = new ObjectMapper
   def genericRecord2JsonNode(record: GenericRecord): Try[JsonNode] =

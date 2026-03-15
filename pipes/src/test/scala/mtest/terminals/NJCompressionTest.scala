@@ -1,11 +1,9 @@
 package mtest.terminals
 
 import com.github.chenharryhua.nanjin.terminals.*
-import eu.timepit.refined.auto.*
 import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-
 class NJCompressionTest extends AnyFunSuite {
   test("json") {
     val c1: CirceCompression = Compression.Uncompressed
@@ -14,9 +12,9 @@ class NJCompressionTest extends AnyFunSuite {
     val c5: TextCompression = Compression.Lz4
     val c6: Compression = Compression.Brotli
     val c7: Compression = Compression.Lzo
-    val c8: BinaryAvroCompression = Compression.Deflate(1)
-    val c9: AvroCompression = Compression.Xz(2)
-    val c10: ParquetCompression = Compression.Zstandard(3)
+    val c8: BinaryAvroCompression = Compression.Deflate(_.One)
+    val c9: AvroCompression = Compression.Xz(_.Two)
+    val c10: ParquetCompression = Compression.Zstandard(_.Three)
 
     assert(decode[CirceCompression](c1.asJson.noSpaces).toOption.get === c1)
     assert(decode[Compression](c2.asJson.noSpaces).toOption.get === c2)

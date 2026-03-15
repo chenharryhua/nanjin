@@ -10,7 +10,7 @@ import org.http4s.{Header, Headers, Response}
 object traceClient {
   // steal from https://github.com/typelevel/natchez-http4s/blob/main/modules/http4s/src/main/scala/natchez/http4s/NatchezMiddleware.scala
   // replace . with _
-  def apply[F[_]](parent: Span[F])(client: Client[F])(implicit ev: MonadCancel[F, Throwable]): Client[F] =
+  def apply[F[_]](parent: Span[F])(client: Client[F])(using ev: MonadCancel[F, Throwable]): Client[F] =
     Client { req =>
       parent.span("http4s-client-request").flatMap { span =>
         val cc: F[(Response[F], F[Unit])] = for {

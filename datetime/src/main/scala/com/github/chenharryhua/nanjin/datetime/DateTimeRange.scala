@@ -9,38 +9,28 @@ import cats.{Eval, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import monocle.Prism
-import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.{duration, localdatetime, zoneid}
-import shapeless.ops.coproduct.{Inject, Selector}
-import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
 import java.time.*
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
-@Lenses final case class DateTimeRange(
+final case class DateTimeRange(
   private val start: Option[DateTimeRange.TimeTypes],
   private val end: Option[DateTimeRange.TimeTypes],
   zoneId: ZoneId)
     extends localdatetime with duration with zoneid {
 
-  private object calcDateTime extends Poly1 {
+  private def calcDateTime(tt: DateTimeRange.TimeTypes): NJTimestamp =
+    tt match {
+      case nj: NJTimestamp   => nj
+      case str: String       => NJTimestamp(str, zoneId)
+      case lt: LocalDateTime => NJTimestamp(lt, zoneId)
+    }
 
-    implicit val stringDateTime: Case.Aux[String, NJTimestamp] =
-      at[String](s => NJTimestamp(s, zoneId))
-
-    implicit val localDateTime: Case.Aux[LocalDateTime, NJTimestamp] =
-      at[LocalDateTime](NJTimestamp(_, zoneId))
-
-    implicit val njTimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
-      at[NJTimestamp](identity)
-
-  }
-
-  def startTimestamp: Option[NJTimestamp] = start.map(_.fold(calcDateTime))
-  def endTimestamp: Option[NJTimestamp] = end.map(_.fold(calcDateTime))
+  def startTimestamp: Option[NJTimestamp] = start.map(calcDateTime)
+  def endTimestamp: Option[NJTimestamp] = end.map(calcDateTime)
   def zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
   def zonedEndTime: Option[ZonedDateTime] = endTimestamp.map(_.atZone(zoneId))
 
@@ -53,8 +43,6 @@ import scala.concurrent.duration.FiniteDuration
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
       s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
     }.flatten
-
-  def dayStrings: List[String] = days.map(d => NJTimestamp(d, zoneId).`Year=yyyy/Month=mm/Day=dd`(zoneId))
 
   def subranges(interval: FiniteDuration): List[DateTimeRange] =
     (startTimestamp, endTimestamp).traverseN { (s, e) =>
@@ -71,43 +59,32 @@ import scala.concurrent.duration.FiniteDuration
     (zonedStartTime, zonedEndTime).mapN((s, e) => java.time.Duration.between(s, e))
 
   def withZoneId(zoneId: ZoneId): DateTimeRange =
-    DateTimeRange.zoneId.replace(zoneId)(this)
+    copy(zoneId = zoneId)
 
   def withZoneId(zoneId: String): DateTimeRange =
-    DateTimeRange.zoneId.replace(ZoneId.of(zoneId))(this)
-
-  implicit private def coproductPrism[A](implicit
-    evInject: Inject[DateTimeRange.TimeTypes, A],
-    evSelector: Selector[DateTimeRange.TimeTypes, A]): Prism[DateTimeRange.TimeTypes, A] =
-    Prism[DateTimeRange.TimeTypes, A](evSelector.apply)(evInject.apply)
-
-  private def setStart[A](a: A)(implicit prism: Prism[DateTimeRange.TimeTypes, A]): DateTimeRange =
-    DateTimeRange.start.replace(Some(prism.reverseGet(a)))(this)
-
-  private def setEnd[A](a: A)(implicit prism: Prism[DateTimeRange.TimeTypes, A]): DateTimeRange =
-    DateTimeRange.end.replace(Some(prism.reverseGet(a)))(this)
+    withZoneId(ZoneId.of(zoneId))
 
   // start
-  def withStartTime(ts: LocalTime): DateTimeRange = setStart(toLocalDateTime(ts))
-  def withStartTime(ts: LocalDate): DateTimeRange = setStart(toLocalDateTime(ts))
-  def withStartTime(ts: LocalDateTime): DateTimeRange = setStart(ts)
-  def withStartTime(ts: OffsetDateTime): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: ZonedDateTime): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Instant): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Long): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Timestamp): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: String): DateTimeRange = setStart(ts)
+  def withStartTime(ts: LocalTime): DateTimeRange = copy(start = Some(toLocalDateTime(ts)))
+  def withStartTime(ts: LocalDate): DateTimeRange = copy(start = Some(toLocalDateTime(ts)))
+  def withStartTime(ts: LocalDateTime): DateTimeRange = copy(start = Some(ts))
+  def withStartTime(ts: OffsetDateTime): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
+  def withStartTime(ts: ZonedDateTime): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
+  def withStartTime(ts: Instant): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
+  def withStartTime(ts: Long): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
+  def withStartTime(ts: Timestamp): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
+  def withStartTime(ts: String): DateTimeRange = copy(start = Some(ts))
 
   // end
-  def withEndTime(ts: LocalTime): DateTimeRange = setEnd(toLocalDateTime(ts))
-  def withEndTime(ts: LocalDate): DateTimeRange = setEnd(toLocalDateTime(ts))
-  def withEndTime(ts: LocalDateTime): DateTimeRange = setEnd(ts)
-  def withEndTime(ts: OffsetDateTime): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: ZonedDateTime): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Instant): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Long): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Timestamp): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: String): DateTimeRange = setEnd(ts)
+  def withEndTime(ts: LocalTime): DateTimeRange = copy(end = Some(toLocalDateTime(ts)))
+  def withEndTime(ts: LocalDate): DateTimeRange = copy(end = Some(toLocalDateTime(ts)))
+  def withEndTime(ts: LocalDateTime): DateTimeRange = copy(end = Some(ts))
+  def withEndTime(ts: OffsetDateTime): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
+  def withEndTime(ts: ZonedDateTime): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
+  def withEndTime(ts: Instant): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
+  def withEndTime(ts: Long): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
+  def withEndTime(ts: Timestamp): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
+  def withEndTime(ts: String): DateTimeRange = copy(end = Some(ts))
 
   def withNSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now
@@ -121,7 +98,7 @@ import scala.concurrent.duration.FiniteDuration
     withStartTime(ts).withEndTime(LocalDateTime.of(ts, LocalTime.MAX))
 
   def withOneDay(ts: String): DateTimeRange =
-    DateTimeParser.localDateParser.parse(ts).map(withOneDay) match {
+    summon[DateTimeParser[LocalDate]].parse(ts).map(withOneDay) match {
       case Left(ex)   => throw ex.parseException(ts) // scalafix:ok
       case Right(day) => day
     }
@@ -161,12 +138,9 @@ object DateTimeRange {
     DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
 
   final private type TimeTypes =
-    NJTimestamp :+:
-      LocalDateTime :+:
-      String :+: // date-time in string, like "03:12"
-      CNil
+    NJTimestamp | LocalDateTime | String // date-time in string, like "03:12"
 
-  implicit final val partialOrderNJDateTimeRange: PartialOrder[DateTimeRange] & Show[DateTimeRange] =
+  given partialOrderNJDateTimeRange: PartialOrder[DateTimeRange] & Show[DateTimeRange] =
     new PartialOrder[DateTimeRange] with Show[DateTimeRange] {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
@@ -200,14 +174,14 @@ object DateTimeRange {
 
     }
 
-  implicit val encoderDateTimeRange: Encoder[DateTimeRange] =
+  given Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
       Json.obj(
         "zone_id" -> a.zoneId.asJson,
         "start" -> a.zonedStartTime.map(_.toLocalDateTime).asJson,
         "end" -> a.zonedEndTime.map(_.toLocalDateTime).asJson)
 
-  implicit val decoderDateTimeRange: Decoder[DateTimeRange] =
+  given Decoder[DateTimeRange] =
     (c: HCursor) =>
       for {
         zoneId <- c.get[ZoneId]("zone_id")

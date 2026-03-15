@@ -4,8 +4,9 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes

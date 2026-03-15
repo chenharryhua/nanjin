@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import com.github.chenharryhua.nanjin.datetime.codec
-import io.circe.generic.JsonCodec
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import io.circe.Codec
 
-@JsonCodec
-sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression) {
+sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression)
+    derives Codec.AsObject {
   final val fileName: String = compression.fileName(fileFormat)
 
   final def fileName(time: LocalDateTime): String = {
@@ -23,7 +21,7 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   }
 
   final def ymdFileName(cfe: CreateRotateFile): String = {
-    val ymd = codec.year_month_day(cfe.openTime.toLocalDate)
+    val ymd = partitionPath.ymd(cfe.openTime.toLocalDate)
     s"$ymd/${fileName(cfe)}"
   }
 }

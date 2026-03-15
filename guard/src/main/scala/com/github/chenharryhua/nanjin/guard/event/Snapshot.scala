@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.effect.implicits.clockOps
+import cats.effect.syntax.clock.clockOps
 import cats.effect.kernel.Sync
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
-import io.circe.Json
-import io.circe.generic.JsonCodec
+import io.circe.{Codec, Json}
 import io.circe.jawn.{decode, parse}
 import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
@@ -18,12 +17,9 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 sealed trait MetricElement extends Product { def metricId: MetricID }
 
 object MetricElement {
-  @JsonCodec
-  final case class Counter(metricId: MetricID, count: Long) extends MetricElement
-  @JsonCodec
-  final case class Gauge(metricId: MetricID, value: Json) extends MetricElement
+  final case class Counter(metricId: MetricID, count: Long) extends MetricElement derives Codec.AsObject
+  final case class Gauge(metricId: MetricID, value: Json) extends MetricElement derives Codec.AsObject
 
-  @JsonCodec
   final case class MeterData(
     squants: Squants,
     aggregate: Long,
@@ -31,12 +27,10 @@ object MetricElement {
     m1_rate: Frequency,
     m5_rate: Frequency,
     m15_rate: Frequency
-  )
+  ) derives Codec.AsObject
 
-  @JsonCodec
-  final case class Meter(metricId: MetricID, meter: MeterData) extends MetricElement
+  final case class Meter(metricId: MetricID, meter: MeterData) extends MetricElement derives Codec.AsObject
 
-  @JsonCodec
   final case class TimerData(
     calls: Long,
     mean_rate: Frequency,
@@ -53,11 +47,9 @@ object MetricElement {
     p98: Duration,
     p99: Duration,
     p999: Duration
-  )
-  @JsonCodec
-  final case class Timer(metricId: MetricID, timer: TimerData) extends MetricElement
+  ) derives Codec.AsObject
+  final case class Timer(metricId: MetricID, timer: TimerData) extends MetricElement derives Codec.AsObject
 
-  @JsonCodec
   final case class HistogramData(
     squants: Squants,
     updates: Long,
@@ -71,10 +63,10 @@ object MetricElement {
     p98: Double,
     p99: Double,
     p999: Double
-  )
+  ) derives Codec.AsObject
 
-  @JsonCodec
   final case class Histogram(metricId: MetricID, histogram: HistogramData) extends MetricElement
+      derives Codec.AsObject
 }
 
 sealed trait ScrapeMode
@@ -83,13 +75,13 @@ object ScrapeMode {
   case object Full extends ScrapeMode
 }
 
-@JsonCodec
 final case class Snapshot(
   counters: List[MetricElement.Counter],
   meters: List[MetricElement.Meter],
   timers: List[MetricElement.Timer],
   histograms: List[MetricElement.Histogram],
-  gauges: List[MetricElement.Gauge]) {
+  gauges: List[MetricElement.Gauge])
+    derives Codec.AsObject {
   def isEmpty: Boolean =
     counters.isEmpty && meters.isEmpty && timers.isEmpty && histograms.isEmpty && gauges.isEmpty
 
@@ -242,7 +234,7 @@ private[guard] object Snapshot extends duration {
     Snapshot(counters = counters, meters = meters, timers = timers, histograms = histograms, gauges = gauges)
   }
 
-  def timed[F[_]](metricRegistry: MetricRegistry, mode: ScrapeMode)(implicit
+  def timed[F[_]](metricRegistry: MetricRegistry, mode: ScrapeMode)(using
     F: Sync[F]): F[(Duration, Snapshot)] =
     F.blocking(buildFrom(metricRegistry, mode)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

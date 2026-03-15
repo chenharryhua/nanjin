@@ -18,12 +18,12 @@ import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-trait Gauge[F[_]] {
+trait Gauge[F[_]]:
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
   def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit]
 
   def ref[A: Encoder](value: A): Resource[F, Ref[F, A]]
-}
+end Gauge
 
 object Gauge {
   def noop[F[_]: Concurrent]: Gauge[F] =
@@ -37,20 +37,20 @@ object Gauge {
     }
 
   private class Impl[F[_]: Async](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val timeout: FiniteDuration,
-    private[this] val name: String,
-    private[this] val dispatcher: Dispatcher[F],
-    private[this] val zoneId: ZoneId
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val timeout: FiniteDuration,
+    private val name: String,
+    private val dispatcher: Dispatcher[F],
+    private val zoneId: ZoneId
   ) extends Gauge[F] {
 
-    private[this] val F = Async[F]
+    private val F = Async[F]
 
-    private[this] def trans_error(ex: Throwable): Json =
+    private def trans_error(ex: Throwable): Json =
       Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
-    private[this] def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
+    private def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
       Resource
         .make(F.delay {
           metricRegistry.gauge(

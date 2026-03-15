@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.implicits.showInterpolator
+import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.apache.commons.lang3.StringUtils
 

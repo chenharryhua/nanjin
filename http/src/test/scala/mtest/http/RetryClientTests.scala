@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
 import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
-import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.implicits.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.*

@@ -6,7 +6,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.CloudWatch
-import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
+import com.github.chenharryhua.nanjin.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
@@ -140,7 +140,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
         .grouped(20)
         .toList
-        .traverse(md => cwc.putMetricData(_.namespace(namespace.value).metricData(md.asJava)).attempt)
+        .traverse(md => cwc.putMetricData(_.namespace(namespace).metricData(md.asJava)).attempt)
         .void
 
     for {

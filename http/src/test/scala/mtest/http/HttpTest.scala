@@ -15,7 +15,7 @@ import org.http4s.client.middleware.Logger as MLogger
 import org.http4s.dsl.io.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.implicits.*
 import org.http4s.server.middleware.GZip
 import org.http4s.server.{Router, Server}
 import org.http4s.{HttpRoutes, Method, Request}

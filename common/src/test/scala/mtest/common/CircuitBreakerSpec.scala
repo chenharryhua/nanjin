@@ -1,8 +1,8 @@
 package mtest.common
 
 import cats.effect.*
-import com.github.chenharryhua.nanjin.common.CircuitBreaker
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 

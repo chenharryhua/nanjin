@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveCounter,
   retrieveHistogram,
@@ -17,8 +18,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   MetricName
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
-import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
-import io.circe.generic.JsonCodec
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Information}
@@ -29,7 +29,6 @@ import squants.{Dimensionless, Percent}
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
-@JsonCodec
 final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
 
 class MetricsTest extends AnyFunSuite {
@@ -151,7 +150,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
-        .use(_.run(30.seconds.toNanos) >> agent.adhoc.report)
+        .use(_.elapsedNano(30.seconds.toNanos) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val timer = retrieveTimer(mr.snapshot.timers).values.head
     assert(timer.max == 30.seconds.toJava)
@@ -163,7 +162,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))))
-        .use(_.run(10) >> agent.adhoc.report)
+        .use(_.elapsedNano(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveTimer(mr.snapshot.timers).isEmpty)

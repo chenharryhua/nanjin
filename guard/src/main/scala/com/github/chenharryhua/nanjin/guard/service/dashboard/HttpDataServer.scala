@@ -7,8 +7,8 @@ import cats.effect.{Ref, Resource}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.comcast.ip4s.Port
-import com.github.chenharryhua.nanjin.common.SingleFlight
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{MetricID, StopReason}
 import com.github.chenharryhua.nanjin.guard.service.{LifecyclePublisher, MetricsPublisher}
@@ -34,7 +34,7 @@ final private class HttpDataServer[F[_]](
   port: Port,
   metricsPublisher: MetricsPublisher[F],
   lifecyclePublisher: LifecyclePublisher[F],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(implicit F: Async[F])
+  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(using F: Async[F])
     extends Http4sDsl[F] {
 
   private val serviceParams = metricsPublisher.serviceParams

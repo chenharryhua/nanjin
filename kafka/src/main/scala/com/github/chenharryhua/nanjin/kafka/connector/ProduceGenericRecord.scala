@@ -25,7 +25,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   avroTopic: AvroTopic[K, V],
   getSchema: F[OptionalAvroSchemaPair],
   srs: SchemaRegistrySettings,
-  producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(implicit F: Async[F])
+  producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceGenericRecord[F, K, V]]
     with HasProperties with ProducerService[F, GenericRecord] {
 

@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.Unique
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.DurationFormatter
-import io.circe.Decoder.Result
-import io.circe.syntax.EncoderOps
-import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
+import com.github.chenharryhua.nanjin.common.{DurationFormatter, OpaqueLift}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
@@ -15,123 +13,106 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-final case class StackTrace private (value: List[String]) extends AnyVal {
-  override def toString: String = value.mkString("\n\t")
-}
-
-object StackTrace {
+// ---------------- StackTrace ----------------
+opaque type StackTrace = List[String]
+object StackTrace:
   def apply(ex: Throwable): StackTrace =
-    StackTrace(ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
+    ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
+  extension (st: StackTrace) inline def value: List[String] = st
+  given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
+  given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
+  given Show[StackTrace] = _.mkString("\n\t")
+end StackTrace
 
-  implicit val showStackTrace: Show[StackTrace] = Show.fromToString
-  implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
-    override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
-    override def apply(a: StackTrace): Json = a.value.asJson
-  }
-}
-
-sealed abstract class StopReason(val exitCode: Int) extends Product
-
-object StopReason {
-  case object Successfully extends StopReason(0)
-  case object Maintenance extends StopReason(1)
-  case object ByCancellation extends StopReason(2)
-  final case class ByException(stackTrace: StackTrace) extends StopReason(3)
-
-  private val SUCCESSFULLY: String = "Successfully"
-  private val BY_CANCELLATION: String = "ByCancellation"
-  private val MAINTENANCE: String = "Maintenance"
-
-  implicit val showStopReason: Show[StopReason] = {
-    case Successfully            => SUCCESSFULLY
-    case Maintenance             => MAINTENANCE
-    case ByCancellation          => BY_CANCELLATION
-    case ByException(stackTrace) => stackTrace.show
-  }
-
-  implicit val encoderStopReason: Encoder[StopReason] =
-    Encoder.instance {
-      case Successfully   => Json.fromString(SUCCESSFULLY)
-      case ByCancellation => Json.fromString(BY_CANCELLATION)
-      case Maintenance    => Json.fromString(MAINTENANCE)
-
-      case ByException(stackTrace) => stackTrace.asJson
-    }
-
-  implicit val decoderStopReason: Decoder[StopReason] =
-    List[Decoder[StopReason]](
-      _.as[String].flatMap {
-        case SUCCESSFULLY    => Right(Successfully)
-        case BY_CANCELLATION => Right(ByCancellation)
-        case MAINTENANCE     => Right(Maintenance)
-        case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
-      }.widen,
-      _.as[StackTrace].map(err => ByException(err)).widen
-    ).reduceLeft(_ or _)
-}
-
-final case class Correlation private (value: String) extends AnyVal {
-  override def toString: String = value
-}
-object Correlation {
-  def apply(token: Unique.Token): Correlation = {
+// ---------------- Correlation ----------------
+opaque type Correlation = String
+object Correlation:
+  private def iso(s: String): Correlation = s
+  def apply(token: Unique.Token): Correlation =
     val id = Integer.toUnsignedLong(Hash[Unique.Token].hash(token))
-    Correlation(f"$id%010d")
-  }
+    iso(f"$id%010d")
+  extension (c: Correlation) inline def value: String = c
 
-  implicit val showCorrelation: Show[Correlation] = Show.fromToString
-  implicit val codecCorrelation: Codec[Correlation] = new Codec[Correlation] {
-    override def apply(c: HCursor): Result[Correlation] = c.as[String].map(Correlation(_))
-    override def apply(a: Correlation): Json = Json.fromString(a.value)
-  }
-}
+  given Show[Correlation] = _.value
+  given Encoder[Correlation] = OpaqueLift.lift[Correlation, String, Encoder]
+  given Decoder[Correlation] = OpaqueLift.lift[Correlation, String, Decoder]
+end Correlation
 
-final case class Took(value: Duration) extends AnyVal
-object Took {
-  implicit val showTook: Show[Took] = ut => DurationFormatter.defaultFormatter.format(ut.value)
-  implicit val encoderTook: Encoder[Took] = Encoder.encodeDuration.contramap(_.value)
-  implicit val decoderTook: Decoder[Took] = Decoder.decodeDuration.map(Took(_))
-}
+// ---------------- Took ----------------
+opaque type Took = Duration
+object Took:
+  def apply(value: Duration): Took = value
+  extension (t: Took) inline def value: Duration = t
 
-final case class Active(value: Duration) extends AnyVal
-object Active {
-  implicit val showActive: Show[Active] = ut => DurationFormatter.defaultFormatter.format(ut.value)
-  implicit val encoderActive: Encoder[Active] = Encoder.encodeDuration.contramap(_.value)
-  implicit val decoderActive: Decoder[Active] = Decoder.decodeDuration.map(Active(_))
-}
+  given Show[Took] = t => DurationFormatter.defaultFormatter.format(t.value)
+  given Encoder[Took] = OpaqueLift.lift[Took, Duration, Encoder]
+  given Decoder[Took] = OpaqueLift.lift[Took, Duration, Decoder]
+end Took
 
-final case class Snooze(value: Duration) extends AnyVal
-object Snooze {
-  implicit val showSnooze: Show[Snooze] = ut => DurationFormatter.defaultFormatter.format(ut.value)
-  implicit val encoderSnooze: Encoder[Snooze] = Encoder.encodeDuration.contramap(_.value)
-  implicit val decoderSnooze: Decoder[Snooze] = Decoder.decodeDuration.map(Snooze(_))
-}
+// ---------------- Active ----------------
+opaque type Active = Duration
+object Active:
+  def apply(value: Duration): Active = value
+  extension (a: Active) inline def value: Duration = a
 
-final case class Timestamp(value: ZonedDateTime) extends AnyVal
-object Timestamp {
-  implicit val showTimestamp: Show[Timestamp] = _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
-  implicit val encoderTimestamp: Encoder[Timestamp] = Encoder.encodeZonedDateTime.contramap(_.value)
-  implicit val decoderTimestamp: Decoder[Timestamp] = Decoder.decodeZonedDateTime.map(Timestamp(_))
-}
+  given Show[Active] = a => defaultFormatter.format(a.value)
+  given Encoder[Active] = OpaqueLift.lift[Active, Duration, Encoder]
+  given Decoder[Active] = OpaqueLift.lift[Active, Duration, Decoder]
+end Active
 
-final case class Message(value: Json) extends AnyVal
-object Message {
-  implicit val codecMessage: Codec[Message] = new Codec[Message] {
-    override def apply(c: HCursor): Result[Message] = c.as[Json].map(Message(_))
-    override def apply(a: Message): Json = a.value
-  }
-}
+// ---------------- Snooze ----------------
+opaque type Snooze = Duration
+object Snooze:
+  def apply(value: Duration): Snooze = value
+  extension (s: Snooze) inline def value: Duration = s
 
-final case class Domain(value: String) extends AnyVal
-object Domain {
-  implicit val showDomain: Show[Domain] = _.value
-  implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
-}
+  given Show[Snooze] = s => defaultFormatter.format(s.value)
+  given Encoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Encoder]
+  given Decoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Decoder]
+end Snooze
 
-final case class Label(value: String) extends AnyVal
-object Label {
-  implicit val showLabel: Show[Label] = _.value
-  implicit val encoderLabel: Encoder[Label] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderLabel: Decoder[Label] = Decoder.decodeString.map(Label(_))
-}
+// ---------------- Timestamp ----------------
+opaque type Timestamp = ZonedDateTime
+object Timestamp:
+  def apply(value: ZonedDateTime): Timestamp = value
+  extension (t: Timestamp) inline def value: ZonedDateTime = t
+
+  given Show[Timestamp] =
+    _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+
+  given Encoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Encoder]
+  given Decoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Decoder]
+end Timestamp
+
+// ---------------- Message ----------------
+opaque type Message = Json
+object Message:
+  def apply(value: Json): Message = value
+  extension (m: Message) inline def value: Json = m
+
+  given Show[Message] = _.value.spaces2
+  given Encoder[Message] = OpaqueLift.lift[Message, Json, Encoder]
+  given Decoder[Message] = OpaqueLift.lift[Message, Json, Decoder]
+end Message
+
+// ---------------- Domain ----------------
+opaque type Domain = String
+object Domain:
+  def apply(value: String): Domain = value
+  extension (d: Domain) inline def value: String = d
+
+  given Show[Domain] = _.value
+  given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
+  given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
+end Domain
+
+// ---------------- Label ----------------
+opaque type Label = String
+object Label:
+  def apply(value: String): Label = value
+  extension (l: Label) inline def value: String = l
+
+  given Show[Label] = _.value
+  given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
+  given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
+end Label

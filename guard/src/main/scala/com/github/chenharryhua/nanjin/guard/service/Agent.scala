@@ -6,7 +6,7 @@ import cats.effect.std.{AtomicCell, Console, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
+import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
@@ -46,7 +46,7 @@ sealed trait Agent[F[_]] {
    * Service Message
    */
   def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]]
-  def logger(implicit ln: LoggerName): Resource[F, Log[F]]
+  def logger(using ln: LoggerName): Resource[F, Log[F]]
 
   /*
    * metrics
@@ -139,7 +139,7 @@ final private class GeneralAgent[F[_]: Async: Console](
         channel = channel,
         errorHistory = errorHistory))
 
-  override def logger(implicit ln: LoggerName): Resource[F, Log[F]] =
+  override def logger(using ln: LoggerName): Resource[F, Log[F]] =
     Resource
       .eval(LogSink(serviceParams.logFormat, zoneId, ln))
       .map(logSink =>

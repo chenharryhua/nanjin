@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
-import com.sksamuel.avro4s.Decoder
 import fs2.kafka.ProducerRecord
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema
@@ -19,7 +18,7 @@ final private class PushGenericRecord(
   pair: AvroSchemaPair) {
   val schema: Schema = pair.consumerSchema
 
-  private val topic: String = topicName.name.value
+  private val topic: String = topicName.value
 
   private val key_serialize: AnyRef => Array[Byte] =
     pair.key.rawSchema().getType match {
@@ -41,38 +40,44 @@ final private class PushGenericRecord(
       case Schema.Type.STRING =>
         val ser = Serdes.String().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[String].decode(data))
+          case null         => null
+          case data: String => ser.serialize(topic, data)
+          case _            => sys.error("not a string")
         }
       case Schema.Type.INT =>
         val ser = Serdes.Integer().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Int].decode(data))
+          case null                    => null
+          case data: java.lang.Integer => ser.serialize(topic, data)
+          case _                       => sys.error("not an integer")
         }
       case Schema.Type.LONG =>
         val ser = Serdes.Long().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Long].decode(data))
+          case null                 => null
+          case data: java.lang.Long => ser.serialize(topic, data)
+          case _                    => sys.error("not a long")
         }
       case Schema.Type.FLOAT =>
         val ser = Serdes.Float().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Float].decode(data))
+          case null                  => null
+          case data: java.lang.Float => ser.serialize(topic, data)
+          case _                     => sys.error("not a float")
         }
       case Schema.Type.DOUBLE =>
         val ser = Serdes.Double().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Double].decode(data))
+          case null                   => null
+          case data: java.lang.Double => ser.serialize(topic, data)
+          case _                      => sys.error("not a double")
         }
       case Schema.Type.BYTES =>
         val ser = Serdes.ByteArray().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+          case null              => null
+          case data: Array[Byte] => ser.serialize(topic, data)
+          case _                 => sys.error("not an array[byte]")
         }
 
       case us => sys.error(s"unsupported key schema: ${us.toString}")
@@ -97,38 +102,50 @@ final private class PushGenericRecord(
       case Schema.Type.STRING =>
         val ser = Serdes.String().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[String].decode(data))
+          case null         => null
+          case data: String => ser.serialize(topic, data)
+          case _            => sys.error("not a string")
+
         }
       case Schema.Type.INT =>
         val ser = Serdes.Integer().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Int].decode(data))
+          case null                    => null
+          case data: java.lang.Integer => ser.serialize(topic, data)
+          case _                       => sys.error("not an integer")
+
         }
       case Schema.Type.LONG =>
         val ser = Serdes.Long().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Long].decode(data))
+          case null                 => null
+          case data: java.lang.Long => ser.serialize(topic, data)
+          case _                    => sys.error("not a long")
+
         }
       case Schema.Type.FLOAT =>
         val ser = Serdes.Float().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Float].decode(data))
+          case null                  => null
+          case data: java.lang.Float => ser.serialize(topic, data)
+          case _                     => sys.error("not a float")
+
         }
       case Schema.Type.DOUBLE =>
         val ser = Serdes.Double().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Double].decode(data))
+          case null                   => null
+          case data: java.lang.Double => ser.serialize(topic, data)
+          case _                      => sys.error("not a double")
+
         }
       case Schema.Type.BYTES =>
         val ser = Serdes.ByteArray().serializer()
         (_: AnyRef) match {
-          case null => null
-          case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+          case null              => null
+          case data: Array[Byte] => ser.serialize(topic, data)
+          case _                 => sys.error("not a double")
+
         }
 
       case us => sys.error(s"unsupported value schema: ${us.toString}")

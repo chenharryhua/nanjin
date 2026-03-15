@@ -8,7 +8,7 @@ import org.typelevel.log4cats.LoggerName
 
 package object service {
 
-  private[service] def log_sink[F[_]: Sync: Console](serviceParams: ServiceParams): F[LogSink[F]] =
+  private[service] def log_sink[F[_]: {Sync, Console}](serviceParams: ServiceParams): F[LogSink[F]] =
     LogSink[F](serviceParams.logFormat, serviceParams.zoneId, LoggerName(serviceParams.serviceName.value))
 
 }

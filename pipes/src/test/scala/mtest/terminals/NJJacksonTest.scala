@@ -4,7 +4,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -15,8 +14,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationDouble
-
+import scala.concurrent.duration.*
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 
@@ -63,7 +61,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("6.deflate - 1") {
-    fs2(fs2Root, JacksonFile(_.Deflate(5)), pandaSet)
+    fs2(fs2Root, JacksonFile(_.Deflate(_.Five)), pandaSet)
   }
 
   test("7.laziness") {

@@ -4,17 +4,15 @@ import cats.Bifunctor
 import cats.data.Cont
 import cats.syntax.eq.catsSyntaxEq
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header, Headers, ProducerRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
-import io.scalaland.chimney.dsl.TransformerOps
+import io.scalaland.chimney.dsl.transformInto
 import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
-import shapeless.cachedImplicit
 
 import scala.jdk.CollectionConverters.*
 
@@ -31,7 +29,7 @@ final case class NJProducerRecord[K, V](
   value: Option[V]
 ) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.name.value)
+  def withTopicName(name: String): NJProducerRecord[K, V] = copy(topic = name)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
   def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withKey(k: K): NJProducerRecord[K, V] = copy(key = Some(k))
@@ -56,9 +54,9 @@ object NJProducerRecord {
   def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
     pr.transformInto[NJProducerRecord[K, V]]
 
-  def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
+  def apply[K, V](topicName: String, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(
-      topic = topicName.name.value,
+      topic = topicName,
       partition = None,
       offset = None,
       timestamp = None,
@@ -69,14 +67,14 @@ object NJProducerRecord {
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K] = keyCodec
-    implicit val valDecoder: Decoder[V] = valCodec
-    implicit val keyEncoder: Encoder[K] = keyCodec
-    implicit val valEncoder: Encoder[V] = valCodec
-    val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
-    val d: Decoder[NJProducerRecord[K, V]] = cachedImplicit
-    val e: Encoder[NJProducerRecord[K, V]] = cachedImplicit
-    AvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    implicit val keyDecoder: Decoder[K] = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V] = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K] = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V] = valCodec.avroEncoder
+    val s: SchemaFor[NJProducerRecord[K, V]] = implicitly
+    val d: Decoder[NJProducerRecord[K, V]] = implicitly
+    val e: Encoder[NJProducerRecord[K, V]] = implicitly
+    AvroCodec[NJProducerRecord[K, V]](s, d, e)
   }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
@@ -84,12 +82,10 @@ object NJProducerRecord {
     class VAL
     implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
       override def schema: Schema = keySchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
 
     implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
       override def schema: Schema = valSchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
     SchemaFor[NJProducerRecord[KEY, VAL]].schema
   }

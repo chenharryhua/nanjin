@@ -18,12 +18,11 @@ import io.circe.{Encoder, Json}
   * `JobHook` is intended to be combined, composed, and traced within the batch system. Concrete bridges (like
   * `Bridge`) or loggers can implement this trait to handle events in a functional and effectful way.
   */
-sealed trait JobHook[F[_], A] {
+sealed trait JobHook[F[_], A]:
   private[batch] def kickoff: BatchJob => F[Unit]
   private[batch] def canceled: BatchJob => F[Unit]
   private[batch] def completed: JobResultValue[A] => F[Unit]
   private[batch] def errored: JobResultError => F[Unit]
-}
 
 object JobHook {
 
@@ -38,12 +37,11 @@ object JobHook {
     * This trait is protected and intended for internal use within the JobHook system, providing a functional,
     * composable way to handle job events.
     */
-  sealed protected trait Subscriber[F[_], A] {
+  sealed protected trait Subscriber[F[_], A]:
     def onComplete(f: JobResultValue[A] => F[Unit]): Subscriber[F, A]
     def onError(f: JobResultError => F[Unit]): Subscriber[F, A]
     def onCancel(f: BatchJob => F[Unit]): Subscriber[F, A]
     def onKickoff(f: BatchJob => F[Unit]): Subscriber[F, A]
-  }
 
   /** Concrete implementation of JobHook that bridges internal events to subscriber callbacks. Supports
     * contramap for type transformations.
@@ -80,7 +78,7 @@ object JobHook {
    * Concrete, configured Bridges
    */
 
-  private def _emptyBridge[F[_], A](implicit F: Applicative[F]) =
+  private def _emptyBridge[F[_], A](using F: Applicative[F]) =
     new Bridge[F, A](
       completed = _ => F.unit,
       errored = _ => F.unit,
@@ -117,7 +115,7 @@ object JobHook {
   def apply[F[_]](logger: Resource[F, Log[F]]): ByLogger[F] =
     new ByLogger[F](logger)
 
-  implicit def monoidBridge[F[_], A](implicit F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
+  given monoidBridge[F[_], A](using F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
     new Monoid[Bridge[F, A]] {
 
       override val empty: Bridge[F, A] = _emptyBridge[F, A]
@@ -131,7 +129,7 @@ object JobHook {
         )
     }
 
-  implicit def contravariantBridge[F[_]]: Contravariant[Bridge[F, *]] =
+  given [F[_]]: Contravariant[Bridge[F, *]] =
     new Contravariant[Bridge[F, *]] {
       override def contramap[A, B](fa: Bridge[F, A])(f: B => A): Bridge[F, B] =
         fa.contramap(f)

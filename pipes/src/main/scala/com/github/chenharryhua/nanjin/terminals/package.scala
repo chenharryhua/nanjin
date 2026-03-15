@@ -4,10 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.datetime.codec
-import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.numeric.Interval.Closed
 import fs2.Chunk
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
@@ -34,13 +30,10 @@ import scala.util.Try
 
 package object terminals {
 
-  implicit val codecUrl: Codec[Url] = new Codec[Url] {
+  given Codec[Url] = new Codec[Url] {
     override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
     override def apply(a: Url): Json = a.toJavaURI.asJson
   }
-
-  type NJCompressionLevel = Int Refined Closed[1, 9]
-  object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
 
   def csvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
     val sw = new StringWriter()
@@ -70,11 +63,11 @@ package object terminals {
     def go(ps: List[String]): Option[LocalDate] =
       ps match {
         case head :: next =>
-          codec.year(head) match {
+          partitionPath.year(head) match {
             case Some(year) =>
               next match {
                 case month :: day :: _ =>
-                  (codec.month(month), codec.day(day)).flatMapN { case (m, d) =>
+                  (partitionPath.month(month), partitionPath.day(day)).flatMapN { case (m, d) =>
                     Try(LocalDate.of(year, m, d)).toOption
                   }
                 case _ => None

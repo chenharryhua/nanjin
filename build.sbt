@@ -1,5 +1,5 @@
-ThisBuild / version      := "0.20.7-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.18"
+ThisBuild / version      := "0.21.1-SNAPSHOT"
+ThisBuild / scalaVersion := "3.8.2"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -13,11 +13,10 @@ Global / parallelExecution := false
 // ==========================
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
-val avro4sV = "4.1.2"
-val awsV = "2.42.8"
+val avro4sV = "5.0.15"
+val awsV = "2.42.12"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
-val catsEffectV = "3.6.3"
 val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
@@ -27,12 +26,12 @@ val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
 val enumeratumV = "1.9.6"
 val fs2KafkaV = "3.9.1"
-val fs2V = "3.12.2"
+val fs2V = "3.13.0"
 val hadoopV = "3.4.3"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.1"
 val kantanV = "0.8.0"
-val log4catsV = "2.7.1"
+val log4catsV = "2.8.0"
 val logbackV = "1.5.32"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
@@ -40,8 +39,7 @@ val natchezV = "0.3.9"
 val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
-val refinedV = "0.11.3"
-val shapelessV = "2.3.13"
+val shapelessV = "3.5.0"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
 val sparkV = "4.1.1"
@@ -50,32 +48,16 @@ lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
-  libraryDependencies ++= List(
-    "org.scala-lang"            % "scala-reflect"                    % scalaVersion.value % Runtime,
-    "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
-    ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
-  ),
   dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
-    "-Ymacro-annotations",
-    "-deprecation",
-    "-feature",
-    "-unchecked",
-    "-Xsource:3",
-    "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
-    "-Wunused:imports",
-    "-Vcyclic",
-    "-P:acyclic:warn"
+    "-Yretain-trees",
+    "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
   ),
 
   Test / tpolecatExcludeOptions ++=
-    org.typelevel.scalacoptions.ScalacOptions.lintOptions
-      .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
+    org.typelevel.scalacoptions.ScalacOptions.lintOptions +
       org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
 
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
@@ -90,32 +72,26 @@ lazy val commonSettings = List(
 )
 
 val testLib = List(
-  "org.typelevel" %% "cats-effect-testing-scalatest"          % "1.7.0",
-  "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
-  "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
-  "org.typelevel" %% "discipline-munit"                       % "2.0.0",
-  "org.typelevel" %% "cats-laws"                              % catsCoreV,
-  "org.typelevel" %% "algebra-laws"                           % catsCoreV,
-  "org.typelevel" %% "munit-cats-effect"                      % "2.1.0",
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.19",
-  "dev.optics" %% "monocle-law"                               % monocleV,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
-  "com.github.pathikrit" %% "better-files"                    % "3.9.2",
-  "io.circe" %% "circe-jawn"                                  % circeV
+  "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
+  "org.typelevel" %% "cats-effect-testkit"           % "3.7.0",
+  "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
+  "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
+  "org.typelevel" %% "discipline-munit"              % "2.0.0",
+  "org.typelevel" %% "cats-laws"                     % catsCoreV,
+  "org.typelevel" %% "algebra-laws"                  % catsCoreV,
+  "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
+  "org.scalatest" %% "scalatest"                     % "3.2.19",
+  "dev.optics" %% "monocle-law"                      % monocleV,
+  "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
+  "com.github.pathikrit" %% "better-files"           % "3.9.2",
+  "io.circe" %% "circe-jawn"                         % circeV
 ).map(_ % Test)
 
 val enumLib = List(
-  "com.beachape" %% "enumeratum"       % enumeratumV,
-  "com.beachape" %% "enumeratum-cats"  % enumeratumV,
-  "com.beachape" %% "enumeratum-circe" % enumeratumV
-)
-
-val refinedLib = List(
-  "eu.timepit" %% "refined",
-  "eu.timepit" %% "refined-cats"
-).map(_ % refinedV)
+  "com.beachape" %% "enumeratum",
+  "com.beachape" %% "enumeratum-cats",
+  "com.beachape" %% "enumeratum-circe"
+).map(_ % enumeratumV)
 
 // ==========================
 // Common
@@ -123,6 +99,10 @@ val refinedLib = List(
 lazy val common = (project in file("common"))
   .settings(commonSettings *)
   .settings(name := "nj-common")
+  .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
   .settings(
     libraryDependencies ++= List(
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
@@ -132,17 +112,14 @@ lazy val common = (project in file("common"))
       "org.typelevel" %% "cats-core"                   % catsCoreV,
       "org.typelevel" %% "kittens"                     % "3.5.0",
       "io.scalaland" %% "chimney"                      % chimneyV,
-      "io.scalaland" %% "enumz"                        % "1.2.0",
-      "com.chuusai" %% "shapeless"                     % shapelessV,
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
       "io.circe" %% "circe-generic"                    % circeV,
-      "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
       // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
-    ) ++ enumLib ++ refinedLib ++ testLib
+    ) ++ enumLib ++ testLib
   )
 
 // ==========================
@@ -183,6 +160,7 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"        % "3.3.0",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV
@@ -209,7 +187,6 @@ lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin)
   .settings(name := "nj-frontend")
   .settings(
-    scalacOptions ++= List("-Ymacro-annotations"),
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
       "io.circe" %%% "circe-core"      % circeV,
@@ -265,6 +242,9 @@ lazy val guard = (project in file("guard"))
     ),
     buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
     buildInfoOptions += BuildInfoOption.ToJson
+  ).settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
   )
 
 // ==========================
@@ -275,6 +255,10 @@ lazy val observer_aws = (project in file("observers/aws"))
   .dependsOn(aws)
   .settings(commonSettings *)
   .settings(name := "nj-observer-aws")
+  .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
   .settings(
     libraryDependencies ++= testLib
   )
@@ -294,6 +278,10 @@ lazy val observer_database = (project in file("observers/database"))
   .settings(commonSettings *)
   .settings(name := "nj-observer-database")
   .settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
+  .settings(
     libraryDependencies ++= List(
       "org.tpolecat" %% "skunk-circe" % skunkV
     ) ++ testLib
@@ -308,6 +296,7 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"    % "3.3.0",
       "org.tpolecat" %% "doobie-core"   % doobieV,
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
@@ -341,7 +330,7 @@ lazy val messages =
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-          "io.circe" %% "circe-shapes"                % circeV % Test,
+          //  "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
           "org.apache.avro" % "avro"                         % avroV,
           "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
@@ -360,14 +349,17 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= List(
-      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-      // java
-      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
-      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
-      "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-    ) ++ jacksonLib ++ testLib)
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
+  )
+  .settings(libraryDependencies ++= List(
+    ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+    // java
+    "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+    "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+    "org.apache.kafka" % "kafka-streams"                % kafkaV,
+    "ch.qos.logback"   % "logback-classic"              % logbackV % Test
+  ) ++ jacksonLib ++ testLib)
 
 // ==========================
 // Pipes
@@ -384,25 +376,18 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-hdfs-client"
 ).map(_ % hadoopV)
 
-val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv",
-  "com.nrinaudo" %% "kantan.csv-java8",
-  "com.nrinaudo" %% "kantan.csv-generic",
-  "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantanV)
-
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(datetime)
+  .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
       "co.fs2" %% "fs2-io"                        % fs2V,
-      "com.nrinaudo" %% "kantan.csv"              % kantanV,
+      "io.github.kantan-scala" %% "kantan.csv"    % "0.11.0",
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
       "io.circe" %% "circe-jawn"                  % circeV,
-      "org.typelevel" %% "jawn-fs2"               % "2.4.0" % Test,
+      "org.typelevel" %% "jawn-fs2"               % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
       // java
       "software.amazon.awssdk" % "bundle"         % awsV,
@@ -413,47 +398,18 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"            % "xz"             % "1.12",
       "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
-    ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
+    ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
-    "io.airlift"        % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
-    "org.eclipse.jetty" % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-    "io.netty"          % "netty-codec-http" % nettyV, // snyk by hadoop-common
-    "io.netty"          % "netty-codec-smtp" % nettyV // snyk by hadoop-client
-  ))
-
-// ==========================
-// Spark
-// ==========================
-val sparkLib = List(
-  "org.apache.spark" %% "spark-catalyst",
-  "org.apache.spark" %% "spark-core",
-  "org.apache.spark" %% "spark-sql",
-  "org.apache.spark" %% "spark-avro"
-).map(_ % sparkV).map(_.exclude("org.lz4", "lz4-java"))
-
-lazy val spark = (project in file("spark"))
-  .dependsOn(kafka)
-  .dependsOn(pipes)
-  .dependsOn(database)
-  .settings(commonSettings *)
-  .settings(name := "nj-spark")
-  .settings(
-    libraryDependencies ++= List(
-      "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
-      "io.circe" %% "circe-shapes"             % circeV   % Test,
-      // java
-      "org.apache.avro" % "avro-mapred"     % avroV,
-      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
-      "org.postgresql"  % "postgresql"      % postgresV % Test
-    ) ++ jacksonLib ++ sparkLib ++ testLib
+    "org.apache.zookeeper" % "zookeeper"        % "3.9.5", // snyk by hadoop-auth
+    "io.airlift"           % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
+    "org.eclipse.jetty"    % "jetty-server"     % "12.1.7", // snyk by hadoop-common
+    "io.netty"             % "netty-codec-http" % nettyV, // snyk by hadoop-common
+    "io.netty"             % "netty-codec-smtp" % nettyV // snyk by hadoop-client
+  )).settings(
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
   )
-  .settings(dependencyOverrides ++= List(
-    "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-    "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
-    "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
-    "io.airlift"               % "aircompressor"    % "2.0.3" // snyk by spark-sql
-  ))
 
 // ==========================
 // Example
@@ -467,7 +423,6 @@ lazy val example = (project in file("example"))
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
-  .dependsOn(spark)
   .dependsOn(guard)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
@@ -496,7 +451,6 @@ lazy val nanjin =
       pipes,
       kafka,
       database,
-      spark,
       guard,
       observer_aws,
       observer_database,

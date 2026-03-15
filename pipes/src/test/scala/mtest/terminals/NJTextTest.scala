@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.jawn
@@ -19,7 +18,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.*
 
 class NJTextTest extends AnyFunSuite {
   val zoneId: ZoneId = ZoneId.systemDefault()
@@ -70,7 +69,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, TextFile(_.Deflate(8)), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Deflate(_.Eight)), TestData.tigerSet)
   }
 
   test("laziness") {
@@ -88,7 +87,9 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / fk.fileName(t)).text)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / fk.fileName(t)).text)
+      .evalTap(tv => IO.println(tv.value.window))
+      .debug()
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -106,7 +107,7 @@ class NJTextTest extends AnyFunSuite {
 
   test("rotation - size") {
     val path = fs2Root / "rotation" / "index"
-    val number = 10000L
+    val number = 10002L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
     val processedSize = Stream
@@ -115,6 +116,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(sydneyTime, 1000)(t => path / fk.fileName(t)).text)
+      .debug()
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

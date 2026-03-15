@@ -26,7 +26,7 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record]
+  def avro(chunkSize: Int): Stream[F, GenericData.Record]
 
   /** `https://avro.apache.org`
     *
@@ -38,7 +38,7 @@ sealed trait FileSource[F[_]] {
     * @param readerSchema
     *   expected schema
     */
-  def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record]
+  def avro(chunkSize: Int, readerSchema: Schema): Stream[F, GenericData.Record]
 
   /** `https://avro.apache.org`
     *
@@ -52,7 +52,7 @@ sealed trait FileSource[F[_]] {
     * @param readerSchema
     *   the new (upgraded) schema
     */
-  def binAvro(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
+  def binAvro(chunkSize: Int, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
   /** `https://avro.apache.org`
     *
@@ -62,7 +62,7 @@ sealed trait FileSource[F[_]] {
     * @param schema
     *   the schema of the file
     */
-  def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
+  def binAvro(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record]
 
   /** `https://github.com/FasterXML/jackson`
     *
@@ -75,7 +75,7 @@ sealed trait FileSource[F[_]] {
     * @param readerSchema
     *   the new (upgraded) schema
     */
-  def jackson(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
+  def jackson(chunkSize: Int, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
   /** `https://github.com/FasterXML/jackson`
     * @param chunkSize
@@ -84,7 +84,7 @@ sealed trait FileSource[F[_]] {
     * @param schema
     *   the schema of the file
     */
-  def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
+  def jackson(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record]
 
   /** @param bufferSize
     *   in terms of bytes, bits, kilobytes, megabytes, etc. Each chunk of the stream is of uniform size,
@@ -97,7 +97,7 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def circe(chunkSize: ChunkSize): Stream[F, Json]
+  def circe(chunkSize: Int): Stream[F, Json]
 
   /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
@@ -106,21 +106,21 @@ sealed trait FileSource[F[_]] {
     * @param csvConfiguration
     *   kantan CSV configuration
     */
-  def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]]
+  def kantan(chunkSize: Int, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]]
 
   /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def kantan(chunkSize: ChunkSize, f: Endo[CsvConfiguration]): Stream[F, Seq[String]]
+  def kantan(chunkSize: Int, f: Endo[CsvConfiguration]): Stream[F, Seq[String]]
 
   /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def kantan(chunkSize: ChunkSize): Stream[F, Seq[String]]
+  def kantan(chunkSize: Int): Stream[F, Seq[String]]
 
   /** `https://parquet.apache.org`
     * @param chunkSize
@@ -128,7 +128,7 @@ sealed trait FileSource[F[_]] {
     *   depending on the remaining data.
     */
   def parquet(
-    chunkSize: ChunkSize,
+    chunkSize: Int,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record]
 
   /** `https://parquet.apache.org`
@@ -136,13 +136,13 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def parquet(chunkSize: ChunkSize): Stream[F, GenericData.Record]
+  def parquet(chunkSize: Int): Stream[F, GenericData.Record]
 
   /** @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def text(chunkSize: ChunkSize): Stream[F, String]
+  def text(chunkSize: Int): Stream[F, String]
 
   /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
     * implementations. It’s recommended to bound request and response sizes.
@@ -152,7 +152,7 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: ChunkSize): Stream[F, A]
+  def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: Int): Stream[F, A]
 
   /** @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
@@ -160,23 +160,23 @@ sealed trait FileSource[F[_]] {
     *
     * empty line regarded as end of the file
     */
-  def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode]
+  def jsonNode(chunkSize: Int): Stream[F, JsonNode]
 }
 
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
 
-  override def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
-    HadoopReader.avroS[F](configuration, url, chunkSize, None)
-  override def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.avroS[F](configuration, url, chunkSize, Some(readerSchema))
+  override def avro(chunkSize: Int): Stream[F, GenericData.Record] =
+    HadoopReader.avroS[F](configuration, url, ChunkSize(chunkSize), None)
+  override def avro(chunkSize: Int, readerSchema: Schema): Stream[F, GenericData.Record] =
+    HadoopReader.avroS[F](configuration, url, ChunkSize(chunkSize), Some(readerSchema))
 
   override def binAvro(
-    chunkSize: ChunkSize,
+    chunkSize: Int,
     writerSchema: Schema,
     readerSchema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.binAvroS[F](configuration, writerSchema, readerSchema, url, chunkSize)
+    HadoopReader.binAvroS[F](configuration, writerSchema, readerSchema, url, ChunkSize(chunkSize))
 
-  override def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
+  override def binAvro(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record] =
     binAvro(chunkSize, schema, schema)
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
@@ -185,29 +185,29 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     HadoopReader.byteS[F](configuration, url, bufferSize)
   }
 
-  override def circe(chunkSize: ChunkSize): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, url, chunkSize)
+  override def circe(chunkSize: Int): Stream[F, Json] =
+    HadoopReader.jawnS[F](configuration, url, ChunkSize(chunkSize))
 
   override def jackson(
-    chunkSize: ChunkSize,
+    chunkSize: Int,
     writerSchema: Schema,
     readerSchema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.jacksonS[F](configuration, writerSchema, readerSchema, url, chunkSize)
+    HadoopReader.jacksonS[F](configuration, writerSchema, readerSchema, url, ChunkSize(chunkSize))
 
-  override def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
+  override def jackson(chunkSize: Int, schema: Schema): Stream[F, GenericData.Record] =
     jackson(chunkSize, schema, schema)
 
-  override def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
-    HadoopReader.kantanS[F](configuration, url, chunkSize, csvConfiguration)
+  override def kantan(chunkSize: Int, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
+    HadoopReader.kantanS[F](configuration, url, ChunkSize(chunkSize), csvConfiguration)
 
-  override def kantan(chunkSize: ChunkSize, f: Endo[CsvConfiguration]): Stream[F, Seq[String]] =
+  override def kantan(chunkSize: Int, f: Endo[CsvConfiguration]): Stream[F, Seq[String]] =
     kantan(chunkSize, f(CsvConfiguration.rfc))
 
-  override def kantan(chunkSize: ChunkSize): Stream[F, Seq[String]] =
+  override def kantan(chunkSize: Int): Stream[F, Seq[String]] =
     kantan(chunkSize, CsvConfiguration.rfc)
 
   override def parquet(
-    chunkSize: ChunkSize,
+    chunkSize: Int,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record] =
     HadoopReader.parquetS[F](
       Reader((path: Path) =>
@@ -216,20 +216,19 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
           .withDataModel(GenericData.get())
           .withConf(configuration)).map(f),
       url,
-      chunkSize
+      ChunkSize(chunkSize)
     )
 
-  override def parquet(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
+  override def parquet(chunkSize: Int): Stream[F, GenericData.Record] =
     parquet(chunkSize, identity)
 
-  override def text(chunkSize: ChunkSize): Stream[F, String] =
-    HadoopReader.stringS[F](configuration, url, chunkSize)
+  override def text(chunkSize: Int): Stream[F, String] =
+    HadoopReader.stringS[F](configuration, url, ChunkSize(chunkSize))
 
-  override def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](
-    chunkSize: ChunkSize): Stream[F, A] =
-    HadoopReader.protobufS[F, A](configuration, url, chunkSize)
+  override def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: Int): Stream[F, A] =
+    HadoopReader.protobufS[F, A](configuration, url, ChunkSize(chunkSize))
 
-  override def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode] = {
+  override def jsonNode(chunkSize: Int): Stream[F, JsonNode] = {
     val reader: ObjectReader = objectMapper.reader()
     text(chunkSize).takeWhile(_.nonEmpty).map(reader.readTree)
   }

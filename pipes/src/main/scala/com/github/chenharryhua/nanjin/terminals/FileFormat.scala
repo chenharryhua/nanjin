@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
-import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
 
@@ -41,14 +40,4 @@ object FileFormat extends Enum[FileFormat] with CatsEnum[FileFormat] with CirceE
   type BinaryAvro = BinaryAvro.type
   type JavaObject = JavaObject.type
   type ProtoBuf = ProtoBuf.type
-
-  type JsonFamily = Jackson :+: Circe :+: CNil
-
-  type TextFamily = Jackson :+: Circe :+: Text :+: Kantan :+: CNil
-
-  type BinaryFamily =
-    Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil
-
-  type AvroFamily = Jackson :+: Parquet :+: Avro :+: BinaryAvro :+: CNil
-
 }

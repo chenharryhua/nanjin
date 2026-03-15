@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import cats.implicits.catsSyntaxOptionId
+import cats.syntax.option.catsSyntaxOptionId
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.ProtoPrimitive.{ProtoInt, ProtoLong, ProtoString}
 import com.google.protobuf.DynamicMessage
 import com.google.protobuf.util.JsonFormat
-import io.circe.Encoder as JsonEncoder
+import io.circe.{Encoder as JsonEncoder, Json}
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
@@ -17,24 +18,25 @@ sealed trait ProtoFor[A] extends UnregisteredSerde[A] {
 }
 
 object ProtoFor {
-  def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
+  def apply[A](using ev: ProtoFor[A]): ProtoFor[A] = ev
 
-  final class FromBroker private[ProtoFor] (val value: DynamicMessage)
-  object FromBroker {
-    private val jsonFormat = JsonFormat.printer()
-    implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
-      (a: FromBroker) =>
+  opaque type FromBroker = DynamicMessage
+  object FromBroker:
+    private[ProtoFor] def apply(dm: DynamicMessage): FromBroker = dm
+    extension (dm: FromBroker) def value: DynamicMessage = dm
+    given JsonEncoder[FromBroker] with
+      private val jsonFormat = JsonFormat.printer()
+      override def apply(a: FromBroker): Json =
         io.circe.jawn.parse(jsonFormat.print(a.value)) match {
           case Left(value)  => throw value // scalafix:ok
           case Right(value) => value
         }
-  }
+    given Eq[FromBroker] = Eq.fromUniversalEquals
 
   /*
    * Specific
    */
-
-  implicit object protoForString extends ProtoFor[String] {
+  given ProtoFor[String] = new ProtoFor[String] {
     override val isPrimitive: Boolean = true
     override protected val unregisteredSerde: Serde[String] = Serdes.String()
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoString.javaDescriptor).some
@@ -58,7 +60,7 @@ object ProtoFor {
 
     override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
       override val serializer: Serializer[FromBroker] = new Serializer[FromBroker] {
-        private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
+        private val ser = new KafkaProtobufSerializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           ser.configure(configs, isKey)
@@ -66,11 +68,11 @@ object ProtoFor {
         override def close(): Unit = ser.close()
 
         override def serialize(topic: String, data: FromBroker): Array[Byte] =
-          Option(data).flatMap(u => Option(u.value)).map(dm => ser.serialize(topic, dm)).orNull
+          Option(data).map(dm => ser.serialize(topic, dm)).orNull
       }
 
       override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
-        private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
+        private val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)
@@ -79,7 +81,7 @@ object ProtoFor {
 
         override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
-            .map(new FromBroker(_))
+            .map(FromBroker(_))
             .orNull
 
       }
@@ -100,7 +102,7 @@ object ProtoFor {
     override protected val unregisteredSerde: Serde[A] = new Serde[A] {
       override val serializer: Serializer[A] = new Serializer[A] {
 
-        private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
+        private val ser = new KafkaProtobufSerializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           ser.configure(configs, isKey)
@@ -115,7 +117,7 @@ object ProtoFor {
       }
 
       override val deserializer: Deserializer[A] = new Deserializer[A] {
-        private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
+        private val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)

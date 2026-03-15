@@ -6,7 +6,6 @@ import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
-import eu.timepit.refined.auto.*
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
@@ -21,7 +20,6 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 import squants.information.InformationConversions.InformationConversions
-
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 
@@ -68,7 +66,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Deflate(_.Four)), TestData.tigerSet)
   }
 
   test("laziness") {
@@ -86,7 +84,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t =>
+      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
         path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile

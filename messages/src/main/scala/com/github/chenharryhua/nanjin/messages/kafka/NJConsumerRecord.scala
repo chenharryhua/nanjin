@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import cats.Bifunctor
+import cats.Bitraverse
 import cats.data.Cont
+import cats.derived.derived
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
@@ -9,24 +10,36 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
-import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
-import io.circe.syntax.EncoderOps
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
-import monocle.macros.PLenses
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 
-import java.time.{Instant, ZoneId}
+import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
+
+final case class ZonedConsumerRecord[K, V](
+  topic: String,
+  partition: Int,
+  offset: Long,
+  timestamp: ZonedDateTime,
+  timestampType: Int,
+  headers: List[NJHeader],
+  leaderEpoch: Option[Int],
+  serializedKeySize: Int,
+  serializedValueSize: Int,
+  key: Option[K],
+  value: Option[V]
+) derives JsonDecoder, JsonEncoder:
+  def metaInfo: ZonedMetaInfo = this.transformInto[ZonedMetaInfo]
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
-@PLenses
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka partition") partition: Int,
@@ -39,18 +52,13 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka value size") serializedValueSize: Int,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V]
-) {
-  def flatten[K2, V2](implicit
+) derives JsonEncoder, JsonDecoder, SchemaFor, Bitraverse {
+
+  def flatten[K2, V2](using
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
   ): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
-
-  def bimap[K1, V1](k: K => K1, v: V => V1): NJConsumerRecord[K1, V1] =
-    NJConsumerRecord.bifunctorNJConsumerRecord.bimap(this)(k, v)
-
-  def map[V1](v: V => V1): NJConsumerRecord[K, V1] =
-    NJConsumerRecord.bifunctorNJConsumerRecord.rightFunctor.map(this)(v)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](
@@ -65,11 +73,12 @@ final case class NJConsumerRecord[K, V](
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
 
-  def toZonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
-    NJConsumerRecord
-      .encoderNJConsumerRecord[K, V]
-      .apply(this)
-      .deepMerge(Json.obj("ts" -> Instant.ofEpochMilli(timestamp).atZone(zoneID).toLocalDateTime.asJson))
+  def zoned(zoneId: ZoneId): ZonedConsumerRecord[K, V] =
+    this.into[ZonedConsumerRecord[K, V]]
+      .withFieldComputed(
+        _.timestamp,
+        cr => ZonedDateTime.ofInstant(Instant.ofEpochMilli(cr.timestamp), zoneId))
+      .transform
 
   def toProtoConsumerRecord(k: K => ByteString, v: V => ByteString): ProtoConsumerRecord =
     this
@@ -94,20 +103,17 @@ object NJConsumerRecord {
       .withFieldComputed(_.headers, _.headers.toList.map(ph => NJHeader(ph.key, ph.value.toByteArray.toList)))
       .transform
 
-  def jsonCodec[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder]: JsonCodec[NJConsumerRecord[K, V]] =
-    JsonCodec.implied[NJConsumerRecord[K, V]]
-
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K] = keyCodec
-    implicit val valDecoder: Decoder[V] = valCodec
-    implicit val keyEncoder: Encoder[K] = keyCodec
-    implicit val valEncoder: Encoder[V] = valCodec
-    val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
-    val d: Decoder[NJConsumerRecord[K, V]] = implicitly
-    val e: Encoder[NJConsumerRecord[K, V]] = implicitly
-    AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    implicit val keyDecoder: Decoder[K] = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V] = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K] = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V] = valCodec.avroEncoder
+    val s: SchemaFor[NJConsumerRecord[K, V]] = summon
+    val d: Decoder[NJConsumerRecord[K, V]] = summon
+    val e: Encoder[NJConsumerRecord[K, V]] = summon
+    AvroCodec[NJConsumerRecord[K, V]](s, d, e)
   }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
@@ -115,29 +121,13 @@ object NJConsumerRecord {
     class VAL
     implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
       override def schema: Schema = keySchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
 
     implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
       override def schema: Schema = valSchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
-
-  implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
-
-  implicit def decoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJConsumerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
-
-  implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
-    new Bifunctor[NJConsumerRecord] {
-
-      override def bimap[A, B, C, D](
-        fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
-        fab.copy(key = fab.key.map(f), value = fab.value.map(g))
-    }
 
   implicit def eqNJConsumerRecord[K: Eq, V: Eq]: Eq[NJConsumerRecord[K, V]] =
     Eq.instance { case (l, r) =>

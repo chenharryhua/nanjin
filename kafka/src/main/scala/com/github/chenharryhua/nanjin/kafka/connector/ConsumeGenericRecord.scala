@@ -10,12 +10,8 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{
-  orderingTopicPartition,
-  AvroTopic,
-  OptionalAvroSchemaPair,
-  TopicPartitionMap
-}
+import com.github.chenharryhua.nanjin.kafka.given
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, OptionalAvroSchemaPair, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.Schema
@@ -72,7 +68,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.name.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
       .flatMap(toGenericRecordStream)
 
   /*
@@ -83,14 +79,14 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap(_.assign(avroTopic.topicName.name.value))
+      .evalTap(_.assign(avroTopic.topicName.value))
       .flatMap(toGenericRecordStream)
 
   def assign(partitionOffsets: Map[Int, Long]): Stream[
     F,
     CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] = {
     val start_offsets: Map[TopicPartition, Long] =
-      partitionOffsets.map { case (p, o) => new TopicPartition(avroTopic.topicName.name.value, p) -> o }
+      partitionOffsets.map { case (p, o) => new TopicPartition(avroTopic.topicName.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(start_offsets.keySet)) match {
       case None                  => Stream.empty
@@ -111,8 +107,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
       .stream(consumerSettings)
       .evalTap { c =>
         for {
-          _ <- c.assign(avroTopic.topicName.name.value)
-          partitions <- c.partitionsFor(avroTopic.topicName.name.value)
+          _ <- c.assign(avroTopic.topicName.value)
+          partitions <- c.partitionsFor(avroTopic.topicName.value)
           tps = partitions.map { pi =>
             new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
           }.toMap
@@ -138,7 +134,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
       val pull: PullGenericRecord = new PullGenericRecord(schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
-        .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.name.value)))
+        .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
         .flatMap(kc =>
           kc.partitionsMapStream.map { pms =>
             new ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]] {
@@ -173,15 +169,15 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
-      ranges <- Stream.eval(topic_utils.get_offset_range(kc, avroTopic.topicName, or))
+      ranges <- Stream.eval(topicUtils.get_offset_range(kc, avroTopic.topicName, or))
       stream <-
         if (ranges.isEmpty) Stream.empty
         else {
           for {
-            _ <- Stream.eval(topic_utils.assign_offset_range(kc, ranges))
+            _ <- Stream.eval(topicUtils.assign_offset_range(kc, ranges))
             schema <- Stream.eval(getSchema).map(avroTopic.pair.optionalSchemaPair.read(_).toSchemaPair)
             pull = new PullGenericRecord(schema)
-            s <- topic_utils.circumscribed_generic_record_stream(kc, ranges, pull)
+            s <- topicUtils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s
         }
     } yield stream

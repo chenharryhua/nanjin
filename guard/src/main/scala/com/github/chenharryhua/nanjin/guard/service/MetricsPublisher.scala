@@ -26,7 +26,7 @@ final private class MetricsPublisher[F[_]] private (
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   channel: Channel[F, Event],
   logSink: LogSink[F]
-)(implicit F: Async[F])
+)(using F: Async[F])
     extends AdhocMetrics[F] {
 
   private val report_kind: Kind = Report(serviceParams.servicePolicies.metricsReport)
@@ -106,7 +106,7 @@ final private class MetricsPublisher[F[_]] private (
 }
 
 private object MetricsPublisher {
-  def apply[F[_]: Async: Console](
+  def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     channel: Channel[F, Event]): Stream[F, MetricsPublisher[F]] = {

@@ -1,21 +1,22 @@
 package mtest.database
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.database.*
 import com.github.chenharryhua.nanjin.database.*
-import eu.timepit.refined.auto.*
 import munit.CatsEffectSuite
+import io.github.iltotore.iron.*
+import scala.language.implicitConversions
+
+val testDb: Postgres = Postgres(
+  host = "localhost",
+  port = 5432,
+  database = "postgres",
+  username = "postgres",
+  password = "postgres"
+)
 
 class DBConfigSuite extends CatsEffectSuite {
 
   // Dummy Postgres credentials for testing
-  val testDb: Postgres = Postgres(
-    host = "localhost",
-    port = 5432,
-    database = "postgres",
-    username = "postgres",
-    password = "postgres"
-  )
 
   test("DBConfig.apply(Postgres) creates valid HikariConfig") {
     val dbConfig = DBConfig(testDb)
@@ -42,7 +43,13 @@ class DBConfigSuite extends CatsEffectSuite {
 
   test("DBConfig.testConnection returns false on invalid DB") {
     val invalidDb =
-      Postgres(Username("unknown"), Password("unknown"), Host("localhost"), 5432, DatabaseName("postgres"))
+      Postgres(
+        "unknown",
+        "unknown",
+        "localhost",
+        5432,
+        "postgres"
+      )
     val dbConfig = DBConfig(invalidDb)
     dbConfig.testConnection[IO].map { result =>
       assertEquals(result, false) // should fail to connect

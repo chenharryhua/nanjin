@@ -2,7 +2,7 @@ package mtest.msg.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.given
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords as Fs2CommittableProducerRecords,
@@ -16,7 +16,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
-import org.scalacheck.Arbitrary.{arbitrary, *}
+import org.scalacheck.Arbitrary.*
 import org.scalacheck.Gen
 import io.scalaland.chimney.dsl.*
 

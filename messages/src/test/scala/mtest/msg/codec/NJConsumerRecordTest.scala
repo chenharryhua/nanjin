@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import mtest.msg.codec.ManualAvroSchemaTestData.UnderTest
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.syntax.EncoderOps
 
 class NJConsumerRecordTest extends AnyFunSuite {
   val cr: NJConsumerRecord[Int, UnderTest] = NJConsumerRecord[Int, UnderTest](
@@ -22,7 +23,7 @@ class NJConsumerRecordTest extends AnyFunSuite {
   )
 
   test("to zoned json") {
-    println(cr.toZonedJson(sydneyTime).noSpaces)
+    println(cr.zoned(sydneyTime).asJson.noSpaces)
   }
 
   test("schema") {

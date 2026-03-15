@@ -3,6 +3,6 @@ import io.circe.{Decoder, Encoder, Json}
 import squants.time.{Frequency, Hertz}
 
 package object event {
-  implicit val hertzEncoder: Encoder[Frequency] = Encoder.instance(h => Json.fromDoubleOrNull(h.toHertz))
-  implicit val hertzDecoder: Decoder[Frequency] = Decoder.decodeDouble.map(Hertz(_))
+  given hertzEncoder: Encoder[Frequency] = Encoder.instance(h => Json.fromDoubleOrNull(h.toHertz))
+  given hertzDecoder: Decoder[Frequency] = Decoder.decodeDouble.map(Hertz(_))
 }

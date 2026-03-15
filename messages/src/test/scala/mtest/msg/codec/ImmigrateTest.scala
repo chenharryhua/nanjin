@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
-import com.sksamuel.avro4s.{Record, RecordFormat, SchemaFor}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, AvroCodec}
+import com.sksamuel.avro4s.{Record, SchemaFor}
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -39,13 +39,13 @@ class ImmigrateTest extends AnyFunSuite {
   val v6s: Schema = SchemaFor[version6.KeyBoard].schema
   val v7s: Schema = SchemaFor[version7.KeyBoard2].schema
 
-  val v1d: Record = RecordFormat[version1.Tiger].to(version1.Tiger(1))
-  val v2d: Record = RecordFormat[version2.Cat].to(version2.Cat(1))
-  val v3d: Record = RecordFormat[version3.Tiger].to(version3.Tiger(1, Some("b")))
-  val v4d: Record = RecordFormat[version4.Tiger].to(version4.Tiger(1, Some("c")))
-  val v5d: Record = RecordFormat[version5.Lion].to(version5.Lion("lion"))
-  val v6d: Record = RecordFormat[version6.KeyBoard].to(version6.KeyBoard(version6.Key(0)))
-  val v7d: Record = RecordFormat[version7.KeyBoard2].to(version7.KeyBoard2(version7.Key2(0)))
+  val v1d: Record = AvroCodec[version1.Tiger].toRecord(version1.Tiger(1))
+  val v2d: Record = AvroCodec[version2.Cat].toRecord(version2.Cat(1))
+  val v3d: Record = AvroCodec[version3.Tiger].toRecord(version3.Tiger(1, Some("b")))
+  val v4d: Record = AvroCodec[version4.Tiger].toRecord(version4.Tiger(1, Some("c")))
+  val v5d: Record = AvroCodec[version5.Lion].toRecord(version5.Lion("lion"))
+  val v6d: Record = AvroCodec[version6.KeyBoard].toRecord(version6.KeyBoard(version6.Key(0)))
+  val v7d: Record = AvroCodec[version7.KeyBoard2].toRecord(version7.KeyBoard2(version7.Key2(0)))
 
   test("immigration") {
     assert(immigrate(v1s, v1d).isSuccess)

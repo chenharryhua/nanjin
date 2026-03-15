@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin
 
-import cats.effect.implicits.genTemporalOps
+import cats.effect.syntax.temporal.genTemporalOps
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.flatMap.toFlatMapOps
@@ -18,6 +18,6 @@ package object aws {
       case Right(_) => logger.info(s"$name was closed")
     }
 
-  private[aws] def blockingF[F[_], A](fa: => A, ctx: String, logger: Logger[F])(implicit F: Sync[F]): F[A] =
+  private[aws] def blockingF[F[_], A](fa: => A, ctx: String, logger: Logger[F])(using F: Sync[F]): F[A] =
     F.blocking(fa).onError(ex => logger.error(ex)(ctx))
 }

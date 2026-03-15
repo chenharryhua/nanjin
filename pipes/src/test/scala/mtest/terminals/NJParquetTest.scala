@@ -6,7 +6,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -17,7 +16,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.concurrent.duration.*
 import scala.util.Try
 
 class NJParquetTest extends AnyFunSuite {
@@ -62,7 +61,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("Zstandard parquet - 1") {
-    fs2(fs2Root, ParquetFile(_.Zstandard(7)), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Zstandard(_.Seven)), pandaSet)
   }
 
   ignore("LZO parquet") {
@@ -87,7 +86,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / file.ymdFileName(t)).parquet)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second))(t => path / file.ymdFileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

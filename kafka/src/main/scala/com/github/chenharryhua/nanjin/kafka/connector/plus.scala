@@ -20,7 +20,7 @@ trait CircumscribedStream[F[_], K, V] {
 
   def partitionsMapStream: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]]
 
-  final def stream(implicit F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+  final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     Stream.iterable(partitionsMapStream.values).parJoinUnbounded.onFinalize(stopConsuming)
 
   final def offsets: TopicPartitionMap[OffsetRange] =
@@ -36,7 +36,7 @@ trait ManualCommitStream[F[_], K, V] {
 
   def partitionsMapStream: Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]
 
-  final def stream(implicit F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+  final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     Stream.iterable(partitionsMapStream.values).parJoinUnbounded
 }
 

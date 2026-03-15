@@ -3,12 +3,11 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
-import eu.timepit.refined.auto.*
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
@@ -95,7 +94,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("3.serde") {
     val serde = ctx.serde(avroTopic)
     ctx
-      .consumeBytes(avroTopic.topicName.name)
+      .consumeBytes(avroTopic.topicName)
       .assign
       .take(1)
       .map { ccr =>
@@ -107,7 +106,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         serde.tryDeserializeValue(ccr.record)
         serde.tryDeserializeKeyValue(ccr.record)
         serde.optionalDeserialize(ccr.record)
-        val nj = serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
+        val nj = NJConsumerRecord(serde.deserialize(ccr.record)).toNJProducerRecord.toProducerRecord
         serde.serializeKey(nj.key)
         serde.serializeVal(nj.value)
         serde.serialize(nj)
@@ -166,7 +165,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(AvroTopic[java.lang.Long, Integer]("bytes"))
+      .consumeGenericRecord(AvroTopic[java.lang.Long, Integer](TopicName("bytes")))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -213,7 +212,8 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - offset") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord(
+        AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker](TopicName("telecom_italia_data")))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -226,7 +226,8 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record range - date time") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord(
+        AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker](TopicName("telecom_italia_data")))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(DateTimeRange(sydneyTime).withToday)
       .flatMap(_.stream.map(_.record.value.toOption).take(5).debug())
@@ -239,7 +240,8 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("11.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord(
+        AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker](TopicName("telecom_italia_data")))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))

@@ -7,10 +7,10 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.orderingTopicPartition
+import com.github.chenharryhua.nanjin.kafka.given
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -48,14 +48,14 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    */
 
   lazy val subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
-    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.name.value))).flatMap(_.stream)
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
   lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
-    clientS.evalTap(_.assign(topicName.name.value)).flatMap(_.stream)
+    clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
     val topic_offset: Map[TopicPartition, Long] =
-      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.name.value, p) -> o }
+      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(topic_offset.keySet)) match {
       case None      => Stream.empty
@@ -75,8 +75,8 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
       .stream(consumerSettings)
       .evalTap { c =>
         for {
-          _ <- c.assign(topicName.name.value)
-          partitions <- c.partitionsFor(topicName.name.value)
+          _ <- c.assign(topicName.value)
+          partitions <- c.partitionsFor(topicName.value)
           tps = partitions.map { pi =>
             new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
           }.toMap
@@ -98,7 +98,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   lazy val manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.name.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(kc =>
         kc.partitionsMapStream.map { pms =>
           new ManualCommitStream[F, K, V] {
@@ -122,12 +122,12 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
     or: Either[DateTimeRange, Map[Int, (Long, Long)]]): Stream[F, CircumscribedStream[F, K, V]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
-      ranges <- Stream.eval(topic_utils.get_offset_range(kc, topicName, or))
+      ranges <- Stream.eval(topicUtils.get_offset_range(kc, topicName, or))
       stream <-
         if (ranges.isEmpty) Stream.empty
         else {
-          Stream.eval(topic_utils.assign_offset_range(kc, ranges)) *>
-            topic_utils.circumscribed_stream(kc, ranges)
+          Stream.eval(topicUtils.assign_offset_range(kc, ranges)) *>
+            topicUtils.circumscribed_stream(kc, ranges)
         }
     } yield stream
 

@@ -6,7 +6,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.foldable.toFoldableOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.{Chunk, Pipe, Stream}
 import fs2.kafka.*
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -17,7 +17,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
 final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V],
-  isCompatible: F[Boolean])(implicit F: Async[F])
+  isCompatible: F[Boolean])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties
     with ProducerService[F, (K, V)] {
 
@@ -44,7 +44,7 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   override lazy val sink: Pipe[F, (K, V), Chunk[RecordMetadata]] = { (ss: Stream[F, (K, V)]) =>
     Stream.resource(kafka_producer).flatMap { producer =>
       ss.chunks.evalMap { ck =>
-        producer.produce(ck.map { case (k, v) => ProducerRecord(topicName.name.value, k, v) })
+        producer.produce(ck.map { case (k, v) => ProducerRecord(topicName.value, k, v) })
       }.parEvalMap(Int.MaxValue)(_.map(_.map(_._2)))
     }
   }
@@ -54,12 +54,12 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
    */
 
   def produce[G[_]: Foldable](kvs: G[(K, V)]): F[Chunk[RecordMetadata]] = {
-    val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.name.value, k, v) }
+    val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.value, k, v) }
     kafka_producer.use(_.produce(prs).flatten).map(_.map(_._2))
   }
 
   def produceOne(k: K, v: V): F[RecordMetadata] =
-    kafka_producer.use(_.produceOne_(topicName.name.value, k, v).flatten)
+    kafka_producer.use(_.produceOne_(topicName.value, k, v).flatten)
 
   override def produceOne(record: (K, V)): F[RecordMetadata] =
     produceOne(record._1, record._2)

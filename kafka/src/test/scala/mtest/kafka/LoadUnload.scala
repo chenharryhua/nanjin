@@ -5,19 +5,18 @@ import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic}
-import eu.timepit.refined.auto.*
 import fs2.Stream
-import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-@JsonCodec
+import com.github.chenharryhua.nanjin.kafka.TopicName
+
 final case class Simple(name: String, count: Int)
 
 class LoadUnload extends AnyFunSuite {
 
-  val avro: AvroTopic[Integer, Simple] = AvroTopic[Integer, Simple]("spark-avro-simple")
-  val json: JsonTopic[Integer, Simple] = JsonTopic[Integer, Simple]("spark-json-simple")
+  val avro: AvroTopic[Integer, Simple] = AvroTopic[Integer, Simple](TopicName("spark-avro-simple"))
+  val json: JsonTopic[Integer, Simple] = JsonTopic[Integer, Simple](TopicName("spark-json-simple"))
 
   val data: List[(Integer, Simple)] =
     List.range(1, 10).map(a => Integer.valueOf(a) -> Simple("simple", Random.nextInt(99)))

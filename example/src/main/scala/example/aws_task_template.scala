@@ -1,11 +1,11 @@
 package example
 
 import cats.effect.IO
-import com.comcast.ip4s.IpLiteralSyntax
+import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.aws.ecs
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import fs2.Stream
 import io.circe.Json
 import io.circe.syntax.EncoderOps

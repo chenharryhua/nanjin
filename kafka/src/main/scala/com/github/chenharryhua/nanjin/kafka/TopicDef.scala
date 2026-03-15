@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.{Endo, Show}
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
 
@@ -11,9 +10,9 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
 
 sealed trait KafkaTopic[K, V] {
   def topicName: TopicName
-  def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(implicit
+  def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(using
     F: Sync[F]): ConsumerSettings[F, K, V]
-  def producerSettings[F[_]](srs: SchemaRegistrySettings, ps: KafkaProducerSettings)(implicit
+  def producerSettings[F[_]](srs: SchemaRegistrySettings, ps: KafkaProducerSettings)(using
     F: Sync[F]): ProducerSettings[F, K, V]
 
   def register(srs: SchemaRegistrySettings): TopicSerde[K, V]
@@ -22,13 +21,13 @@ sealed trait KafkaTopic[K, V] {
 final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPair[K, V])
     extends KafkaTopic[K, V] {
 
-  override def toString: String = topicName.name.value
+  override def toString: String = topicName.value
 
-  def withTopicName(tn: TopicNameL): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
+  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
-    withTopicName(TopicName.unsafeFrom(f(topicName.name.value)).name)
+    withTopicName(f(topicName.value))
 
-  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.name.value, k, v)
+  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -43,13 +42,13 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 
 object AvroTopic {
 
-  implicit def showTopicDef[K, V]: Show[AvroTopic[K, V]] = Show.fromToString
+  given [K, V]: Show[AvroTopic[K, V]] = _.toString
 
   def apply[K, V](key: AvroFor[K], value: AvroFor[V], topicName: TopicName): AvroTopic[K, V] =
     new AvroTopic(topicName, AvroForPair(key, value))
@@ -57,8 +56,6 @@ object AvroTopic {
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     apply[K, V](AvroFor[K], AvroFor[V], topicName)
 
-  def apply[K: AvroFor, V: AvroFor](topicName: TopicNameL): AvroTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }
 
 final case class ProtoTopic[K, V] private (topicName: TopicName, pair: ProtoForPair[K, V])
@@ -76,8 +73,8 @@ final case class ProtoTopic[K, V] private (topicName: TopicName, pair: ProtoForP
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 
 object ProtoTopic {
@@ -87,8 +84,6 @@ object ProtoTopic {
   def apply[K: ProtoFor, V: ProtoFor](topicName: TopicName): ProtoTopic[K, V] =
     apply[K, V](ProtoFor[K], ProtoFor[V], topicName)
 
-  def apply[K: ProtoFor, V: ProtoFor](topicName: TopicNameL): ProtoTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }
 
 final case class JsonTopic[K, V] private (topicName: TopicName, pair: JsonForPair[K, V])
@@ -105,8 +100,8 @@ final case class JsonTopic[K, V] private (topicName: TopicName, pair: JsonForPai
   override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
     TopicSerde(
       topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
+      pair.key.asKey(srs.config).withTopic(topicName.value),
+      pair.value.asValue(srs.config).withTopic(topicName.value))
 }
 object JsonTopic {
   def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
@@ -115,6 +110,4 @@ object JsonTopic {
   def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
     apply[K, V](JsonFor[K], JsonFor[V], topicName)
 
-  def apply[K: JsonFor, V: JsonFor](topicName: TopicNameL): JsonTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }

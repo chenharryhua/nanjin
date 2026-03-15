@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Ref
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.SingleFlight
+import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import munit.CatsEffectSuite
 
 class SingleFlightSuite extends CatsEffectSuite {

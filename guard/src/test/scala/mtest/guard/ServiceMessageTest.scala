@@ -3,7 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.group.catsSyntaxSemigroup
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
@@ -20,7 +21,7 @@ class ServiceMessageTest extends AnyFunSuite {
           .withMetricReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    (agent.logger(LoggerName("provided")) |+| agent.herald(_.Good)).use(log =>
+    (agent.logger(using LoggerName("provided")) |+| agent.herald(_.Good)).use(log =>
       log.info("a") >>
         log.info(1) >>
         log.info(List(1, 2, 3)) >>

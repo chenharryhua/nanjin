@@ -1,9 +1,7 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KafkaSerde}
-import io.circe.generic.auto.*
-import eu.timepit.refined.auto.*
+import io.circe.Json
 
 final case class PrimitiveTypeCombined(
   a: Int,
@@ -14,8 +12,8 @@ final case class PrimitiveTypeCombined(
 )
 object PrimitiveTypeCombined {
   val primitiviesCodec: KafkaSerde[PrimitiveTypeCombined] =
-    AvroFor[PrimitiveTypeCombined].asKey(sr).withTopic(TopicName("topic.avro"))
+    AvroFor[PrimitiveTypeCombined].asKey(sr).withTopic("topic.avro")
 
-  val jsonPrimCodec: KafkaSerde[AvroFor.KJson[PrimitiveTypeCombined]] =
-    AvroFor[AvroFor.KJson[PrimitiveTypeCombined]].asValue(sr).withTopic(TopicName("topic.json"))
+  val jsonPrimCodec: KafkaSerde[Json] =
+    AvroFor[Json].asValue(sr).withTopic("topic.json")
 }

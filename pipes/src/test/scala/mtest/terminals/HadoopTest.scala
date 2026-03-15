@@ -2,8 +2,8 @@ package mtest.terminals
 
 import better.files.*
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.codec.{year_month_day, year_month_day_hour}
 import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath}
+import com.github.chenharryhua.nanjin.terminals.partitionPath.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
@@ -14,10 +14,10 @@ import java.time.{LocalDate, LocalDateTime}
 class HadoopTest extends AnyFunSuite {
   private val path: Url = Url.parse("./data/test/terminals/hadoop")
 
-  private val p1 = path / year_month_day_hour(LocalDateTime.of(2023, 8, 28, 2, 0, 0)) / "a.txt"
-  private val p2 = path / year_month_day_hour(LocalDateTime.of(2023, 8, 29, 1, 0, 0)) / "b.txt"
-  private val p3 = path / year_month_day_hour(LocalDateTime.of(2023, 8, 30, 0, 0, 0)) / "c.txt"
-  private val p4 = path / year_month_day_hour(LocalDateTime.of(2023, 8, 30, 1, 0, 0)) / "d.txt"
+  private val p1 = path / ymdh(LocalDateTime.of(2023, 8, 28, 2, 0, 0)) / "a.txt"
+  private val p2 = path / ymdh(LocalDateTime.of(2023, 8, 29, 1, 0, 0)) / "b.txt"
+  private val p3 = path / ymdh(LocalDateTime.of(2023, 8, 30, 0, 0, 0)) / "c.txt"
+  private val p4 = path / ymdh(LocalDateTime.of(2023, 8, 30, 1, 0, 0)) / "d.txt"
 
   File(p1.toString()).createFileIfNotExists(createParents = true)
   File(p2.toString()).createFileIfNotExists(createParents = true)
@@ -90,8 +90,8 @@ class HadoopTest extends AnyFunSuite {
 
   test("extract date") {
     val date = LocalDate.of(2025, 8, 10)
-    val p1 = path / year_month_day(date)
-    val p2 = path / year_month_day(date) / "abc" / "xyz.dat"
+    val p1 = path / ymd(date)
+    val p2 = path / ymd(date) / "abc" / "xyz.dat"
     assert(extractDate(p1).get == date)
     assert(extractDate(p2).get == date)
   }

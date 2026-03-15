@@ -137,7 +137,7 @@ package object codec {
         val decoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
         new GenericDatumReader[GenericData.Record](gr.getSchema, schema).read(null, decoder)
       }
-    }(_.close())
+    }
 
   def genericRecord2Jackson(genericRecord: GenericRecord): Try[String] =
     Using(new ByteArrayOutputStream()) { baos =>
@@ -145,7 +145,7 @@ package object codec {
       new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toString(StandardCharsets.UTF_8)
-    }(_.close())
+    }
 
   def genericRecord2Circe(genericRecord: GenericRecord): Try[Json] =
     genericRecord2Jackson(genericRecord).flatMap(jawn.parse(_).toTry)
@@ -156,14 +156,14 @@ package object codec {
       new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toByteArray
-    }(_.close())
+    }
 
   def jackson2GenericRecord(schema: Schema, jackson: String): Try[GenericData.Record] =
     Using(new ByteArrayInputStream(jackson.getBytes)) { bais =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, bais)
       val datumReader = new GenericDatumReader[GenericData.Record](schema)
       datumReader.read(null, jsonDecoder)
-    }(_.close())
+    }
 
   def genericRecord2JsonNode(record: GenericRecord): Try[JsonNode] =
     Using(new ByteArrayOutputStream) { baos =>

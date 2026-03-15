@@ -5,7 +5,7 @@ import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.common.SingleFlight
+import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import org.http4s.Method.POST
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
@@ -33,7 +33,7 @@ trait Login[F[_]] {
   *   - `renewToken`: how to refresh or schedule token renewal
   *   - `withToken`: how to attach the token to an HTTP request
   */
-abstract private class TokenAuthClient[F[_], T](implicit F: Async[F]) extends Http4sClientDsl[F] {
+abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4sClientDsl[F] {
   protected def getToken: F[T]
   protected def renewToken(ref: Ref[F, T]): F[Unit]
   protected def withToken(token: T, req: Request[F]): Request[F]

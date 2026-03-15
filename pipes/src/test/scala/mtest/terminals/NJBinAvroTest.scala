@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, FileKind}
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -16,7 +15,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.concurrent.duration.*
 
 class NJBinAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -63,7 +62,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, BinAvroFile(_.Deflate(2)), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.Deflate(_.Two)), pandaSet)
   }
 
   test("laziness") {
@@ -80,7 +79,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t =>
+      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
         path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile

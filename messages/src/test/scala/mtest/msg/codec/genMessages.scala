@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.given
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords as Fs2CommittableProducerRecords,
@@ -15,11 +15,12 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
-import org.scalacheck.Arbitrary.{arbitrary, *}
+import org.scalacheck.Arbitrary.*
 import org.scalacheck.Gen
 
 import java.util.Optional
 import scala.jdk.OptionConverters.RichOption
+import monocle.Iso
 
 object genMessages {
 
@@ -80,10 +81,10 @@ object genMessages {
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-      genConsumerRecord.map(isoFs2ConsumerRecord.reverseGet)
+      genConsumerRecord.map(summon[Iso[Fs2ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]]].reverseGet)
 
     val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-      genProducerRecord.map(isoFs2ProducerRecord.reverseGet)
+      genProducerRecord.map(summon[Iso[Fs2ProducerRecord[Int, Int], ProducerRecord[Int, Int]]].reverseGet)
 
     val genFs2CommittableOffset: Gen[CommittableOffset[IO]] =
       for {

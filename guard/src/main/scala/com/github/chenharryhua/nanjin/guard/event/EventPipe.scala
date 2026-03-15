@@ -5,8 +5,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{toDateTimeCronOps, CronExpr}
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Positive
 
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.*
@@ -64,14 +62,14 @@ object EventPipe {
         }
     }
 
-  def indexFilter(divisor: Refined[Int, Positive]): EventPipe =
+  def indexFilter(divisor: Int): EventPipe =
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
           case MetricsSnapshot(mrt, _, _, _, _) =>
             mrt match {
               case Adhoc(_)       => Some(event)
-              case Periodic(tick) => if ((tick.index % divisor.value) === 0) Some(event) else None
+              case Periodic(tick) => if ((tick.index % divisor) === 0) Some(event) else None
             }
           case other => Some(other)
         }

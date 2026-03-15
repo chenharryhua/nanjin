@@ -52,7 +52,7 @@ final private class LifecyclePublisher[F[_]: Sync] private (
 }
 
 private object LifecyclePublisher {
-  def apply[F[_]: Async: Console](
+  def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     channel: Channel[F, Event]): Stream[F, LifecyclePublisher[F]] = {
     val cell: F[AtomicCell[F, CircularFifoQueue[ServicePanic]]] =

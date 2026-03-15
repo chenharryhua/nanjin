@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ses.{SesClient, SesClientBuilder}
@@ -58,13 +57,13 @@ trait SimpleEmailService[F[_]] {
   private def toRequest(content: EmailContent): SendEmailRequest =
     SendEmailRequest
       .builder()
-      .source(content.from.value)
+      .source(content.from)
       .destination(
         Destination
           .builder()
-          .toAddresses(content.to.map(_.value).distinct.toList.asJava)
-          .ccAddresses(content.cc.map(_.value).distinct.asJava)
-          .bccAddresses(content.bcc.map(_.value).distinct.asJava)
+          .toAddresses(content.to.distinct.toList.asJava)
+          .ccAddresses(content.cc.distinct.asJava)
+          .bccAddresses(content.bcc.distinct.asJava)
           .build()
       )
       .message(
@@ -91,7 +90,7 @@ object SimpleEmailService {
     *   SimpleEmailService[IO](identity[SesClientBuilder])
     * }}}
     */
-  def apply[F[_]](f: Endo[SesClientBuilder])(implicit F: Async[F]): Resource[F, SimpleEmailService[F]] =
+  def apply[F[_]](f: Endo[SesClientBuilder])(using F: Async[F]): Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(SesClient.builder()).build())) { client =>
@@ -99,16 +98,15 @@ object SimpleEmailService {
       }
     } yield new AwsSES[F](client, logger)
 
-  final private class AwsSES[F[_]](
+  final private class AwsSES[F[_]: Sync](
     client: SesClient,
     logger: Logger[F]
-  )(implicit F: Sync[F])
-      extends SimpleEmailService[F] {
+  ) extends SimpleEmailService[F]:
 
     override def send(request: SendEmailRequest): F[SendEmailResponse] =
       blockingF(client.sendEmail(request), request.toString, logger)
 
     override def send(req: SendRawEmailRequest): F[SendRawEmailResponse] =
       blockingF(client.sendRawEmail(req), req.toString, logger)
-  }
+
 }
