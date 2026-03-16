@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
-import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
-
+import org.typelevel.cats.time.zoneidInstances
 import java.time.{Duration, ZoneId}
 import java.util.UUID
 
@@ -14,7 +13,7 @@ object Task:
   def apply(value: String): Task = value
   extension (t: Task) inline def value: String = t
 
-  given Show[Task] = _.value
+  given Show[Task] = OpaqueLift.lift[Task, String, Show]
   given Encoder[Task] = OpaqueLift.lift[Task, String, Encoder]
   given Decoder[Task] = OpaqueLift.lift[Task, String, Decoder]
 end Task
@@ -24,7 +23,7 @@ object Service:
   def apply(value: String): Service = value
   extension (s: Service) inline def value: String = s
 
-  given Show[Service] = _.value
+  given Show[Service] = OpaqueLift.lift[Service, String, Show]
   given Encoder[Service] = OpaqueLift.lift[Service, String, Encoder]
   given Decoder[Service] = OpaqueLift.lift[Service, String, Decoder]
 end Service
@@ -34,7 +33,7 @@ object ServiceId:
   def apply(value: UUID): ServiceId = value
   extension (s: ServiceId) inline def value: UUID = s
 
-  given Show[ServiceId] = _.value.show
+  given Show[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Show]
   given Encoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Encoder]
   given Decoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Decoder]
 end ServiceId
@@ -53,7 +52,7 @@ object Port:
   def apply(value: Int): Port = value
   extension (p: Port) inline def value: Int = p
 
-  given Show[Port] = _.value.toString
+  given Show[Port] = OpaqueLift.lift[Port, Int, Show]
   given Encoder[Port] = OpaqueLift.lift[Port, Int, Encoder]
   given Decoder[Port] = OpaqueLift.lift[Port, Int, Decoder]
 end Port
@@ -73,7 +72,7 @@ object TimeZone:
   def apply(zoneId: ZoneId): TimeZone = zoneId
   extension (tz: TimeZone) inline def value: ZoneId = tz
 
-  given Show[TimeZone] = Show.fromToString
+  given Show[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Show]
   given Encoder[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Encoder]
   given Decoder[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Decoder]
 end TimeZone

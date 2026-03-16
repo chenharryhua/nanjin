@@ -19,9 +19,10 @@ object StackTrace:
   def apply(ex: Throwable): StackTrace =
     ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
   extension (st: StackTrace) inline def value: List[String] = st
+
+  given Show[StackTrace] = _.mkString("\n\t")
   given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
   given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
-  given Show[StackTrace] = _.mkString("\n\t")
 end StackTrace
 
 // ---------------- Correlation ----------------
@@ -33,7 +34,7 @@ object Correlation:
     iso(f"$id%010d")
   extension (c: Correlation) inline def value: String = c
 
-  given Show[Correlation] = _.value
+  given Show[Correlation] = OpaqueLift.lift[Correlation, String, Show]
   given Encoder[Correlation] = OpaqueLift.lift[Correlation, String, Encoder]
   given Decoder[Correlation] = OpaqueLift.lift[Correlation, String, Decoder]
 end Correlation
@@ -101,7 +102,7 @@ object Domain:
   def apply(value: String): Domain = value
   extension (d: Domain) inline def value: String = d
 
-  given Show[Domain] = _.value
+  given Show[Domain] = OpaqueLift.lift[Domain, String, Show]
   given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
   given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
@@ -112,7 +113,7 @@ object Label:
   def apply(value: String): Label = value
   extension (l: Label) inline def value: String = l
 
-  given Show[Label] = _.value
+  given Show[Label] = OpaqueLift.lift[Label, String, Show]
   given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
   given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
 end Label
