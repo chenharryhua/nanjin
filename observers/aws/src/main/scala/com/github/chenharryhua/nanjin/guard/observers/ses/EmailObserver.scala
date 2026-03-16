@@ -60,7 +60,7 @@ final class EmailObserver[F[_]] private (
     copy(translator = f(translator))
 
   def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
-  def withCapacity(cs: Int): EmailObserver[F] = copy(capacity = ChunkSize(cs))
+  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
   def withPolicy(f: Policy.type => Policy): EmailObserver[F] = copy(policy = f)
   def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
 
@@ -95,8 +95,8 @@ final class EmailObserver[F[_]] private (
 
   private def publish_one_email(
     ses: SimpleEmailService[F],
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
+    from: Email,
+    to: NonEmptyList[Email],
     subject: String)(data: Chunk[ColoredTag]): F[Unit] = {
     // aws ses maximum message size
     val maximumMessageSize: Information = Megabytes(10)
@@ -135,7 +135,7 @@ final class EmailObserver[F[_]] private (
       }
     }
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, Event, Event] = {
+  def observe(from: Email, to: NonEmptyList[Email], subject: String): Pipe[F, Event, Event] = {
 
     def go(
       ss: Stream[F, Either[Event, Tick]],

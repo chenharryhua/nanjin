@@ -7,7 +7,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.ses.SesClient
 import software.amazon.awssdk.services.ses.model.*
-import io.github.iltotore.iron.*
 class SimpleEmailServiceIOSpec extends AnyFunSuite {
 
   // Fake SES client for testing

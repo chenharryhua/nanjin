@@ -235,7 +235,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  def admin(topicName: TopicName, groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+  def admin(topicName: TopicName, groupId: GroupId)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- SnapshotConsumer(
@@ -244,9 +244,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
           .withProperties(settings.consumerSettings.properties)
           .withAutoOffsetReset(AutoOffsetReset.None)
           .withEnableAutoCommit(false)
-          .withGroupId(groupId)
+          .withGroupId(groupId.value)
       )
-    } yield AdminTopicGroup(admin, consumer, topicName, GroupId(groupId))
+    } yield AdminTopicGroup(admin, consumer, topicName, groupId)
 
   def admin(topicName: TopicName)(using F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
@@ -267,27 +267,24 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @param keeps
     *   List of topics to preserve
     * @return
-    *   List of topics successfully removed from the consumer group
-    *
-    * @note
-    *   Errors during deletion are ignored.
+    *   List of topics failed to be removed from the consumer group
     */
-  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
+  def ungroup(groupId: GroupId, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))
     } yield admin
-      .listConsumerGroupOffsets(groupId)
+      .listConsumerGroupOffsets(groupId.value)
       .partitionsToOffsetAndMetadata
-      .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value)))
+      .map(_.keys.map(_.topic()).toList.distinct.diff(keeps))
       .flatMap(
         _.traverse { tn =>
-          SnapshotConsumer[F](TopicName(tn), consumer).partitionsFor
-            .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
+          SnapshotConsumer[F](TopicName.applyUnsafe(tn), consumer).partitionsFor
+            .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet))
             .attempt
             .map {
-              case Left(_)  => None
-              case Right(_) => Some(TopicName(tn))
+              case Left(_)  => Some(TopicName.applyUnsafe(tn))
+              case Right(_) => None
             }
         }
       )

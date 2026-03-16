@@ -23,7 +23,7 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
+  def withTopicName(tn: TopicName): AvroTopic[K, V] = new AvroTopic[K, V](tn, pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
     withTopicName(f(topicName.value))
 

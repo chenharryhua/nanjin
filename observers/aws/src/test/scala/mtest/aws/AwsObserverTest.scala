@@ -15,8 +15,6 @@ import squants.information.Bytes
 import squants.mass.Micrograms
 
 import scala.concurrent.duration.DurationInt
-import io.github.iltotore.iron.*
-import io.github.iltotore.iron.constraint.string.*
 
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")

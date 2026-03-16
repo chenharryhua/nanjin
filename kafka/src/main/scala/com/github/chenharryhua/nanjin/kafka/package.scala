@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin
 import cats.effect.kernel.{Resource, Sync}
 import cats.{Order, Show}
 import fs2.kafka.consumer.MkConsumer
-import fs2.kafka.{ConsumerSettings, Id, KafkaByteConsumer}
+import fs2.kafka.{ConsumerSettings, Id, KafkaByteConsumer, KeyDeserializer, ValueDeserializer}
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.clients.consumer.CloseOptions
 import org.apache.kafka.common.TopicPartition
@@ -27,8 +27,12 @@ package object kafka {
       partition <- c.downField(PARTITION).as[Int]
     } yield new TopicPartition(topic, partition)
 
-  type PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing]
-  val PureConsumerSettings: PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing](null, null)
+  type PureConsumerSettings = ConsumerSettings[Id, Null, Null]
+  val PureConsumerSettings: PureConsumerSettings =
+    ConsumerSettings[Id, Null, Null](
+      keyDeserializer = null: KeyDeserializer[Id, Null],
+      valueDeserializer = null: ValueDeserializer[Id, Null]
+    )
 
   private[kafka] def makePureConsumer[F[_]: Sync](cs: PureConsumerSettings): Resource[F, KafkaByteConsumer] =
     Resource.make(MkConsumer.mkConsumerForSync[F].apply(cs))(c =>

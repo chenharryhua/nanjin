@@ -19,7 +19,8 @@ import scala.concurrent.duration.*
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
-  val avroTopic: AvroTopic[Integer, Fs2Kafka] = AvroTopic[Integer, Fs2Kafka](TopicName("fs2.kafka.test"))
+  val avroTopic: AvroTopic[Integer, Fs2Kafka] =
+    AvroTopic[Integer, Fs2Kafka](TopicName("fs2.kafka.test")).withTopicName("fs2.kafka.test")
   val jackson =
     """
       {

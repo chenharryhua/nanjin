@@ -5,9 +5,8 @@ import cats.kernel.Eq
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
-import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason.CustomReason
-import io.circe.{Decoder as JsonDecoder, DecodingFailure, Encoder as JsonEncoder, HCursor, Json}
+import io.circe.{Decoder as JsonDecoder, DecodingFailure, Encoder as JsonEncoder, HCursor}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.confluent.kafka.serializers.json.{
   KafkaJsonSchemaDeserializer,
@@ -34,14 +33,14 @@ object JsonFor {
   object FromBroker:
     private[JsonFor] def apply(jn: JsonNode): FromBroker = jn
     extension (jn: JsonNode) def value: JsonNode = jn
-    given JsonEncoder[FromBroker] with
-      override def apply(a: FromBroker): Json =
+    given JsonEncoder[FromBroker] =
+      (a: FromBroker) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
           case Left(value)  => throw value // scalafix:ok
           case Right(value) => value
         }
-    given JsonDecoder[FromBroker] with
-      override def apply(c: HCursor): Result[FromBroker] =
+    given JsonDecoder[FromBroker] =
+      (c: HCursor) =>
         Try(globalObjectMapper.convertValue[JsonNode](c.value.noSpaces)) match {
           case Failure(ex) =>
             Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))

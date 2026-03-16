@@ -11,7 +11,6 @@ Global / parallelExecution := false
 // ==========================
 // Versions
 // ==========================
-val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
 val awsV = "2.42.12"
@@ -20,6 +19,7 @@ val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
+val docV = "0.1.4"
 val kafkaV = "8.2.0-ce"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC12"
@@ -29,6 +29,7 @@ val fs2KafkaV = "3.9.1"
 val fs2V = "3.13.0"
 val hadoopV = "3.4.3"
 val http4sV = "0.23.33"
+val ironV = "3.3.0"
 val jacksonV = "2.21.1"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
@@ -39,10 +40,8 @@ val natchezV = "0.3.9"
 val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
-val shapelessV = "3.5.0"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
-val sparkV = "4.1.1"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -52,8 +51,7 @@ lazy val commonSettings = List(
   scalacOptions ++= List(
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
-    "-Yretain-trees",
-    "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
+    "-Yretain-trees"
   ),
 
   Test / tpolecatExcludeOptions ++=
@@ -100,11 +98,8 @@ lazy val common = (project in file("common"))
   .settings(commonSettings *)
   .settings(name := "nj-common")
   .settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
-  )
-  .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"                   % ironV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
@@ -117,7 +112,10 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-core"                       % circeV,
       "io.circe" %% "circe-generic"                    % circeV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      // java
+      "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
+
+      "org.scala-js" % "scalajs-library_2.13" % "1.20.2" % Provided, // doc by cron
+// java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ enumLib ++ testLib
   )
@@ -160,7 +158,6 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
-      "io.github.iltotore" %% "iron"        % "3.3.0",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV
@@ -242,9 +239,6 @@ lazy val guard = (project in file("guard"))
     ),
     buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
     buildInfoOptions += BuildInfoOption.ToJson
-  ).settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
   )
 
 // ==========================
@@ -256,11 +250,10 @@ lazy val observer_aws = (project in file("observers/aws"))
   .settings(commonSettings *)
   .settings(name := "nj-observer-aws")
   .settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
-  )
-  .settings(
-    libraryDependencies ++= testLib
+    libraryDependencies ++=
+      List(
+        "org.typelevel" %% "scalac-compat-annotation" % docV // doc
+      ) ++ testLib
   )
 
 lazy val observer_kafka = (project in file("observers/kafka"))
@@ -278,12 +271,9 @@ lazy val observer_database = (project in file("observers/database"))
   .settings(commonSettings *)
   .settings(name := "nj-observer-database")
   .settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
-  )
-  .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "skunk-circe" % skunkV
+      "org.tpolecat" %% "skunk-circe"               % skunkV,
+      "org.typelevel" %% "scalac-compat-annotation" % docV // doc
     ) ++ testLib
   )
 
@@ -296,7 +286,6 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
-      "io.github.iltotore" %% "iron"    % "3.3.0",
       "org.tpolecat" %% "doobie-core"   % doobieV,
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
@@ -348,10 +337,6 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
-  )
   .settings(libraryDependencies ++= List(
     ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
     // java
@@ -406,10 +391,7 @@ lazy val pipes = (project in file("pipes"))
     "org.eclipse.jetty"    % "jetty-server"     % "12.1.7", // snyk by hadoop-common
     "io.netty"             % "netty-codec-http" % nettyV, // snyk by hadoop-common
     "io.netty"             % "netty-codec-smtp" % nettyV // snyk by hadoop-client
-  )).settings(
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
-  )
+  ))
 
 // ==========================
 // Example

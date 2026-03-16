@@ -22,11 +22,11 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 object SqsObserver {
-  def apply[F[_]: Concurrent: Clock: UUIDGen](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
+  def apply[F[_]: {Concurrent, Clock, UUIDGen}](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
     new SqsObserver[F](client, Translator.idTranslator[F])
 }
 
-final class SqsObserver[F[_]: Clock: UUIDGen](
+final class SqsObserver[F[_]: {Clock, UUIDGen}](
   client: Resource[F, SimpleQueueService[F]],
   translator: Translator[F, Event])(using F: Concurrent[F])
     extends UpdateTranslator[F, Event, SqsObserver[F]] {
@@ -57,7 +57,7 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
 
   // events order should be preserved
   def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
-    internal(SendMessageRequest.builder().queueUrl(url).messageGroupId(messageGroupId))
+    internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
 
   override def updateTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))

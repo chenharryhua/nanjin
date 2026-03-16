@@ -94,7 +94,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def json_list(lst: List[(MetricID, NonEmptyList[(String, String)])]): List[(MetricID, Json)] =
     lst.map { case (id, items) =>
-      id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.reduce[Json]((a, b) =>
+      id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.toList.reduce[Json]((a, b) =>
         b.deepMerge(a))
     }
 

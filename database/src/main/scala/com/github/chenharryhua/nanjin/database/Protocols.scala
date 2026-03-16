@@ -9,8 +9,8 @@ sealed abstract private[database] class Protocols(val value: String) extends Enu
 
   final def url(host: Host, port: Option[Port]): String =
     port match {
-      case None    => show"$value://${host}"
-      case Some(p) => show"$value://${host}:${p}"
+      case None    => show"$value://${host.value}"
+      case Some(p) => show"$value://${host.value}:${p.value}"
     }
 }
 

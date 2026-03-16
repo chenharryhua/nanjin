@@ -57,13 +57,13 @@ trait SimpleEmailService[F[_]] {
   private def toRequest(content: EmailContent): SendEmailRequest =
     SendEmailRequest
       .builder()
-      .source(content.from)
+      .source(content.from.value)
       .destination(
         Destination
           .builder()
-          .toAddresses(content.to.distinct.toList.asJava)
-          .ccAddresses(content.cc.distinct.asJava)
-          .bccAddresses(content.bcc.distinct.asJava)
+          .toAddresses(content.to.map(_.value).distinct.toList.asJava)
+          .ccAddresses(content.cc.map(_.value).distinct.asJava)
+          .bccAddresses(content.bcc.map(_.value).distinct.asJava)
           .build()
       )
       .message(

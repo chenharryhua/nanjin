@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.aws
 
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import io.github.iltotore.iron.autoRefine
 import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
@@ -17,7 +16,7 @@ class AwsArnTest extends AnyFunSuite {
   }
 
   test("cloudwatch namespace") {
-    val cw: CloudWatchNamespace = "_-abc:213.33#"
+    val cw: CloudWatchNs = "_-abc:213.33#"
     println(cw)
   }
 
@@ -35,7 +34,7 @@ class AwsArnTest extends AnyFunSuite {
   }
 
   test("address") {
-    val address: EmailAddr = "who@gmail.com"
+    val address: Email = "who@gmail.com"
     println(address)
   }
 

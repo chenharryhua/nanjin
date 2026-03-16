@@ -122,8 +122,8 @@ private[kafka] object SnapshotConsumer {
 
   final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)
       extends SnapshotConsumer[F] {
-    def withTopicName(name: String): SnapshotConsumerImpl[F] =
-      new SnapshotConsumerImpl[F](TopicName(name), consumer)
+    def withTopicName(name: TopicName): SnapshotConsumerImpl[F] =
+      new SnapshotConsumerImpl[F](name, consumer)
 
     private val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]](topicName)

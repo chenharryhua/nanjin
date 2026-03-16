@@ -3,19 +3,20 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.order.catsSyntaxPartialOrder
 import cats.{Order, PartialOrder, Show}
+import com.github.chenharryhua.nanjin.common.IronRefined.PlusConversion
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Codec, Decoder, Encoder}
+import io.github.iltotore.iron.RefinedType
+import io.github.iltotore.iron.constraint.string.Match
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
-opaque type TopicName = String
-object TopicName:
-  def apply(value: String): TopicName = value
-  extension (tn: TopicName) inline def value: String = tn
-
-  given Show[TopicName] = _.value
-  given Encoder[TopicName] = OpaqueLift.lift[TopicName, String, Encoder]
-  given Decoder[TopicName] = OpaqueLift.lift[TopicName, String, Decoder]
+private type TNC = Match["""^[a-zA-Z0-9_.\-]+$"""]
+type TopicName = TopicName.T
+object TopicName extends RefinedType[String, TNC] with PlusConversion[String, TNC]:
+  given Show[T] = OpaqueLift.lift[T, String, Show]
+  given Encoder[T] = OpaqueLift.lift[T, String, Encoder]
+  given Decoder[T] = OpaqueLift.lift[T, String, Decoder]
 end TopicName
 
 opaque type GroupId = String
@@ -23,9 +24,12 @@ object GroupId:
   def apply(value: String): GroupId = value
   extension (gid: GroupId) inline def value: String = gid
 
-  given Show[GroupId] = _.value
+  given Show[GroupId] = OpaqueLift.lift[GroupId, String, Show]
   given Encoder[GroupId] = OpaqueLift.lift[GroupId, String, Encoder]
   given Decoder[GroupId] = OpaqueLift.lift[GroupId, String, Decoder]
+
+  given Conversion[String, GroupId] with
+    override def apply(x: String): GroupId = GroupId(x)
 end GroupId
 
 opaque type Offset = Long
@@ -39,11 +43,11 @@ object Offset:
     def asLast: Offset = Offset(Math.max(0, offset - 1))
     def -(other: Offset): Long = offset - other.value
 
-  given Show[Offset] = _.value.toString
+  given Show[Offset] = OpaqueLift.lift[Offset, String, Show]
   given Encoder[Offset] = OpaqueLift.lift[Offset, Long, Encoder]
   given Decoder[Offset] = OpaqueLift.lift[Offset, Long, Decoder]
-  given Ordering[Offset] = Ordering.by(_.value)
-  given Order[Offset] = Order.fromOrdering
+  given Ordering[Offset] = OpaqueLift.lift[Offset, Long, Ordering]
+  given Order[Offset] = OpaqueLift.lift[Offset, Long, Order]
 end Offset
 
 opaque type Partition = Int
@@ -53,11 +57,11 @@ object Partition:
     inline def value: Int = p
     def -(other: Partition): Int = p - other.value
 
-  given Show[Partition] = _.value.toString
+  given Show[Partition] = OpaqueLift.lift[Partition, Int, Show]
   given Encoder[Partition] = OpaqueLift.lift[Partition, Int, Encoder]
   given Decoder[Partition] = OpaqueLift.lift[Partition, Int, Decoder]
-  given Ordering[Partition] = Ordering.by(_.value)
-  given Order[Partition] = Order.fromOrdering
+  given Ordering[Partition] = OpaqueLift.lift[Partition, Int, Ordering]
+  given Order[Partition] = OpaqueLift.lift[Partition, Int, Order]
 end Partition
 
 final case class OffsetRange private (from: Long, until: Long) {

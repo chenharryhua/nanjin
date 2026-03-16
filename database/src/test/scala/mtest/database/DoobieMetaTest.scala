@@ -27,10 +27,10 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
     val password: Password = "postgres"
     val nj = DBConfig(postgres)
       .set(_.setUsername("superceded by last update"))
-      .set(_.setUsername(username))
-      .set(_.setPassword(password))
-    assert(nj.hikariConfig.getUsername == username)
-    assert(nj.hikariConfig.getPassword == password)
+      .set(_.setUsername(username.value))
+      .set(_.setPassword(password.value))
+    assert(nj.hikariConfig.getUsername == username.value)
+    assert(nj.hikariConfig.getPassword == password.value)
     assert(nj.hikariConfig.getMaximumPoolSize == 10)
 
     val stream: Stream[IO, Int] = for {
