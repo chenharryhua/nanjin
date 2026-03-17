@@ -5,17 +5,12 @@ import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.syntax.monadError.{catsSyntaxMonadError, catsSyntaxMonadErrorRethrow}
+import cats.syntax.monadError.catsSyntaxMonadError
 import cats.syntax.option.catsSyntaxOptionId
-import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.kafka.{
-  AvroTopic,
-  JsonTopic,
-  KafkaTopic,
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,
   OptionalProtobufSchemaPair,
-  ProtoTopic,
   RegisteredSchemaID,
   TopicName
 }
@@ -24,7 +19,6 @@ import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.jdk.CollectionConverters.*
 
@@ -53,11 +47,10 @@ import scala.jdk.CollectionConverters.*
 sealed trait SchemaRegistryApi[F[_]] {
   def fetchAvroSchema(topicName: TopicName): F[(AvroSchema, AvroSchema)]
 
-  def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V]): F[OptionalAvroSchemaPair]
-  def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V]): F[OptionalJsonSchemaPair]
-  def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V]): F[OptionalProtobufSchemaPair]
+  def fetchOptionalAvroSchema(topicName: TopicName): F[OptionalAvroSchemaPair]
+  def fetchOptionalJsonSchema(topicName: TopicName): F[OptionalJsonSchemaPair]
+  def fetchOptionalProtobufSchema(topicName: TopicName): F[OptionalProtobufSchemaPair]
 
-  def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID]
   def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID]
 
   def delete(topicName: TopicName): F[(List[Integer], List[Integer])]
@@ -101,59 +94,28 @@ private[kafka] object SchemaRegistryApi {
 
     private def fetch_optional_schema(
       topicName: TopicName,
-      schemaType: String,
-      primKey: Boolean,
-      primVal: Boolean): F[(Option[String], Option[String])] =
+      schemaType: String): F[(Option[String], Option[String])] =
       for {
-        key <- key_meta_data(topicName).attempt.map {
-          case Left(ex) =>
-            if (primKey) Right(None)
-            else Left(SchemaNotFound(topicName, KEY, schemaType, ExceptionUtils.getMessage(ex)))
-          case Right(sm) =>
-            if (sm.getSchemaType === schemaType) Right(Some(sm.getSchema))
-            else
-              Left(SchemaNotFound(topicName, KEY, schemaType, s"registered is not a $schemaType schema"))
-        }.rethrow
-        value <- val_meta_data(topicName).attempt.map {
-          case Left(ex) =>
-            if (primVal) Right(None)
-            else Left(SchemaNotFound(topicName, VALUE, schemaType, ExceptionUtils.getMessage(ex)))
-          case Right(sm) =>
-            if (sm.getSchemaType === schemaType) Right(Some(sm.getSchema))
-            else
-              Left(SchemaNotFound(topicName, VALUE, schemaType, s"registered is not a $schemaType schema"))
-        }.rethrow
-      } yield (key, value)
+        key <- key_meta_data(topicName).attempt.map(_.toOption.filter(_.getSchemaType === schemaType))
+        value <- val_meta_data(topicName).attempt.map(_.toOption.filter(_.getSchemaType === schemaType))
+      } yield (key.map(_.getSchema), value.map(_.getSchema))
 
-    override def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V]): F[OptionalAvroSchemaPair] =
-      fetch_optional_schema(
-        avroTopic.topicName,
-        "AVRO",
-        avroTopic.pair.key.isPrimitive,
-        avroTopic.pair.value.isPrimitive).map { case (k, v) =>
+    override def fetchOptionalAvroSchema(topicName: TopicName): F[OptionalAvroSchemaPair] =
+      fetch_optional_schema(topicName, "AVRO").map { case (k, v) =>
         val ks = k.map(new AvroSchema(_))
         val vs = v.map(new AvroSchema(_))
         OptionalAvroSchemaPair(ks, vs)
       }
 
-    override def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V]): F[OptionalJsonSchemaPair] =
-      fetch_optional_schema(
-        jsonTopic.topicName,
-        "JSON",
-        jsonTopic.pair.key.isPrimitive,
-        jsonTopic.pair.value.isPrimitive).map { case (k, v) =>
+    override def fetchOptionalJsonSchema(topicName: TopicName): F[OptionalJsonSchemaPair] =
+      fetch_optional_schema(topicName, "JSON").map { case (k, v) =>
         val ks = k.map(new JsonSchema(_))
         val vs = v.map(new JsonSchema(_))
         OptionalJsonSchemaPair(ks, vs)
       }
 
-    override def fetchOptionalProtobufSchema[K, V](
-      protoTopic: ProtoTopic[K, V]): F[OptionalProtobufSchemaPair] =
-      fetch_optional_schema(
-        protoTopic.topicName,
-        "PROTOBUF",
-        protoTopic.pair.key.isPrimitive,
-        protoTopic.pair.value.isPrimitive).map { case (k, v) =>
+    override def fetchOptionalProtobufSchema(topicName: TopicName): F[OptionalProtobufSchemaPair] =
+      fetch_optional_schema(topicName, "PROTOBUF").map { case (k, v) =>
         val ks = k.map(new ProtobufSchema(_))
         val vs = v.map(new ProtobufSchema(_))
         OptionalProtobufSchemaPair(ks, vs)
@@ -164,33 +126,6 @@ private[kafka] object SchemaRegistryApi {
       F.blocking {
         RegisteredSchemaID(client.register(loc.keyLoc, key).some, client.register(loc.valLoc, value).some)
       }
-    }
-
-    /** register topic's schema. primitive type will not be registered.
-      *
-      * @return
-      *   pair of Schema ID
-      */
-    override def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID] = {
-      val loc = SchemaLocation(topic.topicName)
-      val (keySchema: Option[ParsedSchema], valSchema: Option[ParsedSchema]) = topic match {
-        case AvroTopic(_, pair) =>
-          val k = if (pair.key.isPrimitive) None else pair.key.avroSchema
-          val v = if (pair.value.isPrimitive) None else pair.value.avroSchema
-          k -> v
-        case ProtoTopic(_, pair) =>
-          val k = if (pair.key.isPrimitive) None else pair.key.protobufSchema
-          val v = if (pair.value.isPrimitive) None else pair.value.protobufSchema
-          k -> v
-        case JsonTopic(_, pair) =>
-          val k = if (pair.key.isPrimitive) None else pair.key.jsonSchema
-          val v = if (pair.value.isPrimitive) None else pair.value.jsonSchema
-          k -> v
-      }
-      for {
-        k <- keySchema.traverse(ps => F.blocking(client.register(loc.keyLoc, ps)))
-        v <- valSchema.traverse(ps => F.blocking(client.register(loc.valLoc, ps)))
-      } yield RegisteredSchemaID(k, v)
     }
 
     override def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {

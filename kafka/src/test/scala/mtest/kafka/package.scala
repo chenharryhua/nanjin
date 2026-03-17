@@ -1,8 +1,8 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.serdes.{AvroBase, Primitive}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {
@@ -14,6 +14,6 @@ package object kafka {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val taxi: AvroTopic[Integer, trip_record] =
-    AvroTopic[Integer, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
+  val taxi: TopicDef[Integer, trip_record] =
+    TopicDef("nyc_yellow_taxi_trip_data", Primitive[Integer], AvroBase[trip_record])
 }

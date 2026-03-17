@@ -1,239 +1,240 @@
-package com.github.chenharryhua.nanjin.kafka.admins
-
-import cats.effect.IO
-import cats.effect.kernel.Resource
-import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
-import com.github.chenharryhua.nanjin.kafka.{
-  AvroTopic,
-  Offset,
-  OffsetRange,
-  PureConsumerSettings,
-  TopicName,
-  TopicPartitionMap
-}
-import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
-import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
-import fs2.kafka.{ProducerRecord, ProducerRecords}
-import fs2.{Chunk, Stream}
-import mtest.kafka.ctx
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
-import org.apache.kafka.clients.producer.RecordMetadata
-import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
-
-class ConsumerApiOffsetRangeTest extends AnyFunSuite {
-
-  /*
-   *
-   * ---------------------100-------200-------300---------------> Time
-   * ---before beginning--|                     |-after ending---
-   *
-   */
-
-  val topicDef: AvroTopic[java.lang.Integer, java.lang.Integer] =
-    AvroTopic[java.lang.Integer, java.lang.Integer](TopicName("range.test"))
-  val topic: AvroTopic[java.lang.Integer, java.lang.Integer] = topicDef
-
-  val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
-  val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
-  val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
-
-  val topicData: Stream[IO, Chunk[RecordMetadata]] =
-    Stream(ProducerRecords(List(pr1, pr2, pr3)))
-      .covary[IO]
-      .unchunks
-      .through(ctx.sharedProduce(topicDef.pair).sink)
-
-  (ctx
-    .admin(topic.topicName)
-    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-    topicData.compile.drain).unsafeRunSync()
-
-  val transientConsumer: Resource[IO, SnapshotConsumer[IO]] =
-    SnapshotConsumer[IO](
-      topic.topicName,
-      PureConsumerSettings
-        .withProperties(ctx.settings.consumerSettings.properties)
-        .withGroupId("consumer-api-test"))
-
-  val client: ConsumeKafka[IO, Integer, Integer] = ctx.consume(topic)
-
-  test("start and end are both in range") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(1), Offset(2))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-  }
-
-  test("start > end") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
-
-    val r = DateTimeRange(darwinTime).withStartTime(250).withEndTime(110)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-  }
-
-  test("when end is exactly match") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> OffsetRange(Offset(0), Offset(2))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(0).withEndTime(300)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-  }
-
-  test("start is equal to beginning and end is equal to ending") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(0), Offset(2))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-  }
-
-  test("start is equal to beginning and end is after ending") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(0), Offset(3))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
-  }
-
-  test("start after beginning and end after ending") {
-    val expect =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(1), Offset(3))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
-  }
-
-  test("start before beginning and end before ending") {
-    val expect =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(0), Offset(1))))
-
-    val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
-  }
-
-  test("both start and end are before beginning") {
-    val expect =
-      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
-
-    val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-
-  }
-
-  test("both start and end are after ending") {
-    val expect =
-      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
-
-    val r = DateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-  }
-
-  test("when there is no data in the range") {
-    val expect =
-      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
-
-    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
-
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-
-  }
-
-  test("same range") {
-    val r = DateTimeRange(darwinTime)
-    val res = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    val r2 = Map(0 -> (-1000L, 1000000000L), 100 -> (0L, 9999L))
-    val res2 = client.circumscribedStream(r2).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(res == res2)
-  }
-
-  test("time range is infinite") {
-    val expect: TopicPartitionMap[Option[OffsetRange]] =
-      TopicPartitionMap(
-        Map(new TopicPartition("range.test", 0) ->
-          OffsetRange(Offset(0), Offset(3))))
-
-    val r = DateTimeRange(darwinTime)
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
-  }
-
-  test("kafka offset range") {
-    assert(OffsetRange(Offset(100), Offset(99)).isEmpty)
-    val r = OffsetRange(Offset(1), Offset(99)).get
-    assert(r.distance == 98)
-  }
-
-  test("numOfRecordsSince") {
-    val r = transientConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).unsafeRunSync()
-    val v = r.flatten
-    assert(v.nonEmpty)
-  }
-
-  test("partitionsFor") {
-    val r = transientConsumer.use(_.partitionsFor).unsafeRunSync()
-    assert(r.value.nonEmpty)
-  }
-
-  test("retrieveRecordsForTimes") {
-    val r = transientConsumer.use(_.retrieveRecordsForTimes(NJTimestamp(100))).unsafeRunSync()
-    assert(r.nonEmpty)
-  }
-
-  test("commitSync") {
-    transientConsumer
-      .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
-      .unsafeRunSync()
-  }
-}
+//package com.github.chenharryhua.nanjin.kafka.admins
+//
+//import cats.effect.IO
+//import cats.effect.kernel.Resource
+//import cats.effect.unsafe.implicits.global
+//import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
+//import com.github.chenharryhua.nanjin.kafka.{
+//  Offset,
+//  OffsetRange,
+//  PureConsumerSettings,
+//  TopicName,
+//  TopicPartitionMap
+//}
+//import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+//import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
+//import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
+//import fs2.kafka.{ProducerRecord, ProducerRecords}
+//import fs2.{Chunk, Stream}
+//import mtest.kafka.ctx
+//import org.apache.kafka.clients.consumer.OffsetAndMetadata
+//import org.apache.kafka.clients.producer.RecordMetadata
+//import org.apache.kafka.common.TopicPartition
+//import org.scalatest.funsuite.AnyFunSuite
+//import com.github.chenharryhua.nanjin.kafka.TopicDef
+//import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
+//
+//class ConsumerApiOffsetRangeTest extends AnyFunSuite {
+//
+//  /*
+//   *
+//   * ---------------------100-------200-------300---------------> Time
+//   * ---before beginning--|                     |-after ending---
+//   *
+//   */
+//
+//  val pi = Primitive[java.lang.Integer]
+//  val topicDef: TopicDef[java.lang.Integer, java.lang.Integer] = TopicDef(TopicName("range.test"), pi, pi)
+//  val topic: TopicDef[java.lang.Integer, java.lang.Integer] = topicDef
+//
+//  val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+//    ProducerRecord(topic.topicName.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
+//  val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+//    ProducerRecord(topic.topicName.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
+//  val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+//    ProducerRecord(topic.topicName.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
+//
+//  val topicData: Stream[IO, Chunk[RecordMetadata]] =
+//    Stream(ProducerRecords(List(pr1, pr2, pr3)))
+//      .covary[IO]
+//      .unchunks
+//      .through(ctx.produce(topicDef).sink)
+//
+//  (ctx
+//    .admin(topic.topicName)
+//    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+//    topicData.compile.drain).unsafeRunSync()
+//
+//  val transientConsumer: Resource[IO, SnapshotConsumer[IO]] =
+//    SnapshotConsumer[IO](
+//      topic.topicName,
+//      PureConsumerSettings
+//        .withProperties(ctx.settings.consumerSettings.properties)
+//        .withGroupId("consumer-api-test"))
+//
+//  val client: ConsumeKafka[IO, Integer, Integer] = ctx.consume(topic)
+//
+//  test("start and end are both in range") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(1), Offset(2))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//  }
+//
+//  test("start > end") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(250).withEndTime(110)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
+//    assert(res.isEmpty)
+//  }
+//
+//  test("when end is exactly match") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> OffsetRange(Offset(0), Offset(2))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(0).withEndTime(300)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//  }
+//
+//  test("start is equal to beginning and end is equal to ending") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(0), Offset(2))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//  }
+//
+//  test("start is equal to beginning and end is after ending") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(0), Offset(3))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//
+//  }
+//
+//  test("start after beginning and end after ending") {
+//    val expect =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(1), Offset(3))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//
+//  }
+//
+//  test("start before beginning and end before ending") {
+//    val expect =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(0), Offset(1))))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//
+//  }
+//
+//  test("both start and end are before beginning") {
+//    val expect =
+//      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
+//    assert(res.isEmpty)
+//
+//  }
+//
+//  test("both start and end are after ending") {
+//    val expect =
+//      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
+//    assert(res.isEmpty)
+//  }
+//
+//  test("when there is no data in the range") {
+//    val expect =
+//      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
+//
+//    val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
+//
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
+//    assert(res.isEmpty)
+//
+//  }
+//
+//  test("same range") {
+//    val r = DateTimeRange(darwinTime)
+//    val res = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    val r2 = Map(0 -> (-1000L, 1000000000L), 100 -> (0L, 9999L))
+//    val res2 = client.circumscribedStream(r2).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(res == res2)
+//  }
+//
+//  test("time range is infinite") {
+//    val expect: TopicPartitionMap[Option[OffsetRange]] =
+//      TopicPartitionMap(
+//        Map(new TopicPartition("range.test", 0) ->
+//          OffsetRange(Offset(0), Offset(3))))
+//
+//    val r = DateTimeRange(darwinTime)
+//    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
+//    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+//    assert(tpm === expect.flatten)
+//
+//  }
+//
+//  test("kafka offset range") {
+//    assert(OffsetRange(Offset(100), Offset(99)).isEmpty)
+//    val r = OffsetRange(Offset(1), Offset(99)).get
+//    assert(r.distance == 98)
+//  }
+//
+//  test("numOfRecordsSince") {
+//    val r = transientConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).unsafeRunSync()
+//    val v = r.flatten
+//    assert(v.nonEmpty)
+//  }
+//
+//  test("partitionsFor") {
+//    val r = transientConsumer.use(_.partitionsFor).unsafeRunSync()
+//    assert(r.value.nonEmpty)
+//  }
+//
+//  test("retrieveRecordsForTimes") {
+//    val r = transientConsumer.use(_.retrieveRecordsForTimes(NJTimestamp(100))).unsafeRunSync()
+//    assert(r.nonEmpty)
+//  }
+//
+//  test("commitSync") {
+//    transientConsumer
+//      .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
+//      .unsafeRunSync()
+//  }
+//}

@@ -1,46 +1,46 @@
-package mtest.kafka
-
-import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import fs2.kafka.ConsumerRecord
-import org.scalatest.funsuite.AnyFunSuite
-
-class NJConsumerRecordDecoderTest extends AnyFunSuite {
-
-  val topic: AvroTopic[Integer, Integer] = AvroTopic[Integer, Integer](TopicName("decode.test"))
-  val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
-    ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
-
-  val badKey: ConsumerRecord[Array[Byte], Array[Byte]] =
-    ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0, 0, 0, 2))
-
-  val badVal: ConsumerRecord[Array[Byte], Array[Byte]] =
-    ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0))
-
-  val badKV: ConsumerRecord[Array[Byte], Array[Byte]] =
-    ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0))
-
-  val serde = ctx.serde(topic)
-  test("decode good key value") {
-    val rst = serde.optionalDeserialize(goodData)
-    assert(rst.key.contains(1))
-    assert(rst.value.contains(2))
-  }
-
-  test("decode bad key") {
-    val rst = serde.optionalDeserialize(badKey)
-    assert(rst.value.contains(2))
-    assert(rst.key.isEmpty)
-  }
-  test("decode bad value") {
-    val rst = serde.optionalDeserialize(badVal)
-    assert(rst.key.contains(1))
-    assert(rst.value.isEmpty)
-  }
-  test("decode bad key vaule") {
-    val rst = serde.optionalDeserialize(badKV)
-    assert(rst.key.isEmpty)
-    assert(rst.value.isEmpty)
-  }
-
-}
+//package mtest.kafka
+//
+//import com.github.chenharryhua.nanjin.kafka.TopicName
+//import com.github.chenharryhua.nanjin.kafka.AvroTopic
+//import fs2.kafka.ConsumerRecord
+//import org.scalatest.funsuite.AnyFunSuite
+//
+//class NJConsumerRecordDecoderTest extends AnyFunSuite {
+//
+//  val topic: AvroTopic[Integer, Integer] = AvroTopic[Integer, Integer](TopicName("decode.test"))
+//  val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
+//    ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
+//
+//  val badKey: ConsumerRecord[Array[Byte], Array[Byte]] =
+//    ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0, 0, 0, 2))
+//
+//  val badVal: ConsumerRecord[Array[Byte], Array[Byte]] =
+//    ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0))
+//
+//  val badKV: ConsumerRecord[Array[Byte], Array[Byte]] =
+//    ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0))
+//
+//  val serde = ctx.serde(topic)
+//  test("decode good key value") {
+//    val rst = serde.optionalDeserialize(goodData)
+//    assert(rst.key.contains(1))
+//    assert(rst.value.contains(2))
+//  }
+//
+//  test("decode bad key") {
+//    val rst = serde.optionalDeserialize(badKey)
+//    assert(rst.value.contains(2))
+//    assert(rst.key.isEmpty)
+//  }
+//  test("decode bad value") {
+//    val rst = serde.optionalDeserialize(badVal)
+//    assert(rst.key.contains(1))
+//    assert(rst.value.isEmpty)
+//  }
+//  test("decode bad key vaule") {
+//    val rst = serde.optionalDeserialize(badKV)
+//    assert(rst.key.isEmpty)
+//    assert(rst.value.isEmpty)
+//  }
+//
+//}

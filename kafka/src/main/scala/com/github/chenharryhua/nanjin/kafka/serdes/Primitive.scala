@@ -8,6 +8,7 @@ import java.util.UUID
 sealed trait Primitive[A] extends Unregistered[A]
 
 object Primitive {
+  def apply[A](using ev: Primitive[A]): Primitive[A] = ev
 
   given Primitive[String] = new Primitive[String] {
     override def unregistered: Serde[String] = Serdes.String()

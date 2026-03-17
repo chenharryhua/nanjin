@@ -16,8 +16,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
  */
 final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
-  producerSettings: ProducerSettings[F, K, V],
-  isCompatible: F[Boolean])(using F: Async[F])
+  producerSettings: ProducerSettings[F, K, V])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties
     with ProducerService[F, (K, V)] {
 
@@ -27,15 +26,10 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   override lazy val properties: Map[String, String] = producerSettings.properties
 
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](topicName, f(producerSettings), isCompatible)
+    new ProduceKafka[F, K, V](topicName, f(producerSettings))
 
   private lazy val kafka_producer: Resource[F, KafkaProducer[F, K, V]] =
-    Resource.eval(isCompatible).flatMap {
-      case false =>
-        Resource.raiseError[F, KafkaProducer.PartitionsFor[F, K, V], Throwable](
-          new Exception("incompatible schema"))
-      case true => KafkaProducer.resource(producerSettings)
-    }
+    KafkaProducer.resource(producerSettings)
 
   /*
    * sink

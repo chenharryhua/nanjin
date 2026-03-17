@@ -1,11 +1,20 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.serdes
 
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.bitraverse.catsSyntaxBitraverse
 import cats.{Bifunctor, Bitraverse}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaSerde
+import com.github.chenharryhua.nanjin.kafka.TopicName
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Success, Try}
+
+final class KafkaSerde[A] private[kafka] (val serde: Serde[A], topicName: TopicName) {
+  private val ser: Serializer[A] = serde.serializer()
+  def serialize(a: A): Array[Byte] = ser.serialize(topicName.value, a)
+
+  private val deser: Deserializer[A] = serde.deserializer()
+  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.value, ab)
+}
 
 abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], valSerde: KafkaSerde[V]) {
 
