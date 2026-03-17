@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
-import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
@@ -8,16 +7,16 @@ import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
 import com.github.chenharryhua.nanjin.kafka.{buildConsumer, Offset, TopicPartitionMap}
-import fs2.kafka.ConsumerSettings
 import fs2.kafka.consumer.MkConsumer
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDate
+import com.github.chenharryhua.nanjin.kafka.PureConsumerSettings
 
 class TransientConsumerTest extends AnyFunSuite {
-  private val pcs = ConsumerSettings[Id, Nothing, Nothing](null, null)
+  private val pcs = PureConsumerSettings
   test("offsetRangeFor - 1") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 10)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)

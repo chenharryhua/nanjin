@@ -17,12 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-object Hadoop {
-
-  def apply[F[_]](config: Configuration): Hadoop[F] = new Hadoop[F](config)
-}
-
-final class Hadoop[F[_]] private (config: Configuration) {
+final class Hadoop[F[_]](config: Configuration) {
 
   /** Delete a path recursively.
     *
@@ -159,22 +154,22 @@ final class Hadoop[F[_]] private (config: Configuration) {
     *   the path which has the latest one or None
     */
   def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{year, month, day}
+    import partitionPath.{day, month, year}
     best[Int](path, NonEmptyList.of(year, month, day))
   }
 
   def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{year, month, day, hour}
+    import partitionPath.{day, hour, month, year}
     best[Int](path, NonEmptyList.of(year, month, day, hour))
   }
 
   def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{year, month, day}
+    import partitionPath.{day, month, year}
     best(path, NonEmptyList.of[String => Option[Int]](year, month, day))(using F, Ordering[Int].reverse)
   }
 
   def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{year, month, day, hour}
+    import partitionPath.{day, hour, month, year}
     best(path, NonEmptyList.of[String => Option[Int]](year, month, day, hour))(using F, Ordering[Int].reverse)
   }
 

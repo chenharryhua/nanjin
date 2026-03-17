@@ -251,7 +251,7 @@ class ServiceTest extends AnyFunSuite {
           Thread.sleep(2_000)
           println("throw exception")
           throw new Exception("oops")
-        }(scala.concurrent.ExecutionContext.Implicits.global)
+        }(using scala.concurrent.ExecutionContext.Implicits.global)
         IO.sleep(5.seconds)
       }
       .compile
