@@ -1,9 +1,8 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.kafka.record
 
-import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
 import io.circe.Codec
-import io.scalaland.chimney.dsl.*
+import io.scalaland.chimney.dsl.into
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -34,19 +33,16 @@ final case class MetaInfo(
 object MetaInfo {
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): MetaInfo =
-    cr.transformInto[MetaInfo]
+    cr.into[MetaInfo].transform
 
   def apply[K, V](fcr: Fs2ConsumerRecord[K, V]): MetaInfo =
-    apply(fcr.transformInto[NJConsumerRecord[K, V]])
+    apply(fcr.into[NJConsumerRecord[K, V]].transform)
 
   def apply[F[_], K, V](ccr: CommittableConsumerRecord[F, K, V]): MetaInfo =
-    apply(ccr.record.transformInto[NJConsumerRecord[K, V]])
+    apply(ccr.record.into[NJConsumerRecord[K, V]].transform)
 
   def apply[K, V](jcr: JavaConsumerRecord[K, V]): MetaInfo =
-    apply(jcr.transformInto[NJConsumerRecord[K, V]])
-
-  def apply(pcr: ProtoConsumerRecord): MetaInfo =
-    pcr.transformInto[MetaInfo]
+    apply(jcr.into[NJConsumerRecord[K, V]].transform)
 
   def apply(gr: GenericRecord): Try[MetaInfo] = Try {
     MetaInfo(
@@ -58,7 +54,6 @@ object MetaInfo {
       serializedKeySize = gr.get("serializedKeySize").asInstanceOf[Int], // scalafix:ok
       serializedValueSize = gr.get("serializedValueSize").asInstanceOf[Int] // scalafix:ok
     )
-
   }
 
   def apply(rm: RecordMetadata): MetaInfo =

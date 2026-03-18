@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
 import com.github.chenharryhua.nanjin.kafka.SchemaRegistrySettings
+import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.processor.StateStore

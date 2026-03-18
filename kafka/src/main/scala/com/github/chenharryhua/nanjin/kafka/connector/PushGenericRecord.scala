@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
+import com.github.chenharryhua.nanjin.kafka.schema.immigrate
 import fs2.kafka.ProducerRecord
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema

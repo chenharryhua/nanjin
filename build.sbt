@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.12"
+val awsV = "2.42.15"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
@@ -298,7 +298,7 @@ lazy val database = (project in file("database"))
   )
 
 // ==========================
-// Messages
+// Kafka
 // ==========================
 val jacksonLib = List(
   "com.fasterxml.jackson.core" % "jackson-core",
@@ -306,45 +306,29 @@ val jacksonLib = List(
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jacksonV)
 
-lazy val messages =
-  (project in file("messages"))
-    .dependsOn(common)
-    .settings(commonSettings *)
-    .settings(name := "nj-messages")
-    .settings(
-      libraryDependencies ++=
-        List(
-          "io.circe" %% "circe-optics"                % "0.15.1",
-          "io.circe" %% "circe-jawn"                  % circeV,
-          "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
-          "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
-          "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-          //  "io.circe" %% "circe-shapes"                % circeV % Test,
-          // java
-          "org.apache.avro" % "avro"                         % avroV,
-          "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent"    % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
-        ) ++ jacksonLib ++ testLib
-    )
-    .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
-
-// ==========================
-// Kafka
-// ==========================
 lazy val kafka = (project in file("kafka"))
-  .dependsOn(messages)
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(libraryDependencies ++= List(
-    ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-    // java
-    "io.confluent"     % "kafka-schema-registry-client" % confluentV,
-    "io.confluent"     % "kafka-schema-serializer"      % confluentV,
-    "org.apache.kafka" % "kafka-streams"                % kafkaV,
-    "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-  ) ++ jacksonLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+      "io.circe" %% "circe-jawn"                  % circeV,
+      "io.circe" %% "circe-optics"                % "0.15.1",
+      "io.circe" %% "circe-jawn"                  % circeV,
+      "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
+      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
+      // java
+      "org.apache.avro"  % "avro"                         % avroV,
+      "io.confluent"     % "kafka-protobuf-serializer"    % confluentV,
+      "io.confluent"     % "kafka-json-schema-serializer" % confluentV,
+      "io.confluent"     % "kafka-streams-avro-serde"     % confluentV,
+      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+      "org.apache.kafka" % "kafka-streams"                % kafkaV,
+      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
+    ) ++ jacksonLib ++ testLib)
+  .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
 // Pipes
@@ -401,7 +385,6 @@ lazy val example = (project in file("example"))
   .dependsOn(datetime)
   .dependsOn(http)
   .dependsOn(aws)
-  .dependsOn(messages)
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
@@ -429,7 +412,6 @@ lazy val nanjin =
       datetime,
       http,
       aws,
-      messages,
       pipes,
       kafka,
       database,

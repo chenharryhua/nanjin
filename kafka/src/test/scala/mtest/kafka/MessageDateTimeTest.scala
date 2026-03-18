@@ -4,14 +4,12 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.kafka.serdes.{AvroBase, Primitive}
-import com.sksamuel.avro4s.{Encoder, FromRecord, SchemaFor, ToRecord}
+import com.github.chenharryhua.nanjin.kafka.serdes.{avro4s, SchemaBased, Primitive}
+import com.sksamuel.avro4s.{Encoder, SchemaFor}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.{Date, Timestamp}
 import java.time.*
-import fs2.Chunk
-import org.apache.kafka.clients.producer.RecordMetadata
 import io.circe.Codec
 import org.apache.avro.generic.GenericRecord
 
@@ -58,19 +56,16 @@ class MessageDateTimeTest extends AnyFunSuite {
 
   test("supported java date-time type") {
     import DatetimeCase.AllJavaDateTime
-    val s = SchemaFor[AllJavaDateTime]
-    val dec = FromRecord[AllJavaDateTime](s.schema)
-    val enc = ToRecord[AllJavaDateTime](s.schema)
 
-    val avro = AvroBase[GenericRecord].imap(dec.from)(enc.to)
+    val avro = SchemaBased[GenericRecord].iso(avro4s[AllJavaDateTime])
 
     val topic: TopicDef[Integer, AllJavaDateTime] =
       TopicDef(TopicName("message.datetime.test"), Primitive[Integer], avro)
     val m = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
-    val data: fs2.Stream[IO, Chunk[RecordMetadata]] =
+    val data =
       fs2
         .Stream((Integer.valueOf(0), m))
-        .through(ctx.produce[Integer, AllJavaDateTime](topic).sink)
+        .through(ctx.produce[Integer, AllJavaDateTime](topic).pairSink)
 
     val rst = for {
       _ <- ctx

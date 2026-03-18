@@ -7,9 +7,8 @@ import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTrav
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicName}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import fs2.Pipe
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
@@ -20,7 +19,6 @@ import org.apache.hadoop.conf.Configuration
 import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.kafka.TopicName
 
 object kafka_connector_s3 {
   val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)
@@ -54,12 +52,11 @@ object kafka_connector_s3 {
   val dump: fs2.Stream[IO, Event] =
     aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val topic = AvroTopic[Integer, AvroFor.FromBroker](TopicName("any.kafka.topic"))
       val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
         hadoop.rotateSink(ga.zoneId, _.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
-      ga.facilitate("abc")(logMetrics).use { log =>
+      ga.facilitate("abc")(logMetrics).use { _ =>
         ctx
-          .consumeGenericRecord(topic)
+          .consumeGenericRecord("any.kafka.avro.topic")
           .updateConfig(
             _.withGroupId("group.id")
               .withAutoOffsetReset(AutoOffsetReset.Latest)
@@ -67,7 +64,7 @@ object kafka_connector_s3 {
               .withMaxPollRecords(2000))
           .subscribe
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(x => IO.fromEither(x.record.value).guarantee(log.run(x)))
+          .map(_.record.value.toOption.get)
           .through(sink)
           .compile
           .drain

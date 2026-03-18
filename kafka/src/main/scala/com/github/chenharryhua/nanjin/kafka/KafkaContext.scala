@@ -15,21 +15,21 @@ import com.github.chenharryhua.nanjin.kafka.admins.{
   SnapshotConsumer
 }
 import com.github.chenharryhua.nanjin.kafka.connector.*
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Registered, Unregistered}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.kafka.{
   makePureConsumer,
   GroupId,
   KafkaSettings,
   PureConsumerSettings,
-  SerdePair,
   TopicName,
   TopicSerde
 }
-import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
 import fs2.kafka.*
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.apache.kafka.common.serialization.Serde
+import org.apache.avro.Schema
 import org.apache.kafka.streams.StreamsBuilder
 
 import scala.util.Try
@@ -80,12 +80,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     topic.register(settings.schemaRegistrySettings)
 
   /** Returns the Kafka Serde for a key based on unregistered Serde and schema registry. */
-  def asKey[A](rs: UnregisteredSerde[A]): Serde[A] =
-    rs.asKey(settings.schemaRegistrySettings.config).serde
+  def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
+    rs.asKey(settings.schemaRegistrySettings.config)
 
   /** Returns the Kafka Serde for a value based on unregistered Serde and schema registry. */
-  def asValue[A](rs: UnregisteredSerde[A]): Serde[A] =
-    rs.asValue(settings.schemaRegistrySettings.config).serde
+  def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
+    rs.asValue(settings.schemaRegistrySettings.config)
 
   // --------------------------------------------------------------------------
   // Schema Registry
@@ -112,23 +112,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
-  /** Check if the local topic schemas are backward compatible with broker schemas.
-    *
-    * @param topic
-    *   Topic to check
-    * @return
-    *   Effect producing `true` if backward compatible, `false` otherwise
-    */
-  // def isCompatible[K, V](topic: KafkaTopic[K, V])(using F: Sync[F]): F[Boolean] =
-  //   topic match {
-  //     case topic @ AvroTopic(_, pair) =>
-  //       schemaRegistry.fetchOptionalAvroSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
-  //     case topic @ ProtoTopic(_, pair) =>
-  //       schemaRegistry.fetchOptionalProtobufSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
-  //     case topic @ JsonTopic(_, pair) =>
-  //       schemaRegistry.fetchOptionalJsonSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
-  //   }
-
   // --------------------------------------------------------------------------
   // Consumers
   // --------------------------------------------------------------------------
@@ -146,26 +129,33 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
     )
 
-  private def byteConsumerSetting(using F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
-    ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
-      .withProperties(settings.consumerSettings.properties)
+  def consume[K, V](topicName: TopicName, k: KeyDeserializer[F, K], v: ValueDeserializer[F, V])(using
+    F: Async[F]): ConsumeKafka[F, K, V] =
+    new ConsumeKafka[F, K, V](
+      topicName,
+      ConsumerSettings(k, v).withProperties(settings.consumerSettings.properties)
+    )
 
   /** Create a raw byte consumer for the topic name.
     */
-  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeBytes[F] =
-    new ConsumeBytes[F](topicName, byteConsumerSetting)
+  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] = {
+    val topicDef = TopicDef(topicName, Primitive[Array[Byte]], Primitive[Array[Byte]])
+    consume(topicDef)
+  }
 
-  /** Create a consumer that produces Avro GenericRecord values.
-    *
-    * @note
-    *   May fetch schemas from Schema Registry on construction.
+  /** assume both key and value are avro
     */
-  // def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(using
-  //   F: Async[F]): ConsumeGenericRecord[F, K, V] =
-  //   new ConsumeGenericRecord[F, K, V](
-  //     avroTopic,
-  //     schemaRegistry.fetchOptionalAvroSchema(avroTopic),
-  //     byteConsumerSetting)
+  def consumeGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
+    using F: Async[F]): ConsumeGenericRecord[F] =
+    ConsumeGenericRecord[F](
+      topicName = topicName,
+      schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
+      fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(topicName),
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]])
+        .withProperties(settings.consumerSettings.properties)
+    )
 
   // --------------------------------------------------------------------------
   // Producers
@@ -181,26 +171,28 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       topic.topicName,
       topic.producerSettings[F](settings.schemaRegistrySettings, settings.producerSettings))
 
-  /** Shared producer for a SerdePair without a specific topic. */
-  def sharedProduce[K, V](pair: SerdePair[K, V])(using F: Async[F]): ProduceShared[F, K, V] =
-    new ProduceShared[F, K, V](
-      pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
-    )
+  def produce[K, V](topicName: TopicName, k: KeySerializer[F, K], v: ValueSerializer[F, V])(using
+    F: Async[F]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](
+      topicName,
+      ProducerSettings[F, K, V](k, v).withProperties(settings.producerSettings.properties))
 
   /** Produce Avro GenericRecord values.
     *
     * @note
     *   May fetch schema from Schema Registry.
     */
-  // def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(using
-  //   F: Async[F]): ProduceGenericRecord[F, K, V] =
-  //   new ProduceGenericRecord[F, K, V](
-  //     avroTopic,
-  //     schemaRegistry.fetchOptionalAvroSchema(avroTopic),
-  //     settings.schemaRegistrySettings,
-  //     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-  //       .withProperties(settings.producerSettings.properties)
-  //   )
+  def produceGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
+    using F: Async[F]): ProduceGenericRecord[F] =
+    ProduceGenericRecord[F](
+      topicName = topicName,
+      schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
+      fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(topicName),
+      srs = settings.schemaRegistrySettings,
+      producerSettings =
+        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+          .withProperties(settings.producerSettings.properties)
+    )
 
   // --------------------------------------------------------------------------
   // Kafka Streams

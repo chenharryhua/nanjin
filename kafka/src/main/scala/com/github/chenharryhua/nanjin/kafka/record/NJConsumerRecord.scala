@@ -1,18 +1,17 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.kafka.record
 
 import cats.Bitraverse
 import cats.data.Cont
 import cats.derived.derived
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
-import io.scalaland.chimney.dsl.*
+import io.scalaland.chimney.dsl.into
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
@@ -35,7 +34,7 @@ final case class ZonedConsumerRecord[K, V](
   key: Option[K],
   value: Option[V]
 ) derives JsonDecoder, JsonEncoder:
-  def metaInfo: ZonedMetaInfo = this.transformInto[ZonedMetaInfo]
+  def metaInfo: ZonedMetaInfo = this.into[ZonedMetaInfo].transform
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
@@ -70,8 +69,8 @@ final case class NJConsumerRecord[K, V](
       key = key,
       value = value)
 
-  def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
-  def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
+  def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.into[JavaConsumerRecord[K, V]].transform
+  def toConsumerRecord: ConsumerRecord[K, V] = this.into[ConsumerRecord[K, V]].transform
 
   def zoned(zoneId: ZoneId): ZonedConsumerRecord[K, V] =
     this.into[ZonedConsumerRecord[K, V]]
@@ -92,29 +91,10 @@ final case class NJConsumerRecord[K, V](
 object NJConsumerRecord {
 
   def apply[K, V](cr: JavaConsumerRecord[K, V]): NJConsumerRecord[K, V] =
-    cr.transformInto[NJConsumerRecord[K, V]]
+    cr.into[NJConsumerRecord[K, V]].transform
 
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
-    cr.transformInto[NJConsumerRecord[K, V]]
-
-  def apply(pcr: ProtoConsumerRecord): NJConsumerRecord[ByteString, ByteString] =
-    pcr
-      .into[NJConsumerRecord[ByteString, ByteString]]
-      .withFieldComputed(_.headers, _.headers.toList.map(ph => NJHeader(ph.key, ph.value.toByteArray.toList)))
-      .transform
-
-  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K] = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V] = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K] = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V] = valCodec.avroEncoder
-    val s: SchemaFor[NJConsumerRecord[K, V]] = summon
-    val d: Decoder[NJConsumerRecord[K, V]] = summon
-    val e: Encoder[NJConsumerRecord[K, V]] = summon
-    AvroCodec[NJConsumerRecord[K, V]](s, d, e)
-  }
+    cr.into[NJConsumerRecord[K, V]].transform
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
     class KEY
@@ -129,7 +109,7 @@ object NJConsumerRecord {
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
 
-  implicit def eqNJConsumerRecord[K: Eq, V: Eq]: Eq[NJConsumerRecord[K, V]] =
+  given [K: Eq, V: Eq]: Eq[NJConsumerRecord[K, V]] =
     Eq.instance { case (l, r) =>
       l.topic === r.topic &&
       l.partition === r.partition &&
@@ -144,7 +124,7 @@ object NJConsumerRecord {
       l.leaderEpoch === r.leaderEpoch
     }
 
-  implicit def transformCRJavaNJ[K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
+  given [K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>
       NJConsumerRecord(
         topic = src.topic(),
@@ -156,11 +136,11 @@ object NJConsumerRecord {
         serializedValueSize = src.serializedValueSize(),
         key = Option(src.key()),
         value = Option(src.value()),
-        headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList,
+        headers = src.headers().toArray.map(_.into[NJHeader].transform).toList,
         leaderEpoch = src.leaderEpoch().toScala.map(_.toInt)
       )
 
-  implicit def transformCRNJJava[K, V]: Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
+  given [K, V]: Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       new JavaConsumerRecord[K, V](
         src.topic,
@@ -178,11 +158,11 @@ object NJConsumerRecord {
         src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
         src.value.getOrElse(null.asInstanceOf[V]), // scalafix:ok
 
-        new RecordHeaders(src.headers.map(_.transformInto[JavaHeader]).toArray),
+        new RecordHeaders(src.headers.map(_.into[JavaHeader].transform).toArray),
         src.leaderEpoch.map(Integer.valueOf).toJava
       )
 
-  implicit def transformCRFs2NJ[K, V]: Transformer[ConsumerRecord[K, V], NJConsumerRecord[K, V]] =
+  given [K, V]: Transformer[ConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: ConsumerRecord[K, V]) => {
       val (timestampType, timestamp) =
         src.timestamp.createTime
@@ -201,12 +181,12 @@ object NJConsumerRecord {
         serializedValueSize = src.serializedValueSize.getOrElse(JavaConsumerRecord.NULL_SIZE),
         key = Option(src.key),
         value = Option(src.value),
-        headers = src.headers.toChain.map(_.transformInto[NJHeader]).toList,
+        headers = src.headers.toChain.map(_.into[NJHeader].transform).toList,
         leaderEpoch = src.leaderEpoch
       )
     }
 
-  implicit def transformCRNJFs2[K, V]: Transformer[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  given [K, V]: Transformer[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       Cont
         .pure(
@@ -225,7 +205,7 @@ object NJConsumerRecord {
               Timestamp.logAppendTime(src.timestamp)
             case _ =>
               Timestamp.unknownTime(src.timestamp)
-          }).withHeaders(Headers.fromSeq(src.headers.map(_.transformInto[Header]))))
+          }).withHeaders(Headers.fromSeq(src.headers.map(_.into[Header].transform))))
         .map(cr => src.leaderEpoch.fold(cr)(cr.withLeaderEpoch))
         .map(cr =>
           if (src.serializedKeySize === JavaConsumerRecord.NULL_SIZE) cr

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
-import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJHeader}
-import com.github.chenharryhua.nanjin.messages.kafka.instances.given
+import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.circe.syntax.EncoderOps

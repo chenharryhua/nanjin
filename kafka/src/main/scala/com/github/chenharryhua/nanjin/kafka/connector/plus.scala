@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
+import cats.Foldable
 import cats.data.ReaderT
 import cats.effect.Concurrent
+import cats.effect.kernel.Resource
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{OffsetRange, PartitionRange, TopicPartitionMap}
-import fs2.kafka.CommittableConsumerRecord
-import fs2.{Chunk, Pipe, Stream}
+import fs2.kafka.{CommittableConsumerRecord, KafkaProducer, ProducerRecord, ProducerResult}
+import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
@@ -60,7 +62,16 @@ trait ConsumerService[F[_], K, V] {
  * Producer Service
  */
 
-trait ProducerService[F[_], A] {
-  def sink: Pipe[F, A, Chunk[RecordMetadata]]
-  def produceOne(record: A): F[RecordMetadata]
+trait ProducerService[F[_], K, V] {
+  def clientR: Resource[F, KafkaProducer.Metrics[F, K, V]]
+  def clientS: Stream[F, KafkaProducer.Metrics[F, K, V]]
+
+  def pairSink: Pipe[F, (K, V), ProducerResult[K, V]]
+  def sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]]
+
+  def produceOne(k: K, v: V): F[RecordMetadata]
+  def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata]
+  def produce[G[_]: Foldable](kvs: G[(K, V)]): F[ProducerResult[K, V]]
+
+  def transactional(transactionalId: String): KafkaTransactional[F, K, V]
 }

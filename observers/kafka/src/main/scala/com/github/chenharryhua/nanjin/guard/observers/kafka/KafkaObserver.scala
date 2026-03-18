@@ -7,20 +7,21 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
-import com.github.chenharryhua.nanjin.kafka.AvroForPair
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
+import com.github.chenharryhua.nanjin.kafka.serdes.{jsonByteBuffer, Primitive}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import io.circe.Codec
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+
+import java.nio.ByteBuffer
 
 final case class EventKey(task: String, service: String) derives Codec.AsObject
 
@@ -44,12 +45,13 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
               topicName.value,
               EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value).asJson,
               evt.asJson)))
-
-    val pair = AvroForPair(AvroFor[Json], AvroFor[Json])
-
+    val topic = TopicDef(
+      topicName,
+      Primitive[ByteBuffer].iso(jsonByteBuffer),
+      Primitive[ByteBuffer].iso(jsonByteBuffer))
     (ss: Stream[F, Event]) =>
       for {
-        client <- Stream.resource(ctx.sharedProduce(pair).clientR)
+        client <- ctx.produce(topic).clientS
         log <- Stream.eval(Slf4jLogger.create[F])
         _ <- Stream.eval(log.info(s"initialize $name"))
         ofm <- Stream.eval(

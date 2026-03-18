@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package com.github.chenharryhua.nanjin.messages;
+package com.github.chenharryhua.nanjin.kafka.record;
 
 // Represents a Kafka ConsumerRecord: one message consumed from a topic
 message ProtoConsumerRecord {

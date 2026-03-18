@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.kafka.record
 
 import cats.Eq
 import cats.derived.derived
-import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoHeader
+import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoHeader
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroName, AvroNamespace}
 import fs2.kafka.Header
@@ -16,7 +16,7 @@ import org.apache.kafka.common.header.internals.RecordHeader
 final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject, Eq
 object NJHeader {
 
-  implicit val transformerHeaderNJFs2: Transformer[NJHeader, Header] =
+  given transformerHeaderNJFs2: Transformer[NJHeader, Header] =
     (src: NJHeader) => Header(src.key, src.value.toArray)
 
   implicit val transformHeaderFs2NJ: Transformer[Header, NJHeader] =
@@ -28,6 +28,6 @@ object NJHeader {
   implicit val transformHeaderNJJava: Transformer[NJHeader, JavaHeader] =
     (src: NJHeader) => new RecordHeader(src.key, src.value.toArray)
 
-  implicit val transformHeaderProto: Transformer[NJHeader, ProtoHeader] =
+  given Transformer[NJHeader, ProtoHeader] =
     (src: NJHeader) => ProtoHeader(src.key, ByteString.copyFrom(src.value.toArray))
 }

@@ -1,15 +1,14 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.kafka.record
 
 import cats.Bifunctor
 import cats.data.Cont
-import cats.syntax.eq.catsSyntaxEq
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import cats.syntax.eq.catsSyntaxEq
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header, Headers, ProducerRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
-import io.scalaland.chimney.dsl.transformInto
+import io.scalaland.chimney.dsl.into
 import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
@@ -42,17 +41,17 @@ final case class NJProducerRecord[K, V](
 
   def noMeta: NJProducerRecord[K, V] = copy(partition = None, timestamp = None, headers = Nil)
 
-  def toProducerRecord: ProducerRecord[K, V] = this.transformInto[ProducerRecord[K, V]]
-  def toJavaProducerRecord: JavaProducerRecord[K, V] = this.transformInto[JavaProducerRecord[K, V]]
+  def toProducerRecord: ProducerRecord[K, V] = this.into[ProducerRecord[K, V]].transform
+  def toJavaProducerRecord: JavaProducerRecord[K, V] = this.into[JavaProducerRecord[K, V]].transform
 }
 
 object NJProducerRecord {
 
   def apply[K, V](pr: JavaProducerRecord[K, V]): NJProducerRecord[K, V] =
-    pr.transformInto[NJProducerRecord[K, V]]
+    pr.into[NJProducerRecord[K, V]].transform
 
   def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
-    pr.transformInto[NJProducerRecord[K, V]]
+    pr.into[NJProducerRecord[K, V]].transform
 
   def apply[K, V](topicName: String, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(
@@ -63,19 +62,6 @@ object NJProducerRecord {
       headers = Nil,
       key = Option(k),
       value = Option(v))
-
-  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K] = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V] = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K] = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V] = valCodec.avroEncoder
-    val s: SchemaFor[NJProducerRecord[K, V]] = implicitly
-    val d: Decoder[NJProducerRecord[K, V]] = implicitly
-    val e: Encoder[NJProducerRecord[K, V]] = implicitly
-    AvroCodec[NJProducerRecord[K, V]](s, d, e)
-  }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
     class KEY
@@ -124,7 +110,7 @@ object NJProducerRecord {
         timestamp = Option(src.timestamp()).map(_.toLong),
         key = Option(src.key()),
         value = Option(src.value()),
-        headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList
+        headers = src.headers().toArray.map(_.into[NJHeader].transform).toList
       )
 
   implicit def transformNJJava[K, V]: Transformer[NJProducerRecord[K, V], JavaProducerRecord[K, V]] =
@@ -137,7 +123,7 @@ object NJProducerRecord {
         src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
         src.value.getOrElse(null.asInstanceOf[V]), // scalafix:ok
 
-        src.headers.map(_.transformInto[JavaHeader]).asJava
+        src.headers.map(_.into[JavaHeader].transform).asJava
       )
 
   implicit def transformFs2NJ[K, V]: Transformer[ProducerRecord[K, V], NJProducerRecord[K, V]] =
@@ -149,7 +135,7 @@ object NJProducerRecord {
         timestamp = src.timestamp,
         key = Option(src.key),
         value = Option(src.value),
-        headers = src.headers.toChain.map(_.transformInto[NJHeader]).toList
+        headers = src.headers.toChain.map(_.into[NJHeader].transform).toList
       )
 
   implicit def transformNJFs2[K, V]: Transformer[NJProducerRecord[K, V], ProducerRecord[K, V]] =
@@ -162,7 +148,7 @@ object NJProducerRecord {
             src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
             src.value.getOrElse(null.asInstanceOf[V]) // scalafix:ok
 
-          ).withHeaders(Headers.fromSeq(src.headers.map(_.transformInto[Header]))))
+          ).withHeaders(Headers.fromSeq(src.headers.map(_.into[Header].transform))))
         .map(pr => src.partition.fold(pr)(pr.withPartition))
         .map(pr => src.timestamp.fold(pr)(pr.withTimestamp))
         .eval

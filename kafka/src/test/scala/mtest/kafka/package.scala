@@ -1,11 +1,10 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.serdes.{AvroBase, Primitive}
+import com.github.chenharryhua.nanjin.kafka.serdes.{avro4s, SchemaBased, Primitive}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.avro.generic.GenericRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.avro4s
 
 package object kafka {
 
@@ -17,5 +16,8 @@ package object kafka {
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
   val taxi: TopicDef[Integer, trip_record] =
-    TopicDef("nyc_yellow_taxi_trip_data", Primitive[Integer], AvroBase[GenericRecord].iso(avro4s[trip_record]))
+    TopicDef(
+      "nyc_yellow_taxi_trip_data",
+      Primitive[Integer],
+      SchemaBased[GenericRecord].iso(avro4s[trip_record]))
 }

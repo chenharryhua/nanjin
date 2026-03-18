@@ -1,19 +1,20 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.serdes.{AvroBase, Primitive, Registered}
+import com.github.chenharryhua.nanjin.kafka.serdes.{ SchemaBased, Primitive, Registered}
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
 import fs2.kafka.{GenericDeserializer, Key, KeyDeserializer, Value}
-import org.scalatest.funsuite.AnyFunSuite
-import java.util.UUID
 import org.apache.avro.generic.GenericRecord
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.util.UUID
 
 final case class Abc(a: Int, b: String, c: Long)
 
 class SerdeTest extends AnyFunSuite {
   test("avro primitive") {
     val avro: Registered[Key, GenericRecord] =
-      summon[AvroBase[GenericRecord]].imap(identity)(identity).asKey(Map.empty)
+      summon[SchemaBased[GenericRecord]].imap(identity)(identity).asKey(Map.empty)
     println(avro)
   }
 
@@ -28,7 +29,7 @@ class SerdeTest extends AnyFunSuite {
     val d = ToRecord[Abc](s.schema)
     val e = FromRecord[Abc](s.schema)
     val serde =
-      summon[AvroBase[GenericRecord]].imap(e.from)(d.to).asKey(Map.empty)
+      summon[SchemaBased[GenericRecord]].imap(e.from)(d.to).asKey(Map.empty)
 
     val deSerde: KeyDeserializer[IO, Abc] = serde.deserializer[IO]
 
