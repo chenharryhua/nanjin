@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
+import cats.implicits.toTraverseOps
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.syntax.monadError.catsSyntaxMonadError
 import com.github.chenharryhua.nanjin.kafka.{
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,
@@ -137,11 +137,13 @@ private[kafka] object SchemaRegistryApi {
       val loc = SchemaLocation(topicName)
       for {
         k <- F
-          .blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
-          .adaptError(ex => DeleteSchemaException(topicName, KEY, ex))
+          .blocking(client.deleteSubject(loc.keyLoc))
+          .attempt
+          .map(_.toOption.traverse(_.asScala.toList).flatten)
         v <- F
-          .blocking(client.deleteSubject(loc.valLoc).asScala.toList)
-          .adaptError(ex => DeleteSchemaException(topicName, VALUE, ex))
+          .blocking(client.deleteSubject(loc.valLoc))
+          .attempt
+          .map(_.toOption.traverse(_.asScala.toList).flatten)
       } yield (k, v)
     }
   }
