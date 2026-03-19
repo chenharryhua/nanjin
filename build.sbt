@@ -322,7 +322,7 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.avro"  % "avro"                         % avroV,
       "io.confluent"     % "kafka-protobuf-serializer"    % confluentV,
       "io.confluent"     % "kafka-json-schema-serializer" % confluentV,
-      "io.confluent"     % "kafka-streams-avro-serde"     % confluentV,
+      "io.confluent"     % "kafka-avro-serializer"        % confluentV,
       "io.confluent"     % "kafka-schema-registry-client" % confluentV,
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,

@@ -6,7 +6,6 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadError
-import cats.syntax.option.catsSyntaxOptionId
 import com.github.chenharryhua.nanjin.kafka.{
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,
@@ -16,7 +15,7 @@ import com.github.chenharryhua.nanjin.kafka.{
 }
 import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import io.confluent.kafka.schemaregistry.client.{SchemaMetadata, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 
@@ -51,7 +50,10 @@ sealed trait SchemaRegistryApi[F[_]] {
   def fetchOptionalJsonSchema(topicName: TopicName): F[OptionalJsonSchemaPair]
   def fetchOptionalProtobufSchema(topicName: TopicName): F[OptionalProtobufSchemaPair]
 
-  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID]
+  def register(
+    topicName: TopicName,
+    key: Option[ParsedSchema] = None,
+    value: Option[ParsedSchema] = None): F[RegisteredSchemaID]
 
   def delete(topicName: TopicName): F[(List[Integer], List[Integer])]
 }
@@ -62,10 +64,10 @@ final case class DeleteSchemaException(topicName: TopicName, keyOrValue: String,
     extends Exception(cause)
 
 private[kafka] object SchemaRegistryApi {
-  def apply[F[_]: Sync](client: CachedSchemaRegistryClient): SchemaRegistryApi[F] =
+  def apply[F[_]: Sync](client: SchemaRegistryClient): SchemaRegistryApi[F] =
     new SchemaRegistryApiImpl[F](client)
 
-  final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClient)(using F: Sync[F])
+  final private class SchemaRegistryApiImpl[F[_]](client: SchemaRegistryClient)(using F: Sync[F])
       extends SchemaRegistryApi[F] {
 
     private val KEY: String = "key"
@@ -121,10 +123,13 @@ private[kafka] object SchemaRegistryApi {
         OptionalProtobufSchemaPair(ks, vs)
       }
 
-    def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID] = {
+    def register(
+      topicName: TopicName,
+      key: Option[ParsedSchema] = None,
+      value: Option[ParsedSchema] = None): F[RegisteredSchemaID] = {
       val loc = SchemaLocation(topicName)
       F.blocking {
-        RegisteredSchemaID(client.register(loc.keyLoc, key).some, client.register(loc.valLoc, value).some)
+        RegisteredSchemaID(key.map(client.register(loc.keyLoc, _)), value.map(client.register(loc.valLoc, _)))
       }
     }
 

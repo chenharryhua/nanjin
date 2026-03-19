@@ -7,9 +7,9 @@ import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.google.protobuf.ByteString
-import com.sksamuel.avro4s.*
+import com.sksamuel.avro4s.{AvroDoc, AvroName, AvroNamespace, Decoder, Encoder, SchemaFor}
 import fs2.kafka.*
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.Codec
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.into
 import org.apache.avro.Schema
@@ -33,7 +33,7 @@ final case class ZonedConsumerRecord[K, V](
   serializedValueSize: Int,
   key: Option[K],
   value: Option[V]
-) derives JsonDecoder, JsonEncoder:
+) derives Codec.AsObject:
   def metaInfo: ZonedMetaInfo = this.into[ZonedMetaInfo].transform
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
@@ -51,7 +51,7 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka value size") serializedValueSize: Int,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V]
-) derives JsonEncoder, JsonDecoder, SchemaFor, Bitraverse {
+) derives Encoder, Decoder, SchemaFor, Bitraverse, Codec.AsObject, Eq {
 
   def flatten[K2, V2](using
     evK: K <:< Option[K2],
@@ -99,30 +99,10 @@ object NJConsumerRecord {
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
     class KEY
     class VAL
-    implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
-      override def schema: Schema = keySchema
-    }
-
-    implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
-      override def schema: Schema = valSchema
-    }
+    given schemaForKey: SchemaFor[KEY] = SchemaFor[KEY](keySchema)
+    given schemaForVal: SchemaFor[VAL] = SchemaFor[VAL](valSchema)
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
-
-  given [K: Eq, V: Eq]: Eq[NJConsumerRecord[K, V]] =
-    Eq.instance { case (l, r) =>
-      l.topic === r.topic &&
-      l.partition === r.partition &&
-      l.offset === r.offset &&
-      l.timestamp === r.timestamp &&
-      l.timestampType === r.timestampType &&
-      l.serializedKeySize === r.serializedKeySize &&
-      l.serializedValueSize === r.serializedValueSize &&
-      l.key === r.key &&
-      l.value === r.value &&
-      l.headers === r.headers &&
-      l.leaderEpoch === r.leaderEpoch
-    }
 
   given [K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>

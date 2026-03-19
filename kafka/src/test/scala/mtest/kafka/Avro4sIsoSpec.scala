@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.serdes.avro4s
+import com.github.chenharryhua.nanjin.kafka.serdes.isoGenericRecord
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import io.scalaland.chimney.Iso
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -33,7 +33,7 @@ class Avro4sIsoSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChe
   // ===== Tests =====
 
   test("round-trip A -> GenericRecord -> A") {
-    val iso = avro4s[Foo]
+    val iso = isoGenericRecord[Foo]
 
     val original = Foo("hello", 42)
     val decoded = roundTrip(iso)(original)
@@ -42,7 +42,7 @@ class Avro4sIsoSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChe
   }
 
   test("round-trip property holds for A") {
-    val iso = avro4s[Foo]
+    val iso = isoGenericRecord[Foo]
 
     forAll { (foo: Foo) =>
       roundTrip(iso)(foo) shouldBe foo
@@ -50,7 +50,7 @@ class Avro4sIsoSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChe
   }
 
   test("GenericRecord round-trip is NOT guaranteed (documenting behavior)") {
-    val iso = avro4s[Foo]
+    val iso = isoGenericRecord[Foo]
 
     val schema = SchemaFor[Foo].schema
     val record = new GenericData.Record(schema)

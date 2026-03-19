@@ -27,7 +27,7 @@ import com.github.chenharryhua.nanjin.kafka.{
 }
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
+import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.Schema
 import org.apache.kafka.streams.StreamsBuilder
@@ -65,7 +65,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     *   StateStores instance
     */
   def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
-    StateStores[K, V](topic.register(settings.schemaRegistrySettings))
+    StateStores[K, V](topic.register(schema_registry_internal, settings.schemaRegistrySettings))
 
   /** Returns the registered Serde pair for a topic.
     *
@@ -77,26 +77,21 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     *   Value type
     */
   def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
-    topic.register(settings.schemaRegistrySettings)
+    topic.register(schema_registry_internal, settings.schemaRegistrySettings)
 
   /** Returns the Kafka Serde for a key based on unregistered Serde and schema registry. */
   def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
-    rs.asKey(settings.schemaRegistrySettings.config)
+    rs.asKey(schema_registry_internal, settings.schemaRegistrySettings.config)
 
   /** Returns the Kafka Serde for a value based on unregistered Serde and schema registry. */
   def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
-    rs.asValue(settings.schemaRegistrySettings.config)
+    rs.asValue(schema_registry_internal, settings.schemaRegistrySettings.config)
 
   // --------------------------------------------------------------------------
   // Schema Registry
   // --------------------------------------------------------------------------
 
-  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
-    *
-    * @throws java.lang.IllegalStateException
-    *   if the URL config is absent
-    */
-  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] = {
+  private lazy val schema_registry_internal: SchemaRegistryClient = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url: String =
       settings.schemaRegistrySettings.config.getOrElse(
@@ -109,8 +104,16 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
 
-    SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
+    new CachedSchemaRegistryClient(url, cacheCapacity)
   }
+
+  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
+    *
+    * @throws java.lang.IllegalStateException
+    *   if the URL config is absent
+    */
+  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
+    SchemaRegistryApi[F](schema_registry_internal)
 
   // --------------------------------------------------------------------------
   // Consumers
@@ -126,7 +129,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def consume[K, V](topic: TopicDef[K, V])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
-      topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
+      topic.consumerSettings(
+        schema_registry_internal,
+        settings.schemaRegistrySettings,
+        settings.consumerSettings)
     )
 
   def consume[K, V](topicName: TopicName, k: KeyDeserializer[F, K], v: ValueDeserializer[F, V])(using
@@ -143,8 +149,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     consume(topicDef)
   }
 
-  /** assume both key and value are avro
-    */
   def consumeGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
     using F: Async[F]): ConsumeGenericRecord[F] =
     ConsumeGenericRecord[F](
@@ -169,7 +173,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
-      topic.producerSettings[F](settings.schemaRegistrySettings, settings.producerSettings))
+      topic.producerSettings[F](
+        schema_registry_internal,
+        settings.schemaRegistrySettings,
+        settings.producerSettings))
 
   def produce[K, V](topicName: TopicName, k: KeySerializer[F, K], v: ValueSerializer[F, V])(using
     F: Async[F]): ProduceKafka[F, K, V] =
@@ -210,6 +217,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     streaming.KafkaStreamsBuilder[F](
       applicationId,
       settings.streamSettings,
+      schema_registry_internal,
       settings.schemaRegistrySettings,
       topology)
 
@@ -269,8 +277,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
             .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet))
             .attempt
             .map {
-              case Left(_)  => Some(TopicName.applyUnsafe(tn))
-              case Right(_) => None
+              case Left(_)  => None
+              case Right(_) => Some(TopicName.applyUnsafe(tn))
             }
         }
       )

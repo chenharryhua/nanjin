@@ -19,7 +19,8 @@ import scala.reflect.ClassTag
  * In practice, this holds when records are produced and consumed using the
  * same schema and codec, without schema evolution.
  */
-def avro4s[A: {SchemaFor, Decoder, Encoder}]: Iso[GenericRecord, A] = {
+
+def isoGenericRecord[A: {SchemaFor, Decoder, Encoder}]: Iso[GenericRecord, A] = {
   val schema: Schema = SchemaFor[A].schema
   val dec: FromRecord[A] = FromRecord[A](schema)
   val enc: ToRecord[A] = ToRecord[A](schema)
@@ -32,7 +33,8 @@ def avro4s[A: {SchemaFor, Decoder, Encoder}]: Iso[GenericRecord, A] = {
   Iso[GenericRecord, A](first, second)
 }
 
-def protobuf[A <: GeneratedMessage](using gmc: GeneratedMessageCompanion[A]): Iso[DynamicMessage, A] = {
+def isoDynamicMessage[A <: GeneratedMessage](using
+  gmc: GeneratedMessageCompanion[A]): Iso[DynamicMessage, A] = {
   val first = new Transformer[DynamicMessage, A]:
     override def transform(src: DynamicMessage): A =
       gmc.parseFrom(src.toByteArray)
@@ -44,7 +46,7 @@ def protobuf[A <: GeneratedMessage](using gmc: GeneratedMessageCompanion[A]): Is
   Iso(first, second)
 }
 
-def jackson[A: ClassTag]: Iso[JsonNode, A] = {
+def isoJsonNode[A: ClassTag]: Iso[JsonNode, A] = {
   val first = new Transformer[JsonNode, A]:
     override def transform(src: JsonNode): A =
       globalObjectMapper.convertValue[A](src)
@@ -56,7 +58,7 @@ def jackson[A: ClassTag]: Iso[JsonNode, A] = {
   Iso(first, second)
 }
 
-def jsonByteBuffer: Iso[ByteBuffer, Json] = {
+def isoByteBufferJson: Iso[ByteBuffer, Json] = {
   val first = new Transformer[ByteBuffer, Json]:
     override def transform(src: ByteBuffer): Json =
       io.circe.jawn.parseByteBuffer(src) match {

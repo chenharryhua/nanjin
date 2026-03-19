@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
-import com.github.chenharryhua.nanjin.kafka.serdes.{jsonByteBuffer, Primitive}
+import com.github.chenharryhua.nanjin.kafka.serdes.{isoByteBufferJson, Primitive}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -47,8 +47,8 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
               evt.asJson)))
     val topic = TopicDef(
       topicName,
-      Primitive[ByteBuffer].iso(jsonByteBuffer),
-      Primitive[ByteBuffer].iso(jsonByteBuffer))
+      Primitive[ByteBuffer].iso(isoByteBufferJson),
+      Primitive[ByteBuffer].iso(isoByteBufferJson))
     (ss: Stream[F, Event]) =>
       for {
         client <- ctx.produce(topic).clientS

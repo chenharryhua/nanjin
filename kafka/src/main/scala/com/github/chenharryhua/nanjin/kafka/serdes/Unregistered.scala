@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.serdes
 
 import cats.Invariant
 import fs2.kafka.{Key, KeyOrValue, Value}
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.scalaland.chimney.Iso as ChimneyIso
 import monocle.Iso as MonocleIso
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -9,14 +10,15 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import scala.jdk.CollectionConverters.given
 
 trait Unregistered[A] { outer =>
-  protected def unregistered: Serde[A]
+  protected def registerWith(srClient: SchemaRegistryClient): Serde[A]
 
   /*
    *  Transform
    */
   final def imap[B](f: A => B)(g: B => A): Unregistered[B] =
     new Unregistered[B] {
-      def unregistered: Serde[B] = summon[Invariant[Serde]].imap(outer.unregistered)(f)(g)
+      def registerWith(srClient: SchemaRegistryClient): Serde[B] =
+        summon[Invariant[Serde]].imap(outer.registerWith(srClient))(f)(g)
     }
 
   final def iso[B](isomorphism: MonocleIso[A, B]): Unregistered[B] =
@@ -36,30 +38,31 @@ trait Unregistered[A] { outer =>
   private given IsKey[Value] with
     override val value: Boolean = false
 
-  private def register[B <: KeyOrValue](props: Map[String, String])(using isKey: IsKey[B]): Registered[B, A] =
-    Registered[B, A] {
-      new Serde[A] {
-        override def serializer: Serializer[A] =
-          val ser = unregistered.serializer
-          ser.configure(props.asJava, isKey.value)
-          ser
+  private def register[B <: KeyOrValue](
+    srClient: SchemaRegistryClient,
+    props: Map[String, String]
+  )(using isKey: IsKey[B]): Registered[B, A] =
+    Registered[B, A](new Serde[A] {
+      override val serializer: Serializer[A] =
+        val ser = registerWith(srClient).serializer
+        ser.configure(props.asJava, isKey.value)
+        ser
 
-        override def deserializer: Deserializer[A] =
-          val deser = unregistered.deserializer
-          deser.configure(props.asJava, isKey.value)
-          deser
-      }
-    }
+      override val deserializer: Deserializer[A] =
+        val deSer = registerWith(srClient).deserializer
+        deSer.configure(props.asJava, isKey.value)
+        deSer
+    })
 
   /*
    * Transition
    */
 
   // registered as key of a topic
-  final def asKey(props: Map[String, String]): Registered[Key, A] =
-    register[Key](props)
+  final def asKey(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Key, A] =
+    register[Key](srClient, props)
 
   // registered as value of a topic
-  final def asValue(props: Map[String, String]): Registered[Value, A] =
-    register[Value](props)
+  final def asValue(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Value, A] =
+    register[Value](srClient, props)
 }

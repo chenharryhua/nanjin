@@ -16,6 +16,7 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, To
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
 private object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
 
@@ -33,6 +34,7 @@ object StateUpdate {
 final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
   streamSettings: KafkaStreamSettings,
+  srClient: SchemaRegistryClient,
   schemaRegistrySettings: SchemaRegistrySettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
   startUpTimeout: Duration)(using F: Async[F])
@@ -92,6 +94,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings,
+      srClient = srClient,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = value
@@ -101,6 +104,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings.withProperty(key, value),
+      srClient = srClient,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = startUpTimeout
@@ -110,6 +114,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) },
+      srClient = srClient,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = startUpTimeout
@@ -117,7 +122,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   lazy val topology: Topology = {
     val streamsBuilder: StreamsBuilder = new StreamsBuilder()
-    val streamsSerde: StreamsSerde = new StreamsSerde(schemaRegistrySettings)
+    val streamsSerde: StreamsSerde = new StreamsSerde(srClient, schemaRegistrySettings)
     top(streamsBuilder, streamsSerde)
 
     streamsBuilder.build(toProperties(properties))
@@ -128,11 +133,13 @@ object KafkaStreamsBuilder {
   def apply[F[_]: Async](
     applicationId: String,
     streamSettings: KafkaStreamSettings,
+    srClient: SchemaRegistryClient,
     schemaRegistrySettings: SchemaRegistrySettings,
     top: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings,
+      srClient = srClient,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = Duration.Inf

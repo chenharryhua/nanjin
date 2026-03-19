@@ -5,12 +5,15 @@ import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.processor.StateStore
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
-final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistrySettings) {
+final class StreamsSerde private[kafka] (
+  srClient: SchemaRegistryClient,
+  schemaRegistrySettings: SchemaRegistrySettings) {
   private def asKey[K: Unregistered]: Serde[K] =
-    summon[Unregistered[K]].asKey(schemaRegistrySettings.config).serde
+    summon[Unregistered[K]].asKey(srClient, schemaRegistrySettings.config).serde
   private def asValue[V: Unregistered]: Serde[V] =
-    summon[Unregistered[V]].asValue(schemaRegistrySettings.config).serde
+    summon[Unregistered[V]].asValue(srClient, schemaRegistrySettings.config).serde
 
   def consumed[K: Unregistered, V: Unregistered]: Consumed[K, V] =
     Consumed.`with`[K, V](asKey[K], asValue[V])

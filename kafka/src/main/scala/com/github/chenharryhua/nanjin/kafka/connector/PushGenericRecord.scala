@@ -4,13 +4,13 @@ import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.kafka.schema.immigrate
 import fs2.kafka.ProducerRecord
-import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.util.{Failure, Success}
+import io.confluent.kafka.serializers.KafkaAvroSerializer
 
 final private class PushGenericRecord(
   srs: SchemaRegistrySettings,
@@ -23,7 +23,7 @@ final private class PushGenericRecord(
   private val key_serialize: AnyRef => Array[Byte] =
     pair.key.rawSchema().getType match {
       case Schema.Type.RECORD =>
-        val ser = new GenericAvroSerializer()
+        val ser = new KafkaAvroSerializer()
         ser.configure(srs.config.asJava, true)
         // java world
         (_: AnyRef) match {
@@ -86,7 +86,7 @@ final private class PushGenericRecord(
   private val val_serialize: AnyRef => Array[Byte] =
     pair.value.rawSchema().getType match {
       case Schema.Type.RECORD =>
-        val ser = new GenericAvroSerializer()
+        val ser = new KafkaAvroSerializer()
         ser.configure(srs.config.asJava, false)
         // java world
         (_: AnyRef) match {

@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.{avro4s, SchemaBased, Primitive}
+import com.github.chenharryhua.nanjin.kafka.serdes.{isoGenericRecord, Primitive, Structured}
+import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
@@ -16,6 +17,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
@@ -23,7 +25,7 @@ object Fs2ChannelTestData {
     TopicDef[Integer, Fs2Kafka](
       TopicName("fs2.kafka.test"),
       Primitive[Integer],
-      SchemaBased[GenericRecord].iso(avro4s[Fs2Kafka])).withTopicName("fs2.kafka.test")
+      Structured[GenericRecord].iso(isoGenericRecord[Fs2Kafka]))
 
   val jackson =
     """
@@ -69,6 +71,12 @@ object Fs2ChannelTestData {
 
 class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
+
+  test("register") {
+    val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
+    ctx.schemaRegistry.register(avroTopic.topicName, value = v).flatMap(IO.println).unsafeRunSync()
+  }
+
   test("1.should be able to consume avro topic") {
     val ret =
       ctx
@@ -265,7 +273,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         .toList
         .unsafeRunSync()
     assert(ret.size == 1)
-    assert(ret.head.value.isInstanceOf[GenericRecord])
+    assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
   }
-
 }

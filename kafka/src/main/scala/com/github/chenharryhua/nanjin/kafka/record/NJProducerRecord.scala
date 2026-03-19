@@ -4,6 +4,7 @@ import cats.Bifunctor
 import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header, Headers, ProducerRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
@@ -28,7 +29,7 @@ final case class NJProducerRecord[K, V](
   value: Option[V]
 ) {
 
-  def withTopicName(name: String): NJProducerRecord[K, V] = copy(topic = name)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
   def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withKey(k: K): NJProducerRecord[K, V] = copy(key = Some(k))

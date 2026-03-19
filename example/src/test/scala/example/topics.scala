@@ -1,11 +1,11 @@
 package example
 
-import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, avro4s}
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, isoGenericRecord}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import io.circe.Codec
 import io.github.iltotore.iron.*
 import org.apache.avro.generic.GenericRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.SchemaBased
+import com.github.chenharryhua.nanjin.kafka.serdes.Structured
 
 final case class Foo(a: Int, b: String)
 
@@ -16,8 +16,8 @@ final case class Bar(c: Int, d: Long)
 final case class FooBar(e: Int, f: String)
 
 object topics {
-  val foo = SchemaBased[GenericRecord].iso(avro4s[Foo])
-  val bar = SchemaBased[GenericRecord].iso(avro4s[Bar])
+  val foo = Structured[GenericRecord].iso(isoGenericRecord[Foo])
+  val bar = Structured[GenericRecord].iso(isoGenericRecord[Bar])
 
   val fooTopic: TopicDef[Integer, Foo] =
     TopicDef[Integer, Foo](TopicName("example.foo"), Primitive[Integer], foo)
