@@ -32,8 +32,8 @@ class TopicSyntaxTest extends AnyFunSuite {
   }
 
   test("schema-based") {
-    Structured[JsonNode]
-    Structured[GenericRecord]
+    Structured[JsonNode].option.become[Option[Foo]]
+    Structured[GenericRecord].become[Foo]
     Structured[DynamicMessage]
   }
 

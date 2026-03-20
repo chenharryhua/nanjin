@@ -37,11 +37,11 @@ object Structured:
           private val deSer = new KafkaAvroDeserializer(srClient)
           override def deserialize(topic: String, data: Array[Byte]): GenericRecord =
             deSer.deserialize(topic, data) match
+              case null              => null // null first as Kafka semantics (null = tombstone)
               case gr: GenericRecord => gr
-              case null              => null
               case unknown           =>
                 throw new SerializationException(
-                  s"${unknown.toString} is not a Generic Record"
+                  s"${unknown.getClass.getName} is not a Generic Record"
                 ) // scalafix:ok
 
           override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =

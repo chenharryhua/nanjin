@@ -50,7 +50,7 @@ trait Unregistered[A] { outer =>
     emap(b.to)(b.from)
 
   // turn null into None
-  final def optional(using Null <:< A): Unregistered[Option[A]] =
+  final def option(using Null <:< A): Unregistered[Option[A]] =
     emap(Option(_))(_.orNull)
 
   private trait IsKey[K]:

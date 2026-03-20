@@ -17,14 +17,6 @@ import com.github.chenharryhua.nanjin.kafka.admins.{
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Registered, Unregistered}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
-import com.github.chenharryhua.nanjin.kafka.{
-  makePureConsumer,
-  GroupId,
-  KafkaSettings,
-  PureConsumerSettings,
-  TopicName,
-  TopicSerde
-}
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.avro.{AvroSchema, AvroSchemaProvider}
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
@@ -82,11 +74,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
     topic.register(schema_registry_internal, settings.schemaRegistrySettings)
 
-  /** Returns the Kafka Serde for a key based on unregistered Serde and schema registry. */
   def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
     rs.asKey(schema_registry_internal, settings.schemaRegistrySettings.config)
 
-  /** Returns the Kafka Serde for a value based on unregistered Serde and schema registry. */
   def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
     rs.asValue(schema_registry_internal, settings.schemaRegistrySettings.config)
 
@@ -142,14 +132,16 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         settings.consumerSettings)
     )
 
-  def consume[K, V](topicName: TopicName, k: KeyDeserializer[F, K], v: ValueDeserializer[F, V])(using
-    F: Async[F]): ConsumeKafka[F, K, V] =
+  def consume[K, V](
+    topicName: TopicName,
+    k: Resource[F, KeyDeserializer[F, K]],
+    v: Resource[F, ValueDeserializer[F, V]])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topicName,
-      ConsumerSettings(k, v).withProperties(settings.consumerSettings.properties)
+      ConsumerSettings(using k, v).withProperties(settings.consumerSettings.properties)
     )
 
-  /** Create a raw byte consumer for the topic name.
+  /** Create a raw byte consumer
     */
   def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] = {
     val topicDef = TopicDef(topicName, Primitive[Array[Byte]], Primitive[Array[Byte]])
@@ -172,11 +164,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   // Producers
   // --------------------------------------------------------------------------
 
-  /** Create a typed producer for a topic.
-    *
-    * @note
-    *   The returned producer checks schema compatibility before producing.
-    */
   def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
@@ -193,11 +180,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       topicName,
       ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
-  /** Produce Avro GenericRecord values.
-    *
-    * @note
-    *   May fetch schema from Schema Registry.
-    */
   def produceGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
     using F: Async[F]): ProduceGenericRecord[F] =
     ProduceGenericRecord[F](
@@ -234,7 +216,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   // Admin
   // --------------------------------------------------------------------------
 
-  /** Resource for a KafkaAdminClient. */
   def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
@@ -270,7 +251,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @param keeps
     *   List of topics to preserve
     * @return
-    *   List of topics failed to be removed from the consumer group
+    *   List of topics successfully be removed from the consumer group
     */
   def ungroup(groupId: GroupId, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
