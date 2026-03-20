@@ -23,18 +23,6 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def javaLong: java.lang.Long = milliseconds
 
-  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
-  def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
-    codec.year_month_day(atZone(zoneId).toLocalDate)
-
-  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
-  def `Year=yyyy/Month=mm/Day=dd/Hour=hh`(zoneId: ZoneId): String =
-    codec.year_month_day_hour(atZone(zoneId).toLocalDateTime)
-
-  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
-  def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
-    codec.year_month_day_hour_minute(atZone(zoneId).toLocalDateTime)
-
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
 
@@ -96,7 +84,7 @@ object NJTimestamp {
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp = NJTimestamp(Instant.now)
 
-  implicit final val njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
+  given njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
       override def hash(x: NJTimestamp): Int = x.hashCode
 

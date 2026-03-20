@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.derived.derived
 import cats.effect.kernel.Sync
 import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.eq.catsSyntaxEq
@@ -101,12 +102,12 @@ final case class Tick(
   def isWithinClosedOpen(now: Instant): Boolean =
     (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)
 
-  def nextTick(now: Instant, wakeup: Instant): Tick =
+  def nextTick(acquires: Instant, conclude: Instant): Tick =
     copy(
       commence = this.conclude,
       index = this.index + 1,
-      acquires = now,
-      conclude = wakeup
+      acquires = acquires,
+      conclude = conclude
     )
 
   override def toString: String = {
@@ -130,9 +131,9 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]](zoneId: ZoneId)(implicit F: Sync[F]): F[Tick] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
-      UUIDGen.fromSecureRandom[F].randomUUID.flatMap { uuid =>
+  def zeroth[F[_]](zoneId: ZoneId)(using F: Sync[F]): F[Tick] =
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
+      UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
         F.realTimeInstant.map { now =>
           zeroth(uuid, zoneId, now)
         }
@@ -141,7 +142,7 @@ object Tick {
 
   private val fmt = DurationFormatter.defaultFormatter
 
-  implicit val encoderTick: Encoder[Tick] =
+  given Encoder[Tick] =
     (a: Tick) =>
       Json.obj(
         "index" -> Json.fromLong(a.index),
@@ -156,7 +157,7 @@ object Tick {
         "zone_id" -> a.zoneId.asJson
       )
 
-  implicit val decoderTick: Decoder[Tick] =
+  given Decoder[Tick] =
     (c: HCursor) =>
       for {
         sequenceId <- c.get[UUID]("sequence_id")
@@ -176,7 +177,7 @@ object Tick {
         conclude = conclude.atZone(zoneId).toInstant
       )
 
-  implicit val showTick: Show[Tick] = Show.fromToString[Tick]
+  given Show[Tick] = Show.fromToString[Tick]
 }
 
 /** A value annotated with the `Tick` (time-frame) in which it was produced or observed.
@@ -191,8 +192,7 @@ object Tick {
   *
   * `TickedValue` forms a lawful `Functor`, mapping over the value while preserving the associated `Tick`.
   */
-final case class TickedValue[A](tick: Tick, value: A) {
-  def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
+final case class TickedValue[A](tick: Tick, value: A) derives Functor, Show, Encoder, Decoder:
 
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
     copy(tick = tick.withSnoozeStretch(delay))
@@ -200,21 +200,8 @@ final case class TickedValue[A](tick: Tick, value: A) {
   def withConclude(newConclude: Instant): TickedValue[A] =
     copy(tick = tick.withConclude(newConclude))
 
+  def withNextTick(acquires: Instant, conclude: Instant): TickedValue[A] =
+    TickedValue(tick.nextTick(acquires, conclude), value)
+
   def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
     TimeStamped[A](f(tick), value)
-}
-
-object TickedValue {
-  implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
-    io.circe.generic.semiauto.deriveEncoder[TickedValue[A]]
-
-  implicit def decoderTickedValue[A: Decoder]: Decoder[TickedValue[A]] =
-    io.circe.generic.semiauto.deriveDecoder[TickedValue[A]]
-
-  implicit def showTickedValue[A: Show]: Show[TickedValue[A]] =
-    cats.derived.semiauto.show[TickedValue[A]]
-
-  implicit val functorTickedValue: Functor[TickedValue] = new Functor[TickedValue] {
-    override def map[A, B](fa: TickedValue[A])(f: A => B): TickedValue[B] = fa.map(f)
-  }
-}

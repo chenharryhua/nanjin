@@ -46,8 +46,8 @@ private object SlackTranslator extends all {
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
     val service =
-      Attribute(sp.serviceName).textEntry(name =>
-        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>"))
+      Attribute(sp.serviceName).map(name =>
+        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>")).textEntry
     JuxtaposeSection(TextField(service), TextField(host))
   }
 

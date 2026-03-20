@@ -26,7 +26,7 @@ object jackson {
         .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
   }
 
-  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {
+  def fromBytes[F[_]](schema: Schema)(using F: Async[F]): Pipe[F, Byte, GenericRecord] = {
     (ss: Stream[F, Byte]) =>
       ss.through(toInputStream).flatMap { is =>
         val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)

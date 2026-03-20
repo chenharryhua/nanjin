@@ -9,42 +9,43 @@ import com.github.chenharryhua.nanjin.guard.event.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Quantity, UnitOfMeasure}
 
-trait Histogram[F[_]] {
+trait Histogram[F[_]]:
   def update(num: Long): F[Unit]
 
-  final def update(num: Int): F[Unit] = update(num.toLong)
-}
+  final def update(num: Int): F[Unit] =
+    update(num.toLong)
+end Histogram
 
 object Histogram {
-  def noop[F[_]](implicit F: Applicative[F]): Histogram[F] =
+  def noop[F[_]](using F: Applicative[F]): Histogram[F] =
     new Histogram[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val squants: Squants,
-    private[this] val reservoir: Option[metrics.Reservoir],
-    private[this] val name: MetricName)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val squants: Squants,
+    private val reservoir: Option[metrics.Reservoir],
+    private val name: MetricName)
       extends Histogram[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] val histogram_name: String =
+    private val histogram_name: String =
       MetricID(
         metricLabel = label,
         metricName = name,
         Category.Histogram(kind = HistogramKind.Histogram, squants = squants)
       ).identifier
 
-    private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
+    private val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
       reservoir match {
         case Some(value) => new metrics.Histogram(value)
         case None => new metrics.Histogram(new metrics.ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private[this] lazy val histogram: metrics.Histogram =
+    private lazy val histogram: metrics.Histogram =
       metricRegistry.histogram(histogram_name, supplier)
 
     override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
@@ -69,7 +70,7 @@ object Histogram {
       new Builder(isEnabled, squants, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Histogram[F]] = {
+      using F: Sync[F]): Resource[F, Histogram[F]] = {
       val histogram: Resource[F, Histogram[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](

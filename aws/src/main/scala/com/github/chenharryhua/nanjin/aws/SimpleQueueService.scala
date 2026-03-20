@@ -8,11 +8,9 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
-import io.circe.Json
-import io.circe.generic.JsonCodec
+import io.circe.{Codec, Json}
 import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
-import monocle.macros.Lenses
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.model.*
@@ -107,7 +105,7 @@ object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
-  def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(implicit
+  def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(using
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
@@ -116,8 +114,8 @@ object SimpleQueueService {
       }
     } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
 
-  final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(
-    implicit F: Async[F])
+  final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(using
+    F: Async[F])
       extends SimpleQueueService[F] {
 
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
@@ -176,13 +174,13 @@ object SimpleQueueService {
 }
 
 object sqsS3Parser {
-  @JsonCodec
-  final case class S3Path(bucket: String, key: String) {
+
+  final case class S3Path(bucket: String, key: String) derives Codec.AsObject {
     val url: String = s"s3://$bucket/$key"
   }
 
-  @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
+      derives Codec.AsObject
 
   /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html`
     */

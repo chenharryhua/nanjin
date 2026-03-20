@@ -21,12 +21,12 @@ import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
 import java.time.ZoneId
 
-sealed trait LogSink[F[_]] {
+sealed trait LogSink[F[_]]:
   def write(event: Event): F[Unit]
-}
+end LogSink
 
 object LogSink {
-  def apply[F[_]: Sync: Console](
+  def apply[F[_]: {Sync, Console}](
     logFormat: LogFormat,
     zoneId: ZoneId,
     loggerName: LoggerName): F[LogSink[F]] =

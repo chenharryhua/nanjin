@@ -1,9 +1,9 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {
@@ -13,8 +13,10 @@ package object kafka {
       KafkaSettings.local
         .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
-        .withStreamingProperty("state.dir", "./data/kafka_states"))
+        .withStreamingProperty("state.dir", "./data/kafka_states")
+        .withSchemaRegistryProperty("auto.register.schemas", "true")
+    )
 
-  val taxi: AvroTopic[Integer, trip_record] =
-    AvroTopic[Integer, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
+  val taxi: TopicDef[Integer, trip_record] =
+    TopicDef("nyc_yellow_taxi_trip_data", Primitive[Integer], Structured[GenericRecord].become[trip_record])
 }

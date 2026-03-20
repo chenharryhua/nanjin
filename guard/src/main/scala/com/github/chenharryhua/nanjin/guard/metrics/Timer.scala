@@ -12,51 +12,51 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-trait Timer[F[_]] {
+trait ToNanos[A]:
+  def apply(a: A): Long
+object ToNanos:
+  given ToNanos[FiniteDuration] = _.toNanos
+  given ToNanos[JavaDuration] = _.toNanos
+end ToNanos
 
-  def elapsed(jd: JavaDuration): F[Unit]
-  def elapsed(num: Long): F[Unit]
-
+trait Timer[F[_]]:
+  def elapsedNano(num: Long): F[Unit]
   def timing[A](fa: F[A]): F[A]
 
-  final def elapsed(fd: FiniteDuration): F[Unit] =
-    elapsed(fd.toNanos)
-
-  final def run(num: Long): F[Unit] = elapsed(num)
-
-}
+  final def elapsedNano(num: Int): F[Unit] =
+    elapsedNano(num.toLong)
+  final def elapsed[A: ToNanos](nano: A): F[Unit] =
+    elapsedNano(summon[ToNanos[A]](nano))
+end Timer
 
 object Timer {
-  def noop[F[_]](implicit F: Applicative[F]): Timer[F] =
+  def noop[F[_]](using F: Applicative[F]): Timer[F] =
     new Timer[F] {
-      override def elapsed(jd: JavaDuration): F[Unit] = F.unit
-      override def elapsed(num: Long): F[Unit] = F.unit
-
+      override def elapsedNano(num: Long): F[Unit] = F.unit
       override def timing[A](fa: F[A]): F[A] = fa
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val reservoir: Option[metrics.Reservoir],
-    private[this] val name: MetricName
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val reservoir: Option[metrics.Reservoir],
+    private val name: MetricName
   ) extends Timer[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] val timer_name: String =
+    private val timer_name: String =
       MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
 
-    private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Timer] = () =>
+    private val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Timer] = () =>
       reservoir match {
         case Some(value) => new metrics.Timer(value)
         case None        => new metrics.Timer(new metrics.ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private[this] lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
+    private lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
 
-    override def elapsed(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
-    override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
+    override def elapsedNano(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
 
     override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>
       timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
@@ -79,7 +79,7 @@ object Timer {
       new Builder(isEnabled, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Timer[F]] = {
+      using F: Sync[F]): Resource[F, Timer[F]] = {
       val timer: Resource[F, Timer[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](

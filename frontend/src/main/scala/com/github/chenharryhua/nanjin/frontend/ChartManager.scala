@@ -48,7 +48,7 @@ final class ChartManager(maxSizePerSeries: Int) {
       toRemove
         .foreach { label =>
           val i = datasets.indexWhere(_.label.asInstanceOf[String] == label)
-          if (i >= 0) datasets.splice(i, 1)
+          if (i >= 0) datasets.splice(i, 1): Unit
         }
       toRemove.foreach(data.remove)
 
@@ -73,7 +73,7 @@ final class ChartManager(maxSizePerSeries: Int) {
             tension = 0.3,
             pointRadius = 0
           )
-          datasets.push(newDataset)
+          datasets.push(newDataset): Unit
         }
       }
 

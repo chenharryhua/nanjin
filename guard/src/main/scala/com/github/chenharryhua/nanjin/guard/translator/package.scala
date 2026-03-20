@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Eval
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.toShow
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -23,7 +22,6 @@ package object translator {
   private[translator] val space2: String = StringUtils.SPACE * 2
   private[translator] val space4: String = StringUtils.SPACE * 4
 
-  final val durationFormatter: DurationFormatter = DurationFormatter.defaultFormatter
   final val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
 
   def eventTitle(evt: Event): String =
@@ -48,7 +46,7 @@ package object translator {
       else
         end.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
 
-    (localTime, durationFormatter.format(duration))
+    (localTime, defaultFormatter.format(duration))
   }
 
   def panicText(evt: ServicePanic): String = {

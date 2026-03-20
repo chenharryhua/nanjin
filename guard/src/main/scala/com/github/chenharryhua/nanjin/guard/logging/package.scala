@@ -12,7 +12,7 @@ import org.typelevel.log4cats.SelfAwareLogger
 
 package object logging {
 
-  private[logging] def get_alarm_level[F[_]: Functor: Semigroupal](
+  private[logging] def get_alarm_level[F[_]: {Functor, Semigroupal}](
     log: SelfAwareLogger[F]): F[Option[AlarmLevel]] =
     (log.isTraceEnabled, log.isDebugEnabled, log.isInfoEnabled, log.isWarnEnabled, log.isErrorEnabled)
       .mapN { case (trace, debug, info, warn, error) =>
@@ -29,7 +29,7 @@ package object logging {
     domain: Domain,
     message: S,
     level: AlarmLevel,
-    stackTrace: Option[StackTrace])(implicit F: Sync[F]): F[ReportedEvent] =
+    stackTrace: Option[StackTrace])(using F: Sync[F]): F[ReportedEvent] =
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ReportedEvent(
         serviceParams = serviceParams,

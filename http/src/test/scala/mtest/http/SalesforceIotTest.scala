@@ -12,11 +12,11 @@ import io.circe.syntax.EncoderOps
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
-import org.http4s.client.middleware.Logger
+import org.http4s.client.middleware.{Logger, Retry, RetryPolicy}
 import org.http4s.dsl.io.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.implicits.*
 import org.http4s.server.{Router, Server}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -49,8 +49,9 @@ class SalesforceIotTest extends AnyFunSuite {
   private val authClient: Resource[IO, Client[IO]] = EmberClientBuilder
     .default[IO]
     .build
-    .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(httpRetry(sydneyTime, _.fixedDelay(0.second).jitter(3.seconds)))
+    .map(Logger(logHeaders = true, logBody = false, _ => false))
+    // .map(Retry(RetryPolicy(dr => Some(dr.seconds))))
+    .map(httpRetry(sydneyTime, _.fixedDelay(3.second)))
 
   val login: Resource[IO, Login[IO]] = Salesforce(
     authClient,
@@ -68,7 +69,9 @@ class SalesforceIotTest extends AnyFunSuite {
       .default[IO]
       .build
       .flatMap(c => login.flatMap(_.login(c)))
-      .map(Logger(logHeaders = true, logBody = true, _ => false))
+      .map(Logger(logHeaders = true, logBody = false, _ => false))
+      .map(httpRetry(sydneyTime, _.fixedDelay(3.second)))
+      .map(Retry(RetryPolicy(dr => Some(dr.seconds))))
 
   test("salesforce.iot") {
     (server *> client).use(_.expect[String]("data")).unsafeRunSync()

@@ -6,14 +6,13 @@ import cats.kernel.Eq
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 
 import java.net.{HttpURLConnection, InetAddress, URI, URL}
 import scala.io.{BufferedSource, Source}
 import scala.util.Try
 
-@JsonCodec
-final case class HostName private (ec2: Option[String], local: Option[String]) {
+final case class HostName private (ec2: Option[String], local: Option[String]) derives Codec.AsObject {
 
   val value: String = (ec2, local) match {
     case (None, None)       => "unknown"
@@ -27,10 +26,10 @@ final case class HostName private (ec2: Option[String], local: Option[String]) {
 
 object HostName {
 
-  implicit final val showHostName: Show[HostName] = Show.fromToString
-  implicit final val eqHostName: Eq[HostName] = Eq.instance((a, b) => a.value === b.value)
+  given Show[HostName] = Show.fromToString
+  given Eq[HostName] = Eq.instance((a, b) => a.value === b.value)
 
-  def apply[F[_]](implicit F: Sync[F]): F[HostName] = {
+  def apply[F[_]](using F: Sync[F]): F[HostName] = {
 
     def http_get(url: URL): Resource[F, Option[HttpURLConnection]] =
       Resource.make(F.blocking(url.openConnection() match {

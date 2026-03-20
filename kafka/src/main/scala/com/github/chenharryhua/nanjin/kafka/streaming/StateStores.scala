@@ -12,32 +12,32 @@ final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
   topic: TopicSerde[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
+    Stores.keyValueStoreBuilder(supplier, topic.key.serde, topic.value.serde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
+    Stores.timestampedKeyValueStoreBuilder(supplier, topic.key.serde, topic.value.serde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
   topic: TopicSerde[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
+    Stores.windowStoreBuilder(supplier, topic.key.serde, topic.value.serde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
+    Stores.timestampedWindowStoreBuilder(supplier, topic.key.serde, topic.value.serde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
   topic: TopicSerde[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
+    Stores.sessionStoreBuilder(supplier, topic.key.serde, topic.value.serde)
 }
 
 final class StateStores[K, V] private (topic: TopicSerde[K, V]) {
 
-  val name: String = topic.topicName.name.value
+  val name: String = topic.topicName.value
 
   def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
     new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(name), topic)

@@ -1,15 +1,13 @@
 package com.github.chenharryhua.nanjin.frontend
 
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 
 import scala.scalajs.js
-import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.JSConverters.*
 
-@JsonCodec
-case class Series(label: String, value: Double)
+case class Series(label: String, value: Double) derives Codec.AsObject
 
-@JsonCodec
-case class WsMessage(ts: Double, series: List[Series]) {
+case class WsMessage(ts: Double, series: List[Series]) derives Codec.AsObject {
   val points: Map[String, Point] = series.map { case Series(label, value) =>
     label -> Point(ts, Some(value))
   }.toMap

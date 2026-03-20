@@ -1,9 +1,7 @@
 package mtest.database
 
 import cats.effect.{IO, Resource}
-import com.github.chenharryhua.nanjin.common.database.Postgres
 import com.github.chenharryhua.nanjin.database.SkunkSession
-import eu.timepit.refined.auto.*
 import munit.CatsEffectSuite
 import natchez.Trace
 import skunk.util.Typer
@@ -12,15 +10,6 @@ import skunk.{SSL, Session}
 import scala.concurrent.duration.Duration
 
 class SkunkSessionSuite extends CatsEffectSuite {
-
-  // Dummy Postgres config
-  val testDb: Postgres = Postgres(
-    host = "localhost",
-    port = 5432,
-    database = "postgres",
-    username = "postgres",
-    password = "postgres"
-  )
 
   // Dummy Trace for testing propagation
   val dummyTrace: Trace[IO] = Trace.Implicits.noop[IO]

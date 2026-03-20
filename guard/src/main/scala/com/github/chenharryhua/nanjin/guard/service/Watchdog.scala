@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.implicits.monadCancelOps_
+import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.effect.kernel.Async
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
@@ -19,21 +19,20 @@ import scala.jdk.DurationConverters.JavaDurationOps
 final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
     extends duration {
 
-  private[this] val F = Async[F]
-  private[this] val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
+  private val F = Async[F]
+  private val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
 
-  private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
+  private def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
       val tickStatus: PolicyTick[F] =
-        serviceParams.servicePolicies.restart.threshold match {
+        serviceParams.servicePolicies.restart.threshold match
           case Some(threshold) =>
             // if the duration between last recover and this failure is larger than threshold,
             // start over policy
-            if (Duration.between(status.tick.conclude, now) > threshold)
+            if Duration.between(status.tick.conclude, now) > threshold then
               status.renewPolicy(serviceParams.servicePolicies.restart.policy)
             else status
           case None => status
-        }
 
       val stackTrace: StackTrace = StackTrace(ex)
 

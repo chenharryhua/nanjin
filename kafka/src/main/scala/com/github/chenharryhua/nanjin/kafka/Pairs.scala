@@ -1,52 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.Sync
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import fs2.kafka.*
+import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import org.apache.avro.Schema
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-
-sealed trait SerdePair[K, V] {
-  protected def key: UnregisteredSerde[K]
-  protected def value: UnregisteredSerde[V]
-
-  final def consumerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    consumerSettings: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
-    ConsumerSettings[F, K, V](
-      Deserializer.delegate[F, K](key.asKey(srs.config).serde.deserializer()),
-      Deserializer.delegate[F, V](value.asValue(srs.config).serde.deserializer())
-    ).withProperties(consumerSettings.properties)
-
-  final def producerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    producerSettings: KafkaProducerSettings): ProducerSettings[F, K, V] =
-    ProducerSettings[F, K, V](
-      Serializer.delegate[F, K](key.asKey(srs.config).serde.serializer()),
-      Serializer.delegate[F, V](value.asValue(srs.config).serde.serializer())
-    ).withProperties(producerSettings.properties)
-}
-
-final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
-  val optionalSchemaPair: OptionalAvroSchemaPair =
-    OptionalAvroSchemaPair(key.avroSchema, value.avroSchema)
-}
-
-final case class ProtoForPair[K, V](key: ProtoFor[K], value: ProtoFor[V]) extends SerdePair[K, V] {
-  val optionalSchemaPair: OptionalProtobufSchemaPair =
-    OptionalProtobufSchemaPair(key.protobufSchema, value.protobufSchema)
-}
-
-final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V] {
-  val optionalSchemaPair: OptionalJsonSchemaPair =
-    OptionalJsonSchemaPair(key.jsonSchema, value.jsonSchema)
-}
 
 final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
   val consumerSchema: Schema = NJConsumerRecord.schema(key.rawSchema(), value.rawSchema())

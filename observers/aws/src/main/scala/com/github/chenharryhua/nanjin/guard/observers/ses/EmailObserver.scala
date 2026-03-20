@@ -9,14 +9,12 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
-import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -35,7 +33,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = 100,
+      capacity = ChunkSize(100),
       policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -47,10 +45,10 @@ final class EmailObserver[F[_]] private (
   isNewestFirst: Boolean,
   capacity: ChunkSize,
   policy: Policy.type => Policy,
-  zoneId: ZoneId)(implicit F: Async[F])
+  zoneId: ZoneId)(using F: Async[F])
     extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
-  private[this] def copy(
+  private def copy(
     isNewestFirst: Boolean = this.isNewestFirst,
     capacity: ChunkSize = this.capacity,
     policy: Policy.type => Policy = this.policy,
@@ -97,8 +95,8 @@ final class EmailObserver[F[_]] private (
 
   private def publish_one_email(
     ses: SimpleEmailService[F],
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
+    from: Email,
+    to: NonEmptyList[Email],
     subject: String)(data: Chunk[ColoredTag]): F[Unit] = {
     // aws ses maximum message size
     val maximumMessageSize: Information = Megabytes(10)
@@ -112,8 +110,7 @@ final class EmailObserver[F[_]] private (
         EmailContent(from, to, subject, content)
       } else {
         val text =
-          p(b(
-            s"Message body size exceeds ${maximumMessageSize.toString()}, which contains ${data.size} events."))
+          p(b(s"Message body size exceeds ${maximumMessageSize.value.toString()}, which contains ${data.size} events."))
         val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }
@@ -138,7 +135,7 @@ final class EmailObserver[F[_]] private (
       }
     }
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, Event, Event] = {
+  def observe(from: Email, to: NonEmptyList[Email], subject: String): Pipe[F, Event, Event] = {
 
     def go(
       ss: Stream[F, Either[Event, Tick]],

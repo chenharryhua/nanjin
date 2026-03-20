@@ -7,6 +7,7 @@ import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
+import cats.derived.derived
 
 /** `https://kafka.apache.org/`
   */
@@ -36,7 +37,8 @@ final case class KafkaSettings(
   producerSettings: KafkaProducerSettings,
   adminSettings: AdminClientSettings,
   streamSettings: KafkaStreamSettings,
-  schemaRegistrySettings: SchemaRegistrySettings) {
+  schemaRegistrySettings: SchemaRegistrySettings)
+    derives Show {
 
   def withBrokers(brokers: String): KafkaSettings =
     KafkaSettings(
@@ -80,7 +82,6 @@ final case class KafkaSettings(
 }
 
 object KafkaSettings {
-  implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semiauto.show[KafkaSettings]
 
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =
     KafkaSettings(

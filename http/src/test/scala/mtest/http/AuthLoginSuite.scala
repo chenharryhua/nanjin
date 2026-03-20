@@ -9,7 +9,7 @@ import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.dsl.io.*
 import org.http4s.headers.{`Content-Type`, Authorization}
-import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.implicits.*
 
 final class AuthLoginSuite extends CatsEffectSuite {
 

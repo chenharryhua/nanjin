@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
@@ -16,7 +15,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.concurrent.duration.*
 
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -45,7 +44,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("deflate 6 avro") {
-    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(6)), pandaSet)
+    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(_.Six)), pandaSet)
   }
 
   test("uncompressed avro") {
@@ -53,7 +52,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("xz 1 avro") {
-    fs2(fs2Root, AvroFile(_.Xz(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.Xz(_.One)), pandaSet)
   }
 
   test("bzip2 avro") {
@@ -61,7 +60,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("zstandard avro") {
-    fs2(fs2Root, AvroFile(_.Zstandard(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.Zstandard(_.One)), pandaSet)
   }
 
   test("laziness") {
@@ -78,8 +77,8 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(
-        hdp.rotateSink(sydneyTime, _.fixedDelay(1.second))(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).avro(
+        _.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

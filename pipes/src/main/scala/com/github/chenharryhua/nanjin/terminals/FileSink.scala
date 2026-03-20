@@ -131,7 +131,7 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
   }
 
   override val parquet: Pipe[F, GenericRecord, Int] =
-    parquet(identity)
+    parquet(identity[AvroParquetWriter.Builder[GenericRecord]])
 
   override val bytes: Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
     Stream

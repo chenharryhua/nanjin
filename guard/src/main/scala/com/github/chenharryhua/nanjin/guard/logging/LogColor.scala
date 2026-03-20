@@ -5,13 +5,13 @@ import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 
 import scala.io.AnsiColor
 
-sealed private trait LogColor {
+sealed private trait LogColor:
   def good: String => String
   def info: String => String
   def warn: String => String
   def error: String => String
   def debug: String => String
-}
+end LogColor
 
 private object LogColor {
   private def colorize(alarm: AlarmLevel, code: String)(name: String): String =

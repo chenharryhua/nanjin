@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.{MetricID, Snapshot, Squants}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -43,16 +44,16 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
         "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
         "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
         "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
-        "min" -> durationFormatter.format(t.timer.min),
-        "max" -> durationFormatter.format(t.timer.max),
-        "mean" -> durationFormatter.format(t.timer.mean),
-        "stddev" -> durationFormatter.format(t.timer.stddev),
-        "p50" -> durationFormatter.format(t.timer.p50),
-        "p75" -> durationFormatter.format(t.timer.p75),
-        "p95" -> durationFormatter.format(t.timer.p95),
-        "p98" -> durationFormatter.format(t.timer.p98),
-        "p99" -> durationFormatter.format(t.timer.p99),
-        "p999" -> durationFormatter.format(t.timer.p999)
+        "min" -> defaultFormatter.format(t.timer.min),
+        "max" -> defaultFormatter.format(t.timer.max),
+        "mean" -> defaultFormatter.format(t.timer.mean),
+        "stddev" -> defaultFormatter.format(t.timer.stddev),
+        "p50" -> defaultFormatter.format(t.timer.p50),
+        "p75" -> defaultFormatter.format(t.timer.p75),
+        "p95" -> defaultFormatter.format(t.timer.p95),
+        "p98" -> defaultFormatter.format(t.timer.p98),
+        "p99" -> defaultFormatter.format(t.timer.p99),
+        "p999" -> defaultFormatter.format(t.timer.p999)
       )
     }
 
@@ -60,13 +61,13 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
     val Squants(unitSymbol, dimensionName) = squants
     if (dimensionName === time.Time.name) {
       unitSymbol match {
-        case time.Nanoseconds.symbol  => durationFormatter.format(time.Nanoseconds(data))
-        case time.Microseconds.symbol => durationFormatter.format(time.Microseconds(data))
-        case time.Milliseconds.symbol => durationFormatter.format(time.Milliseconds(data))
-        case time.Seconds.symbol      => durationFormatter.format(time.Seconds(data))
-        case time.Minutes.symbol      => durationFormatter.format(time.Minutes(data))
-        case time.Hours.symbol        => durationFormatter.format(time.Hours(data))
-        case time.Days.symbol         => durationFormatter.format(time.Days(data))
+        case time.Nanoseconds.symbol  => defaultFormatter.format(time.Nanoseconds(data))
+        case time.Microseconds.symbol => defaultFormatter.format(time.Microseconds(data))
+        case time.Milliseconds.symbol => defaultFormatter.format(time.Milliseconds(data))
+        case time.Seconds.symbol      => defaultFormatter.format(time.Seconds(data))
+        case time.Minutes.symbol      => defaultFormatter.format(time.Minutes(data))
+        case time.Hours.symbol        => defaultFormatter.format(time.Hours(data))
+        case time.Days.symbol         => defaultFormatter.format(time.Days(data))
         case unknown                  => sys.error(s"$unknown - unknown symbol of dimension $dimensionName")
       }
     } else
@@ -93,7 +94,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def json_list(lst: List[(MetricID, NonEmptyList[(String, String)])]): List[(MetricID, Json)] =
     lst.map { case (id, items) =>
-      id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.reduce[Json]((a, b) =>
+      id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.toList.reduce[Json]((a, b) =>
         b.deepMerge(a))
     }
 

@@ -38,7 +38,7 @@ package object batch {
   ): BatchResultState =
     BatchResultState(
       label = metrics.metricLabel,
-      spent = results.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+      spent = results.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
       mode = mode,
       batchId = batchId,
       jobs = results

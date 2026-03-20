@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.database
 
 import cats.effect.kernel.{Resource, Temporal}
 import cats.effect.std.Console
-import com.github.chenharryhua.nanjin.common.database.Postgres
 import fs2.io.net.{Network, SocketOption}
 import natchez.Trace
 import skunk.util.Typer
@@ -43,8 +42,8 @@ final case class SkunkSession[F[_]](
 
   def withTrace(trace: Trace[F]): SkunkSession[F] = copy(trace = Some(trace))
 
-  def pooled(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
-    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
+  def pooled(using C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
+    given tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session
       .pooled(
         host = postgres.host.value,
@@ -66,8 +65,8 @@ final case class SkunkSession[F[_]](
       .flatMap(identity)
   }
 
-  def single(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
-    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
+  def single(using C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
+    given tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session.single(
       host = postgres.host.value,
       port = postgres.port.value,

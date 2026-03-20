@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.implicits.genTemporalOps_
+import cats.effect.syntax.temporal.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
@@ -93,7 +93,8 @@ object Salesforce {
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
     expiresIn: FiniteDuration = 2.hours): Resource[F, Login[F]] =
-    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { sr =>
+      given dummy: SecureRandom[F] = sr
       new PasswordGrantAuth[F](
         credential = credential,
         expiresIn = expiresIn,

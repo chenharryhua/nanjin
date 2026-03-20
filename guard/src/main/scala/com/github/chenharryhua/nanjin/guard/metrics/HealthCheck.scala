@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.effect.implicits.genTemporalOps
+import cats.effect.syntax.temporal.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.toFunctorOps
@@ -14,7 +14,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-trait HealthCheck[F[_]] {
+trait HealthCheck[F[_]]:
   def register(hc: F[Boolean]): Resource[F, Unit]
 
   /** heath check sometimes is expensive.
@@ -22,7 +22,7 @@ trait HealthCheck[F[_]] {
     *   health check method.
     */
   def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit]
-}
+end HealthCheck
 
 object HealthCheck {
   def noop[F[_]]: HealthCheck[F] =
@@ -34,15 +34,15 @@ object HealthCheck {
     }
 
   private class Impl[F[_]: Async](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val timeout: FiniteDuration,
-    private[this] val name: String,
-    private[this] val dispatcher: Dispatcher[F],
-    private[this] val zoneId: ZoneId)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val timeout: FiniteDuration,
+    private val name: String,
+    private val dispatcher: Dispatcher[F],
+    private val zoneId: ZoneId)
       extends HealthCheck[F] {
 
-    private[this] val F = Async[F]
+    private val F = Async[F]
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       for {

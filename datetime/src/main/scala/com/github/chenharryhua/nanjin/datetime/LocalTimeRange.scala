@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import io.circe.generic.JsonCodec
-
 import java.time.{Duration, LocalTime, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
+import io.circe.Codec
 
 /** Represents a time range within a single day.
   *
@@ -13,8 +12,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   * @param duration
   *   Duration of the range (can cross midnight).
   */
-@JsonCodec
-final case class LocalTimeRange(start: LocalTime, duration: Duration) {
+final case class LocalTimeRange(start: LocalTime, duration: Duration) derives Codec.AsObject {
 
   /** Check if a given LocalTime falls inside this range.
     *

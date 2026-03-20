@@ -5,10 +5,11 @@ import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-
+import cats.syntax.functor.toFunctorOps
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
+import cats.Functor
 
 class TickedValueTest extends AnyFunSuite with Matchers {
 
@@ -59,7 +60,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   test("TickedValue Functor instance map works") {
     val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 10)
-    val mapped = TickedValue.functorTickedValue.map(tv)(_ + 5)
+    val mapped = Functor[TickedValue].map(tv)(_ + 5)
     mapped.value shouldEqual 15
     mapped.tick shouldEqual tv.tick
   }

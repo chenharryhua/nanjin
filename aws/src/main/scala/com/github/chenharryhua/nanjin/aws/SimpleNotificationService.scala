@@ -65,7 +65,7 @@ object SimpleNotificationService {
     * val sendIO = snsResource.use(_.publish(_.topicArn("arn:aws:sns:us-east-1:123:topic").message("Hello!")))
     * }}}
     */
-  def apply[F[_]](f: Endo[SnsClientBuilder])(implicit
+  def apply[F[_]](f: Endo[SnsClientBuilder])(using
     F: Async[F]
   ): Resource[F, SimpleNotificationService[F]] =
     for {
@@ -75,10 +75,10 @@ object SimpleNotificationService {
       }
     } yield new AwsSNS[F](client, logger)
 
-  final private class AwsSNS[F[_]](client: SnsClient, logger: Logger[F])(implicit F: Sync[F])
-      extends SimpleNotificationService[F] {
+  final private class AwsSNS[F[_]: Sync](client: SnsClient, logger: Logger[F])
+      extends SimpleNotificationService[F]:
 
     override def publish(request: PublishRequest): F[PublishResponse] =
       blockingF(client.publish(request), request.toString, logger)
-  }
+
 }

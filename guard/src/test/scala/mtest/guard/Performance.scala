@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.benmanes.caffeine.cache.Caffeine
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
 
@@ -88,7 +88,7 @@ class Performance extends AnyFunSuite {
   test("6.performance timer") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsed(1000).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsedNano(1000).map(_ => i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

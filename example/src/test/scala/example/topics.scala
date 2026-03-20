@@ -1,9 +1,12 @@
 package example
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, isoGenericRecord}
+import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import io.circe.Codec
+import io.github.iltotore.iron.*
+import org.apache.avro.generic.GenericRecord
+import com.github.chenharryhua.nanjin.kafka.serdes.Structured
+
 final case class Foo(a: Int, b: String)
 
 object Foo {
@@ -13,7 +16,12 @@ final case class Bar(c: Int, d: Long)
 final case class FooBar(e: Int, f: String)
 
 object topics {
-  val fooTopic: AvroTopic[Int, Foo] = AvroTopic[Int, Foo](TopicName("example.foo"))
-  val barTopic: AvroTopic[Int, Bar] = AvroTopic[Int, Bar](TopicName("example.bar"))
-  val foobarTopic: AvroTopic[Int, FooBar] = AvroTopic[Int, FooBar](TopicName("example.foobar"))
+  val foo = Structured[GenericRecord].iso(isoGenericRecord[Foo])
+  val bar = Structured[GenericRecord].iso(isoGenericRecord[Bar])
+
+  val fooTopic: TopicDef[Integer, Foo] =
+    TopicDef[Integer, Foo](TopicName("example.foo"), Primitive[Integer], foo)
+  val barTopic: TopicDef[Integer, Bar] =
+    TopicDef[Integer, Bar](TopicName("example.bar"), Primitive[Integer], bar) // compile time check
+  // val foobarTopic: TopicDef[Integer, FooBar] = TopicDef[Integer, FooBar]("example.foobar",Primitive[Integer]) // runtime check
 }

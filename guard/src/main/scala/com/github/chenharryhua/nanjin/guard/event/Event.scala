@@ -5,12 +5,11 @@ import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
 import monocle.{Optional, Prism}
 
-@JsonCodec
-sealed trait Event extends Product {
+sealed trait Event extends Product derives Codec.AsObject {
   def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
@@ -38,13 +37,10 @@ object Event {
     kind: Kind,
     took: Took)
       extends Event {
-    override val timestamp: Timestamp = Timestamp(index.launchTime)
-    val label: Label = Label {
-      index match {
-        case ac @ Index.Adhoc(_)  => s"${kind.show}-${ac.productPrefix}"
-        case Index.Periodic(tick) => s"${kind.show}-${tick.index}"
-      }
-    }
+    override val timestamp: Timestamp = Timestamp(index.scrapeTime)
+    val label: Label = index match
+      case ac @ Index.Adhoc(_)  => Label(s"${kind.show}-${ac.productPrefix}")
+      case Index.Periodic(tick) => Label(s"${kind.show}-${tick.index}")
   }
 
   final case class ReportedEvent(
@@ -56,6 +52,10 @@ object Event {
     stackTrace: Option[StackTrace],
     message: Message
   ) extends Event
+
+  /*
+   * Optics
+   */
 
   val metricsSnapshot: Prism[Event, MetricsSnapshot] = GenPrism[Event, Event.MetricsSnapshot]
   val reportedEvent: Prism[Event, ReportedEvent] = GenPrism[Event, Event.ReportedEvent]

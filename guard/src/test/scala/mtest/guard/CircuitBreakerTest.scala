@@ -3,9 +3,9 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
-import com.github.chenharryhua.nanjin.common.CircuitBreaker
+import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt

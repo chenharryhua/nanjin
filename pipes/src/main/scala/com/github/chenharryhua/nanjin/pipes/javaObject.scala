@@ -22,7 +22,7 @@ object javaObject {
   /** rely on EOFException.. not sure it is the right way
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit
+  private def pullAll[F[_], A](ois: ObjectInputStream)(using
     F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
@@ -34,13 +34,13 @@ object javaObject {
         case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure[F, Option[ObjectInputStream]](None)
       }
 
-  private def readInputStream[F[_], A](is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
+  private def readInputStream[F[_], A](is: InputStream)(using F: Sync[F]): Stream[F, A] =
     for {
       ois <- Stream.bracket(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close()))
       a <- Pull.loop(pullAll[F, A])(ois).void.stream
     } yield a
 
-  def fromBytes[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+  def fromBytes[F[_]: Async, A]: Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
 

@@ -2,9 +2,10 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.SingleFlight
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import com.github.chenharryhua.nanjin.guard.event.MetricID
 import fs2.{Pipe, Stream}
 import io.circe.Json
@@ -71,10 +72,9 @@ final private class MetricsPump[F[_]: Async](
           case (Some(prev), curr) =>
             curr.map {
               _.foldLeft(Map.empty[MetricID, Long]) { case (sum, (mid, count)) =>
-                prev.value.get(mid) match {
+                prev.value.get(mid) match
                   case Some(value) => sum + (mid -> (count - value))
                   case None        => sum + (mid -> 0)
-                }
               }
             }
 

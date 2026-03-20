@@ -8,13 +8,12 @@ import cats.syntax.traverse.toTraverseOps
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
-import monocle.macros.Lenses
 
 trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Endo[Translator[F, A]]): B
 }
 
-@Lenses final case class Translator[F[_], A](
+final case class Translator[F[_], A](
   serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
@@ -30,7 +29,7 @@ trait UpdateTranslator[F[_], A, B] {
     case e: ReportedEvent   => reportedEvent.run(e).value
   }
 
-  def filter(f: Event => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
+  def filter(f: Event => Boolean)(using F: Applicative[F]): Translator[F, A] =
     Translator[F, A](
       Kleisli(ss => if (f(ss)) serviceStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) servicePanic.run(ss) else OptionT(F.pure(None))),
@@ -39,88 +38,88 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) metricsSnapshot.run(ss) else OptionT(F.pure(None)))
     )
 
-  def filter(pipe: EventPipe)(implicit F: Applicative[F]): Translator[F, A] =
+  def filter(pipe: EventPipe)(using F: Applicative[F]): Translator[F, A] =
     filter(pipe.filter)
 
   // for convenience
-  def traverse[G[_]](ge: G[Event])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
+  def traverse[G[_]](ge: G[Event])(using F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
     G.traverse[F, Event, Option[A]](ge)(translate)
 
-  def skipServiceStart(implicit F: Applicative[F]): Translator[F, A] =
+  def skipServiceStart(using F: Applicative[F]): Translator[F, A] =
     copy(serviceStart = Translator.noop[F, A])
-  def skipServicePanic(implicit F: Applicative[F]): Translator[F, A] =
+  def skipServicePanic(using F: Applicative[F]): Translator[F, A] =
     copy(servicePanic = Translator.noop[F, A])
-  def skipServiceStop(implicit F: Applicative[F]): Translator[F, A] =
+  def skipServiceStop(using F: Applicative[F]): Translator[F, A] =
     copy(serviceStop = Translator.noop[F, A])
-  def skipMetricsSnapshot(implicit F: Applicative[F]): Translator[F, A] =
+  def skipMetricsSnapshot(using F: Applicative[F]): Translator[F, A] =
     copy(metricsSnapshot = Translator.noop[F, A])
-  def skipReportedEvent(implicit F: Applicative[F]): Translator[F, A] =
+  def skipReportedEvent(using F: Applicative[F]): Translator[F, A] =
     copy(reportedEvent = Translator.noop[F, A])
 
-  def skipAll(implicit F: Applicative[F]): Translator[F, A] =
+  def skipAll(using F: Applicative[F]): Translator[F, A] =
     Translator.empty[F, A]
 
   def withServiceStart(f: ServiceStart => F[Option[A]]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(f(a))))
 
-  def withServiceStart(f: ServiceStart => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withServiceStart(f: ServiceStart => Option[A])(using F: Applicative[F]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceStart(f: ServiceStart => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withServiceStart(f: ServiceStart => F[A])(using F: Functor[F]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceStart(f: ServiceStart => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withServiceStart(f: ServiceStart => A)(using F: Pure[F]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withServicePanic(f: ServicePanic => F[Option[A]]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(f(a))))
 
-  def withServicePanic(f: ServicePanic => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withServicePanic(f: ServicePanic => Option[A])(using F: Applicative[F]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServicePanic(f: ServicePanic => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withServicePanic(f: ServicePanic => F[A])(using F: Functor[F]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServicePanic(f: ServicePanic => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withServicePanic(f: ServicePanic => A)(using F: Pure[F]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withServiceStop(f: ServiceStop => F[Option[A]]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(f(a))))
 
-  def withServiceStop(f: ServiceStop => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withServiceStop(f: ServiceStop => Option[A])(using F: Applicative[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceStop(f: ServiceStop => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withServiceStop(f: ServiceStop => F[A])(using F: Functor[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceStop(f: ServiceStop => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withServiceStop(f: ServiceStop => A)(using F: Pure[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withMetricsSnapshot(f: MetricsSnapshot => F[Option[A]]): Translator[F, A] =
     copy(metricsSnapshot = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsSnapshot(f: MetricsSnapshot => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withMetricsSnapshot(f: MetricsSnapshot => Option[A])(using F: Applicative[F]): Translator[F, A] =
     copy(metricsSnapshot = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsSnapshot(f: MetricsSnapshot => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withMetricsSnapshot(f: MetricsSnapshot => F[A])(using F: Functor[F]): Translator[F, A] =
     copy(metricsSnapshot = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsSnapshot(f: MetricsSnapshot => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withMetricsSnapshot(f: MetricsSnapshot => A)(using F: Pure[F]): Translator[F, A] =
     copy(metricsSnapshot = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withReportedEvent(f: ReportedEvent => F[Option[A]]): Translator[F, A] =
     copy(reportedEvent = Kleisli(a => OptionT(f(a))))
 
-  def withReportedEvent(f: ReportedEvent => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withReportedEvent(f: ReportedEvent => Option[A])(using F: Applicative[F]): Translator[F, A] =
     copy(reportedEvent = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withReportedEvent(f: ReportedEvent => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withReportedEvent(f: ReportedEvent => F[A])(using F: Functor[F]): Translator[F, A] =
     copy(reportedEvent = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withReportedEvent(f: ReportedEvent => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withReportedEvent(f: ReportedEvent => A)(using F: Pure[F]): Translator[F, A] =
     copy(reportedEvent = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = {
+  def flatMap[B](f: A => Translator[F, B])(using F: Monad[F]): Translator[F, B] = {
     val go: Event => F[Option[Translator[F, B]]] = { (evt: Event) => translate(evt).map(_.map(f)) }
     Translator
       .empty[F, B]
@@ -133,8 +132,10 @@ trait UpdateTranslator[F[_], A, B] {
 }
 
 object Translator {
-  implicit final def monadTranslator[F[_]](implicit
-    F: Monad[F]): Monad[Translator[F, *]] & FunctorFilter[Translator[F, *]] =
+
+  private type MF[F[_]] = Monad[[A] =>> Translator[F, A]] & FunctorFilter[[A] =>> Translator[F, A]]
+
+  given monadTranslator[F[_]](using F: Monad[F]): MF[F] =
     new Monad[Translator[F, *]] with FunctorFilter[Translator[F, *]] {
       override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] =
         fa.flatMap(f)
@@ -198,8 +199,7 @@ object Translator {
           .withMetricsSnapshot(go)
       }
     }
-
-  def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], Event, A] =
+  def noop[F[_], A](using F: Applicative[F]): Kleisli[OptionT[F, *], Event, A] =
     Kleisli(_ => OptionT(F.pure(None)))
 
   def empty[F[_]: Applicative, A]: Translator[F, A] =
@@ -211,7 +211,7 @@ object Translator {
       noop[F, A]
     )
 
-  def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, Event] =
+  def idTranslator[F[_]](using F: Applicative[F]): Translator[F, Event] =
     Translator[F, Event](
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),

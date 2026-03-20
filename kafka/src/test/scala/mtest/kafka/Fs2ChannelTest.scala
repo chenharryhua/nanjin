@@ -3,24 +3,30 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
-  val avroTopic: AvroTopic[Integer, Fs2Kafka] = AvroTopic[Integer, Fs2Kafka](TopicName("fs2.kafka.test"))
+  val avroTopic: TopicDef[Integer, Fs2Kafka] =
+    TopicDef[Integer, Fs2Kafka](
+      TopicName("fs2.kafka.test"),
+      Primitive[Integer].emap(identity)(identity),
+      Structured[GenericRecord].become[Fs2Kafka])
+
   val jackson =
     """
       {
@@ -65,10 +71,16 @@ object Fs2ChannelTestData {
 
 class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
+
+  test("register") {
+    val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
+    ctx.schemaRegistry.register(avroTopic.topicName, value = v).flatMap(IO.println).unsafeRunSync()
+  }
+
   test("1.should be able to consume avro topic") {
     val ret =
       ctx
-        .sharedProduce(avroTopic.pair)
+        .produce(avroTopic)
         .produceOne(
           ProducerRecord(avroTopic.topicName.value, Integer.valueOf(1), Fs2Kafka(1, "a", 1.0))
             .withHeaders(Headers(Header("k", "abc")))) >>
@@ -95,7 +107,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("3.serde") {
     val serde = ctx.serde(avroTopic)
     ctx
-      .consumeBytes(avroTopic.topicName.name)
+      .consumeBytes(avroTopic.topicName)
       .assign
       .take(1)
       .map { ccr =>
@@ -107,7 +119,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         serde.tryDeserializeValue(ccr.record)
         serde.tryDeserializeKeyValue(ccr.record)
         serde.optionalDeserialize(ccr.record)
-        val nj = serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
+        val nj = NJConsumerRecord(serde.deserialize(ccr.record)).toNJProducerRecord.toProducerRecord
         serde.serializeKey(nj.key)
         serde.serializeVal(nj.value)
         serde.serialize(nj)
@@ -116,35 +128,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-  }
-
-  test("4.produce") {
-    val jackson =
-      """
-      {
-      "partition" : 0,
-      "offset" : 0,
-      "timestamp" : 1696207641300,
-      "key" : {
-        "int" : 2
-      },
-      "value" : {
-        "mtest.kafka.Fs2ChannelTestData.Fs2Kafka" : {
-          "a" : 2,
-          "b" : "b",
-          "c" : 2.0
-        }
-      },
-      "serializedKeySize":-1,
-      "serializedValueSize":-1,
-      "topic" : "fs2.kafka.test",
-      "timestampType" : 0,
-      "headers" : [
-      ],
-      "leaderEpoch":null
-    }
-     """
-    ctx.produceGenericRecord(avroTopic).jackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
   test("5.consumer config") {
@@ -166,7 +149,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(AvroTopic[java.lang.Long, Integer]("bytes"))
+      .consumeGenericRecord(TopicName("bytes"))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -198,7 +181,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("8.transactional producer setting") {
     val producer = ctx
-      .sharedProduce(avroTopic.pair)
+      .produce(avroTopic)
       .updateConfig(
         _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
       )
@@ -213,7 +196,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - offset") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -226,10 +209,10 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record range - date time") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(DateTimeRange(sydneyTime).withToday)
-      .flatMap(_.stream.map(_.record.value.toOption).take(5).debug())
+      .flatMap(_.stream.map(_.record).take(5).debug())
       .compile
       .drain
       .as(true)
@@ -239,7 +222,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("11.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
+      .consumeGenericRecord(TopicName("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
@@ -280,7 +263,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("14. generic record without schema registry") {
     val ret =
       ctx
-        .consumeGenericRecord(avroTopic)
+        .consumeGenericRecord(avroTopic.topicName)
         .subscribe
         .take(1)
         .map(_.record)
@@ -290,10 +273,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         .toList
         .unsafeRunSync()
     assert(ret.size == 1)
-    assert(ret.head.value.isRight)
-  }
-
-  test("15. schema") {
-    println(avroTopic.pair.optionalSchemaPair.toSchemaPair.consumerSchema)
+    assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
   }
 }

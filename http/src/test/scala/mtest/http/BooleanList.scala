@@ -1,6 +1,6 @@
 package mtest.http
 
-final class BooleanList(private[this] var state: LazyList[Boolean]) {
+final class BooleanList(private var state: LazyList[Boolean]) {
   def get: Boolean = state match {
     case hd #:: rest =>
       state = rest

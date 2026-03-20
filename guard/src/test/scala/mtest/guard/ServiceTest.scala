@@ -6,10 +6,10 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toShow}
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -66,7 +66,7 @@ class ServiceTest extends AnyFunSuite {
       .map(checkJson)
       .compile
       .toList
-      .unsafeRunSync()
+      .unsafeRunSync().runtimeChecked
 
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[MetricsSnapshot])
@@ -251,7 +251,7 @@ class ServiceTest extends AnyFunSuite {
           Thread.sleep(2_000)
           println("throw exception")
           throw new Exception("oops")
-        }(scala.concurrent.ExecutionContext.Implicits.global)
+        }(using scala.concurrent.ExecutionContext.Implicits.global)
         IO.sleep(5.seconds)
       }
       .compile

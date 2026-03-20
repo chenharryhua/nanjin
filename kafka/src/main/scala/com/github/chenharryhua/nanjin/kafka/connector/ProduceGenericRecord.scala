@@ -7,13 +7,13 @@ import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.{
   AvroSchemaPair,
-  AvroTopic,
   OptionalAvroSchemaPair,
-  SchemaRegistrySettings
+  SchemaRegistrySettings,
+  TopicName
 }
-import com.github.chenharryhua.nanjin.messages.kafka.codec.jackson2GenericRecord
+import com.github.chenharryhua.nanjin.kafka.schema.jackson2GenericRecord
 import fs2.kafka.*
-import fs2.{Chunk, Pipe, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -21,51 +21,51 @@ import org.apache.kafka.clients.producer.RecordMetadata
 /*
  * Produce Generic Record
  */
-final class ProduceGenericRecord[F[_], K, V] private[kafka] (
-  avroTopic: AvroTopic[K, V],
-  getSchema: F[OptionalAvroSchemaPair],
+final class ProduceGenericRecord[F[_]] private[kafka] (
+  topicName: TopicName,
+  schemaPair: OptionalAvroSchemaPair,
+  fromSchemaRegistry: F[OptionalAvroSchemaPair],
   srs: SchemaRegistrySettings,
-  producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(implicit F: Async[F])
-    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceGenericRecord[F, K, V]]
-    with HasProperties with ProducerService[F, GenericRecord] {
+  producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(using F: Async[F])
+    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceGenericRecord[F]]
+    with HasProperties {
 
   /*
    * config
    */
   override def properties: Map[String, String] = producerSettings.properties
 
-  override def updateConfig(
-    f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F, K, V] =
-    new ProduceGenericRecord[F, K, V](avroTopic, getSchema, srs, f(producerSettings))
+  override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F] =
+    new ProduceGenericRecord[F](topicName, schemaPair, fromSchemaRegistry, srs, f(producerSettings))
 
-  private lazy val schemaPair: F[AvroSchemaPair] =
-    getSchema.flatMap { skm =>
-      if (avroTopic.pair.optionalSchemaPair.isBackwardCompatible(skm))
-        F.pure(avroTopic.pair.optionalSchemaPair.write(skm).toSchemaPair)
+  private lazy val validateSchema: F[AvroSchemaPair] =
+    fromSchemaRegistry.flatMap { skm =>
+      if (schemaPair.isBackwardCompatible(skm))
+        F.pure(schemaPair.write(skm).toSchemaPair)
       else F.raiseError(new Exception("incompatible schema"))
     }
 
-  lazy val schema: F[Schema] = schemaPair.map(_.consumerSchema)
+  lazy val schema: F[Schema] = validateSchema.map(_.consumerSchema)
 
   /*
    * sink
    */
-  override lazy val sink: Pipe[F, GenericRecord, Chunk[RecordMetadata]] = {
+  lazy val sink: Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
     (grStream: Stream[F, GenericRecord]) =>
       for {
-        pair <- Stream.eval(schemaPair)
-        push = new PushGenericRecord(srs, avroTopic.topicName, pair)
+        pair <- Stream.eval(validateSchema)
+        push = new PushGenericRecord(srs, topicName, pair)
         producer <- KafkaProducer.stream(producerSettings)
         prs <- grStream.chunks
           .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
           .parEvalMap(Int.MaxValue)(identity)
-      } yield prs.map(_._2)
+      } yield prs
   }
 
-  override def produceOne(record: GenericRecord): F[RecordMetadata] =
+  def produceOne(record: GenericRecord): F[RecordMetadata] =
     for {
-      pair <- schemaPair
-      push = new PushGenericRecord(srs, avroTopic.topicName, pair)
+      pair <- validateSchema
+      push = new PushGenericRecord(srs, topicName, pair)
       res <- KafkaProducer
         .resource(producerSettings)
         .use(_.produceOne_(push.fromGenericRecord(record)).flatten)
@@ -76,7 +76,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
     */
   def jackson(jackson: String): F[RecordMetadata] =
     for {
-      pair <- schemaPair
+      pair <- validateSchema
       gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
       res <- produceOne(gr)
     } yield res

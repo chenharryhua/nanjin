@@ -3,7 +3,7 @@ package mtest
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.datetime.instances.given
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 import java.sql.{Date, Timestamp}

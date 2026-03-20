@@ -14,7 +14,7 @@ import squants.information.InformationConversions.InformationConversions
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
-  val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
+  val encoder: ToRecord[Tiger] = Tiger.to
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
   val hdp: Hadoop[IO] = Hadoop[IO](new Configuration)
   val root: Url = Url("./data/test/pipes/bin_avro/")
@@ -25,7 +25,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .map(encoder.to)
         .through(binaryAvro.toBytes[IO](AvroSchema[Tiger]))
         .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
-        .map(Tiger.avroDecoder.decode)
+        .map(Tiger.from.from)
         .compile
         .toList
         .unsafeRunSync() === tigers)
@@ -58,7 +58,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .source(path)
         .bytes(1.kb)
         .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
-        .map(Tiger.avroDecoder.decode)
+        .map(Tiger.from.from)
     val run = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }

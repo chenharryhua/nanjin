@@ -10,7 +10,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
-import com.github.chenharryhua.nanjin.common.aws.SqsUrl
+import com.github.chenharryhua.nanjin.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -22,13 +22,13 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 object SqsObserver {
-  def apply[F[_]: Concurrent: Clock: UUIDGen](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
+  def apply[F[_]: {Concurrent, Clock, UUIDGen}](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
     new SqsObserver[F](client, Translator.idTranslator[F])
 }
 
-final class SqsObserver[F[_]: Clock: UUIDGen](
+final class SqsObserver[F[_]: {Clock, UUIDGen}](
   client: Resource[F, SimpleQueueService[F]],
-  translator: Translator[F, Event])(implicit F: Concurrent[F])
+  translator: Translator[F, Event])(using F: Concurrent[F])
     extends UpdateTranslator[F, Event, SqsObserver[F]] {
 
   private def translate(evt: Event): F[Option[Json]] =

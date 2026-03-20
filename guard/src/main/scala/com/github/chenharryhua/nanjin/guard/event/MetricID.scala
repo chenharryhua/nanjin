@@ -6,8 +6,7 @@ import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
-import io.circe.Encoder
-import io.circe.generic.JsonCodec
+import io.circe.{Codec, Encoder}
 import monocle.macros.GenPrism
 import squants.{Quantity, UnitOfMeasure}
 
@@ -60,15 +59,13 @@ object CategoryKind {
   }
 }
 
-@JsonCodec
-final case class Squants private (unitSymbol: String, dimensionName: String)
+final case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
 object Squants {
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)
 }
 
-@JsonCodec
-sealed trait Category extends Product {
+sealed trait Category extends Product derives Codec.AsObject {
   def kind: CategoryKind
 }
 object Category {
@@ -95,21 +92,20 @@ object Category {
   *   - It participates in equality and hashing (via case class semantics), ensuring that no two `MetricName`
   *     instances are ever considered equal unless all three components match.
   */
-@JsonCodec
 final case class MetricName private (name: String, age: Long, private val uniqueToken: Int)
+    derives Codec.AsObject
 object MetricName {
-  implicit val eqMetricName: Eq[MetricName] = Eq.fromUniversalEquals
+  given Eq[MetricName] = Eq.fromUniversalEquals
 
-  def apply[F[_]: Applicative](name: String)(implicit U: Unique[F], C: Clock[F]): F[MetricName] =
+  def apply[F[_]: Applicative](name: String)(using U: Unique[F], C: Clock[F]): F[MetricName] =
     (C.monotonic, U.unique).mapN((age, token) =>
       MetricName(name, age.toNanos, Hash[Unique.Token].hash(token)))
 }
 
-@JsonCodec
-final case class MetricLabel(label: String, domain: Domain)
+final case class MetricLabel(label: String, domain: Domain) derives Codec.AsObject
 
-@JsonCodec
-final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {
+final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category)
+    derives Codec.AsObject {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
   val isMeter: Option[Category.Meter] = GenPrism[Category, Category.Meter].getOption(category)
   val isHisto: Option[Category.Histogram] = GenPrism[Category, Category.Histogram].getOption(category)

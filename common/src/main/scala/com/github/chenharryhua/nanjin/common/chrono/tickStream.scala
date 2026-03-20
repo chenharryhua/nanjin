@@ -17,7 +17,7 @@ object tickStream {
     *   - Sleep for the tick’s snooze duration
     *   - Emit the tick
     */
-  def fromTickStatus[F[_]](zeroth: PolicyTick[F])(implicit F: Temporal[F]): Stream[F, Tick] =
+  def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, PolicyTick[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
         _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
@@ -43,7 +43,7 @@ object tickStream {
     *
     * Stream ticks in an **“at-least schedule”** manner according to the given `Policy`.
     */
-  def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(implicit F: Async[F]): Stream[F, Tick] =
+  def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap { initStatus =>
       val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
         Pull.loop[F, Tick, PolicyTick[F]] { ts =>

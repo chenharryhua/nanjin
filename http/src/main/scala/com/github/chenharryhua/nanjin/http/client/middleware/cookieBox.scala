@@ -62,7 +62,7 @@ object cookieBox {
     * @return
     *   a new `Client[F]` that automatically manages cookies
     */
-  def apply[F[_]](cookieManager: CookieManager)(client: Client[F])(implicit F: Sync[F]): Client[F] = {
+  def apply[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sync[F]): Client[F] = {
     val cookie_store: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {

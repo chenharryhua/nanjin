@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.Monad
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.{Random, SecureRandom}
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.flatMap.toFlatMapOps
@@ -13,7 +13,7 @@ import java.time.{Instant, ZoneId}
 /** PolicyTick wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
   * according to the policy.
   */
-final class PolicyTick[F[_]: Random: Monad] private (
+final class PolicyTick[F[_]: {Random, Monad}] private (
   val tick: Tick,
   decisions: LazyList[PolicyF.CalcTick[F]]) {
 
@@ -33,16 +33,21 @@ final class PolicyTick[F[_]: Random: Monad] private (
 
       case _ => none[PolicyTick[F]].pure[F]
     }
+
+  def advance(using C: Clock[F]): F[Option[PolicyTick[F]]] =
+    C.realTimeInstant.flatMap(next)
 }
 
 object PolicyTick {
   def zeroth[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
+      given dummy: SecureRandom[F] = sr
       Tick.zeroth[F](zoneId).map(new PolicyTick(_, PolicyF.evaluatePolicy(policy.policy)))
     }
 
   def apply[F[_]: Sync](tick: Tick): F[PolicyTick[F]] =
-    SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+    SecureRandom.javaSecuritySecureRandom[F].map { sr =>
+      given dummy: SecureRandom[F] = sr
       new PolicyTick[F](tick, LazyList.empty)
     }
 }

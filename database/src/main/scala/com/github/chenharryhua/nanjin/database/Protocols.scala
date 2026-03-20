@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.implicits.showInterpolator
-import com.github.chenharryhua.nanjin.common.database.*
+import cats.syntax.show.showInterpolator
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable

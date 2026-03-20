@@ -7,48 +7,47 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
-import com.github.chenharryhua.nanjin.kafka.{AvroForPair, KafkaContext}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
+import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
-import io.circe.generic.JsonCodec
+import io.circe.syntax.EncoderOps
+import io.circe.{Codec, Json}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-@JsonCodec
-final case class EventKey(task: String, service: String)
+import java.nio.ByteBuffer
+
+final case class EventKey(task: String, service: String) derives Codec.AsObject
 
 object KafkaObserver {
   def apply[F[_]: Async](ctx: KafkaContext[F]): KafkaObserver[F] =
     new KafkaObserver[F](ctx, Translator.idTranslator[F])
 }
 
-final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(implicit F: Async[F])
+final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(using F: Async[F])
     extends UpdateTranslator[F, Event, KafkaObserver[F]] {
 
   private val name: String = "Kafka Observer"
 
   def observe(topicName: TopicName): Pipe[F, Event, Event] = {
-    def translate(evt: Event): F[Option[ProducerRecord[AvroFor.KJson[EventKey], AvroFor.KJson[Event]]]] =
+    def translate(evt: Event): F[Option[ProducerRecord[Json, Json]]] =
       translator
         .translate(evt)
         .map(
           _.map(evt =>
             ProducerRecord(
-              topicName.name.value,
-              AvroFor.KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
-              AvroFor.KJson(evt))))
-
-    val pair = AvroForPair(AvroFor[AvroFor.KJson[EventKey]], AvroFor[AvroFor.KJson[Event]])
-
+              topicName.value,
+              EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value).asJson,
+              evt.asJson)))
+    val topic = TopicDef(topicName, Primitive[ByteBuffer].circe, Primitive[ByteBuffer].circe)
     (ss: Stream[F, Event]) =>
       for {
-        client <- Stream.resource(ctx.sharedProduce(pair).clientR)
+        client <- ctx.produce(topic).clientS
         log <- Stream.eval(Slf4jLogger.create[F])
         _ <- Stream.eval(log.info(s"initialize $name"))
         ofm <- Stream.eval(
@@ -67,9 +66,6 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
           }
       } yield event
   }
-
-  def observe(topicName: TopicNameL): Pipe[F, Event, Event] =
-    observe(TopicName(topicName))
 
   override def updateTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =
     new KafkaObserver(ctx, f(translator))

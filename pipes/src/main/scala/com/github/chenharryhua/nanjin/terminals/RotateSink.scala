@@ -4,7 +4,7 @@ import cats.Endo
 import cats.syntax.show.showInterpolator
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.TickedValue
+import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.Pipe
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -38,6 +38,15 @@ final case class CreateRotateFile(
   openTime: ZonedDateTime
 )
 
+object CreateRotateFile:
+  def apply(tick: Tick): CreateRotateFile =
+    new CreateRotateFile(
+      sequenceId = tick.sequenceId,
+      index = tick.index + 1,
+      openTime = tick.zoned(_.conclude)
+    )
+end CreateRotateFile
+
 final case class RotateWriteException(tv: TickedValue[Url], cause: Throwable) extends Exception(
       show"failed to write to: ${tv.value} (seq=${tv.tick.sequenceId}, idx=${tv.tick.index})",
       cause)
@@ -66,7 +75,7 @@ final case class RotateFile(open: LocalDateTime, close: LocalDateTime, url: Url,
 }
 
 object RotateFile {
-  implicit val encoderRotateFile: Encoder[RotateFile] =
+  given Encoder[RotateFile] =
     (a: RotateFile) =>
       Json.obj(
         "open" -> a.open.asJson,
@@ -76,7 +85,7 @@ object RotateFile {
         "recordCount" -> Json.fromLong(a.recordCount)
       )
 
-  implicit val decoderRotateFile: Decoder[RotateFile] =
+  given Decoder[RotateFile] =
     (c: HCursor) =>
       for {
         open <- c.get[LocalDateTime]("open")

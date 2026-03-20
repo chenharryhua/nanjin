@@ -1,0 +1,72 @@
+package com.github.chenharryhua.nanjin.kafka.record
+
+import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
+import io.circe.Codec
+import io.scalaland.chimney.dsl.into
+import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
+
+import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
+import scala.util.Try
+
+final case class MetaInfo(
+  topic: String,
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  timestampType: Option[Int],
+  serializedKeySize: Int,
+  serializedValueSize: Int
+) derives Codec.AsObject {
+
+  def localDateTime(zoneId: ZoneId): LocalDateTime =
+    Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
+
+  def zoned(zoneId: ZoneId): ZonedMetaInfo =
+    this
+      .into[ZonedMetaInfo]
+      .withFieldComputed(_.timestamp, cr => Instant.ofEpochMilli(cr.timestamp).atZone(zoneId))
+      .transform
+}
+
+object MetaInfo {
+
+  def apply[K, V](cr: NJConsumerRecord[K, V]): MetaInfo =
+    cr.into[MetaInfo].transform
+
+  def apply[K, V](fcr: Fs2ConsumerRecord[K, V]): MetaInfo =
+    apply(fcr.into[NJConsumerRecord[K, V]].transform)
+
+  def apply[F[_], K, V](ccr: CommittableConsumerRecord[F, K, V]): MetaInfo =
+    apply(ccr.record.into[NJConsumerRecord[K, V]].transform)
+
+  def apply[K, V](jcr: JavaConsumerRecord[K, V]): MetaInfo =
+    apply(jcr.into[NJConsumerRecord[K, V]].transform)
+
+  def apply(gr: GenericRecord): Try[MetaInfo] = Try {
+    MetaInfo(
+      topic = gr.get("topic").toString,
+      partition = gr.get("partition").asInstanceOf[Int], // scalafix:ok
+      offset = gr.get("offset").asInstanceOf[Long], // scalafix:ok
+      timestamp = gr.get("timestamp").asInstanceOf[Long], // scalafix:ok
+      timestampType = Option(gr.get("timestampType").asInstanceOf[Int]), // scalafix:ok
+      serializedKeySize = gr.get("serializedKeySize").asInstanceOf[Int], // scalafix:ok
+      serializedValueSize = gr.get("serializedValueSize").asInstanceOf[Int] // scalafix:ok
+    )
+  }
+
+  def apply(rm: RecordMetadata): MetaInfo =
+    MetaInfo(
+      topic = rm.topic(),
+      partition = rm.partition(),
+      offset = rm.offset(),
+      timestamp = rm.timestamp(),
+      timestampType = None,
+      serializedKeySize = rm.serializedKeySize(),
+      serializedValueSize = rm.serializedValueSize()
+    )
+}
+
+final case class ZonedMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
+    derives Codec.AsObject

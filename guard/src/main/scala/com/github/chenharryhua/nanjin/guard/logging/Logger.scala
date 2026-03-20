@@ -20,7 +20,7 @@ object Logger {
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
-    logSink: LogSink[F])(implicit F: Sync[F])
+    logSink: LogSink[F])(using F: Sync[F])
       extends Log[F] {
 
     override def create[S: Encoder](

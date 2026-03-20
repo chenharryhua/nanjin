@@ -4,8 +4,8 @@ import cats.data.Kleisli
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{retrieveGauge, retrieveHealthChecks, Event, MetricID}
-import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import io.circe.Json
 import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite

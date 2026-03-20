@@ -1,16 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.config
+import cats.derived.derived
 import cats.effect.kernel.Clock
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.functor.toFunctorOps
 import cats.{Applicative, Endo, Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.guard.config.{TimeZone, UpTime}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import io.circe.generic.JsonCodec
 import io.circe.jawn.parse
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.{Codec, Encoder, Json}
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
 
@@ -18,23 +19,19 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-@JsonCodec
-final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
-@JsonCodec
-final case class RealtimeMetrics(policy: Policy, maxPoints: Int)
+final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
+final case class RealtimeMetrics(policy: Policy, maxPoints: Int) derives Codec.AsObject
 
-@JsonCodec
 final case class ServicePolicies(
   restart: RestartPolicy,
   realtimeMetrics: RealtimeMetrics,
   metricsReport: Policy,
   metricsReset: Policy
-)
-@JsonCodec
-final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
+) derives Codec.AsObject
 
-@JsonCodec
-final case class Host(name: HostName, port: Option[Port]) {
+final case class HistoryCapacity(metric: Int, panic: Int, error: Int) derives Codec.AsObject
+
+final case class Host(name: HostName, port: Option[Port]) derives Codec.AsObject {
   override def toString: String =
     port match {
       case Some(p) => s"${name.value}:${p.value}"
@@ -42,10 +39,9 @@ final case class Host(name: HostName, port: Option[Port]) {
     }
 }
 object Host {
-  implicit val showHost: Show[Host] = Show.fromToString[Host]
+  given Show[Host] = Show.fromToString[Host]
 }
 
-@JsonCodec
 final case class ServiceParams(
   taskName: Task,
   host: Host,
@@ -58,7 +54,7 @@ final case class ServiceParams(
   logFormat: LogFormat,
   nanjin: Option[Json],
   brief: Brief
-) {
+) derives Codec.AsObject {
   val zoneId: ZoneId = launchTime.getZone
   val timeZone: TimeZone = TimeZone(zoneId)
 
@@ -102,10 +98,9 @@ object ServiceParams {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[X] extends Product
+sealed private[guard] trait ServiceConfigF[X] extends Product derives Functor
 
 private object ServiceConfigF {
-  implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
 

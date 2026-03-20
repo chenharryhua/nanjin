@@ -18,5 +18,3 @@ addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.20.2")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.8")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.20"
-
-libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
