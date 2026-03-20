@@ -16,7 +16,7 @@ final class TopicDef[K, V](val topicName: TopicName, key: Unregistered[K], value
     cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] = {
     val k = key.asKey(srClient, srs.config).deserializer[F]
     val v = value.asValue(srClient, srs.config).deserializer[F]
-    ConsumerSettings[F, K, V](k, v).withProperties(cs.properties)
+    ConsumerSettings[F, K, V](using k, v).withProperties(cs.properties)
   }
 
   def producerSettings[F[_]: Sync](
@@ -25,7 +25,7 @@ final class TopicDef[K, V](val topicName: TopicName, key: Unregistered[K], value
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] = {
     val k = key.asKey(srClient, srs.config).serializer[F]
     val v = value.asValue(srClient, srs.config).serializer[F]
-    ProducerSettings[F, K, V](k, v).withProperties(ps.properties)
+    ProducerSettings[F, K, V](using k, v).withProperties(ps.properties)
   }
 
   def register(srClient: SchemaRegistryClient, srs: SchemaRegistrySettings): TopicSerde[K, V] = {

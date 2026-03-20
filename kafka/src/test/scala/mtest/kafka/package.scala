@@ -1,10 +1,10 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.serdes.{isoGenericRecord, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {
 
@@ -18,8 +18,5 @@ package object kafka {
     )
 
   val taxi: TopicDef[Integer, trip_record] =
-    TopicDef(
-      "nyc_yellow_taxi_trip_data",
-      Primitive[Integer],
-      Structured[GenericRecord].iso(isoGenericRecord[trip_record]))
+    TopicDef("nyc_yellow_taxi_trip_data", Primitive[Integer], Structured[GenericRecord].become[trip_record])
 }

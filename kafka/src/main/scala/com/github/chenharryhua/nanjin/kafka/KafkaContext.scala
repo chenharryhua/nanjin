@@ -26,12 +26,15 @@ import com.github.chenharryhua.nanjin.kafka.{
   TopicSerde
 }
 import fs2.kafka.*
-import io.confluent.kafka.schemaregistry.avro.AvroSchema
+import io.confluent.kafka.schemaregistry.avro.{AvroSchema, AvroSchemaProvider}
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.Schema
 import org.apache.kafka.streams.StreamsBuilder
 
+import scala.jdk.CollectionConverters.given
 import scala.util.Try
 
 /** Context for Kafka operations including producers, consumers, schema registry, Kafka Streams, and
@@ -93,7 +96,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   private lazy val schema_registry_internal: SchemaRegistryClient = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
-    val url: String =
+    val baseUrl: String =
       settings.schemaRegistrySettings.config.getOrElse(
         url_config,
         throw new IllegalStateException(s"Fatal error: $url_config is absent")
@@ -104,7 +107,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
 
-    new CachedSchemaRegistryClient(url, cacheCapacity)
+    new CachedSchemaRegistryClient(
+      baseUrl,
+      cacheCapacity,
+      List(new AvroSchemaProvider, new JsonSchemaProvider, new ProtobufSchemaProvider).asJava,
+      Map.empty.asJava)
   }
 
   /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
@@ -178,11 +185,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         settings.schemaRegistrySettings,
         settings.producerSettings))
 
-  def produce[K, V](topicName: TopicName, k: KeySerializer[F, K], v: ValueSerializer[F, V])(using
-    F: Async[F]): ProduceKafka[F, K, V] =
+  def produce[K, V](
+    topicName: TopicName,
+    k: Resource[F, KeySerializer[F, K]],
+    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topicName,
-      ProducerSettings[F, K, V](k, v).withProperties(settings.producerSettings.properties))
+      ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
   /** Produce Avro GenericRecord values.
     *

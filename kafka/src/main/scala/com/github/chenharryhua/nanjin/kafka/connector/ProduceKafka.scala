@@ -63,7 +63,7 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
     clientR.use(_.produceOne_(topicName.value, k, v).flatten)
 
   override def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata] =
-    KafkaProducer.resource(producerSettings).use(_.produceOne_(record).flatten)
+    clientR.use(_.produceOne_(record).flatten)
 
   override def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))

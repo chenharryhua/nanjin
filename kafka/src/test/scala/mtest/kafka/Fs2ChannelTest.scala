@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.{isoGenericRecord, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
@@ -24,8 +24,8 @@ object Fs2ChannelTestData {
   val avroTopic: TopicDef[Integer, Fs2Kafka] =
     TopicDef[Integer, Fs2Kafka](
       TopicName("fs2.kafka.test"),
-      Primitive[Integer],
-      Structured[GenericRecord].iso(isoGenericRecord[Fs2Kafka]))
+      Primitive[Integer].emap(identity)(identity),
+      Structured[GenericRecord].become[Fs2Kafka])
 
   val jackson =
     """

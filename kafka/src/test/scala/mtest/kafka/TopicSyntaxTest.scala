@@ -18,19 +18,17 @@ class TopicSyntaxTest extends AnyFunSuite {
   }
 
   test("consume") {
-    val k = ctx.asKey(Primitive[Integer]).deserializer[IO].attempt
-    val v = ctx.asValue(Primitive[Integer]).deserializer[IO].option
+    val k = ctx.asKey(Primitive[Integer]).deserializer[IO].map(_.attempt)
+    val v = ctx.asValue(Primitive[Integer]).deserializer[IO].map(_.option)
 
-    val res = ctx.consume("topic", k, v)
-    println(res)
+    println((k, v))
   }
 
   test("producer") {
-    val k = ctx.asKey(Primitive[Integer].imap(identity)(identity)).serializer[IO]
-    val v = ctx.asValue(Primitive[Integer]).serializer[IO].option
+    val k = ctx.asKey(Primitive[Integer].emap(identity)(identity)).serializer[IO]
+    val v = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
 
-    val res = ctx.produce("topic", k, v)
-    println(res)
+    println((k, v))
   }
 
   test("schema-based") {

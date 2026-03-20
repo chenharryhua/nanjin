@@ -56,7 +56,7 @@ object Structured:
       new Serde[JsonNode]:
         override val serializer: Serializer[JsonNode] =
           new KafkaJsonSchemaSerializer[JsonNode](srClient)
-          
+
         override val deserializer: Deserializer[JsonNode] =
           new KafkaJsonSchemaDeserializer[JsonNode](srClient)
   end given
@@ -69,4 +69,5 @@ object Structured:
 
         override val deserializer: Deserializer[DynamicMessage] =
           new KafkaProtobufDeserializer[DynamicMessage](srClient)
+
   end given

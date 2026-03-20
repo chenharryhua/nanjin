@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
-import cats.Invariant
 import fs2.kafka.{Key, KeyOrValue, Value}
+import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
-import io.scalaland.chimney.Iso as ChimneyIso
-import monocle.Iso as MonocleIso
+import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.given
@@ -15,21 +14,44 @@ trait Unregistered[A] { outer =>
   /*
    *  Transform
    */
-  final def imap[B](f: A => B)(g: B => A): Unregistered[B] =
+  final def emap[B](f: A => B)(g: B => A): Unregistered[B] =
     new Unregistered[B] {
-      def registerWith(srClient: SchemaRegistryClient): Serde[B] =
-        summon[Invariant[Serde]].imap(outer.registerWith(srClient))(f)(g)
+      protected def registerWith(srClient: SchemaRegistryClient): Serde[B] =
+        new Serde[B] {
+          private val serdeA: Serde[A] = outer.registerWith(srClient)
+
+          override val serializer: Serializer[B] = new Serializer[B] {
+            private val ser = serdeA.serializer
+            override def serialize(topic: String, data: B): Array[Byte] =
+              ser.serialize(topic, g(data))
+            override def serialize(topic: String, headers: Headers, data: B): Array[Byte] =
+              ser.serialize(topic, headers, g(data))
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              ser.configure(configs, isKey)
+            override def close(): Unit = ser.close()
+          }
+
+          override val deserializer: Deserializer[B] = new Deserializer[B] {
+            private val deSer = serdeA.deserializer
+            override def deserialize(topic: String, data: Array[Byte]): B =
+              f(deSer.deserialize(topic, data))
+            override def deserialize(topic: String, headers: Headers, data: Array[Byte]): B =
+              f(deSer.deserialize(topic, headers, data))
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              deSer.configure(configs, isKey)
+            override def close(): Unit = deSer.close()
+          }
+        }
     }
 
-  final def iso[B](isomorphism: MonocleIso[A, B]): Unregistered[B] =
-    imap(isomorphism.get)(isomorphism.reverseGet)
-
-  final def iso[B](isomorphism: ChimneyIso[A, B]): Unregistered[B] =
-    imap(isomorphism.first.transform)(isomorphism.second.transform)
+  final def become[B](using b: BiTransform[A, B]): Unregistered[B] =
+    emap(b.to)(b.from)
+  final def circe(using b: BiTransform[A, Json]): Unregistered[Json] =
+    emap(b.to)(b.from)
 
   // turn null into None
   final def optional(using Null <:< A): Unregistered[Option[A]] =
-    imap(Option(_))(_.orNull)
+    emap(Option(_))(_.orNull)
 
   private trait IsKey[K]:
     def value: Boolean
@@ -38,18 +60,19 @@ trait Unregistered[A] { outer =>
   private given IsKey[Value] with
     override val value: Boolean = false
 
-  private def register[B <: KeyOrValue](
+  private def register[KV <: KeyOrValue](
     srClient: SchemaRegistryClient,
     props: Map[String, String]
-  )(using isKey: IsKey[B]): Registered[B, A] =
-    Registered[B, A](new Serde[A] {
-      override val serializer: Serializer[A] =
-        val ser = registerWith(srClient).serializer
+  )(using isKey: IsKey[KV]): Registered[KV, A] =
+    Registered[KV, A](new Serde[A] {
+      private val serde: Serde[A] = outer.registerWith(srClient)
+      override lazy val serializer: Serializer[A] =
+        val ser: Serializer[A] = serde.serializer
         ser.configure(props.asJava, isKey.value)
         ser
 
-      override val deserializer: Deserializer[A] =
-        val deSer = registerWith(srClient).deserializer
+      override lazy val deserializer: Deserializer[A] =
+        val deSer: Deserializer[A] = serde.deserializer
         deSer.configure(props.asJava, isKey.value)
         deSer
     })
