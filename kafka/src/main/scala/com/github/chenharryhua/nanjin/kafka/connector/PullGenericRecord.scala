@@ -22,75 +22,37 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = "place.holder"
 
-  private val key_decode: Array[Byte] => Any =
-    pair.key.rawSchema().getType match {
+  private def getDecoder(skm: Schema)(data: Array[Byte]): Any =
+    skm.getType match {
       case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[GenericData.Record](pair.key.rawSchema())
-        (data: Array[Byte]) =>
-          if (data eq null) null
-          else {
-            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, skip first 5 bytes
-            val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
-            reader.read(null, decoder)
-          }
+        val reader = new GenericDatumReader[GenericData.Record](skm)
+        if data eq null then null
+        else {
+          // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, then skip first 5 bytes
+          val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+          reader.read(null, decoder)
+        }
       case Schema.Type.STRING =>
-        val deser = Serdes.String().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.INT =>
-        val deser = Serdes.Integer().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.LONG =>
-        val deser = Serdes.Long().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.FLOAT =>
-        val keyDeser = Serdes.Float().deserializer()
-        (data: Array[Byte]) => keyDeser.deserialize(topic, data)
-      case Schema.Type.DOUBLE =>
-        val deser = Serdes.Double().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        Serdes.String().deserializer().deserialize(topic, data)
       case Schema.Type.BYTES =>
-        val deser = Serdes.ByteArray().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        Serdes.ByteArray().deserializer().deserialize(topic, data)
+      case Schema.Type.INT =>
+        Serdes.Integer().deserializer().deserialize(topic, data)
+      case Schema.Type.LONG =>
+        Serdes.Long().deserializer().deserialize(topic, data)
+      case Schema.Type.FLOAT =>
+        Serdes.Float().deserializer().deserialize(topic, data)
+      case Schema.Type.DOUBLE =>
+        Serdes.Double().deserializer().deserialize(topic, data)
+      case Schema.Type.BOOLEAN =>
+        Serdes.Boolean().deserializer().deserialize(topic, data)
       case Schema.Type.NULL =>
-        (_: Array[Byte]) => null
-
-      case us => sys.error(s"unsupported key schema: ${us.toString}")
+        Serdes.Void().deserializer().deserialize(topic, data)
+      case us => sys.error(s"unsupported schema: ${us.toString}")
     }
 
-  private val val_decode: Array[Byte] => Any =
-    pair.value.rawSchema().getType match {
-      case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[GenericData.Record](pair.value.rawSchema())
-        (data: Array[Byte]) =>
-          if (data eq null) null
-          else {
-            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, skip first 5 bytes
-            val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
-            reader.read(null, decoder)
-          }
-      case Schema.Type.STRING =>
-        val deser = Serdes.String().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.INT =>
-        val deser = Serdes.Integer().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.LONG =>
-        val deser = Serdes.Long().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.FLOAT =>
-        val deser = Serdes.Float().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.DOUBLE =>
-        val deser = Serdes.Double().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.BYTES =>
-        val deser = Serdes.ByteArray().deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.NULL =>
-        (_: Array[Byte]) => null
-
-      case us => sys.error(s"unsupported value schema: ${us.toString}")
-    }
+  private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())
+  private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
 
   private val headerSchema = SchemaFor[NJHeader].schema
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullGenericRecordException, GenericData.Record] =

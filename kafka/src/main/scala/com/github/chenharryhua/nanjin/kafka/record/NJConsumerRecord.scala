@@ -24,21 +24,6 @@ import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.jdk.OptionConverters.given
 
-final case class ZonedConsumerRecord[K, V](
-  topic: String,
-  partition: Int,
-  offset: Long,
-  timestamp: ZonedDateTime,
-  timestampType: Int,
-  headers: List[NJHeader],
-  leaderEpoch: Option[Int],
-  serializedKeySize: Int,
-  serializedValueSize: Int,
-  key: Option[K],
-  value: Option[V]
-) derives Codec.AsObject:
-  def metaInfo: ZonedMetaInfo = this.into[ZonedMetaInfo].transform
-
 @AvroDoc("kafka consumer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")

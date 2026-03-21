@@ -33,7 +33,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("timestamp").asLong() == 123456789L)
   }
 
-  test("toJsonNode: key/value mapping") {
+  test("1.toJsonNode: key/value mapping") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k.toUpperCase),
@@ -44,7 +44,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("value").asText() == "v".reverse)
   }
 
-  test("toJsonNode: None key/value becomes null") {
+  test("2.toJsonNode: None key/value becomes null") {
     val record = base.copy(key = None, value = None)
 
     val node =
@@ -54,18 +54,18 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("value").isNull)
   }
 
-  test("toJsonNode: partial mapping") {
+  test("3.toJsonNode: partial mapping") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
         v => globalObjectMapper.valueToTree(v)
       )
 
-    assert(node.get("key").isNull)
+    assert(node.get("key").asText() == "k")
     assert(node.get("value").asText() == "v")
   }
 
-  test("toJsonNode: headers serialized") {
+  test("4.toJsonNode: headers serialized") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
@@ -79,7 +79,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(h.get("key").asText() == "h1")
   }
 
-  test("toJsonNode: leaderEpoch optional") {
+  test("5.toJsonNode: leaderEpoch optional") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
