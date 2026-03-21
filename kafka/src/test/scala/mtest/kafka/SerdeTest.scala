@@ -6,7 +6,7 @@ import fs2.kafka.{GenericDeserializer, Key, Value}
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
-final case class Foo(a: Int, b: String, c: Long)
+final case class Foo(a: Int, b: String)
 
 class SerdeTest extends AnyFunSuite {
   test("avro primitive") {

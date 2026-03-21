@@ -12,8 +12,9 @@ trait Unregistered[A] { outer =>
   protected def registerWith(srClient: SchemaRegistryClient): Serde[A]
 
   /*
-   *  Transform
+   *  Transformation
    */
+  
   final def emap[B](f: A => B)(g: B => A): Unregistered[B] =
     new Unregistered[B] {
       protected def registerWith(srClient: SchemaRegistryClient): Serde[B] =
@@ -53,6 +54,10 @@ trait Unregistered[A] { outer =>
   final def option(using Null <:< A): Unregistered[Option[A]] =
     emap(Option(_))(_.orNull)
 
+  /*
+   * Transition
+   */
+
   private trait IsKey[K]:
     def value: Boolean
   private given IsKey[Key] with
@@ -77,15 +82,11 @@ trait Unregistered[A] { outer =>
         deSer
     })
 
-  /*
-   * Transition
-   */
-
-  // registered as key of a topic
+  // registered as key
   final def asKey(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Key, A] =
     register[Key](srClient, props)
 
-  // registered as value of a topic
+  // registered as value
   final def asValue(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Value, A] =
     register[Value](srClient, props)
 }

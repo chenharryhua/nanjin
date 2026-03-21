@@ -64,6 +64,9 @@ final private class HttpDataServer[F[_]](
 
   private def control_center(wsb2: WebSocketBuilder2[F]): HttpRoutes[F] =
     HttpRoutes.of[F] {
+      /*
+       * Dashboard and Websocket
+       */
       case GET -> Root / "dashboard" / file =>
         StaticFile.fromResource(s"dashboard/$file").getOrElseF(NotFound())
 
@@ -71,25 +74,28 @@ final private class HttpDataServer[F[_]](
       case GET -> Root / "ws"        => pump.pumping(wsb2)
 
       /*
-       * Service
+       * Panics and Errors
        */
-
-      case GET -> Root / "service" / "params" =>
-        Ok(interpretServiceParams(serviceParams))
-
-      case GET -> Root / "service" / "panic" / "history" =>
+      case GET -> Root / "panics" =>
         val json = for {
           now <- serviceParams.zonedNow
           panics <- lifecyclePublisher.get_panic_history
         } yield documents.service_panic_history(serviceParams, panics, now)
         Ok(json)
 
-      case GET -> Root / "service" / "error" / "history" =>
+      case GET -> Root / "errors" =>
         val json = for {
           now <- serviceParams.zonedNow
           panics <- errorHistory.get.map(_.iterator().asScala.toList)
         } yield documents.service_error_history(serviceParams, panics, now)
         Ok(json)
+
+      /*
+       * Service
+       */
+
+      case GET -> Root / "service" / "params" =>
+        Ok(interpretServiceParams(serviceParams))
 
       case GET -> Root / "service" / "stop" =>
         Ok(lifecyclePublisher.service_stop(StopReason.Maintenance).as("Stopping"))
