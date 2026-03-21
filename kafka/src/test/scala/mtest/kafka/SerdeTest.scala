@@ -21,4 +21,17 @@ class SerdeTest extends AnyFunSuite {
     println((k, v))
   }
 
+  test("null - deserialize") {
+    val s1 = Structured[GenericRecord].become[Foo]
+    assertThrows[NullPointerException](ctx.asValue(s1).serde.deserializer().deserialize("t", null))
+    val s2 = Structured[GenericRecord].option.become[Option[Foo]].orNull
+    assert(ctx.asValue(s2).serde.deserializer().deserialize("t", null) == null)
+  }
+
+  test("null - serialize") {
+    val s1 = Structured[GenericRecord].become[Foo]
+    assertThrows[NullPointerException](ctx.asValue(s1).serde.serializer().serialize("t", null))
+    val s2 = Structured[GenericRecord].option.become[Option[Foo]].orNull
+    assert(ctx.asValue(s2).serde.serializer().serialize("t", null) == null)
+  }
 }
