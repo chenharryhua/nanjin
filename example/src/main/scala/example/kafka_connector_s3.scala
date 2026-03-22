@@ -7,7 +7,7 @@ import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTrav
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
+import com.github.chenharryhua.nanjin.kafka.connector.PullException
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicName}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import fs2.Pipe
@@ -24,7 +24,7 @@ object kafka_connector_s3 {
   val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)
 
   private type CCR =
-    CommittableConsumerRecord[IO, Unit, Either[PullGenericRecordException, GenericData.Record]]
+    CommittableConsumerRecord[IO, Unit, Either[PullException, GenericData.Record]]
 
   private def logMetrics(mtx: MetricsHub[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {

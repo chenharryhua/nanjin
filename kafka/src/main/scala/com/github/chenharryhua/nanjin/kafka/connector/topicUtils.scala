@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange
 import fs2.Stream
 import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.common.TopicPartition
 
 private object topicUtils {
@@ -119,19 +119,13 @@ private object topicUtils {
   def circumscribed_generic_record_stream[F[_]](
     client: KafkaConsume[F, Array[Byte], Array[Byte]],
     ranges: TopicPartitionMap[OffsetRange],
-    pull: PullGenericRecord)
-    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+    pull: PullGenericRecord): Stream[F, CircumscribedStream[F, Unit, Either[PullException, Record]]] =
     client.partitionsMapStream.map { pms =>
-      val streams: Map[
-        PartitionRange,
-        Stream[
-          F,
-          CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]]] =
+      val streams
+        : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
         pms.toList.mapFilter { case (tp, stream) =>
           ranges.get(tp).map { offsetRange =>
-            val sgr: Stream[
-              F,
-              CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+            val sgr: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
               stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).mapChunks { crs =>
                 crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
               }
@@ -140,14 +134,12 @@ private object topicUtils {
           }
         }.toMap
 
-      new CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]] {
+      new CircumscribedStream[F, Unit, Either[PullException, Record]] {
         override def stopConsuming: F[Unit] =
           client.stopConsuming
         override def partitionsMapStream: Map[
           PartitionRange,
-          Stream[
-            F,
-            CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]]] =
+          Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
           streams
       }
     }

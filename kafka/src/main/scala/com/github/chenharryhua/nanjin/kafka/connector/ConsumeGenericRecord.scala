@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName, 
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
@@ -26,7 +26,7 @@ final class ConsumeGenericRecord[F[_]: Async](
   schemaPair: OptionalAvroSchemaPair,
   fromSchemaRegistry: F[OptionalAvroSchemaPair],
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
-) extends ConsumerService[F, Unit, Either[PullGenericRecordException, GenericData.Record]]
+) extends ConsumerService[F, Unit, Either[PullException, Record]]
     with UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeGenericRecord[F]]
     with HasProperties {
 
@@ -45,45 +45,51 @@ final class ConsumeGenericRecord[F[_]: Async](
    * Generic Record
    */
 
-  private def toGenericRecordStream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])
-    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  private def partitions_map_stream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]]): Stream[
+    F,
+    Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
       val schema = schemaPair.read(broker).toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
-      kc.partitionsMapStream.flatMap {
-        _.toList.map { case (_, stream) =>
-          stream.mapChunks { crs =>
-            crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
-          }
-        }.parJoinUnbounded
+      kc.partitionsMapStream.map {
+        _.map { case (tp, stream) =>
+          tp -> stream.mapChunks(_.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record))))
+        }.toMap
       }
     }
+
+  override lazy val partitionsMapStream: Stream[
+    F,
+    Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
+    KafkaConsumer
+      .stream(consumerSettings)
+      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
+      .flatMap(partitions_map_stream)
 
   /*
    * subscribe
    */
 
-  lazy val subscribe
-    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override lazy val subscribe: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .flatMap(toGenericRecordStream)
+      .flatMap(partitions_map_stream)
+      .flatMap(_.toList.map(_._2).parJoinUnbounded)
 
   /*
    * assign
    */
 
-  lazy val assign
-    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override lazy val assign: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.assign(topicName.value))
-      .flatMap(toGenericRecordStream)
+      .flatMap(partitions_map_stream)
+      .flatMap(_.toList.map(_._2).parJoinUnbounded)
 
-  def assign(partitionOffsets: Map[Int, Long]): Stream[
-    F,
-    CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] = {
+  override def assign(partitionOffsets: Map[Int, Long])
+    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] = {
     val start_offsets: Map[TopicPartition, Long] =
       partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
@@ -96,12 +102,13 @@ final class ConsumeGenericRecord[F[_]: Async](
             c.assign(topic_partition) *>
               start_offsets.toList.traverse { case (p, o) => c.seek(p, o) }
           }
-          .flatMap(toGenericRecordStream)
+          .flatMap(partitions_map_stream)
+          .flatMap(_.toList.map(_._2).parJoinUnbounded)
     }
   }
 
-  def assign(time: Instant)
-    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override def assign(
+    time: Instant): Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap { c =>
@@ -120,14 +127,15 @@ final class ConsumeGenericRecord[F[_]: Async](
           }
         } yield ()
       }
-      .flatMap(toGenericRecordStream)
+      .flatMap(partitions_map_stream)
+      .flatMap(_.toList.map(_._2).parJoinUnbounded)
 
   /*
    * manual commit stream
    */
 
-  lazy val manualCommitStream
-    : Stream[F, ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override lazy val manualCommitStream
+    : Stream[F, ManualCommitStream[F, Unit, Either[PullException, Record]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
       val schema = schemaPair.read(broker).toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
@@ -136,7 +144,7 @@ final class ConsumeGenericRecord[F[_]: Async](
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
         .flatMap(kc =>
           kc.partitionsMapStream.map { pms =>
-            new ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]] {
+            new ManualCommitStream[F, Unit, Either[PullException, Record]] {
               override def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit] =
                 ReaderT(kc.commitSync)
 
@@ -145,15 +153,10 @@ final class ConsumeGenericRecord[F[_]: Async](
 
               override def partitionsMapStream: Map[
                 TopicPartition,
-                Stream[
-                  F,
-                  CommittableConsumerRecord[
-                    F,
-                    Unit,
-                    Either[PullGenericRecordException, GenericData.Record]]]] =
+                Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
                 TopicPartitionMap(pms)
-                  .mapValues(_.mapChunks { crs =>
-                    crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
+                  .mapValues(_.mapChunks {
+                    _.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
                   })
                   .value
             }
@@ -165,7 +168,7 @@ final class ConsumeGenericRecord[F[_]: Async](
    */
 
   private def circumscribed(or: Either[DateTimeRange, Map[Int, (Long, Long)]])
-    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+    : Stream[F, CircumscribedStream[F, Unit, Either[PullException, Record]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
       ranges <- Stream.eval(topicUtils.get_offset_range(kc, topicName, or))
@@ -181,11 +184,11 @@ final class ConsumeGenericRecord[F[_]: Async](
         }
     } yield stream
 
-  def circumscribedStream(dateTimeRange: DateTimeRange)
-    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override def circumscribedStream(
+    dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, Unit, Either[PullException, Record]]] =
     circumscribed(Left(dateTimeRange))
 
-  def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)])
-    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  override def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)])
+    : Stream[F, CircumscribedStream[F, Unit, Either[PullException, Record]]] =
     circumscribed(Right(partitionOffsets))
 }

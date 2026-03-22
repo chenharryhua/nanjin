@@ -48,6 +48,8 @@ trait ManualCommitStream[F[_], K, V] {
 trait ConsumerService[F[_], K, V] {
   def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]]
 
+  def partitionsMapStream: Stream[F, Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]]
+
   def assign: Stream[F, CommittableConsumerRecord[F, K, V]]
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]]
   def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]]
