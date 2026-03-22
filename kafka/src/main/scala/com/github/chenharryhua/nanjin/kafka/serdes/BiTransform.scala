@@ -62,8 +62,8 @@ object BiTransform:
       override def from(b: B): A = iso.reverseGet(b)
 
   given [A, B](using ab: BiTransform[A, B]): BiTransform[Option[A], Option[B]] =
-    new BiTransform[Option[A], Option[B]] {
+    new BiTransform[Option[A], Option[B]]:
       override def to(a: Option[A]): Option[B] = a.map(ab.to)
       override def from(b: Option[B]): Option[A] = b.map(ab.from)
-    }
+
 end BiTransform
