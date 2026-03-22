@@ -15,39 +15,48 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.control.NonFatal
 
-final case class PullGenericRecordException(metaInfo: MetaInfo, exception: Throwable)
+final case class PullException(metaInfo: MetaInfo, exception: Throwable)
     extends Exception(metaInfo.asJson.noSpaces, exception)
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = "place.holder"
 
-  private def getDecoder(skm: Schema)(data: Array[Byte]): Any =
+  private def getDecoder(skm: Schema): Array[Byte] => Any =
     skm.getType match {
       case Schema.Type.RECORD =>
         val reader = new GenericDatumReader[GenericData.Record](skm)
-        if data eq null then null
-        else {
-          // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, then skip first 5 bytes
-          val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
-          reader.read(null, decoder)
-        }
+        (data: Array[Byte]) =>
+          if data eq null then null
+          else
+            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, then skip first 5 bytes
+            val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+            reader.read(null, decoder)
+
       case Schema.Type.STRING =>
-        Serdes.String().deserializer().deserialize(topic, data)
+        val deSer = Serdes.String().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.BYTES =>
-        Serdes.ByteArray().deserializer().deserialize(topic, data)
+        val deSer = Serdes.ByteArray().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.INT =>
-        Serdes.Integer().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Integer().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.LONG =>
-        Serdes.Long().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Long().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.FLOAT =>
-        Serdes.Float().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Float().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.DOUBLE =>
-        Serdes.Double().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Double().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.BOOLEAN =>
-        Serdes.Boolean().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Boolean().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case Schema.Type.NULL =>
-        Serdes.Void().deserializer().deserialize(topic, data)
+        val deSer = Serdes.Void().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
       case us => sys.error(s"unsupported schema: ${us.toString}")
     }
 
@@ -55,7 +64,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
 
   private val headerSchema = SchemaFor[NJHeader].schema
-  def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullGenericRecordException, GenericData.Record] =
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullException, GenericData.Record] =
     try {
       val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
         val header = new GenericData.Record(headerSchema)
@@ -77,10 +86,10 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       record.put("headers", headers.toSeq.asJava)
       Right(record)
     } catch {
-      case NonFatal(ex) => Left(PullGenericRecordException(MetaInfo(ccr), ex))
+      case NonFatal(ex) => Left(PullException(MetaInfo(ccr), ex))
     }
 
   def toGenericRecord(
-    ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullGenericRecordException, GenericData.Record] =
+    ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullException, GenericData.Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }

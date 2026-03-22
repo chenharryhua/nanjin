@@ -2,15 +2,14 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
 import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.Async
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.given
+import com.github.chenharryhua.nanjin.kafka.{TopicName, given}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -33,27 +32,24 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
 
-  /*
-   * client
-   */
-
-  lazy val clientR: Resource[F, KafkaConsumer[F, K, V]] =
-    KafkaConsumer.resource(consumerSettings)
-
-  lazy val clientS: Stream[F, KafkaConsumer[F, K, V]] =
+  private lazy val clientS: Stream[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.stream(consumerSettings)
 
   /*
    * Records
    */
 
-  lazy val subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  override lazy val subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
-  lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  override lazy val partitionsMapStream
+    : Stream[F, Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]] =
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.partitionsMapStream)
+
+  override lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
-  def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
+  override def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
     val topic_offset: Map[TopicPartition, Long] =
       partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
@@ -70,7 +66,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
     }
   }
 
-  def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]] =
+  override def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap { c =>
@@ -95,7 +91,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * manual commit stream
    */
 
-  lazy val manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
+  override lazy val manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -131,9 +127,10 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
         }
     } yield stream
 
-  def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]] =
+  override def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]] =
     circumscribed(Left(dateTimeRange))
 
-  def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]] =
+  override def circumscribedStream(
+    partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]] =
     circumscribed(Right(partitionOffsets))
 }

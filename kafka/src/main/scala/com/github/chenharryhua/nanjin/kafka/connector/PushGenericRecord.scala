@@ -19,70 +19,77 @@ final private class PushGenericRecord(
 
   private val topic: String = topicName.value
 
-  private def getEncoder(skm: Schema)(data: AnyRef): Array[Byte] =
-    skm.getType match {
+  private def getEncoder(skm: Schema): AnyRef => Array[Byte] = {
+    skm.getType match
       case Schema.Type.RECORD =>
         val ser = new KafkaAvroSerializer()
         ser.configure(srs.config.asJava, true)
         // java world
-        data match {
+        (_: AnyRef) match {
           case null              => null
           case gr: GenericRecord =>
-            immigrate(pair.key.rawSchema(), gr) match {
+            immigrate(pair.key.rawSchema(), gr) match
               case Success(value) => ser.serialize(topic, value)
               case Failure(ex)    => throw new Exception("unable immigrate key", ex) // scalafix:ok
-            }
           case other =>
-            throw new Exception(s"${other.getClass.getName} (key) is not Generic Record") // scalafix:ok
+            throw new Exception(s"${other.getClass.getName} is not a Generic Record") // scalafix:ok
         }
       case Schema.Type.STRING =>
-        data match {
+        val ser = Serdes.String().serializer()
+        (_: AnyRef) match
           case null         => null
-          case data: String => Serdes.String().serializer().serialize(topic, data)
-          case _            => sys.error("not a string")
-        }
+          case data: String => ser.serialize(topic, data)
+          case unknown      => sys.error(s"${unknown.getClass.getName} not a String")
+
       case Schema.Type.BYTES =>
-        data match {
+        val ser = Serdes.ByteArray().serializer()
+        (_: AnyRef) match
           case null              => null
-          case data: Array[Byte] => Serdes.ByteArray().serializer().serialize(topic, data)
-          case _                 => sys.error("not an Array[Byte]")
-        }
+          case data: Array[Byte] => ser.serialize(topic, data)
+          case unknown           => sys.error(s"${unknown.getClass.getName} not an Array[Byte]")
+
       case Schema.Type.INT =>
-        data match {
+        val ser = Serdes.Integer().serializer()
+        (_: AnyRef) match
           case null                    => null
-          case data: java.lang.Integer => Serdes.Integer().serializer().serialize(topic, data)
-          case _                       => sys.error("not a java.lang.Integer")
-        }
+          case data: java.lang.Integer => ser.serialize(topic, data)
+          case unknown                 => sys.error(s"${unknown.getClass.getName} not a java.lang.Integer")
+
       case Schema.Type.LONG =>
-        data match {
+        val ser = Serdes.Long().serializer()
+        (_: AnyRef) match
           case null                 => null
-          case data: java.lang.Long => Serdes.Long().serializer().serialize(topic, data)
-          case _                    => sys.error("not a java.lang.Long")
-        }
+          case data: java.lang.Long => ser.serialize(topic, data)
+          case unknown              => sys.error(s"${unknown.getClass.getName} not a java.lang.Long")
+
       case Schema.Type.FLOAT =>
-        data match {
+        val ser = Serdes.Float().serializer()
+        (_: AnyRef) match
           case null                  => null
-          case data: java.lang.Float => Serdes.Float().serializer().serialize(topic, data)
-          case _                     => sys.error("not a java.lang.Float")
-        }
+          case data: java.lang.Float => ser.serialize(topic, data)
+          case unknown               => sys.error(s"${unknown.getClass.getName} not a java.lang.Float")
+
       case Schema.Type.DOUBLE =>
-        data match {
+        val ser = Serdes.Double().serializer()
+        (_: AnyRef) match
           case null                   => null
-          case data: java.lang.Double => Serdes.Double().serializer().serialize(topic, data)
-          case _                      => sys.error("not a java.lang.Double")
-        }
+          case data: java.lang.Double => ser.serialize(topic, data)
+          case unknown                => sys.error(s"${unknown.getClass.getName} is not a java.lang.Double")
+
       case Schema.Type.BOOLEAN =>
-        data match {
+        val ser = Serdes.Boolean().serializer()
+        (_: AnyRef) match
           case null                    => null
-          case data: java.lang.Boolean => Serdes.Boolean().serializer().serialize(topic, data)
-          case _                       => sys.error("not a boolean")
-        }
+          case data: java.lang.Boolean => ser.serialize(topic, data)
+          case unknown                 => sys.error(s"${unknown.getClass.getName} is not a java.lang.Boolean")
+
       case us => sys.error(s"unsupported schema: ${us.toString}")
-    }
+    end match
+  }
 
   private val key_serialize: AnyRef => Array[Byte] = getEncoder(pair.key.rawSchema())
   private val val_serialize: AnyRef => Array[Byte] = getEncoder(pair.value.rawSchema())
-  
+
   /** @param gr
     *   a GenericRecord of NJConsumerRecord
     * @return
