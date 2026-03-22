@@ -60,11 +60,12 @@ final class ConsumeGenericRecord[F[_]: Async](
 
   override lazy val partitionsMapStream: Stream[
     F,
-    Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
+    TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(partitions_map_stream)
+      .map(TopicPartitionMap(_))
 
   /*
    * subscribe
@@ -151,14 +152,12 @@ final class ConsumeGenericRecord[F[_]: Async](
               override def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit] =
                 ReaderT(kc.commitAsync)
 
-              override def partitionsMapStream: Map[
-                TopicPartition,
+              override def partitionsMapStream: TopicPartitionMap[
                 Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
                 TopicPartitionMap(pms)
                   .mapValues(_.mapChunks {
                     _.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
                   })
-                  .value
             }
           })
     }

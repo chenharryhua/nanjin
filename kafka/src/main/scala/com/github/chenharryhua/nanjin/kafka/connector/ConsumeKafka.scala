@@ -9,7 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{TopicName, given}
+import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap, given}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -43,8 +43,9 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
   override lazy val partitionsMapStream
-    : Stream[F, Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]] =
-    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.partitionsMapStream)
+    : Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]] =
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
+      .flatMap(_.partitionsMapStream.map(TopicPartitionMap(_)))
 
   override lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
@@ -105,8 +106,8 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
               ReaderT(kc.commitAsync)
 
             override def partitionsMapStream
-              : Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]] =
-              pms
+              : TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]] =
+              TopicPartitionMap(pms)
           }
         })
 

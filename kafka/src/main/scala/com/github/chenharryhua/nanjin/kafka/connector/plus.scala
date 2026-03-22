@@ -36,10 +36,10 @@ trait ManualCommitStream[F[_], K, V] {
   def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
   def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
 
-  def partitionsMapStream: Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]
+  def partitionsMapStream: TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]
 
   final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    Stream.iterable(partitionsMapStream.values).parJoinUnbounded
+    Stream.iterable(partitionsMapStream.value.values).parJoinUnbounded
 }
 
 /*
@@ -48,7 +48,7 @@ trait ManualCommitStream[F[_], K, V] {
 trait ConsumerService[F[_], K, V] {
   def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]]
 
-  def partitionsMapStream: Stream[F, Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]]
+  def partitionsMapStream: Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]]
 
   def assign: Stream[F, CommittableConsumerRecord[F, K, V]]
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]]
