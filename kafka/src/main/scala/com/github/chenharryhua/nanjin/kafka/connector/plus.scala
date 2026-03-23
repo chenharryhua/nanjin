@@ -20,13 +20,13 @@ import java.time.Instant
 trait CircumscribedStream[F[_], K, V] {
   def stopConsuming: F[Unit]
 
-  def partitionsMapStream: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]]
+  def rangedStreams: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]]
 
   final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    Stream.iterable(partitionsMapStream.values).parJoinUnbounded.onFinalize(stopConsuming)
+    Stream.iterable(rangedStreams.values).parJoinUnbounded.onFinalize(stopConsuming)
 
   final def offsets: TopicPartitionMap[OffsetRange] =
-    TopicPartitionMap(partitionsMapStream.keySet.map(pr => pr.topicPartition -> pr.offsetRange))
+    TopicPartitionMap(rangedStreams.keySet.map(pr => pr.topicPartition -> pr.offsetRange))
 }
 
 /*
@@ -36,10 +36,10 @@ trait ManualCommitStream[F[_], K, V] {
   def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
   def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
 
-  def partitionsMapStream: Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]
+  def partitionsMapStream: TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]
 
   final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    Stream.iterable(partitionsMapStream.values).parJoinUnbounded
+    Stream.iterable(partitionsMapStream.treeMap.values).parJoinUnbounded
 }
 
 /*
@@ -48,7 +48,7 @@ trait ManualCommitStream[F[_], K, V] {
 trait ConsumerService[F[_], K, V] {
   def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]]
 
-  def partitionsMapStream: Stream[F, Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]]]
+  def partitionsMapStream: Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]]
 
   def assign: Stream[F, CommittableConsumerRecord[F, K, V]]
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]]

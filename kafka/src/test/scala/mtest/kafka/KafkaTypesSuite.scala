@@ -109,7 +109,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     val b = TopicPartitionMap(Map(tp1 -> Offset(3), tp3 -> Offset(8)))
 
     val intersected = a.intersectCombine(b)((x, y) => x.value + y.value)
-    assertEquals(intersected.value.keySet, Set(tp1))
+    assertEquals(intersected.treeMap.keySet, Set(tp1))
     assertEquals(intersected.get(tp1), Some(8L))
 
     val left = a.leftCombine(b)((x, y) => Some(x.value - y.value))
@@ -122,7 +122,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     val tp2 = new TopicPartition("t1", 1)
     val mapOpt = TopicPartitionMap(Map(tp1 -> Some(5), tp2 -> None))
     val flat = mapOpt.flatten
-    assertEquals(flat.value.keySet, Set(tp1))
+    assertEquals(flat.treeMap.keySet, Set(tp1))
     assertEquals(flat.get(tp1), Some(5))
   }
 

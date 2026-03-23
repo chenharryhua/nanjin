@@ -47,7 +47,7 @@ final class ConsumeGenericRecord[F[_]: Async](
 
   private def partitions_map_stream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]]): Stream[
     F,
-    Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
+    TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
       val schema = schemaPair.read(broker).toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
@@ -55,12 +55,12 @@ final class ConsumeGenericRecord[F[_]: Async](
         _.map { case (tp, stream) =>
           tp -> stream.mapChunks(_.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record))))
         }.toMap
-      }
+      }.map(TopicPartitionMap(_))
     }
 
   override lazy val partitionsMapStream: Stream[
     F,
-    Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
+    TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -75,7 +75,7 @@ final class ConsumeGenericRecord[F[_]: Async](
       .stream(consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(partitions_map_stream)
-      .flatMap(_.toList.map(_._2).parJoinUnbounded)
+      .flatMap(_.values.parJoinUnbounded)
 
   /*
    * assign
@@ -86,7 +86,7 @@ final class ConsumeGenericRecord[F[_]: Async](
       .stream(consumerSettings)
       .evalTap(_.assign(topicName.value))
       .flatMap(partitions_map_stream)
-      .flatMap(_.toList.map(_._2).parJoinUnbounded)
+      .flatMap(_.values.parJoinUnbounded)
 
   override def assign(partitionOffsets: Map[Int, Long])
     : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] = {
@@ -103,7 +103,7 @@ final class ConsumeGenericRecord[F[_]: Async](
               start_offsets.toList.traverse { case (p, o) => c.seek(p, o) }
           }
           .flatMap(partitions_map_stream)
-          .flatMap(_.toList.map(_._2).parJoinUnbounded)
+          .flatMap(_.values.parJoinUnbounded)
     }
   }
 
@@ -128,7 +128,7 @@ final class ConsumeGenericRecord[F[_]: Async](
         } yield ()
       }
       .flatMap(partitions_map_stream)
-      .flatMap(_.toList.map(_._2).parJoinUnbounded)
+      .flatMap(_.values.parJoinUnbounded)
 
   /*
    * manual commit stream
@@ -151,14 +151,12 @@ final class ConsumeGenericRecord[F[_]: Async](
               override def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit] =
                 ReaderT(kc.commitAsync)
 
-              override def partitionsMapStream: Map[
-                TopicPartition,
+              override def partitionsMapStream: TopicPartitionMap[
                 Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
                 TopicPartitionMap(pms)
                   .mapValues(_.mapChunks {
                     _.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
                   })
-                  .value
             }
           })
     }

@@ -65,8 +65,10 @@ final case class NJConsumerRecord[K, V](
       key = key,
       value = value)
 
-  def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.into[JavaConsumerRecord[K, V]].transform
-  def toConsumerRecord: ConsumerRecord[K, V] = this.into[ConsumerRecord[K, V]].transform
+  def toJavaConsumerRecord(using Null <:< K, Null <:< V): JavaConsumerRecord[K, V] =
+    this.into[JavaConsumerRecord[K, V]].transform
+  def toConsumerRecord(using Null <:< K, Null <:< V): ConsumerRecord[K, V] =
+    this.into[ConsumerRecord[K, V]].transform
 
   def zoned(zoneId: ZoneId): ZonedConsumerRecord[K, V] =
     this.into[ZonedConsumerRecord[K, V]]
@@ -124,7 +126,7 @@ object NJConsumerRecord {
         leaderEpoch = src.leaderEpoch().toScala.map(_.toInt)
       )
 
-  given [K, V]: Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
+  given [K, V](using Null <:< K, Null <:< V): Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       new JavaConsumerRecord[K, V](
         src.topic,
@@ -139,8 +141,8 @@ object NJConsumerRecord {
         src.serializedKeySize,
         src.serializedValueSize,
 
-        src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
-        src.value.getOrElse(null.asInstanceOf[V]), // scalafix:ok
+        src.key.orNull,
+        src.value.orNull,
 
         new RecordHeaders(src.headers.map(_.into[JavaHeader].transform).toArray),
         src.leaderEpoch.map(Integer.valueOf).toJava
@@ -170,7 +172,7 @@ object NJConsumerRecord {
       )
     }
 
-  given [K, V]: Transformer[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  given [K, V](using Null <:< K, Null <:< V): Transformer[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       Cont
         .pure(
@@ -178,10 +180,8 @@ object NJConsumerRecord {
             topic = src.topic,
             partition = src.partition,
             offset = src.offset,
-
-            key = src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
-            value = src.value.getOrElse(null.asInstanceOf[V]) // scalafix:ok
-
+            key = src.key.orNull,
+            value = src.value.orNull
           ).withTimestamp(src.timestampType match {
             case JavaTimestampType.CREATE_TIME.id =>
               Timestamp.createTime(src.timestamp)

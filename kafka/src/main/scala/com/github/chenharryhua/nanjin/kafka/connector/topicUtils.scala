@@ -90,7 +90,7 @@ private object topicUtils {
     client: KafkaConsumer[F, K, V],
     ranges: TopicPartitionMap[OffsetRange]): F[Boolean] =
     NonEmptySet
-      .fromSet(ranges.value.keySet)
+      .fromSet(ranges.treeMap.keySet)
       .traverse(tps =>
         client.assign(tps) *> tps.toNonEmptyList.toList.traverse(tp =>
           ranges.get(tp).traverse(or => client.seek(tp, or.from))))
@@ -111,7 +111,7 @@ private object topicUtils {
       new CircumscribedStream[F, K, V] {
         override def stopConsuming: F[Unit] =
           client.stopConsuming
-        override def partitionsMapStream: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]] =
+        override def rangedStreams: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]] =
           streams
       }
     }
@@ -137,7 +137,7 @@ private object topicUtils {
       new CircumscribedStream[F, Unit, Either[PullException, Record]] {
         override def stopConsuming: F[Unit] =
           client.stopConsuming
-        override def partitionsMapStream: Map[
+        override def rangedStreams: Map[
           PartitionRange,
           Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
           streams

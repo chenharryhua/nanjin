@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.{TreeMap, TreeSet}
 import scala.jdk.CollectionConverters.*
 
 opaque type TopicPartitionMap[V] = TreeMap[TopicPartition, V]
@@ -14,11 +14,15 @@ object TopicPartitionMap:
   def apply[V](value: TreeMap[TopicPartition, V]): TopicPartitionMap[V] = value
   def apply[V](it: IterableOnce[(TopicPartition, V)]): TopicPartitionMap[V] =
     TreeMap.from(it)
+
   def empty[V]: TopicPartitionMap[V] = TreeMap.empty
   val emptyOffset: TopicPartitionMap[Offset] = empty[Offset]
 
   extension [V](m: TopicPartitionMap[V])
-    inline def value: TreeMap[TopicPartition, V] = m
+    inline def treeMap: TreeMap[TopicPartition, V] = m
+    def keySet: TreeSet[TopicPartition] = m.keySet
+    def values: List[V] = m.values.toList
+
     def nonEmpty: Boolean = m.nonEmpty
     def isEmpty: Boolean = m.isEmpty
     def get(tp: TopicPartition): Option[V] = m.get(tp)
@@ -32,7 +36,7 @@ object TopicPartitionMap:
       TreeMap.from(m.map { case (k, v) => k -> f(k, v) })
 
     def intersectCombine[U, W](other: TopicPartitionMap[U])(fn: (V, U) => W): TopicPartitionMap[W] =
-      val res = m.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
+      val res = m.keySet.intersect(other.keySet).toList.flatMap { tp =>
         (m.get(tp), other.get(tp)).mapN((f, s) => tp -> fn(f, s))
       }
       TreeMap.from(res)
@@ -47,12 +51,12 @@ object TopicPartitionMap:
       TreeMap.from(m.flatMap { case (k, v) => ev(v).map(k -> _) })
 
     def topicPartitions: TopicPartitionList =
-      TopicPartitionList(m.keys.toList)
+      TopicPartitionList(keySet.toList)
 
   given [V: Encoder]: Encoder[TopicPartitionMap[V]] =
     (a: TopicPartitionMap[V]) =>
       Encoder.encodeList[Json].apply(
-        a.value.map { case (tp, v) =>
+        a.map { case (tp, v) =>
           Json.obj(
             "topic" -> Json.fromString(tp.topic()),
             "partition" -> Json.fromInt(tp.partition()),
@@ -83,6 +87,8 @@ object TopicPartitionList:
 
   extension (tpl: TopicPartitionList)
     inline def value: List[TopicPartition] = tpl
+    def toSet: Set[TopicPartition] = tpl.toSet
+
     def javaTimed(ldt: NJTimestamp): java.util.Map[TopicPartition, java.lang.Long] =
       tpl.map(tp => tp -> ldt.javaLong).toMap.asJava
 
@@ -90,7 +96,7 @@ object TopicPartitionList:
 
   given Codec[TopicPartitionList] = new Codec[TopicPartitionList] {
     override def apply(a: TopicPartitionList): Json =
-      Encoder.encodeList[TopicPartition].apply(a.value.sortBy(_.partition()))
+      Encoder.encodeList[TopicPartition].apply(a.sortBy(_.partition()))
     override def apply(c: HCursor): Decoder.Result[TopicPartitionList] =
       Decoder.decodeList[TopicPartition].apply(c).map(TopicPartitionList(_))
   }

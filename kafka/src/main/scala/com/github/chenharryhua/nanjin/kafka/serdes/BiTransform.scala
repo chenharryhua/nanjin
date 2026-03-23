@@ -1,14 +1,17 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.schema.KafkaJsonSchema
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
 import io.circe.{Json, Printer}
+import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.scalaland.chimney.Iso as ChimneyIso
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import monocle.Iso as MonocleIso
+
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
@@ -36,8 +39,11 @@ object BiTransform:
 
   given [B: ClassTag]: BiTransform[JsonNode, B] =
     new BiTransform[JsonNode, B]:
+      private val schema: JsonSchema = summon[KafkaJsonSchema[B]].schema
+
       override def to(a: JsonNode): B = globalObjectMapper.convertValue[B](a)
-      override def from(b: B): JsonNode = globalObjectMapper.valueToTree[JsonNode](b)
+      override def from(b: B): JsonNode =
+        JsonSchemaUtils.envelope(schema, globalObjectMapper.valueToTree[JsonNode](b))
   end given
 
   given BiTransform[ByteBuffer, Json] =
@@ -62,8 +68,8 @@ object BiTransform:
       override def from(b: B): A = iso.reverseGet(b)
 
   given [A, B](using ab: BiTransform[A, B]): BiTransform[Option[A], Option[B]] =
-    new BiTransform[Option[A], Option[B]] {
+    new BiTransform[Option[A], Option[B]]:
       override def to(a: Option[A]): Option[B] = a.map(ab.to)
       override def from(b: Option[B]): Option[A] = b.map(ab.from)
-    }
+
 end BiTransform

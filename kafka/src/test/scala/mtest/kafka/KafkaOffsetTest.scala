@@ -66,10 +66,10 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     )
     val res = ktp.map((_, v) => v.map(_.timestamp()))
 
-    assert(res.value == expected)
-    assert(ktp.topicPartitions.value.toSet == expected.keySet)
-    assert(ktp.mapValues(_.map(Offset(_))).value.values.size == 3)
-    assert(ktp.mapValues(_.map(Offset(_))).flatten.value.values.toList.map(_.value).toSet == Set(0, 1))
+    assert(res.treeMap == expected)
+    assert(ktp.topicPartitions.toSet == expected.keySet)
+    assert(ktp.mapValues(_.map(Offset(_))).treeMap.values.size == 3)
+    assert(ktp.mapValues(_.map(Offset(_))).flatten.treeMap.values.toList.map(_.value).toSet == Set(0, 1))
   }
 
   test("intersect combine") {
@@ -84,7 +84,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
         new TopicPartition("topic", 1) -> 1
       ))
 
-    val res = k1.intersectCombine(k2)((r, l) => r + l).value
+    val res = k1.intersectCombine(k2)((r, l) => r + l).treeMap
     assert(res.size == 1)
     assert(res.get(new TopicPartition("topic", 0)).contains(0))
   }
@@ -101,13 +101,13 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
         new TopicPartition("topic", 1) -> 1
       ))
 
-    val res = k1.leftCombine(k2)((l, r) => Some(l + r)).value
+    val res = k1.leftCombine(k2)((l, r) => Some(l + r)).treeMap
     assert(res.size == 2)
     assert(res(new TopicPartition("topic", 0)).contains(0))
     assert(res(new TopicPartition("topic", 2)).isEmpty)
   }
 
   test("empty offset") {
-    assert(TopicPartitionMap.emptyOffset.value.isEmpty)
+    assert(TopicPartitionMap.emptyOffset.treeMap.isEmpty)
   }
 }
