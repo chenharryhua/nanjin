@@ -76,7 +76,6 @@ object EmailContent:
   import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
   given Encoder[EmailContent] = deriveEncoder
   given Decoder[EmailContent] = deriveDecoder
-  // extends Codec.AsObject
 
 // sqs
 

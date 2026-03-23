@@ -14,7 +14,7 @@ object TopicPartitionMap:
   def apply[V](value: TreeMap[TopicPartition, V]): TopicPartitionMap[V] = value
   def apply[V](it: IterableOnce[(TopicPartition, V)]): TopicPartitionMap[V] =
     TreeMap.from(it)
-    
+
   def empty[V]: TopicPartitionMap[V] = TreeMap.empty
   val emptyOffset: TopicPartitionMap[Offset] = empty[Offset]
 
@@ -87,7 +87,7 @@ object TopicPartitionList:
 
   extension (tpl: TopicPartitionList)
     inline def value: List[TopicPartition] = tpl
-    def toSet: Set[TopicPartition] = tpl.value.toSet
+    def toSet: Set[TopicPartition] = tpl.toSet
 
     def javaTimed(ldt: NJTimestamp): java.util.Map[TopicPartition, java.lang.Long] =
       tpl.map(tp => tp -> ldt.javaLong).toMap.asJava
