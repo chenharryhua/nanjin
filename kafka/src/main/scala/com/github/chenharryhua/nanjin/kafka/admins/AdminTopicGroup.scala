@@ -104,7 +104,7 @@ private[kafka] object AdminTopicGroup {
     override def deleteConsumerGroupOffsets: F[Unit] =
       for {
         tps <- consumerClient.partitionsFor
-        _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet)
+        _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.toSet)
       } yield ()
 
     override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =

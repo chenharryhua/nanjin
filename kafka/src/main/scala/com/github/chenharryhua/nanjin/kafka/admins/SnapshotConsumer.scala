@@ -154,7 +154,7 @@ private[kafka] object SnapshotConsumer {
       execute {
         for {
           end <- kpc.endOffsets
-          rec <- end.value.toList.traverse { case (tp, of) =>
+          rec <- end.treeMap.toList.traverse { case (tp, of) =>
             of.filter(_.value > 0)
               .flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset.asLast))
           }
@@ -165,7 +165,7 @@ private[kafka] object SnapshotConsumer {
       execute {
         for {
           beg <- kpc.beginningOffsets
-          rec <- beg.value.toList.traverse { case (tp, of) =>
+          rec <- beg.treeMap.toList.traverse { case (tp, of) =>
             of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
           }
         } yield rec.flatten.sortBy(_.partition())
@@ -175,7 +175,7 @@ private[kafka] object SnapshotConsumer {
       execute {
         for {
           oft <- kpc.offsetsForTimes(ts)
-          rec <- oft.value.toList.traverse { case (tp, of) =>
+          rec <- oft.treeMap.toList.traverse { case (tp, of) =>
             of.flatTraverse(offset => kpc.retrieveRecord(Partition(tp.partition), offset))
           }
         } yield rec.flatten
@@ -219,7 +219,7 @@ private[kafka] object SnapshotConsumer {
 
     private def offsetsOf(
       offsets: TopicPartitionMap[Option[Offset]]): Map[TopicPartition, OffsetAndMetadata] =
-      offsets.flatten.value.map { case (k, offset) => k -> new OffsetAndMetadata(offset.value) }
+      offsets.flatten.treeMap.map { case (k, offset) => k -> new OffsetAndMetadata(offset.value) }
 
     override val resetOffsetsToBegin: F[Unit] =
       execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))

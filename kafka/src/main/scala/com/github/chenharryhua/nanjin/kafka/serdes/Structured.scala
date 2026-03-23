@@ -18,37 +18,42 @@ object Structured:
 
   given Structured[GenericRecord] = new Structured[GenericRecord]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[GenericRecord] =
-      new Serde[GenericRecord]:
-        override val serializer: Serializer[GenericRecord] = new Serializer[GenericRecord] {
-          private val ser = new KafkaAvroSerializer(srClient)
-          override def serialize(topic: String, data: GenericRecord): Array[Byte] =
-            ser.serialize(topic, data)
+      new Serde[GenericRecord] {
+        override val serializer: Serializer[GenericRecord] =
+          new Serializer[GenericRecord]:
+            private val ser = new KafkaAvroSerializer(srClient)
 
-          override def serialize(topic: String, headers: Headers, data: GenericRecord): Array[Byte] =
-            ser.serialize(topic, headers, data)
+            override def serialize(topic: String, data: GenericRecord): Array[Byte] =
+              ser.serialize(topic, data)
 
-          override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
-            ser.configure(configs, isKey)
+            override def serialize(topic: String, headers: Headers, data: GenericRecord): Array[Byte] =
+              ser.serialize(topic, headers, data)
 
-          override def close(): Unit = ser.close()
-        }
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              ser.configure(configs, isKey)
 
-        override val deserializer: Deserializer[GenericRecord] = new Deserializer[GenericRecord] {
-          private val deSer = new KafkaAvroDeserializer(srClient)
-          override def deserialize(topic: String, data: Array[Byte]): GenericRecord =
-            deSer.deserialize(topic, data) match
-              case null              => null // null first as Kafka semantics (null = tombstone)
-              case gr: GenericRecord => gr
-              case unknown           =>
-                throw new SerializationException(
-                  s"${unknown.getClass.getName} is not a Generic Record"
-                ) // scalafix:ok
+            override def close(): Unit = ser.close()
+        end serializer
 
-          override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
-            deSer.configure(configs, isKey)
+        override val deserializer: Deserializer[GenericRecord] =
+          new Deserializer[GenericRecord]:
+            private val deSer = new KafkaAvroDeserializer(srClient)
 
-          override def close(): Unit = deSer.close()
-        }
+            override def deserialize(topic: String, data: Array[Byte]): GenericRecord =
+              deSer.deserialize(topic, data) match
+                case null              => null // null first as Kafka semantics (null = tombstone)
+                case gr: GenericRecord => gr
+                case unknown           =>
+                  throw new SerializationException(
+                    s"${unknown.getClass.getName} is not a Generic Record"
+                  ) // scalafix:ok
+
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              deSer.configure(configs, isKey)
+
+            override def close(): Unit = deSer.close()
+        end deserializer
+      }
   end given
 
   given Structured[JsonNode] = new Structured[JsonNode]:

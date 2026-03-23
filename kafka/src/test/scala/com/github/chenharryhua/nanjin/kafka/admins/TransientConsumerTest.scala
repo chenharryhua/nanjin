@@ -24,8 +24,8 @@ class TransientConsumerTest extends AnyFunSuite {
     val consumer = mkConsumer(pcs).map(SnapshotConsumer[IO](topicName, _))
     val res = consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime))).unsafeRunSync()
     println(res)
-    assert(res.value.size == 3)
-    assert(res.value.forall(_._2.forall(_.distance == 10)))
+    assert(res.treeMap.size == 3)
+    assert(res.treeMap.forall(_._2.forall(_.distance == 10)))
   }
 
   test("offsetRangeFor - 2") {
@@ -38,8 +38,8 @@ class TransientConsumerTest extends AnyFunSuite {
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
     val consumer = mkConsumer(pcs).map(SnapshotConsumer[IO](topicName, _))
     val res = consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime))).unsafeRunSync()
-    assert(res.value.size == 3)
-    assert(res.value.forall(_._2.forall(_.distance == 10)))
+    assert(res.treeMap.size == 3)
+    assert(res.treeMap.forall(_._2.forall(_.distance == 10)))
   }
 
   test("offsetRangeFor - 3") {
@@ -56,8 +56,8 @@ class TransientConsumerTest extends AnyFunSuite {
       consumer
         .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
         .unsafeRunSync()
-    assert(res.value.size == 3)
-    assert(res.value.forall(_._2.exists(_.distance == 5)))
+    assert(res.treeMap.size == 3)
+    assert(res.treeMap.forall(_._2.exists(_.distance == 5)))
   }
 
   test("offsetRangeFor - 4") {
@@ -71,8 +71,8 @@ class TransientConsumerTest extends AnyFunSuite {
         .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
         .unsafeRunSync()
     println(res)
-    assert(res.value.size == 3)
-    assert(res.value.forall(_._2.exists(_.distance == 10)))
+    assert(res.treeMap.size == 3)
+    assert(res.treeMap.forall(_._2.exists(_.distance == 10)))
   }
 
   test("offsetRangeFor - 5") {
@@ -90,8 +90,8 @@ class TransientConsumerTest extends AnyFunSuite {
         .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
         .unsafeRunSync()
     println(res)
-    assert(res.value.size == 3)
-    assert(res.value.forall(_._2.exists(_.distance == 5)))
+    assert(res.treeMap.size == 3)
+    assert(res.treeMap.forall(_._2.exists(_.distance == 5)))
   }
 
   test("offset for time") {
@@ -108,7 +108,7 @@ class TransientConsumerTest extends AnyFunSuite {
     val res = consumer.flatMap(_.offsetsForTimes(NJTimestamp(1))).unsafeRunSync()
     val expected = TopicPartitionMap(forTime.map { case (tp, of) => tp -> Option(Offset(of)) })
 
-    assert(res.value.size == 3)
+    assert(res.treeMap.size == 3)
     assert(res == expected)
   }
 

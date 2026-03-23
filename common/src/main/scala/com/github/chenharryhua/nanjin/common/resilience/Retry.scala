@@ -13,8 +13,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.JavaDurationOps
 
-/** A `Retry` coordinates repeated execution of effectful computations under a
-  * time-based policy.
+/** A `Retry` coordinates repeated execution of effectful computations under a time-based policy.
   *
   * A retry is governed by two orthogonal concerns:
   *
