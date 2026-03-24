@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.admins
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
 import com.github.chenharryhua.nanjin.kafka.{buildConsumer, Offset, TopicPartitionMap}
@@ -12,7 +12,7 @@ import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.LocalDate
+import java.time.{Instant, LocalDate}
 import com.github.chenharryhua.nanjin.kafka.PureConsumerSettings
 
 class TransientConsumerTest extends AnyFunSuite {
@@ -104,8 +104,7 @@ class TransientConsumerTest extends AnyFunSuite {
         tp2 -> new OffsetAndTimestamp(5, 0))
     val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
     val consumer = mkConsumer(pcs).map(SnapshotConsumer[IO](topicName, _))
-
-    val res = consumer.flatMap(_.offsetsForTimes(NJTimestamp(1))).unsafeRunSync()
+    val res = consumer.flatMap(_.offsetsForTimes(Instant.ofEpochSecond(1))).unsafeRunSync()
     val expected = TopicPartitionMap(forTime.map { case (tp, of) => tp -> Option(Offset(of)) })
 
     assert(res.treeMap.size == 3)

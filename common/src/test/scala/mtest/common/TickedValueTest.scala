@@ -5,7 +5,6 @@ import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import cats.syntax.functor.toFunctorOps
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration

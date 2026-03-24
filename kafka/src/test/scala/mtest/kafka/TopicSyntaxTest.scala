@@ -1,14 +1,14 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.TopicName
-import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import org.apache.avro.generic.GenericRecord
+import org.scalatest.funsuite.AnyFunSuite
 
 class TopicSyntaxTest extends AnyFunSuite {
   test("topic name") {
@@ -29,6 +29,15 @@ class TopicSyntaxTest extends AnyFunSuite {
     val v = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
 
     println((k, v))
+  }
+
+  test("scala primitive") {
+    Primitive[java.lang.Integer].become[Option[Int]]
+    Primitive[java.lang.Long].become[Option[Long]]
+    Primitive[java.lang.Short].become[Option[Short]]
+    Primitive[java.lang.Double].become[Option[Double]]
+    Primitive[java.lang.Float].become[Option[Float]]
+    Primitive[java.lang.Boolean].become[Option[Boolean]]
   }
 
   test("schema-based") {

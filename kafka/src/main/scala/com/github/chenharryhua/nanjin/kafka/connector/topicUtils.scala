@@ -8,9 +8,14 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.traverse.toTraverseOps
 import cats.{Applicative, Monad}
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{
+  Offset,
+  OffsetRange,
+  PartitionRange,
+  TopicName,
+  TopicPartitionMap
+}
 import fs2.Stream
 import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
@@ -26,7 +31,7 @@ private object topicUtils {
       val tps = pis.map(pi => new TopicPartition(pi.topic(), pi.partition()))
 
       val start_offsets: F[TopicPartitionMap[Long]] = {
-        val start_time = dtr.startTimestamp.map(_.milliseconds).getOrElse(0L)
+        val start_time = dtr.start.map(_.toEpochMilli).getOrElse(0L)
         client
           .offsetsForTimes(tps.map(_ -> start_time).toMap)
           .map(TopicPartitionMap(_).flatten.mapValues(_.offset()))
@@ -34,7 +39,7 @@ private object topicUtils {
 
       val end_offsets: F[TopicPartitionMap[Long]] =
         client.endOffsets(tps.toSet).map(TopicPartitionMap(_)).flatMap { topic_end =>
-          dtr.endTimestamp.map(_.milliseconds) match {
+          dtr.end.map(_.toEpochMilli) match {
             case Some(end_time) =>
               client.offsetsForTimes(tps.map(_ -> end_time).toMap).map {
                 TopicPartitionMap(_).intersectCombine(topic_end) {
@@ -92,8 +97,9 @@ private object topicUtils {
     NonEmptySet
       .fromSet(ranges.treeMap.keySet)
       .traverse(tps =>
-        client.assign(tps) *> tps.toNonEmptyList.toList.traverse(tp =>
-          ranges.get(tp).traverse(or => client.seek(tp, or.from))))
+        client.assign(tps) *>
+          tps.toNonEmptyList.toList
+            .traverse(tp => ranges.get(tp).traverse(or => client.seek(tp, or.from))))
       .map(_.traverse(_.flatten).flatten.nonEmpty)
 
   def circumscribed_stream[F[_], K, V](
@@ -126,9 +132,10 @@ private object topicUtils {
         pms.toList.mapFilter { case (tp, stream) =>
           ranges.get(tp).map { offsetRange =>
             val sgr: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
-              stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).mapChunks { crs =>
-                crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
-              }
+              stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true)
+                .mapChunks { crs =>
+                  crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
+                }
 
             PartitionRange(tp, offsetRange) -> sgr
           }

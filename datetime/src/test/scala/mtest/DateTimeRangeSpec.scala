@@ -18,17 +18,16 @@ final class DateTimeRangeSpec extends AnyFunSuite {
   test("empty DateTimeRange is infinite") {
     val dtr = DateTimeRange(utc)
 
-    assert(dtr.startTimestamp.isEmpty)
-    assert(dtr.endTimestamp.isEmpty)
-    assert(dtr.inBetween(0L))
+    assert(dtr.start.isEmpty)
+    assert(dtr.end.isEmpty)
   }
 
   test("withStartTime only") {
     val start = LocalDateTime.parse("2024-01-01T10:00:00")
     val dtr = DateTimeRange(utc).withStartTime(start)
 
-    assert(dtr.startTimestamp.nonEmpty)
-    assert(dtr.endTimestamp.isEmpty)
+    assert(dtr.start.nonEmpty)
+    assert(dtr.end.isEmpty)
     assert(dtr.zonedStartTime.get.toLocalDateTime == start)
   }
 
@@ -36,8 +35,8 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val end = LocalDateTime.parse("2024-01-01T18:00:00")
     val dtr = DateTimeRange(utc).withEndTime(end)
 
-    assert(dtr.startTimestamp.isEmpty)
-    assert(dtr.endTimestamp.nonEmpty)
+    assert(dtr.start.isEmpty)
+    assert(dtr.end.nonEmpty)
     assert(dtr.zonedEndTime.get.toLocalDateTime == end)
   }
 
@@ -48,7 +47,7 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val dtr =
       DateTimeRange(utc).withStartTime(start).withEndTime(end)
 
-    assert(dtr.duration.contains(8.hours))
+    assert(dtr.finiteDuration.contains(8.hours))
   }
 
   // ------------------------------------------------------------
@@ -88,7 +87,7 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val subs = dtr.subranges(1.hour)
 
     assert(subs.size == 3)
-    assert(subs.forall(_.duration.contains(1.hour)))
+    assert(subs.forall(_.finiteDuration.contains(1.hour)))
   }
 
   test("subranges empty for infinite range") {
@@ -106,11 +105,11 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val dtr =
       DateTimeRange(utc).withStartTime(start).withEndTime(end)
 
-    val s = dtr.startTimestamp.get.milliseconds
-    val e = dtr.endTimestamp.get.milliseconds
+    val s = dtr.start.get
+    val e = dtr.end.get
 
     assert(dtr.inBetween(s))
-    assert(dtr.inBetween(s + 1))
+    assert(dtr.inBetween(s.plusSeconds(1)))
     assert(!dtr.inBetween(e))
   }
 
@@ -181,8 +180,8 @@ final class DateTimeRangeSpec extends AnyFunSuite {
 
     val dtr = decode[DateTimeRange](json).toOption.get
 
-    assert(dtr.startTimestamp.nonEmpty)
-    assert(dtr.endTimestamp.isEmpty)
+    assert(dtr.start.nonEmpty)
+    assert(dtr.end.isEmpty)
   }
 
   test("circe round-trip preserves semantics") {
@@ -194,8 +193,8 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val decoded =
       decode[DateTimeRange](original.asJson.noSpaces).toOption.get
 
-    assert(decoded.startTimestamp == original.startTimestamp)
-    assert(decoded.endTimestamp == original.endTimestamp)
+    assert(decoded.start == original.start)
+    assert(decoded.end == original.end)
     assert(decoded.zoneId == original.zoneId)
   }
 }

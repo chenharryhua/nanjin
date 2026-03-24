@@ -16,16 +16,16 @@ import org.apache.kafka.common.header.internals.RecordHeader
 final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject, Eq
 object NJHeader {
 
-  given transformerHeaderNJFs2: Transformer[NJHeader, Header] =
+  given Transformer[NJHeader, Header] =
     (src: NJHeader) => Header(src.key, src.value.toArray)
 
-  implicit val transformHeaderFs2NJ: Transformer[Header, NJHeader] =
+  given Transformer[Header, NJHeader] =
     (src: Header) => NJHeader(src.key(), src.value().toList)
 
-  implicit val transformHeaderJavaNJ: Transformer[JavaHeader, NJHeader] =
+  given Transformer[JavaHeader, NJHeader] =
     (src: JavaHeader) => NJHeader(src.key(), src.value().toList)
 
-  implicit val transformHeaderNJJava: Transformer[NJHeader, JavaHeader] =
+  given Transformer[NJHeader, JavaHeader] =
     (src: NJHeader) => new RecordHeader(src.key, src.value.toArray)
 
   given Transformer[NJHeader, ProtoHeader] =

@@ -116,7 +116,7 @@ private object HtmlTranslator extends all {
 
     val fg = frag(
       tr(th(domain.tag), th(correlation.tag), th(alarm_level.tag)),
-      tr(td(domain.text), td(correlation.text), td(evt.level.entryName))
+      tr(td(domain.text), td(correlation.text), td(alarm_level.text))
     )
 
     div(

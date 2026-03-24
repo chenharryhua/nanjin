@@ -6,7 +6,7 @@ import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
+import com.github.chenharryhua.nanjin.guard.event.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
 trait Counter[F[_]]:

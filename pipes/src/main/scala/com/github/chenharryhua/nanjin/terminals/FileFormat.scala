@@ -1,43 +1,31 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import cats.Show
+import cats.syntax.eq.catsSyntaxEq
+import io.circe.{Decoder, Encoder}
 
-import scala.collection.immutable
-
-sealed abstract class FileFormat(val value: Int, val format: String, val alias: String)
-    extends EnumEntry with Product {
-
-  final def suffix: String = s"$alias.$format"
-
-  final override def entryName: String = suffix
-}
-
-object FileFormat extends Enum[FileFormat] with CatsEnum[FileFormat] with CirceEnum[FileFormat] {
-  override val values: immutable.IndexedSeq[FileFormat] = findValues
-
-  case object Unknown extends FileFormat(-1, "unknown", "unknown")
-
+enum FileFormat(val value: Int, val format: String, val alias: String):
+  case Unknown extends FileFormat(-1, "unknown", "unknown")
   // text
-  case object Jackson extends FileFormat(1, "json", "jackson")
-  case object Circe extends FileFormat(2, "json", "circe")
-  case object Text extends FileFormat(3, "txt", "plain")
-  case object Kantan extends FileFormat(4, "csv", "kantan")
+  case Jackson extends FileFormat(1, "json", "jackson")
+  case Circe extends FileFormat(2, "json", "circe")
+  case Text extends FileFormat(3, "txt", "plain")
+  case Kantan extends FileFormat(4, "csv", "kantan")
 
   // binary
-  case object Parquet extends FileFormat(11, "parquet", "apache")
-  case object Avro extends FileFormat(12, "avro", "data")
-  case object BinaryAvro extends FileFormat(13, "avro", "binary")
-  case object JavaObject extends FileFormat(14, "obj", "java")
-  case object ProtoBuf extends FileFormat(15, "pb", "google")
+  case Parquet extends FileFormat(11, "parquet", "apache")
+  case Avro extends FileFormat(12, "avro", "data")
+  case BinaryAvro extends FileFormat(13, "avro", "binary")
+  case JavaObject extends FileFormat(14, "obj", "java")
+  case ProtoBuf extends FileFormat(15, "pb", "google")
 
-  // types
-  type Jackson = Jackson.type
-  type Circe = Circe.type
-  type Text = Text.type
-  type Kantan = Kantan.type
-  type Parquet = Parquet.type
-  type Avro = Avro.type
-  type BinaryAvro = BinaryAvro.type
-  type JavaObject = JavaObject.type
-  type ProtoBuf = ProtoBuf.type
-}
+  val suffix: String = s"$alias.$format"
+end FileFormat
+
+object FileFormat:
+  given Encoder[FileFormat] = Encoder.encodeString.contramap(_.suffix)
+  given Decoder[FileFormat] = Decoder.decodeString.emap { s =>
+    FileFormat.values.find(_.suffix === s).toRight("invalid FileFormat: $s")
+  }
+  given Show[FileFormat] = _.suffix
+end FileFormat

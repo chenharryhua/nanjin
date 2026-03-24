@@ -2,8 +2,9 @@ package mtest.terminals
 
 import better.files.*
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath}
+import com.github.chenharryhua.nanjin.terminals.RetentionStatus.Retained
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
+import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionStatus}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
@@ -109,5 +110,13 @@ class HadoopTest extends AnyFunSuite {
   test("extract date - year month day should be consecutive") {
     val p1 = path / "Year=2025" / "ooo" / "Month=01" / "Day=30"
     assert(extractDate(p1).isEmpty)
+  }
+
+  test("retention status") {
+    import io.circe.syntax.EncoderOps
+    import cats.syntax.show.given
+    val frs = FolderRetentionStatus(path, Retained)
+    println(frs.asJson)
+    println(frs.status.show)
   }
 }

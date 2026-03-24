@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   makePureConsumer,
   Offset,
@@ -24,14 +24,14 @@ import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 
-import java.time.Duration
+import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.*
 
 sealed trait KafkaConsumerOps[F[_]] {
   def partitionsFor: F[TopicPartitionList]
   def beginningOffsets: F[TopicPartitionMap[Option[Offset]]]
   def endOffsets: F[TopicPartitionMap[Option[Offset]]]
-  def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]]
+  def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]]
 
   def retrieveRecord(
     partition: Partition,
@@ -74,7 +74,7 @@ private object KafkaConsumerOps {
         ret <- kbc.ask.map(_.endOffsets(tps.javaList).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
-    override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
+    override def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map(_.offsetsForTimes(tps.javaTimed(ts)).asScala)
@@ -100,17 +100,17 @@ private object KafkaConsumerOps {
 
 sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
   def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
-  def offsetRangeFor(start: NJTimestamp, end: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]]
+  def offsetRangeFor(start: Instant, end: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
   def offsetRangeForAll: F[TopicPartitionMap[Option[OffsetRange]]]
 
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def numOfRecordsSince(ts: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]]
+  def retrieveRecordsForTimes(ts: Instant): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
+  def numOfRecordsSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
 
   def resetOffsetsToBegin: F[Unit]
   def resetOffsetsToEnd: F[Unit]
-  def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
+  def resetOffsetsForTimes(ts: Instant): F[Unit]
 }
 
 private[kafka] object SnapshotConsumer {
@@ -134,15 +134,13 @@ private[kafka] object SnapshotConsumer {
     override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
       execute {
         for {
-          from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
+          from <- dtr.start.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
           end <- kpc.endOffsets
-          to <- dtr.endTimestamp.traverse(kpc.offsetsForTimes)
+          to <- dtr.end.traverse(kpc.offsetsForTimes)
         } yield calculate.consumer_offsetRange(from, end, to)
       }
 
-    override def offsetRangeFor(
-      start: NJTimestamp,
-      end: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
+    override def offsetRangeFor(start: Instant, end: Instant): F[TopicPartitionMap[Option[OffsetRange]]] =
       execute {
         for {
           from <- kpc.offsetsForTimes(start)
@@ -171,7 +169,7 @@ private[kafka] object SnapshotConsumer {
         } yield rec.flatten.sortBy(_.partition())
       }
 
-    override def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    override def retrieveRecordsForTimes(ts: Instant): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       execute {
         for {
           oft <- kpc.offsetsForTimes(ts)
@@ -189,7 +187,7 @@ private[kafka] object SnapshotConsumer {
         } yield calculate.consumer_offsetRange(beg, end)
       }
 
-    override def numOfRecordsSince(ts: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]] =
+    override def numOfRecordsSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]] =
       execute {
         for {
           oft <- kpc.offsetsForTimes(ts)
@@ -206,7 +204,7 @@ private[kafka] object SnapshotConsumer {
     override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
       execute(kpc.endOffsets)
 
-    override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
+    override def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]] =
       execute(kpc.offsetsForTimes(ts))
 
     override def retrieveRecord(
@@ -227,7 +225,7 @@ private[kafka] object SnapshotConsumer {
     override val resetOffsetsToEnd: F[Unit] =
       execute(kpc.endOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
 
-    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+    override def resetOffsetsForTimes(ts: Instant): F[Unit] =
       execute(kpc.offsetsForTimes(ts).flatMap(x => kpc.commitSync(offsetsOf(x))))
 
     override val metrics: F[Map[MetricName, Metric]] =

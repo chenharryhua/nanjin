@@ -5,11 +5,11 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.{GroupId, LagBehind, Offset, TopicPartitionMap}
 import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
+import java.time.Instant
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
@@ -72,7 +72,7 @@ sealed trait AdminTopicGroup[F[_]] {
     * @return
     *   an effect that resets offsets
     */
-  def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
+  def resetOffsetsForTimes(ts: Instant): F[Unit]
 
 }
 
@@ -122,7 +122,7 @@ private[kafka] object AdminTopicGroup {
     override def resetOffsetsToEnd: F[Unit] =
       consumerClient.resetOffsetsToEnd
 
-    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+    override def resetOffsetsForTimes(ts: Instant): F[Unit] =
       consumerClient.resetOffsetsForTimes(ts)
 
   }

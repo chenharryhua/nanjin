@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.bifunctor.toBifunctorOps
+import cats.syntax.partialOrder.catsSyntaxEq
 import com.github.chenharryhua.nanjin.terminals.Compression.Level
-import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -88,24 +88,17 @@ sealed trait AvroCompression extends Compression {
 }
 
 object Compression {
-  sealed abstract class Level(override val value: Int) extends IntEnumEntry with Product
-
-  object Level
-      extends CatsOrderValueEnum[Int, Level] with IntEnum[Level] with IntCirceEnum[Level]
-      with CatsValueEnum[Int, Level] {
-
-    override val values: IndexedSeq[Level] = findValues
-
-    case object One extends Level(1)
-    case object Two extends Level(2)
-    case object Three extends Level(3)
-    case object Four extends Level(4)
-    case object Five extends Level(5)
-    case object Six extends Level(6)
-    case object Seven extends Level(7)
-    case object Eight extends Level(8)
-    case object Nine extends Level(9)
-  }
+  enum Level(val value: Int):
+    case One extends Level(1)
+    case Two extends Level(2)
+    case Three extends Level(3)
+    case Four extends Level(4)
+    case Five extends Level(5)
+    case Six extends Level(6)
+    case Seven extends Level(7)
+    case Eight extends Level(8)
+    case Nine extends Level(9)
+  end Level
 
   given encoderCompression: Encoder[Compression] =
     Encoder.instance[Compression] {
@@ -124,7 +117,7 @@ object Compression {
 
   private def convertLevel(lvl: String): Either[String, Level] =
     Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
-      .flatMap(Level.withValueEither(_).leftMap(_.getMessage))
+      .flatMap(i => Level.values.find(_.value === i).toRight(s"invalid Compression Level: $i"))
 
   given decoderCompression: Decoder[Compression] =
     Decoder[String].emap[Compression] {

@@ -2,7 +2,6 @@ package mtest
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.datetime.instances.given
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
@@ -16,9 +15,6 @@ class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
 
   checkAll("Date", HashTests[Date].hash)
   checkAll("Date", OrderTests[Date].order)
-
-  checkAll("NJTimestamp", HashTests[NJTimestamp].hash)
-  checkAll("NJTimestamp", OrderTests[NJTimestamp].order)
 
   // checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
 }

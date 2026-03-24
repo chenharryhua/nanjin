@@ -34,8 +34,8 @@ class HttpServerTest extends AnyFunSuite {
           c.expect[String]("http://localhost:9999/service/jvm") >>
           c.expect[String]("http://localhost:9999/service/params") >>
           c.expect[String]("http://localhost:9999/service/health_check") >>
-          c.expect[String]("http://localhost:9999/service/panic/history") >>
-          c.expect[String]("http://localhost:9999/service/error/history") >>
+          c.expect[String]("http://localhost:9999/panics") >>
+          c.expect[String]("http://localhost:9999/errors") >>
           c.expect[String]("http://localhost:9999/service/stop")
       }
       .delayBy(5.seconds)
@@ -72,7 +72,7 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9997/service/panic/history")
+        c.expect[String]("http://localhost:9997/panics")
           .map(j =>
             assert(
               jawn.parse(j).toOption.get.hcursor.downField("history")

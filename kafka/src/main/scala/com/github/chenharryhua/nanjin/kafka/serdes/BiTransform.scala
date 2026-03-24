@@ -7,10 +7,10 @@ import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
 import io.circe.{Json, Printer}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.scalaland.chimney.Iso as ChimneyIso
+import monocle.Iso as MonocleIso
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
-import monocle.Iso as MonocleIso
 
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
@@ -57,6 +57,42 @@ object BiTransform:
         Printer.noSpaces.printToByteBuffer(b)
   end given
 
+  /*
+   * Primitive
+   */
+  given BiTransform[java.lang.Integer, Option[Int]] with
+    override def from(b: Option[Int]): Integer =
+      b.map(Integer.valueOf).orNull
+    override def to(a: java.lang.Integer): Option[Int] = Option(a)
+
+  given BiTransform[java.lang.Long, Option[Long]] with
+    override def from(b: Option[Long]): java.lang.Long =
+      b.map(java.lang.Long.valueOf).orNull
+    override def to(a: java.lang.Long): Option[Long] = Option(a)
+
+  given BiTransform[java.lang.Float, Option[Float]] with
+    override def from(b: Option[Float]): java.lang.Float =
+      b.map(java.lang.Float.valueOf).orNull
+    override def to(a: java.lang.Float): Option[Float] = Option(a)
+
+  given BiTransform[java.lang.Short, Option[Short]] with
+    override def from(b: Option[Short]): java.lang.Short =
+      b.map(java.lang.Short.valueOf).orNull
+    override def to(a: java.lang.Short): Option[Short] = Option(a)
+
+  given BiTransform[java.lang.Double, Option[Double]] with
+    override def from(b: Option[Double]): java.lang.Double =
+      b.map(java.lang.Double.valueOf).orNull
+    override def to(a: java.lang.Double): Option[Double] = Option(a)
+
+  given BiTransform[java.lang.Boolean, Option[Boolean]] with
+    override def from(b: Option[Boolean]): java.lang.Boolean =
+      b.map(java.lang.Boolean.valueOf).orNull
+    override def to(a: java.lang.Boolean): Option[Boolean] = Option(a)
+
+  /*
+   * Generic
+   */
   given [A, B](using iso: ChimneyIso[A, B]): BiTransform[A, B] =
     new BiTransform[A, B]:
       override def to(a: A): B = iso.first.transform(a)

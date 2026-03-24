@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 
+import java.time.Instant
 import scala.collection.immutable.{TreeMap, TreeSet}
 import scala.jdk.CollectionConverters.*
 
@@ -89,8 +89,8 @@ object TopicPartitionList:
     inline def value: List[TopicPartition] = tpl
     def toSet: Set[TopicPartition] = tpl.toSet
 
-    def javaTimed(ldt: NJTimestamp): java.util.Map[TopicPartition, java.lang.Long] =
-      tpl.map(tp => tp -> ldt.javaLong).toMap.asJava
+    def javaTimed(ldt: Instant): java.util.Map[TopicPartition, java.lang.Long] =
+      tpl.map(tp => tp -> java.lang.Long.valueOf(ldt.toEpochMilli)).toMap.asJava
 
     def javaList: java.util.List[TopicPartition] = tpl.asJava
 
