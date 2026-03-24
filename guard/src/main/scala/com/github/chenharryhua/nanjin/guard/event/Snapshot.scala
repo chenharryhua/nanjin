@@ -5,7 +5,8 @@ import cats.effect.kernel.Sync
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
-import io.circe.{Codec, Json}
+import com.github.chenharryhua.nanjin.common.OpaqueLift
+import io.circe.{Codec, Decoder, Encoder, Json}
 import io.circe.jawn.{decode, parse}
 import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
@@ -17,8 +18,28 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 sealed trait MetricElement extends Product { def metricId: MetricID }
 
 object MetricElement {
-  final case class Counter(metricId: MetricID, count: Long) extends MetricElement derives Codec.AsObject
-  final case class Gauge(metricId: MetricID, value: Json) extends MetricElement derives Codec.AsObject
+  opaque type CounterData = Long
+  object CounterData:
+    def apply(c: Long): CounterData = c
+    extension (cd: CounterData) def value: Long = cd
+
+    given Encoder[CounterData] = OpaqueLift.lift[CounterData, Long, Encoder]
+    given Decoder[CounterData] = OpaqueLift.lift[CounterData, Long, Decoder]
+  end CounterData
+
+  final case class Counter(metricId: MetricID, counter: CounterData) extends MetricElement
+      derives Codec.AsObject
+
+  opaque type GaugeData = Json
+  object GaugeData:
+    def apply(js: Json): GaugeData = js
+    extension (gd: GaugeData) def value: Json = gd
+
+    given Encoder[GaugeData] = OpaqueLift.lift[GaugeData, Json, Encoder]
+    given Decoder[GaugeData] = OpaqueLift.lift[GaugeData, Json, Decoder]
+  end GaugeData
+
+  final case class Gauge(metricId: MetricID, gauge: GaugeData) extends MetricElement derives Codec.AsObject
 
   final case class MeterData(
     squants: Squants,
@@ -124,7 +145,10 @@ private[guard] object Snapshot extends duration {
         case (lst, (name, counter)) =>
           decode[MetricID](name) match {
             case Left(_)    => lst
-            case Right(mid) => MetricElement.Counter(metricId = mid, count = counter.getCount) :: lst
+            case Right(mid) =>
+              MetricElement.Counter(
+                metricId = mid,
+                counter = MetricElement.CounterData(counter.getCount)) :: lst
           }
       }
 
@@ -224,7 +248,7 @@ private[guard] object Snapshot extends duration {
                 case Left(_)    => lst
                 case Right(mid) =>
                   parse(gauge.getValue.toString) match {
-                    case Right(json) => MetricElement.Gauge(mid, json) :: lst
+                    case Right(json) => MetricElement.Gauge(mid, MetricElement.GaugeData(json)) :: lst
                     case Left(_)     => lst
                   }
               }

@@ -7,6 +7,7 @@ import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveCounter,
   retrieveHistogram,
@@ -46,7 +47,7 @@ class MetricsTest extends AnyFunSuite {
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.nonEmpty)
-    assert(retrieveCounter(mr.snapshot.counters).values.head == 10)
+    assert(retrieveCounter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieveRiskCounter(mr.snapshot.counters).values.isEmpty)
   }
 
@@ -56,7 +57,7 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("counter")(_.counter("counter", _.asRisk))
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(retrieveRiskCounter(mr.snapshot.counters).values.head == 10)
+    assert(retrieveRiskCounter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
   }
 
@@ -195,9 +196,9 @@ class MetricsTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     assert(mr.snapshot.hasDuplication)
-    val counts: Map[MetricID, Long] = retrieveCounter(mr.snapshot.counters)
-    assert(counts.values.toList.contains(1L))
-    assert(counts.values.toList.contains(2L))
+    val counts: Map[MetricID, CounterData] = retrieveCounter(mr.snapshot.counters)
+    assert(counts.values.toList.map(_.value).contains(1L))
+    assert(counts.values.toList.map(_.value).contains(2L))
   }
 
   test("12.measured.retry - give up") {

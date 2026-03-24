@@ -41,7 +41,7 @@ object ColorScheme:
 
     val counter_color: ColorScheme =
       ss.counters
-        .filter(_.count > 0)
+        .filter(_.counter.value > 0)
         .collect(_.metricId.category match { case Category.Counter(kind) => kind })
         .map {
           case CounterKind.Risk => WarnColor

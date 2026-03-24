@@ -7,7 +7,7 @@ object retrieveHealthChecks {
     gauges.collect { gg =>
       gg.metricId.category match {
         case Category.Gauge(GaugeKind.HealthCheck) =>
-          gg.value.asBoolean.map(gg.metricId -> _)
+          gg.gauge.value.asBoolean.map(gg.metricId -> _)
       }
     }.flatten.toMap
 }
@@ -17,27 +17,27 @@ object retrieveGauge {
     gauges.collect { gg =>
       gg.metricId.category match {
         case Category.Gauge(GaugeKind.Gauge) =>
-          gg.value.as[A].toOption.map(gg.metricId -> _)
+          gg.gauge.value.as[A].toOption.map(gg.metricId -> _)
       }
     }.flatten.toMap
 }
 
 object retrieveCounter {
-  def apply(counters: List[MetricElement.Counter]): Map[MetricID, Long] =
+  def apply(counters: List[MetricElement.Counter]): Map[MetricID, MetricElement.CounterData] =
     counters.collect { tm =>
       tm.metricId.category match {
         case Category.Counter(CounterKind.Counter) =>
-          tm.metricId -> tm.count
+          tm.metricId -> tm.counter
       }
     }.toMap
 }
 
 object retrieveRiskCounter {
-  def apply(counters: List[MetricElement.Counter]): Map[MetricID, Long] =
+  def apply(counters: List[MetricElement.Counter]): Map[MetricID, MetricElement.CounterData] =
     counters.collect { tm =>
       tm.metricId.category match {
         case Category.Counter(CounterKind.Risk) =>
-          tm.metricId -> tm.count
+          tm.metricId -> tm.counter
       }
     }.toMap
 }
