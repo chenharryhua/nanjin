@@ -19,22 +19,22 @@ trait CircuitBreaker[F[_]] {
 }
 
 object CircuitBreaker {
-  sealed trait State extends Product
-  given Encoder[State] = {
-    case State.Closed(failures) =>
-      Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
-    case State.HalfOpen | State.HalfOpenRunning =>
-      Json.obj("state" -> Json.fromString("Half-Open"))
-    case State.Open(rejects) =>
-      Json.obj("state" -> Json.fromString("Open"), "rejects" -> Json.fromInt(rejects))
-  }
+  enum State:
+    case Closed(failures: Int)
+    case HalfOpen
+    case HalfOpenRunning
+    case Open(rejects: Int)
+  end State
 
-  private object State {
-    final case class Closed(failures: Int) extends State
-    case object HalfOpen extends State
-    private[CircuitBreaker] case object HalfOpenRunning extends State
-    final case class Open(rejects: Int) extends State
-  }
+  object State:
+    given Encoder[State] =
+      case State.Closed(failures) =>
+        Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
+      case State.HalfOpen | State.HalfOpenRunning =>
+        Json.obj("state" -> Json.fromString("Half-Open"))
+      case State.Open(rejects) =>
+        Json.obj("state" -> Json.fromString("Open"), "rejects" -> Json.fromInt(rejects))
+  end State
 
   case object RejectedException extends Exception("CircuitBreaker Rejected Exception") with NoStackTrace {
     override def fillInStackTrace(): Throwable = this
@@ -59,22 +59,21 @@ object CircuitBreaker {
 
       override def protect[A](fa: F[A]): F[A] = {
 
-        sealed trait Decision
-        case object Run extends Decision
-        case object Reject extends Decision
+        enum Decision:
+          case Run, Reject
 
         val admit: F[Decision] =
           state.modify {
-            case State.Open(rejects)      => State.Open(rejects + 1) -> Reject
-            case State.HalfOpen           => State.HalfOpenRunning -> Run
-            case State.HalfOpenRunning    => State.HalfOpenRunning -> Reject
-            case closed @ State.Closed(_) => closed -> Run
+            case State.Open(rejects)      => State.Open(rejects + 1) -> Decision.Reject
+            case State.HalfOpen           => State.HalfOpenRunning -> Decision.Run
+            case State.HalfOpenRunning    => State.HalfOpenRunning -> Decision.Reject
+            case closed @ State.Closed(_) => closed -> Decision.Run
           }
 
         admit.flatMap {
-          case Reject => F.raiseError(RejectedException)
+          case Decision.Reject => F.raiseError(RejectedException)
 
-          case Run =>
+          case Decision.Run =>
             F.guaranteeCase(fa) {
               case Outcome.Succeeded(_) =>
                 state.update {

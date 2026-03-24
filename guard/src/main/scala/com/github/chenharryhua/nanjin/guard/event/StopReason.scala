@@ -6,14 +6,13 @@ import cats.syntax.show.toShow
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 
-sealed abstract class StopReason(val exitCode: Int) extends Product
+enum StopReason(val exitCode: Int):
+  case Successfully extends StopReason(0)
+  case Maintenance extends StopReason(1)
+  case ByCancellation extends StopReason(2)
+  case ByException(stackTrace: StackTrace) extends StopReason(3)
 
 object StopReason {
-  case object Successfully extends StopReason(0)
-  case object Maintenance extends StopReason(1)
-  case object ByCancellation extends StopReason(2)
-  final case class ByException(stackTrace: StackTrace) extends StopReason(3)
-
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"

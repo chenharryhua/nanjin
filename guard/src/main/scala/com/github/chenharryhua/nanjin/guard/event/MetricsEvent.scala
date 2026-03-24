@@ -6,27 +6,25 @@ import io.circe.Codec
 
 import java.time.ZonedDateTime
 
-object MetricsEvent {
+object MetricsEvent:
 
-  sealed trait Index extends Product derives Codec.AsObject {
-    def scrapeTime: ZonedDateTime
-  }
+  enum Index derives Codec.AsObject:
+    def scrapeTime: ZonedDateTime =
+      this match
+        case Adhoc(time)    => time
+        case Periodic(tick) => tick.zoned(_.conclude)
 
-  object Index {
-    final case class Adhoc(scrapeTime: ZonedDateTime) extends Index
-    final case class Periodic(tick: Tick) extends Index {
-      override val scrapeTime: ZonedDateTime = tick.zoned(_.conclude)
-    }
-  }
+    case Adhoc(time: ZonedDateTime)
+    case Periodic(tick: Tick)
+  end Index
 
-  sealed trait Kind extends Product derives Codec.AsObject {
+  enum Kind derives Codec.AsObject:
     def policy: Policy
-    final override def toString: String = this.productPrefix
-  }
-  object Kind {
-    final case class Report(policy: Policy) extends Kind
-    final case class Reset(policy: Policy) extends Kind
 
-    given Show[Kind] = Show.fromToString
-  }
-}
+    case Report(policy: Policy)
+    case Reset(policy: Policy)
+
+  object Kind:
+    given Show[Kind] = _.productPrefix
+    
+end MetricsEvent

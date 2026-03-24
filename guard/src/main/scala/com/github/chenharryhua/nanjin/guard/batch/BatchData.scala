@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Show
+import cats.derived.derived
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
@@ -14,21 +15,15 @@ import java.util.UUID
 import scala.util.Try
 import scala.util.matching.Regex
 
-sealed trait JobKind
-object JobKind:
-  case object Quasi extends JobKind
-  case object Value extends JobKind
-  given Show[JobKind] =
-    case Quasi => "quasi" // tolerable - exception will be ignored
-    case Value => "value" // intolerable - exception will be propagated
-end JobKind
+enum JobKind derives Encoder, Show:
+  case Quasi, Value
 
-sealed trait BatchMode
+enum BatchMode:
+  case Parallel(parallelism: Int)
+  case Sequential
+  case Monadic
+
 object BatchMode {
-  final case class Parallel(parallelism: Int) extends BatchMode
-  case object Sequential extends BatchMode
-  case object Monadic extends BatchMode
-
   given Show[BatchMode] = {
     case Parallel(parallelism) => s"parallel-$parallelism"
     case Sequential            => "sequential"

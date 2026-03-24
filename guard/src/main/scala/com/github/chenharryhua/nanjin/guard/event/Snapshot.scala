@@ -90,11 +90,8 @@ object MetricElement {
       derives Codec.AsObject
 }
 
-sealed trait ScrapeMode
-object ScrapeMode {
-  case object Cheap extends ScrapeMode
-  case object Full extends ScrapeMode
-}
+enum ScrapeMode:
+  case Cheap, Full
 
 final case class Snapshot(
   counters: List[MetricElement.Counter],
