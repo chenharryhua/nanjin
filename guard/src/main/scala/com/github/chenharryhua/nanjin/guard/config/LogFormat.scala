@@ -1,18 +1,21 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import com.github.chenharryhua.nanjin.guard.config.LogFormat.findValues
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import cats.Show
+import cats.syntax.all.catsSyntaxEq
+import io.circe.{Decoder, Encoder}
 
-sealed trait LogFormat extends EnumEntry
-object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] with CatsEnum[LogFormat] {
-  override def values: IndexedSeq[LogFormat] = findValues
+enum LogFormat:
+  case Console_PlainText,
+    Console_Json_OneLine,
+    Console_Json_MultiLine,
+    Console_JsonVerbose,
+    Slf4j_PlainText,
+    Slf4j_Json_OneLine,
+    Slf4j_Json_MultiLine
 
-  case object Console_PlainText extends LogFormat
-  case object Console_Json_OneLine extends LogFormat
-  case object Console_Json_MultiLine extends LogFormat
-  case object Console_JsonVerbose extends LogFormat
-
-  case object Slf4j_PlainText extends LogFormat
-  case object Slf4j_Json_OneLine extends LogFormat
-  case object Slf4j_Json_MultiLine extends LogFormat
-}
+object LogFormat:
+  given Encoder[LogFormat] = Encoder.encodeString.contramap(_.productPrefix)
+  given Decoder[LogFormat] = Decoder.decodeString.emap { s =>
+    LogFormat.values.find(_.productPrefix === s).toRight(s"invalid LogFormat: $s")
+  }
+  given Show[LogFormat] = _.productPrefix

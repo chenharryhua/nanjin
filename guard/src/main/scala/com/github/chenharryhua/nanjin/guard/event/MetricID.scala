@@ -5,77 +5,38 @@ import cats.effect.kernel.Clock
 import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
-import enumeratum.{CirceEnum, Enum, EnumEntry}
-import io.circe.{Codec, Encoder}
+import io.circe.{Codec, Decoder, Encoder}
 import monocle.macros.GenPrism
 import squants.{Quantity, UnitOfMeasure}
 
-sealed trait CategoryKind extends EnumEntry with Product
+sealed trait CategoryKind extends Product
 
-object CategoryKind {
-  sealed trait GaugeKind extends CategoryKind
+enum GaugeKind extends CategoryKind derives Encoder, Decoder:
+  case Gauge, HealthCheck, Ratio
 
-  object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] {
-    val values: IndexedSeq[GaugeKind] = findValues
+enum CounterKind extends CategoryKind derives Encoder, Decoder:
+  case Counter, Risk
 
-    case object HealthCheck extends GaugeKind
-    case object Ratio extends GaugeKind
+enum MeterKind extends CategoryKind derives Encoder, Decoder:
+  case Meter
 
-    case object Gauge extends GaugeKind
-  }
+enum HistogramKind extends CategoryKind derives Encoder, Decoder:
+  case Histogram
 
-  sealed trait CounterKind extends CategoryKind
+enum TimerKind extends CategoryKind derives Encoder, Decoder:
+  case Timer
 
-  object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
-    val values: IndexedSeq[CounterKind] = findValues
-
-    case object Risk extends CounterKind
-
-    case object Counter extends CounterKind
-  }
-
-  sealed trait MeterKind extends CategoryKind
-
-  object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] {
-    val values: IndexedSeq[MeterKind] = findValues
-
-    case object Meter extends MeterKind
-  }
-
-  sealed trait HistogramKind extends CategoryKind
-
-  object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
-    val values: IndexedSeq[HistogramKind] = findValues
-
-    case object Histogram extends HistogramKind
-  }
-
-  sealed trait TimerKind extends CategoryKind
-
-  object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] {
-    val values: IndexedSeq[TimerKind] = findValues
-
-    case object Timer extends TimerKind
-  }
-}
+enum Category derives Encoder, Decoder:
+  case Gauge(kind: GaugeKind) extends Category
+  case Counter(kind: CounterKind) extends Category
+  case Meter(kind: MeterKind, squants: Squants) extends Category
+  case Histogram(kind: HistogramKind, squants: Squants) extends Category
+  case Timer(kind: TimerKind) extends Category
 
 final case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
 object Squants {
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)
-}
-
-sealed trait Category extends Product derives Codec.AsObject {
-  def kind: CategoryKind
-}
-object Category {
-  import CategoryKind.*
-
-  final case class Gauge(kind: GaugeKind) extends Category
-  final case class Counter(kind: CounterKind) extends Category
-  final case class Meter(kind: MeterKind, squants: Squants) extends Category
-  final case class Histogram(kind: HistogramKind, squants: Squants) extends Category
-  final case class Timer(kind: TimerKind) extends Category
 }
 
 /** Represents a uniquely identifiable metric within a single JVM runtime.

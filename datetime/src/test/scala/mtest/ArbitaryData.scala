@@ -2,7 +2,6 @@ package mtest
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.newyorkTime
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import java.sql.{Date, Timestamp}
@@ -28,9 +27,6 @@ object ArbitaryData {
   implicit val coLocalTime: Cogen[LocalTime] =
     Cogen[LocalTime]((a: LocalTime) => a.toNanoOfDay)
 
-  implicit val coNJTimestamp: Cogen[NJTimestamp] =
-    Cogen[NJTimestamp]((a: NJTimestamp) => a.milliseconds)
-
   implicit val coOffsetDateTime: Cogen[OffsetDateTime] =
     Cogen[OffsetDateTime]((a: OffsetDateTime) => a.toInstant.getEpochSecond)
 
@@ -46,9 +42,6 @@ object ArbitaryData {
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))
-
-  implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
-    genZonedDateTime.map(d => NJTimestamp(d.toInstant.getEpochSecond)))
 
   implicit val arbOffsetDateTime: Arbitrary[OffsetDateTime] = Arbitrary(
     genZonedDateTimeWithZone(Some(zoneId)).map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))

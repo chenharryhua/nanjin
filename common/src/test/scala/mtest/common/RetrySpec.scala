@@ -2,7 +2,6 @@ package mtest.common
 
 import cats.effect.IO
 import munit.CatsEffectSuite
-import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import java.time.ZoneId
 import scala.collection.mutable

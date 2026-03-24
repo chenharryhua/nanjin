@@ -194,7 +194,7 @@ class NJCirceTest extends AnyFunSuite {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
-      path / ParquetFile(_.Uncompressed).fileName(t))
+      path / CirceFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.circe).compile.drain).unsafeRunSync()

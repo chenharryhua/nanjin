@@ -1,38 +1,59 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import cats.data.Cont
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.partialOrder.catsSyntaxPartialOrder
+import cats.syntax.apply.given
+import cats.syntax.functor.given
+import cats.syntax.partialOrder.given
+import cats.syntax.semigroupk.given
 import cats.syntax.show.showInterpolator
 import cats.{Eval, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import org.typelevel.cats.time.instances.{duration, localdatetime, zoneid}
+import org.typelevel.cats.time.instances.duration.given
+import org.typelevel.cats.time.instances.instant.given
+import org.typelevel.cats.time.instances.localdatetime.given
+import org.typelevel.cats.time.instances.zoneid.given
 
 import java.sql.Timestamp
 import java.time.*
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.given
+
+private type TimeTypes = Instant | LocalDateTime | String
 
 // lazy range
 final case class DateTimeRange(
-  private val start: Option[DateTimeRange.TimeTypes],
-  private val end: Option[DateTimeRange.TimeTypes],
-  zoneId: ZoneId)
-    extends localdatetime with duration with zoneid {
+  private val reprStart: Option[TimeTypes],
+  private val reprEnd: Option[TimeTypes],
+  zoneId: ZoneId) {
 
-  private def calcDateTime(tt: DateTimeRange.TimeTypes): NJTimestamp =
-    tt match {
-      case nj: NJTimestamp   => nj
-      case str: String       => NJTimestamp(str, zoneId)
-      case lt: LocalDateTime => NJTimestamp(lt, zoneId)
+  private def parseStr(str: String): Instant = {
+    val parser: DateTimeParser[Instant] =
+      DateTimeParser[Instant] <+>
+        DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
+        DateTimeParser[ZonedDateTime].map(_.toInstant) <+>
+        DateTimeParser[LocalDate].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalTime].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalDateTime].map(_.atZone(zoneId).toInstant)
+
+    parser.parse(str) match {
+      case Right(r) => r
+      case Left(ex) => throw ex.parseException(str) // scalafix:ok
     }
+  }
 
-  def startTimestamp: Option[NJTimestamp] = start.map(calcDateTime)
-  def endTimestamp: Option[NJTimestamp] = end.map(calcDateTime)
-  def zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
-  def zonedEndTime: Option[ZonedDateTime] = endTimestamp.map(_.atZone(zoneId))
+  private def calculate(tt: TimeTypes): Instant = tt match {
+    case str: String        => parseStr(str)
+    case ldt: LocalDateTime => ldt.atZone(zoneId).toInstant
+    case ins: Instant       => ins
+  }
+
+  def start: Option[Instant] = reprStart.map(calculate)
+  def end: Option[Instant] = reprEnd.map(calculate)
+
+  def zonedStartTime: Option[ZonedDateTime] = start.map(_.atZone(zoneId))
+  def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
 
   /** @return
     *   list of local-date from start date to end date, both inclusive
@@ -45,18 +66,12 @@ final case class DateTimeRange(
     }.flatten
 
   def subranges(interval: FiniteDuration): List[DateTimeRange] =
-    (startTimestamp, endTimestamp).traverseN { (s, e) =>
-      s.milliseconds
-        .until(e.milliseconds, interval.toMillis)
+    (start, end).traverseN { (s, e) =>
+      s.toEpochMilli
+        .until(e.toEpochMilli, interval.toMillis)
         .toList
         .map(a => DateTimeRange(zoneId).withStartTime(a).withEndTime(a + interval.toMillis))
     }.flatten
-
-  def period: Option[Period] =
-    (zonedStartTime, zonedEndTime).mapN((s, e) => Period.between(s.toLocalDate, e.toLocalDate))
-
-  def javaDuration: Option[java.time.Duration] =
-    (zonedStartTime, zonedEndTime).mapN((s, e) => java.time.Duration.between(s, e))
 
   def withZoneId(zoneId: ZoneId): DateTimeRange =
     copy(zoneId = zoneId)
@@ -65,26 +80,44 @@ final case class DateTimeRange(
     withZoneId(ZoneId.of(zoneId))
 
   // start
-  def withStartTime(ts: LocalTime): DateTimeRange = copy(start = Some(toLocalDateTime(ts)))
-  def withStartTime(ts: LocalDate): DateTimeRange = copy(start = Some(toLocalDateTime(ts)))
-  def withStartTime(ts: LocalDateTime): DateTimeRange = copy(start = Some(ts))
-  def withStartTime(ts: OffsetDateTime): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
-  def withStartTime(ts: ZonedDateTime): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
-  def withStartTime(ts: Instant): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
-  def withStartTime(ts: Long): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
-  def withStartTime(ts: Timestamp): DateTimeRange = copy(start = Some(NJTimestamp(ts)))
-  def withStartTime(ts: String): DateTimeRange = copy(start = Some(ts))
+  def withStartTime(ts: LocalTime): DateTimeRange =
+    copy(reprStart = Some(toLocalDateTime(ts)))
+  def withStartTime(ts: LocalDate): DateTimeRange =
+    copy(reprStart = Some(toLocalDateTime(ts)))
+  def withStartTime(ts: LocalDateTime): DateTimeRange =
+    copy(reprStart = Some(ts))
+  def withStartTime(ts: OffsetDateTime): DateTimeRange =
+    copy(reprStart = Some(ts.toInstant))
+  def withStartTime(ts: ZonedDateTime): DateTimeRange =
+    copy(reprStart = Some(ts.toInstant))
+  def withStartTime(ts: Instant): DateTimeRange =
+    copy(reprStart = Some(ts))
+  def withStartTime(ts: Long): DateTimeRange =
+    copy(reprStart = Some(Instant.ofEpochMilli(ts)))
+  def withStartTime(ts: Timestamp): DateTimeRange =
+    copy(reprStart = Some(ts.toInstant))
+  def withStartTime(ts: String): DateTimeRange =
+    copy(reprStart = Some(ts))
 
   // end
-  def withEndTime(ts: LocalTime): DateTimeRange = copy(end = Some(toLocalDateTime(ts)))
-  def withEndTime(ts: LocalDate): DateTimeRange = copy(end = Some(toLocalDateTime(ts)))
-  def withEndTime(ts: LocalDateTime): DateTimeRange = copy(end = Some(ts))
-  def withEndTime(ts: OffsetDateTime): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
-  def withEndTime(ts: ZonedDateTime): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
-  def withEndTime(ts: Instant): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
-  def withEndTime(ts: Long): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
-  def withEndTime(ts: Timestamp): DateTimeRange = copy(end = Some(NJTimestamp(ts)))
-  def withEndTime(ts: String): DateTimeRange = copy(end = Some(ts))
+  def withEndTime(ts: LocalTime): DateTimeRange =
+    copy(reprEnd = Some(toLocalDateTime(ts)))
+  def withEndTime(ts: LocalDate): DateTimeRange =
+    copy(reprEnd = Some(toLocalDateTime(ts)))
+  def withEndTime(ts: LocalDateTime): DateTimeRange =
+    copy(reprEnd = Some(ts))
+  def withEndTime(ts: OffsetDateTime): DateTimeRange =
+    copy(reprEnd = Some(ts.toInstant))
+  def withEndTime(ts: ZonedDateTime): DateTimeRange =
+    copy(reprEnd = Some(ts.toInstant))
+  def withEndTime(ts: Instant): DateTimeRange =
+    copy(reprEnd = Some(ts))
+  def withEndTime(ts: Long): DateTimeRange =
+    copy(reprEnd = Some(Instant.ofEpochMilli(ts)))
+  def withEndTime(ts: Timestamp): DateTimeRange =
+    copy(reprEnd = Some(ts.toInstant))
+  def withEndTime(ts: String): DateTimeRange =
+    copy(reprEnd = Some(ts))
 
   def withNSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now
@@ -111,15 +144,20 @@ final case class DateTimeRange(
     */
   def withEreyesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(2))
 
-  def inBetween(ts: Long): Boolean =
-    (startTimestamp, endTimestamp) match {
-      case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
-      case (Some(s), None)    => ts >= s.milliseconds
-      case (None, Some(e))    => ts < e.milliseconds
+  // closed start, open end
+  def inBetween(ts: Instant): Boolean =
+    (start, end) match {
+      case (Some(s), Some(e)) => s.isBefore(ts) && e.isAfter(ts) || s === ts
+      case (Some(s), None)    => s.isBefore(ts) || s === ts
+      case (None, Some(e))    => e.isAfter(ts)
       case (None, None)       => true
     }
 
-  def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
+  def period: Option[Period] =
+    (zonedStartTime, zonedEndTime).mapN((s, e) => Period.between(s.toLocalDate, e.toLocalDate))
+
+  def javaDuration: Option[Duration] = (start, end).mapN((s, e) => Duration.between(s, e))
+  def finiteDuration: Option[FiniteDuration] = javaDuration.map(_.toScala)
 
   override def toString: String =
     (zonedStartTime.map(_.toLocalDateTime), zonedEndTime.map(_.toLocalDateTime)) match {
@@ -137,20 +175,17 @@ object DateTimeRange {
   def apply(tick: Tick): DateTimeRange =
     DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
 
-  final private type TimeTypes =
-    NJTimestamp | LocalDateTime | String // date-time in string, like "03:12"
+  given PartialOrder[DateTimeRange] =
+    new PartialOrder[DateTimeRange] {
 
-  given partialOrderNJDateTimeRange: PartialOrder[DateTimeRange] & Show[DateTimeRange] =
-    new PartialOrder[DateTimeRange] with Show[DateTimeRange] {
-
-      private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
+      private def lessStart(a: Option[Instant], b: Option[Instant]): Boolean =
         (a, b) match {
           case (None, _)          => true
           case (_, None)          => false
           case (Some(x), Some(y)) => x <= y
         }
 
-      private def biggerEnd(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
+      private def biggerEnd(a: Option[Instant], b: Option[Instant]): Boolean =
         (a, b) match {
           case (None, _)          => true
           case (_, None)          => false
@@ -159,20 +194,17 @@ object DateTimeRange {
 
       override def partialCompare(x: DateTimeRange, y: DateTimeRange): Double =
         (x, y) match {
-          case (a, b) if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
+          case (a, b) if a.end === b.end && a.start === b.start =>
             0.0
-          case (a, b)
-              if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(a.endTimestamp, b.endTimestamp) =>
+          case (a, b) if lessStart(a.start, b.start) && biggerEnd(a.end, b.end) =>
             1.0
-          case (a, b)
-              if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(b.endTimestamp, a.endTimestamp) =>
+          case (a, b) if lessStart(b.start, a.start) && biggerEnd(b.end, a.end) =>
             -1.0
           case _ => Double.NaN
         }
-
-      override def show(x: DateTimeRange): String = x.toString
-
     }
+
+  given Show[DateTimeRange] = Show.fromToString[DateTimeRange]
 
   given Encoder[DateTimeRange] =
     (a: DateTimeRange) =>

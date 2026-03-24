@@ -29,7 +29,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     } yield DateTimeRange(darwinTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
 
   implicit val cogen: Cogen[DateTimeRange] =
-    Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
+    Cogen(m => m.start.map(_.toEpochMilli).getOrElse(0))
 
   implicit val arbParser: Arbitrary[DateTimeParser[Instant]] = Arbitrary(Gen.const(DateTimeParser[Instant]))
   implicit val cogenInstant: Cogen[Instant] = Cogen((i: Instant) => i.getEpochSecond)
@@ -125,12 +125,8 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
         .withStartTime("2020-12-20T23:00:00+11:00")
         .withEndTime("2020-12-29T01:00:00+11:00")
 
-    assert((dr.endTimestamp, dr.startTimestamp).mapN { (e, s) =>
-      assert(e.timeUnit == s.timeUnit)
-      assert(e.sqlTimestamp.compareTo(s.sqlTimestamp) > 0)
-      assert(e.javaLong.compareTo(s.javaLong) > 0)
-
-      e - s
+    assert((dr.start, dr.end).mapN { (s, e) =>
+      java.time.Duration.between(s, e)
     }.get.toDays == 8)
     assert(dr.days.length == 10)
   }
@@ -143,9 +139,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(y.days.size == 1)
     assert(e.days.size == 1)
     // fail on day leap
-    assert(t.duration.get.toMillis == 86399999)
-    assert(y.duration.get.toMillis == 86399999)
-    assert(e.duration.get.toMillis == 86399999)
+    assert(t.javaDuration.get.toMillis == 86399999)
+    assert(y.javaDuration.get.toMillis == 86399999)
+    assert(e.javaDuration.get.toMillis == 86399999)
     println(t)
     println(y)
     println(e)
@@ -183,29 +179,12 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
     dr.period
     dr.javaDuration
-    assert(dr.startTimestamp.isDefined)
-    assert(dr.endTimestamp.isDefined)
+    assert(dr.start.isDefined)
+    assert(dr.end.isDefined)
     assert(dr.zonedStartTime.isDefined)
     assert(dr.zonedEndTime.isDefined)
-    assert(dr.duration.isDefined)
+    assert(dr.javaDuration.isDefined)
     dr.show
-  }
-
-  test("show sql date and timestamp") {
-    val date = java.sql.Date.valueOf(LocalDate.now)
-    val ts = java.sql.Timestamp.from(Instant.now())
-    NJTimestamp.now(Clock.systemUTC())
-    val nj = NJTimestamp.now()
-    NJTimestamp(ts)
-    NJTimestamp(ZonedDateTime.now())
-    NJTimestamp("2020-12-20T23:00:00+11:00")
-    NJTimestamp(OffsetDateTime.now()).atZone("Australia/Sydney")
-    date.show
-    ts.show
-    nj.show
-
-    assertThrows[Exception](NJTimestamp("abc"))
-    assertThrows[Exception](NJTimestamp("abc", sydneyTime))
   }
 
   test("subranges") {
@@ -214,14 +193,14 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(sr.size == 31)
     assert(sr == dr.subranges(1.day))
     val rd = Random.nextInt(30)
-    assert(sr(rd).endTimestamp == sr(rd + 1).startTimestamp)
+    assert(sr(rd).end == sr(rd + 1).start)
   }
   test("subranges - irregular") {
     val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
     val sr = dr.subranges(12.hours)
     assert(sr.size == 63)
     sr.sliding(2).toList.map {
-      case List(a, b) => assert(a.endTimestamp == b.startTimestamp)
+      case List(a, b) => assert(a.end === b.start)
       case _          => ()
     }
   }

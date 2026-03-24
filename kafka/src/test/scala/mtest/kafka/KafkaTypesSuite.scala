@@ -1,7 +1,6 @@
 package mtest.kafka
 
 import cats.kernel.PartialOrder
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.{
   GroupId,
   LagBehind,
@@ -15,6 +14,8 @@ import io.circe.jawn.decode
 import io.circe.syntax.*
 import munit.CatsEffectSuite
 import org.apache.kafka.common.TopicPartition
+
+import java.time.Instant
 
 class KafkaTypesSuite extends CatsEffectSuite {
 
@@ -72,7 +73,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t2", 1)
     val ltp = TopicPartitionList(List(tp1, tp2))
-    val ts = NJTimestamp.now()
+    val ts = Instant.now()
     val javaMap = ltp.javaTimed(ts)
     assertEquals(javaMap.size(), 2)
     val javaList = ltp.javaList

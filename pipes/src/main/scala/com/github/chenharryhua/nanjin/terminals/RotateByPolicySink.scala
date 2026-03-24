@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
-import cats.syntax.all.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadError
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue

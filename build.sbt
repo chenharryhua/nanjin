@@ -24,7 +24,6 @@ val kafkaV = "8.2.0-ce"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
-val enumeratumV = "1.9.6"
 val fs2KafkaV = "3.9.1"
 val fs2V = "3.13.0"
 val hadoopV = "3.4.3"
@@ -85,12 +84,6 @@ val testLib = List(
   "io.circe" %% "circe-jawn"                         % circeV
 ).map(_ % Test)
 
-val enumLib = List(
-  "com.beachape" %% "enumeratum",
-  "com.beachape" %% "enumeratum-cats",
-  "com.beachape" %% "enumeratum-circe"
-).map(_ % enumeratumV)
-
 // ==========================
 // Common
 // ==========================
@@ -117,7 +110,7 @@ lazy val common = (project in file("common"))
       "org.scala-js" % "scalajs-library_2.13" % "1.20.2" % Provided, // doc by cron
 // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
-    ) ++ enumLib ++ testLib
+    ) ++ testLib
   )
 
 // ==========================

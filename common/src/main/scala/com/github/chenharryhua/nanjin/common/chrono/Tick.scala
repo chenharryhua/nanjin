@@ -193,6 +193,7 @@ object Tick {
   * `TickedValue` forms a lawful `Functor`, mapping over the value while preserving the associated `Tick`.
   */
 final case class TickedValue[A](tick: Tick, value: A) derives Functor, Show, Encoder, Decoder:
+  def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
 
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
     copy(tick = tick.withSnoozeStretch(delay))
