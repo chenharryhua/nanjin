@@ -85,7 +85,7 @@ private[guard] object ServiceGuard {
         alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
         channel <- Stream.eval(Channel.unbounded[F, Event])
         metricRegistry: MetricRegistry = new MetricRegistry()
-        metricsPublisher <- MetricsPublisher(serviceParams, metricRegistry, channel)
+        metricsPublisher <- MetricsPublisher(serviceParams, ScrapeMetrics(metricRegistry), channel)
         lifecyclePublisher <- LifecyclePublisher(serviceParams, channel)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](

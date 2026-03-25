@@ -128,8 +128,8 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   // for database etc
   def toVanillaJson: Json = {
-    val counters = snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
-    val gauges = snapshot.gauges.map(g => g.metricId -> g.value)
+    val counters = snapshot.counters.map(c => c.metricId -> c.asJson)
+    val gauges = snapshot.gauges.map(g => g.metricId -> g.gauge.asJson)
     val meters = snapshot.meters.map(m => m.metricId -> m.meter.asJson)
     val histograms = snapshot.histograms.map(h => h.metricId -> h.histogram.asJson)
     val timers = snapshot.timers.map(t => t.metricId -> t.timer.asJson)
@@ -139,9 +139,10 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
   // for screen display
   def toPrettyJson: Json = {
     val counters: List[(MetricID, Json)] =
-      snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
+      snapshot.counters.map(c => c.metricId -> c.asJson)
     val gauges: List[(MetricID, Json)] =
-      snapshot.gauges.mapFilter(g => if (g.value === Json.Null) None else Some(g.metricId -> g.value))
+      snapshot.gauges.mapFilter(g =>
+        if (g.gauge.value === Json.Null) None else Some(g.metricId -> g.gauge.value))
 
     val lst: List[(MetricID, Json)] =
       counters ::: gauges ::: json_list(meters ::: histograms ::: timers)
@@ -153,12 +154,13 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
-      .filter(_.count > 0)
-      .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.count)}"))
+      .filter(_.counter.value > 0)
+      .map(c =>
+        c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.counter)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonView.yml(g.metricId.metricName.name, g.value)
+      val content = JsonView.yml(g.metricId.metricName.name, g.gauge.value)
       if (content.isEmpty) None
       else
         Some(g.metricId -> content)

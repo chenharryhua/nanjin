@@ -9,9 +9,9 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
 import com.google.protobuf.ByteString
-import com.sksamuel.avro4s.{AvroDoc, AvroName, AvroNamespace, Decoder, Encoder, SchemaFor, ToRecord}
-import fs2.kafka.*
-import io.circe.Codec
+import com.sksamuel.avro4s.{AvroDoc, AvroName, AvroNamespace, Encoder, SchemaFor, ToRecord}
+import fs2.kafka.{ConsumerRecord, Header, Headers, Timestamp}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.into
 import org.apache.avro.Schema
@@ -39,7 +39,7 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka value size") serializedValueSize: Int,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V]
-) derives Encoder, Decoder, SchemaFor, Bitraverse, Codec.AsObject, Eq {
+) derives JsonEncoder, JsonDecoder, Bitraverse, Eq { // JSON Decoder/Encoder conflict with Avro's
 
   /*
    * flatten

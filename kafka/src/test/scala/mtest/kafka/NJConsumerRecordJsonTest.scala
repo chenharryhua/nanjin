@@ -2,6 +2,7 @@ package mtest.kafka
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.*
 import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
+import io.circe.{Decoder, Encoder, Json}
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordJsonTest extends AnyFunSuite {
@@ -96,5 +97,10 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
         )
 
     assert(noEpoch.get("leaderEpoch").isNull)
+  }
+
+  test("codec derives") {
+    summon[Encoder[NJConsumerRecord[Json, Json]]]
+    summon[Decoder[NJConsumerRecord[Json, Json]]]
   }
 }

@@ -153,7 +153,7 @@ private[service] object HttpDataServer {
         singleFlight <- SingleFlight[F, TickedValue[Map[MetricID, Long]]]
       } yield {
         val pump = new MetricsPump[F](
-          metricRegistry = metricsPublisher.metricRegistry,
+          scrapeMetrics = metricsPublisher.scrapeMetrics,
           zoneId = metricsPublisher.serviceParams.zoneId,
           policy = metricsPublisher.serviceParams.servicePolicies.realtimeMetrics.policy,
           ref = ref,

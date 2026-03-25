@@ -3,15 +3,17 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.Unique
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, OpaqueLift}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.{DurationFormatter, OpaqueLift}
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 // ---------------- StackTrace ----------------
 opaque type StackTrace = List[String]
@@ -43,6 +45,7 @@ end Correlation
 opaque type Took = Duration
 object Took:
   def apply(value: Duration): Took = value
+  def apply(fd: FiniteDuration): Took = fd.toJava
   extension (t: Took) inline def value: Duration = t
 
   given Show[Took] = t => DurationFormatter.defaultFormatter.format(t.value)

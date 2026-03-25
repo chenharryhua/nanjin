@@ -131,7 +131,7 @@ class RetryTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
 
-    assert(retrieveCounter(ss.snapshot.counters).head._2 == 1)
+    assert(retrieveCounter(ss.snapshot.counters).head._2.value == 1)
   }
 
   test("10. conditional retry") {

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
+import cats.derived.derived
 import cats.effect.Unique
 import cats.effect.kernel.Clock
 import cats.kernel.Eq
@@ -26,18 +27,18 @@ enum HistogramKind extends CategoryKind derives Encoder, Decoder:
 enum TimerKind extends CategoryKind derives Encoder, Decoder:
   case Timer
 
-enum Category derives Encoder, Decoder:
-  case Gauge(kind: GaugeKind) extends Category
-  case Counter(kind: CounterKind) extends Category
-  case Meter(kind: MeterKind, squants: Squants) extends Category
-  case Histogram(kind: HistogramKind, squants: Squants) extends Category
-  case Timer(kind: TimerKind) extends Category
-
 final case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
 object Squants {
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)
 }
+
+enum Category derives Encoder, Decoder:
+  case Gauge(kind: GaugeKind)
+  case Counter(kind: CounterKind)
+  case Meter(kind: MeterKind, squants: Squants)
+  case Histogram(kind: HistogramKind, squants: Squants)
+  case Timer(kind: TimerKind)
 
 /** Represents a uniquely identifiable metric within a single JVM runtime.
   *
@@ -54,9 +55,8 @@ object Squants {
   *     instances are ever considered equal unless all three components match.
   */
 final case class MetricName private (name: String, age: Long, private val uniqueToken: Int)
-    derives Codec.AsObject
+    derives Eq, Codec.AsObject
 object MetricName {
-  given Eq[MetricName] = Eq.fromUniversalEquals
 
   def apply[F[_]: Applicative](name: String)(using U: Unique[F], C: Clock[F]): F[MetricName] =
     (C.monotonic, U.unique).mapN((age, token) =>
