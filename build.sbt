@@ -48,9 +48,7 @@ lazy val commonSettings = List(
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
   dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
-    "-Wconf:src=src_managed/.*:silent",
-    "-Wtostring-interpolated",
-    "-Yretain-trees"
+    "-Wconf:src=src_managed/.*:silent"
   ),
 
   Test / tpolecatExcludeOptions ++=

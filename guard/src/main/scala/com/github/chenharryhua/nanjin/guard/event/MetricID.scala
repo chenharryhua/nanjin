@@ -34,11 +34,11 @@ object Squants {
 }
 
 enum Category derives Encoder, Decoder:
-  case Gauge(kind: GaugeKind) extends Category
-  case Counter(kind: CounterKind) extends Category
-  case Meter(kind: MeterKind, squants: Squants) extends Category
-  case Histogram(kind: HistogramKind, squants: Squants) extends Category
-  case Timer(kind: TimerKind) extends Category
+  case Gauge(kind: GaugeKind)
+  case Counter(kind: CounterKind)
+  case Meter(kind: MeterKind, squants: Squants)
+  case Histogram(kind: HistogramKind, squants: Squants)
+  case Timer(kind: TimerKind)
 
 /** Represents a uniquely identifiable metric within a single JVM runtime.
   *

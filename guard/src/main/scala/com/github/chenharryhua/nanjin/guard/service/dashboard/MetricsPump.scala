@@ -2,39 +2,25 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.applicative.catsSyntaxApplicativeId
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
 import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import com.github.chenharryhua.nanjin.guard.event.MetricID
+import com.github.chenharryhua.nanjin.guard.service.ScrapeMetrics
 import fs2.{Pipe, Stream}
 import io.circe.Json
-import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.http4s.Response
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
 
 import java.time.ZoneId
-import scala.jdk.CollectionConverters.MapHasAsScala
 
 final private class MetricsPump[F[_]: Async](
-  metricRegistry: MetricRegistry,
+  scrapeMetrics: ScrapeMetrics,
   zoneId: ZoneId,
   policy: Policy,
   ref: Ref[F, TickedValue[Map[MetricID, Long]]],
   singleFlight: SingleFlight[F, TickedValue[Map[MetricID, Long]]]) {
-
-  private def meters: Map[MetricID, Long] =
-    metricRegistry.getMeters().asScala
-      .flatMap { case (mid, meter) =>
-        decode[MetricID](mid).toOption.map(_ -> meter.getCount)
-      }.toMap
-
-  private def timers: Map[MetricID, Long] =
-    metricRegistry.getTimers().asScala
-      .flatMap { case (mid, timer) =>
-        decode[MetricID](mid).toOption.map(_ -> timer.getCount)
-      }.toMap
 
   private def retrieve(tick: Tick): F[TickedValue[Map[MetricID, Long]]] =
     singleFlight {
@@ -42,7 +28,7 @@ final private class MetricsPump[F[_]: Async](
         if (tv.tick.isWithinClosedOpen(tick.acquires))
           (tv, tv)
         else {
-          val update = TickedValue(tick, meters ++ timers)
+          val update = TickedValue(tick, scrapeMetrics.meterCounters)
           (update, update)
         }
       }

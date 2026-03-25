@@ -8,15 +8,13 @@ import java.time.ZonedDateTime
 
 object MetricsEvent:
 
-  enum Index derives Codec.AsObject:
-    def scrapeTime: ZonedDateTime =
-      this match
-        case Adhoc(time)    => time
-        case Periodic(tick) => tick.zoned(_.conclude)
+  sealed trait Index derives Codec.AsObject:
+    def scrapeTime: ZonedDateTime
 
-    case Adhoc(time: ZonedDateTime)
-    case Periodic(tick: Tick)
-  end Index
+  object Index:
+    final case class Adhoc(scrapeTime: ZonedDateTime) extends Index
+    final case class Periodic(tick: Tick) extends Index:
+      override val scrapeTime: ZonedDateTime = tick.zoned(_.conclude)
 
   enum Kind derives Codec.AsObject:
     def policy: Policy
@@ -26,5 +24,5 @@ object MetricsEvent:
 
   object Kind:
     given Show[Kind] = _.productPrefix
-    
+
 end MetricsEvent

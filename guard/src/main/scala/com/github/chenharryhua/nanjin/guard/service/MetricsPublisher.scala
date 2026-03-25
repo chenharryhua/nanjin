@@ -2,27 +2,27 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
 import cats.effect.std.{AtomicCell, Console}
+import cats.effect.syntax.clock.clockOps
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
-import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, Snapshot, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class MetricsPublisher[F[_]] private (
-  val metricRegistry: MetricRegistry,
   val serviceParams: ServiceParams,
+  val scrapeMetrics: ScrapeMetrics,
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   channel: Channel[F, Event],
   logSink: LogSink[F]
@@ -34,7 +34,7 @@ final private class MetricsPublisher[F[_]] private (
 
   private def publish(kind: Kind, index: Index, mode: ScrapeMode): F[MetricsSnapshot] =
     for {
-      ms <- Snapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
+      ms <- F.blocking(scrapeMetrics.snapshot(mode)).timed.map { case (took, snapshot) =>
         MetricsSnapshot(
           index = index,
           serviceParams = serviceParams,
@@ -69,7 +69,7 @@ final private class MetricsPublisher[F[_]] private (
    */
 
   private val reset_counters: F[Unit] =
-    F.blocking(metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount)))
+    F.blocking(scrapeMetrics.resetCounter())
 
   def reset_adhoc: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
@@ -94,7 +94,7 @@ final private class MetricsPublisher[F[_]] private (
   override def reset: F[Unit] = reset_adhoc.void
   override def report: F[Unit] = report_adhoc.void
   override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Cheap).map { case (took, snapshot) =>
+    F.blocking(scrapeMetrics.snapshot(ScrapeMode.Cheap)).timed.map { case (took, snapshot) =>
       MetricsSnapshot(
         index = Periodic(tick),
         serviceParams = serviceParams,
@@ -108,15 +108,15 @@ final private class MetricsPublisher[F[_]] private (
 private object MetricsPublisher {
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
-    metricRegistry: MetricRegistry,
+    scrapeMetrics: ScrapeMetrics,
     channel: Channel[F, Event]): Stream[F, MetricsPublisher[F]] = {
     val cell: F[AtomicCell[F, CircularFifoQueue[MetricsSnapshot]]] =
       AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric))
 
     Stream.eval((cell, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
       new MetricsPublisher[F](
-        metricRegistry = metricRegistry,
         serviceParams = serviceParams,
+        scrapeMetrics = scrapeMetrics,
         metricsHistory = metricsHistory,
         channel = channel,
         logSink = logSink)
