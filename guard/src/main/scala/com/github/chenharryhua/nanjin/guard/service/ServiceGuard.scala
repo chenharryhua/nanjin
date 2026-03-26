@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
-import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpDataServer
+import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -104,7 +104,7 @@ private[guard] object ServiceGuard {
           .concurrently(metricsPublisher.report_periodically)
           .concurrently(Watchdog.stream(F.defer(runAgent(agent)), lifecyclePublisher))
           .concurrently(
-            HttpDataServer.stream(
+            HttpServer(
               emberServerBuilder = emberServerBuilder,
               metricsPublisher = metricsPublisher,
               lifecyclePublisher = lifecyclePublisher,

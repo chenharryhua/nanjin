@@ -9,7 +9,7 @@ import scala.scalajs.js
 
 final class WsConnector(port: Int, maxPoints: Int) {
   private val manager: ChartManager = new ChartManager(maxPoints)
-  private val ws: WebSocket = new WebSocket(s"ws://localhost:$port/ws")
+  private val ws: WebSocket = new WebSocket(s"ws://localhost:$port/dashboard/ws")
 
   def connect(chartVar: Var[Option[js.Dynamic]]): Unit = {
 
