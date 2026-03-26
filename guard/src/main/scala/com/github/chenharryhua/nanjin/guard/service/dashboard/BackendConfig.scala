@@ -17,8 +17,8 @@ import java.time.ZoneId
 
 final case class BackendConfig(
   serviceName: String,
-  port: Port,
   zoneId: ZoneId,
+  port: Port,
   maxPoints: Int,
   policy: Policy) {
   private val no_spaces_json = Json.obj(

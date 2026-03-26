@@ -24,7 +24,7 @@ final case class RealtimeMetrics(policy: Policy, maxPoints: Int) derives Codec.A
 
 final case class ServicePolicies(
   restart: RestartPolicy,
-  realtimeMetrics: RealtimeMetrics,
+  realtimeMetrics: Option[RealtimeMetrics],
   metricsReport: Policy,
   metricsReset: Policy
 ) derives Codec.AsObject
@@ -65,7 +65,7 @@ final case class ServiceParams(
   def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime, ts))
   def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.toInstant, ts))
 
-  def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
+  def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
 object ServiceParams {
@@ -87,7 +87,7 @@ object ServiceParams {
       launchTime = launchTime,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
-        realtimeMetrics = RealtimeMetrics(Policy.crontab(_.every10Seconds), 360),
+        realtimeMetrics = None,
         metricsReport = Policy.empty,
         metricsReset = Policy.empty
       ),
@@ -152,7 +152,7 @@ private object ServiceConfigF {
       case WithLogFormat(v, c) => c.focus(_.logFormat).replace(v)
 
       case WithRealTimeMetrics(p, m, c) =>
-        c.focus(_.servicePolicies.realtimeMetrics).replace(RealtimeMetrics(p, m))
+        c.focus(_.servicePolicies.realtimeMetrics).replace(Some(RealtimeMetrics(p, m)))
     }
 }
 

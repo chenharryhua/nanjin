@@ -32,16 +32,19 @@ final private class MetricsPublisher[F[_]] private (
   private val report_kind: Kind = Report(serviceParams.servicePolicies.metricsReport)
   private val reset_kind: Kind = Reset(serviceParams.servicePolicies.metricsReset)
 
-  private def publish(kind: Kind, index: Index, mode: ScrapeMode): F[MetricsSnapshot] =
+  private def build_metrics_snapshot(kind: Kind, index: Index): F[MetricsSnapshot] =
+    F.blocking(scrapeMetrics.snapshot(ScrapeMode.Full)).timed.map { case (took, snapshot) =>
+      MetricsSnapshot(
+        index = index,
+        serviceParams = serviceParams,
+        snapshot = snapshot,
+        kind = kind,
+        took = Took(took))
+    }
+
+  private def publish(kind: Kind, index: Index): F[MetricsSnapshot] =
     for {
-      ms <- F.blocking(scrapeMetrics.snapshot(mode)).timed.map { case (took, snapshot) =>
-        MetricsSnapshot(
-          index = index,
-          serviceParams = serviceParams,
-          snapshot = snapshot,
-          kind = kind,
-          took = Took(took))
-      }
+      ms <- build_metrics_snapshot(kind, index)
       _ <- channel.send(ms)
       _ <- logSink.write(ms)
       _ <- metricsHistory.modify(queue => (queue, queue.add(ms)))
@@ -53,15 +56,14 @@ final private class MetricsPublisher[F[_]] private (
   /*
    * Report
    */
-
-  def report_adhoc: F[MetricsSnapshot] =
+  def http_report: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
-      publish(report_kind, Adhoc(ts), ScrapeMode.Full)
+      build_metrics_snapshot(report_kind, Adhoc(ts))
     }
 
   def report_periodically: Stream[F, Nothing] =
     tickingBy(report_kind).evalMap { tick =>
-      publish(report_kind, Periodic(tick), ScrapeMode.Full)
+      publish(report_kind, Periodic(tick))
     }.drain
 
   /*
@@ -71,14 +73,14 @@ final private class MetricsPublisher[F[_]] private (
   private val reset_counters: F[Unit] =
     F.blocking(scrapeMetrics.resetCounter())
 
-  def reset_adhoc: F[MetricsSnapshot] =
+  def http_reset: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
-      publish(reset_kind, Adhoc(ts), ScrapeMode.Full).flatTap(_ => reset_counters)
+      build_metrics_snapshot(reset_kind, Adhoc(ts)).flatTap(_ => reset_counters)
     }
 
   def reset_periodically: Stream[F, Nothing] =
     tickingBy(reset_kind).evalMap { tick =>
-      publish(reset_kind, Periodic(tick), ScrapeMode.Full).flatTap(_ => reset_counters)
+      publish(reset_kind, Periodic(tick)).flatTap(_ => reset_counters)
     }.drain
 
   /*
@@ -91,8 +93,19 @@ final private class MetricsPublisher[F[_]] private (
   /*
    * API
    */
-  override def reset: F[Unit] = reset_adhoc.void
-  override def report: F[Unit] = report_adhoc.void
+  override def reset: F[Unit] =
+    for {
+      ts <- serviceParams.zonedNow
+      _ <- publish(reset_kind, Adhoc(ts))
+      _ <- reset_counters
+    } yield ()
+
+  override def report: F[Unit] =
+    for {
+      ts <- serviceParams.zonedNow
+      _ <- publish(reset_kind, Adhoc(ts))
+    } yield ()
+
   override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
     F.blocking(scrapeMetrics.snapshot(ScrapeMode.Cheap)).timed.map { case (took, snapshot) =>
       MetricsSnapshot(
@@ -102,7 +115,6 @@ final private class MetricsPublisher[F[_]] private (
         kind = report_kind,
         took = Took(took))
     }
-
 }
 
 private object MetricsPublisher {

@@ -104,7 +104,7 @@ private[guard] object ServiceGuard {
           .concurrently(metricsPublisher.report_periodically)
           .concurrently(Watchdog.stream(F.defer(runAgent(agent)), lifecyclePublisher))
           .concurrently(
-            HttpDataServer.stream(
+            HttpDataServer(
               emberServerBuilder = emberServerBuilder,
               metricsPublisher = metricsPublisher,
               lifecyclePublisher = lifecyclePublisher,
