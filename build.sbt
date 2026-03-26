@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.18"
+val awsV = "2.42.21"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
@@ -75,7 +75,7 @@ val testLib = List(
   "org.typelevel" %% "cats-laws"                     % catsCoreV,
   "org.typelevel" %% "algebra-laws"                  % catsCoreV,
   "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
-  "org.scalatest" %% "scalatest"                     % "3.2.19",
+  "org.scalatest" %% "scalatest"                     % "3.2.20",
   "dev.optics" %% "monocle-law"                      % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
   "com.github.pathikrit" %% "better-files"           % "3.9.2",

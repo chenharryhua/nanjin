@@ -19,7 +19,7 @@ import org.http4s.{Request, Response}
 
 import scala.collection.immutable.Vector
 
-private[service] object HttpDataServer {
+private[service] object HttpServer {
 
   private def wsRouter[F[_]: Async](
     backendConfig: BackendConfig,
@@ -33,10 +33,13 @@ private[service] object HttpDataServer {
       topic <- Topic[F, TimedMeters]
       history <- Ref[F].of(Vector.empty[TimedMeters])
       stream = ts.evalMap { tm =>
-        history.update(v => if (v.size >= backendConfig.maxPoints) v.tail :+ tm else v :+ tm)
-          .flatMap(_ => topic.publish1(tm))
+        history.update { v =>
+          if (v.size >= backendConfig.maxPoints)
+            v.tail :+ tm
+          else v :+ tm
+        } >> topic.publish1(tm)
       }.onFinalize(history.set(Vector.empty) <* topic.close).drain
-    } yield (new HttpWsRouter[F](backendConfig, topic, history), stream)
+    } yield (HttpWsRouter[F](backendConfig, topic, history), stream)
   }
 
   def apply[F[_]: Async](
