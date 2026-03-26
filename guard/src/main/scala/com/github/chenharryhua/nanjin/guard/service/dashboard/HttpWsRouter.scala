@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.Ref
 import cats.effect.kernel.Async
-import cats.implicits.catsSyntaxApplicativeId
+import cats.syntax.applicative.given
 import fs2.concurrent.Topic
 import fs2.{Pipe, Stream}
 import org.http4s.dsl.Http4sDsl

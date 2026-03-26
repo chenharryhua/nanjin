@@ -26,8 +26,8 @@ private[service] object HttpServer {
     scrapeMetrics: ScrapeMetrics): F[(HttpWsRouter[F], Stream[F, Nothing])] = {
 
     val ts: Stream[F, TimedMeters] =
-      tickStream.tickFuture[F](backendConfig.zoneId, _.fresh(backendConfig.policy))
-        .map(tick => TimedMeters(tick.commence, scrapeMetrics.meterCounters))
+      tickStream.tickScheduled[F](backendConfig.zoneId, _.fresh(backendConfig.policy))
+        .map(tick => TimedMeters(tick.conclude, scrapeMetrics.meterCounters))
 
     for {
       topic <- Topic[F, TimedMeters]

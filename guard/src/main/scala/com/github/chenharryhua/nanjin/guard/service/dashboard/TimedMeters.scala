@@ -26,7 +26,7 @@ final private case class TimedMeters(time: Instant, meters: Map[MetricID, Long])
     val nd = meters.foldLeft(Map.empty[MetricID, Long]) { case (sum, (mid, count)) =>
       prev.meters.get(mid) match
         case Some(value) => sum + (mid -> (count - value))
-        case None        => sum + (mid -> 0)
+        case None        => sum + (mid -> count)
     }
     TimedMeters(time, nd)
   }
