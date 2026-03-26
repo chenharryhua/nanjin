@@ -75,7 +75,7 @@ val testLib = List(
   "org.typelevel" %% "cats-laws"                     % catsCoreV,
   "org.typelevel" %% "algebra-laws"                  % catsCoreV,
   "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
-  "org.scalatest" %% "scalatest"                     % "3.2.19",
+  "org.scalatest" %% "scalatest"                     % "3.2.20",
   "dev.optics" %% "monocle-law"                      % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
   "com.github.pathikrit" %% "better-files"           % "3.9.2",
