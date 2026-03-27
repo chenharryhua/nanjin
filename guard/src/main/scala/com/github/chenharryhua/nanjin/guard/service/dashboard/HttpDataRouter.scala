@@ -33,14 +33,14 @@ final private class HttpDataRouter[F[_]](
     case GET -> Root / "panics" =>
       val json = for {
         now <- serviceParams.zonedNow
-        panics <- serviceEventHandler.get_panic_history
+        panics <- serviceEventHandler.panicHistory
       } yield documents.service_panic_history(serviceParams, panics, now)
       Ok(json)
 
     case GET -> Root / "errors" =>
       val json = for {
         now <- serviceParams.zonedNow
-        panics <- reportedEventHandler.errorHistory.value
+        panics <- reportedEventHandler.errorHistory
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
 
@@ -60,8 +60,8 @@ final private class HttpDataRouter[F[_]](
 
     case GET -> Root / "service" / "health_check" =>
       val or: F[Either[String, Json]] = for {
-        panics <- serviceEventHandler.get_panic_history
-        snapshots <- metricsEventHandler.get_snapshot_history
+        panics <- serviceEventHandler.panicHistory
+        snapshots <- metricsEventHandler.snapshotHistory
         now <- serviceParams.zonedNow
       } yield documents.service_health_check(panics, snapshots, now.toInstant)
 
@@ -85,7 +85,7 @@ final private class HttpDataRouter[F[_]](
     case GET -> Root / "metrics" / "history" =>
       val text = for {
         now <- serviceParams.zonedNow
-        metrics <- metricsEventHandler.get_snapshot_history
+        metrics <- metricsEventHandler.snapshotHistory
       } yield documents.metrics_history(serviceParams, metrics, now)
       Ok(text)
   }

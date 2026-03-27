@@ -21,7 +21,7 @@ import fs2.concurrent.Channel
 final private class MetricsEventHandler[F[_]] private (
   val serviceParams: ServiceParams,
   val scrapeMetrics: ScrapeMetrics,
-  metricsHistory: History[F, MetricsSnapshot],
+  history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
   logSink: LogSink[F]
 )(using F: Async[F])
@@ -45,7 +45,7 @@ final private class MetricsEventHandler[F[_]] private (
       ms <- build_metrics_snapshot(kind, index)
       _ <- channel.send(ms)
       _ <- logSink.write(ms)
-      _ <- metricsHistory.add(ms)
+      _ <- history.add(ms)
     } yield ms
 
   private def tickingBy(kind: Kind): Stream[F, Tick] =
@@ -85,8 +85,7 @@ final private class MetricsEventHandler[F[_]] private (
    * History
    */
 
-  def get_snapshot_history: F[Vector[MetricsSnapshot]] =
-    metricsHistory.value
+  def snapshotHistory: F[Vector[MetricsSnapshot]] = history.value
 
   /*
    * API
@@ -127,7 +126,7 @@ private object MetricsEventHandler {
       new MetricsEventHandler[F](
         serviceParams = serviceParams,
         scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
-        metricsHistory = metricsHistory,
+        history = metricsHistory,
         channel = channel,
         logSink = logSink)
     })

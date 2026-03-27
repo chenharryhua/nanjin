@@ -15,10 +15,11 @@ import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
+
 final private class ReportedEventHandler[F[_]](
   val domain: Domain,
   val alarmLevel: Ref[F, Option[AlarmLevel]],
-  val errorHistory: History[F, ReportedEvent],
+  history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   alarmThreshold: AlarmLevel,
   channel: Channel[F, Event]
@@ -28,7 +29,7 @@ final private class ReportedEventHandler[F[_]](
     new ReportedEventHandler[F](
       domain = Domain(name),
       alarmLevel = alarmLevel,
-      errorHistory = errorHistory,
+      history = history,
       serviceParams = serviceParams,
       alarmThreshold = alarmThreshold,
       channel = channel)
@@ -37,10 +38,12 @@ final private class ReportedEventHandler[F[_]](
     new ReportedEventHandler[F](
       domain = domain,
       alarmLevel = alarmLevel,
-      errorHistory = errorHistory,
+      history = history,
       serviceParams = serviceParams,
       alarmThreshold = threshold,
       channel = channel)
+      
+  def errorHistory: F[Vector[ReportedEvent]] = history.value
 
   override def create[S: Encoder](
     message: S,
@@ -55,8 +58,7 @@ final private class ReportedEventHandler[F[_]](
 
   override def publish(event: ReportedEvent): F[Unit] =
     channel.send(event) >>
-      errorHistory.add(event)
-        .whenA(event.level === AlarmLevel.Error)
+      history.add(event).whenA(event.level === AlarmLevel.Error)
 
   // Combine dynamic alarmLevel with static alarmThreshold (floor).
   // Ensures Herald never emits below alarmThreshold, regardless of runtime logging level.
@@ -70,17 +72,17 @@ private object ReportedEventHandler:
     channel: Channel[F, Event],
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
-    val history: F[History[F, ReportedEvent]] = 
+    val history: F[History[F, ReportedEvent]] =
       History[F, ReportedEvent](serviceParams.historyCapacity.error)
 
-    val initial: F[Ref[F, Option[AlarmLevel]]] = 
+    val initial: F[Ref[F, Option[AlarmLevel]]] =
       Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))
 
     val re = (history, initial).mapN { (errorHistory, alarmLevel) =>
       new ReportedEventHandler(
         domain = Domain(serviceParams.serviceName.value),
         alarmLevel = alarmLevel,
-        errorHistory = errorHistory,
+        history = errorHistory,
         serviceParams = serviceParams,
         alarmThreshold = AlarmLevel.Error,
         channel = channel
