@@ -11,7 +11,7 @@ import scala.jdk.CollectionConverters.given
 enum ScrapeMode:
   case Cheap, Full
 
-final private class ScrapeMetrics(metricRegistry: MetricRegistry) {
+final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends AnyVal {
   /*
    *Counters
    */

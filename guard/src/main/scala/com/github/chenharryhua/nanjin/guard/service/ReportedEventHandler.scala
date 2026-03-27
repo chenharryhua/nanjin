@@ -12,9 +12,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
 import com.github.chenharryhua.nanjin.guard.service.History
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
+import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
-
 final private class ReportedEventHandler[F[_]](
   val alarmLevel: Ref[F, Option[AlarmLevel]],
   val errorHistory: History[F, ReportedEvent],
@@ -53,13 +53,14 @@ final private class ReportedEventHandler[F[_]](
 private object ReportedEventHandler:
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
-    alarmLevel: AlarmLevel,
-    channel: Channel[F, Event]): F[ReportedEventHandler[F]] = {
+    channel: Channel[F, Event],
+    alarmLevel: AlarmLevel
+  ): Stream[F, ReportedEventHandler[F]] = {
     val history = History[F, ReportedEvent](serviceParams.historyCapacity.error)
 
     val level = Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))
 
-    (history, level).mapN { (errorHistory, alarmLevel) =>
+    val re = (history, level).mapN { (errorHistory, alarmLevel) =>
       new ReportedEventHandler(
         alarmLevel = alarmLevel,
         errorHistory = errorHistory,
@@ -69,4 +70,5 @@ private object ReportedEventHandler:
         channel = channel
       )
     }
+    Stream.eval(re)
   }

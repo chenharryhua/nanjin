@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
 import cats.effect.std.Console
-import cats.effect.syntax.clock.clockOps
+import cats.effect.syntax.clock.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.functor.given
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
@@ -117,8 +118,7 @@ final private class MetricsEventHandler[F[_]] private (
 private object MetricsEventHandler {
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event],
-    scrapeMetrics: ScrapeMetrics
+    channel: Channel[F, Event]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
@@ -126,7 +126,7 @@ private object MetricsEventHandler {
     Stream.eval((history, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
       new MetricsEventHandler[F](
         serviceParams = serviceParams,
-        scrapeMetrics = scrapeMetrics,
+        scrapeMetrics = ScrapeMetrics(new MetricRegistry()),
         metricsHistory = metricsHistory,
         channel = channel,
         logSink = logSink)

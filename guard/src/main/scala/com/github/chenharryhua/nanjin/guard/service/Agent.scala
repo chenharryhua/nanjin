@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
-import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
@@ -73,7 +72,6 @@ sealed trait Agent[F[_]] {
 final private class GeneralAgent[F[_]: {Async, Console}](
   serviceParams: ServiceParams,
   domain: Domain,
-  metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
@@ -87,7 +85,6 @@ final private class GeneralAgent[F[_]: {Async, Console}](
     new GeneralAgent[F](
       serviceParams = serviceParams,
       domain = Domain(name),
-      metricRegistry = metricRegistry,
       channel = channel,
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
@@ -106,7 +103,7 @@ final private class GeneralAgent[F[_]: {Async, Console}](
 
   override def metricsHub(label: String): MetricsHub[F] = {
     val metricLabel = MetricLabel(label, domain)
-    new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
+    new MetricsHub.Impl[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
   }
 
   override def batch(label: String): Batch[F] = new Batch[F](metricsHub(label), uuidGenerator)

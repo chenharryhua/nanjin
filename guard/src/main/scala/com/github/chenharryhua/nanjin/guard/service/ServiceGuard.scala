@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import com.codahale.metrics.MetricRegistry
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -77,15 +76,13 @@ private[guard] object ServiceGuard {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         channel <- Stream.eval(Channel.unbounded[F, Event])
-        reHandler <- Stream.eval(ReportedEventHandler[F](serviceParams, config.alarmLevel, channel))
-        metricRegistry: MetricRegistry = new MetricRegistry()
-        meHandler <- MetricsEventHandler(serviceParams, channel, ScrapeMetrics(metricRegistry))
         seHandler <- ServiceEventHandler(serviceParams, channel)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, config.alarmLevel)
+        meHandler <- MetricsEventHandler(serviceParams, channel)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
             domain = Domain(serviceParams.serviceName.value),
-            metricRegistry = metricRegistry,
             channel = channel,
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
