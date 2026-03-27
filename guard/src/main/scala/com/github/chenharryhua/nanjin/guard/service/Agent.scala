@@ -3,11 +3,9 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
-import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
-import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
@@ -58,11 +56,6 @@ sealed trait Agent[F[_]] {
   def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
 
   /*
-   * cache
-   */
-  def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]]
-
-  /*
    * retry
    */
   def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
@@ -71,7 +64,6 @@ sealed trait Agent[F[_]] {
 
 final private class GeneralAgent[F[_]: {Async, Console}](
   serviceParams: ServiceParams,
-  domain: Domain,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
@@ -84,12 +76,11 @@ final private class GeneralAgent[F[_]: {Async, Console}](
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](
       serviceParams = serviceParams,
-      domain = Domain(name),
       channel = channel,
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
       metricsEventHandler = metricsEventHandler,
-      reportedEventHandler = reportedEventHandler
+      reportedEventHandler = reportedEventHandler.withDomain(name)
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -102,7 +93,7 @@ final private class GeneralAgent[F[_]: {Async, Console}](
     tickStream.tickImmediate[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(label, domain)
+    val metricLabel = MetricLabel(label, reportedEventHandler.domain)
     new MetricsHub.Impl[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
   }
 
@@ -114,24 +105,21 @@ final private class GeneralAgent[F[_]: {Async, Console}](
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, f)
 
-  override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
-    CaffeineCache[F, K, V](cache)
-
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
   override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
   override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
-    Resource.pure(reportedEventHandler.create(domain, f(AlarmLevel)))
+    Resource.pure(reportedEventHandler.createLog(f(AlarmLevel)))
 
-  override def logger(using ln: LoggerName): Resource[F, Log[F]] =
+  override def logger(using loggerName: LoggerName): Resource[F, Log[F]] =
     Resource
-      .eval(LogSink(serviceParams.logFormat, zoneId, ln))
+      .eval(LogSink(serviceParams.logFormat, zoneId, loggerName))
       .map(logSink =>
         Logger(
           serviceParams = serviceParams,
-          domain = domain,
+          domain = reportedEventHandler.domain,
           alarmLevel = reportedEventHandler.alarmLevel,
           logSink = logSink))
 }

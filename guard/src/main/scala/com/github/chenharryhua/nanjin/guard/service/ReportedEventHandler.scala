@@ -16,17 +16,31 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 final private class ReportedEventHandler[F[_]](
+  val domain: Domain,
   val alarmLevel: Ref[F, Option[AlarmLevel]],
   val errorHistory: History[F, ReportedEvent],
   serviceParams: ServiceParams,
-  domain: Domain,
   alarmThreshold: AlarmLevel,
   channel: Channel[F, Event]
 )(using F: Sync[F])
     extends Log[F] {
+  def withDomain(name: String): ReportedEventHandler[F] =
+    new ReportedEventHandler[F](
+      domain = Domain(name),
+      alarmLevel = alarmLevel,
+      errorHistory = errorHistory,
+      serviceParams = serviceParams,
+      alarmThreshold = alarmThreshold,
+      channel = channel)
 
-  def create(domain: Domain, alarmThreshold: AlarmLevel): Log[F] =
-    new ReportedEventHandler[F](alarmLevel, errorHistory, serviceParams, domain, alarmThreshold, channel)
+  def createLog(threshold: AlarmLevel): Log[F] =
+    new ReportedEventHandler[F](
+      domain = domain,
+      alarmLevel = alarmLevel,
+      errorHistory = errorHistory,
+      serviceParams = serviceParams,
+      alarmThreshold = threshold,
+      channel = channel)
 
   override def create[S: Encoder](
     message: S,
@@ -56,16 +70,18 @@ private object ReportedEventHandler:
     channel: Channel[F, Event],
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
-    val history = History[F, ReportedEvent](serviceParams.historyCapacity.error)
+    val history: F[History[F, ReportedEvent]] = 
+      History[F, ReportedEvent](serviceParams.historyCapacity.error)
 
-    val level = Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))
+    val initial: F[Ref[F, Option[AlarmLevel]]] = 
+      Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))
 
-    val re = (history, level).mapN { (errorHistory, alarmLevel) =>
+    val re = (history, initial).mapN { (errorHistory, alarmLevel) =>
       new ReportedEventHandler(
+        domain = Domain(serviceParams.serviceName.value),
         alarmLevel = alarmLevel,
         errorHistory = errorHistory,
         serviceParams = serviceParams,
-        domain = Domain(serviceParams.serviceName.value),
         alarmThreshold = AlarmLevel.Error,
         channel = channel
       )

@@ -126,7 +126,7 @@ private object MetricsEventHandler {
     Stream.eval((history, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
       new MetricsEventHandler[F](
         serviceParams = serviceParams,
-        scrapeMetrics = ScrapeMetrics(new MetricRegistry()),
+        scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
         metricsHistory = metricsHistory,
         channel = channel,
         logSink = logSink)

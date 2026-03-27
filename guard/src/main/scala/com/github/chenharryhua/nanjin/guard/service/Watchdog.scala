@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
-import cats.effect.syntax.monadCancel.monadCancelOps_
-import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.monadError.catsSyntaxMonadError
-import cats.syntax.order.catsSyntaxPartialOrder
+import cats.effect.syntax.monadCancel.given
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.monadError.given
+import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{StackTrace, StopReason}
@@ -66,6 +66,6 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], handler: ServiceE
 private object Watchdog {
   def stream[F[_]: Async](
     theService: F[Unit],
-    lifecyclePublisher: ServiceEventHandler[F]): Stream[F, Nothing] =
-    new Watchdog[F](theService, lifecyclePublisher).stream
+    serviceEventHandler: ServiceEventHandler[F]): Stream[F, Nothing] =
+    new Watchdog[F](theService, serviceEventHandler).stream
 }

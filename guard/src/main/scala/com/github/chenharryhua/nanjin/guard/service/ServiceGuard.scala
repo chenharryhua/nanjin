@@ -8,7 +8,7 @@ import cats.syntax.functor.given
 import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -82,7 +82,6 @@ private[guard] object ServiceGuard {
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
-            domain = Domain(serviceParams.serviceName.value),
             channel = channel,
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
