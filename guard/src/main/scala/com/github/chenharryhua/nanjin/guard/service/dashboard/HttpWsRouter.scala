@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
-import cats.effect.Ref
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
+import com.github.chenharryhua.nanjin.guard.service.History
 import fs2.concurrent.Topic
 import fs2.{Pipe, Stream}
 import org.http4s.dsl.Http4sDsl
@@ -13,12 +13,10 @@ import org.http4s.{HttpRoutes, StaticFile}
 import scalatags.Text
 import scalatags.Text.all.*
 
-import scala.collection.immutable.Vector
-
 final private class HttpWsRouter[F[_]: Async](
   backendConfig: BackendConfig,
   topic: Topic[F, TimedMeters],
-  history: Ref[F, Vector[TimedMeters]]
+  history: History[F, TimedMeters]
 ) extends Http4sDsl[F] {
 
   private val home_page: Text.TypedTag[String] =
@@ -44,7 +42,7 @@ final private class HttpWsRouter[F[_]: Async](
 
       case GET -> Root        => Ok(home_page)
       case GET -> Root / "ws" =>
-        val preserved = Stream.eval(history.get).flatMap(Stream.emits)
+        val preserved = Stream.eval(history.value).flatMap(Stream.emits)
         val send: Stream[F, WebSocketFrame] =
           (preserved ++ topic.subscribe(5))
             .zipWithPrevious

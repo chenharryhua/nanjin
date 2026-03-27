@@ -10,7 +10,6 @@ import scala.scalajs.js
 @js.native
 trait BackendConfigJS extends js.Object {
   val serviceName: String
-  val port: Int
   val zoneId: String
   val maxPoints: Int
   val policy: String
@@ -21,14 +20,13 @@ object BackendConfigJS {
     js.Dynamic.global.BACKEND_CONFIG.asInstanceOf[BackendConfigJS]
 }
 
-case class BackendConfig(serviceName: String, port: Int, zoneId: String, maxPoints: Int, policy: String)
+case class BackendConfig(serviceName: String, zoneId: String, maxPoints: Int, policy: String)
 
 object BackendConfig {
   def load(): BackendConfig = {
     val jsCfg = BackendConfigJS()
     BackendConfig(
       serviceName = jsCfg.serviceName,
-      port = jsCfg.port,
       zoneId = jsCfg.zoneId,
       maxPoints = jsCfg.maxPoints,
       policy = jsCfg.policy

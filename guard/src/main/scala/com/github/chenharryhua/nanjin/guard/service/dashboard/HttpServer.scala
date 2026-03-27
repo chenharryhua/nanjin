@@ -1,23 +1,24 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Ref}
-import cats.effect.std.AtomicCell
+import cats.effect.kernel.Async
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.tickStream
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.service.{LifecyclePublisher, MetricsPublisher, ScrapeMetrics}
+import com.github.chenharryhua.nanjin.guard.service.{
+  History,
+  LifecyclePublisher,
+  MetricsPublisher,
+  ScrapeMetrics
+}
 import fs2.Stream
 import fs2.concurrent.Topic
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.{Request, Response}
-
-import scala.collection.immutable.Vector
 
 private[service] object HttpServer {
 
@@ -31,14 +32,10 @@ private[service] object HttpServer {
 
     for {
       topic <- Topic[F, TimedMeters]
-      history <- Ref[F].of(Vector.empty[TimedMeters])
+      history <- History[F, TimedMeters](backendConfig.maxPoints)
       stream = ts.evalMap { tm =>
-        history.update { v =>
-          if (v.size >= backendConfig.maxPoints)
-            v.tail :+ tm
-          else v :+ tm
-        } >> topic.publish1(tm)
-      }.onFinalize(history.set(Vector.empty) <* topic.close).drain
+        history.add(tm) >> topic.publish1(tm)
+      }.onFinalize(history.clear <* topic.close).drain
     } yield (HttpWsRouter[F](backendConfig, topic, history), stream)
   }
 
@@ -46,7 +43,7 @@ private[service] object HttpServer {
     emberServerBuilder: Option[EmberServerBuilder[F]],
     metricsPublisher: MetricsPublisher[F],
     lifecyclePublisher: LifecyclePublisher[F],
-    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Stream[F, Nothing] =
+    errorHistory: History[F, ReportedEvent]): Stream[F, Nothing] =
     val dataRouter = HttpDataRouter[F](metricsPublisher, lifecyclePublisher, errorHistory).router
 
     emberServerBuilder match {
@@ -59,7 +56,6 @@ private[service] object HttpServer {
             val bc = BackendConfig(
               serviceName = metricsPublisher.serviceParams.serviceName.value,
               zoneId = metricsPublisher.serviceParams.zoneId,
-              port = esb.port,
               maxPoints = rm.maxPoints,
               policy = rm.policy
             )

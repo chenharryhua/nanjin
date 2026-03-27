@@ -1,27 +1,23 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
-import cats.effect.std.AtomicCell
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.StopReason
-import com.github.chenharryhua.nanjin.guard.service.{LifecyclePublisher, MetricsPublisher}
+import com.github.chenharryhua.nanjin.guard.service.{History, LifecyclePublisher, MetricsPublisher}
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, prettifyJson}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
 
-import scala.jdk.CollectionConverters.given
-
 final private class HttpDataRouter[F[_]](
   metricsPublisher: MetricsPublisher[F],
   lifecyclePublisher: LifecyclePublisher[F],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]
+  errorHistory: History[F, ReportedEvent]
 )(using F: Async[F])
     extends Http4sDsl[F] {
   private val serviceParams = metricsPublisher.serviceParams
@@ -41,7 +37,7 @@ final private class HttpDataRouter[F[_]](
     case GET -> Root / "errors" =>
       val json = for {
         now <- serviceParams.zonedNow
-        panics <- errorHistory.get.map(_.iterator().asScala.toList)
+        panics <- errorHistory.value
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
 
