@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
-final private class MetricsPublisher[F[_]] private (
+final private class MetricsEventHandler[F[_]] private (
   val serviceParams: ServiceParams,
   val scrapeMetrics: ScrapeMetrics,
   metricsHistory: History[F, MetricsSnapshot],
@@ -114,17 +114,17 @@ final private class MetricsPublisher[F[_]] private (
     }
 }
 
-private object MetricsPublisher {
+private object MetricsEventHandler {
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
     scrapeMetrics: ScrapeMetrics
-  ): Stream[F, MetricsPublisher[F]] = {
+  ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
 
     Stream.eval((history, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
-      new MetricsPublisher[F](
+      new MetricsEventHandler[F](
         serviceParams = serviceParams,
         scrapeMetrics = scrapeMetrics,
         metricsHistory = metricsHistory,

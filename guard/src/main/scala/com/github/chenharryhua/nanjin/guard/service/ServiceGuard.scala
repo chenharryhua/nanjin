@@ -1,16 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
 import fs2.Stream
@@ -78,34 +76,33 @@ private[guard] object ServiceGuard {
       for {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-        errorHistory <- Stream.eval(History[F, ReportedEvent](serviceParams.historyCapacity.error))
-        alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
         channel <- Stream.eval(Channel.unbounded[F, Event])
+        reHandler <- Stream.eval(ReportedEventHandler[F](serviceParams, config.alarmLevel, channel))
         metricRegistry: MetricRegistry = new MetricRegistry()
-        metricsPublisher <- MetricsPublisher(serviceParams, channel, ScrapeMetrics(metricRegistry))
-        lifecyclePublisher <- LifecyclePublisher(serviceParams, channel)
+        meHandler <- MetricsEventHandler(serviceParams, channel, ScrapeMetrics(metricRegistry))
+        seHandler <- ServiceEventHandler(serviceParams, channel)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
             domain = Domain(serviceParams.serviceName.value),
             metricRegistry = metricRegistry,
             channel = channel,
-            errorHistory = errorHistory,
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
-            alarmLevel = alarmLevel,
-            adhocMetrics = metricsPublisher
+            metricsEventHandler = meHandler,
+            reportedEventHandler = reHandler
           )
         event <- channel.stream // main stream
-          .concurrently(metricsPublisher.reset_periodically)
-          .concurrently(metricsPublisher.report_periodically)
-          .concurrently(Watchdog.stream(F.defer(runAgent(agent)), lifecyclePublisher))
+          .concurrently(meHandler.reset_periodically)
+          .concurrently(meHandler.report_periodically)
+          .concurrently(Watchdog.stream(F.defer(runAgent(agent)), seHandler))
           .concurrently(
             HttpServer(
               emberServerBuilder = emberServerBuilder,
-              metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher,
-              errorHistory = errorHistory))
+              metricsEventHandler = meHandler,
+              serviceEventHandler = seHandler,
+              reportedEventHandler = reHandler
+            ))
       } yield event
 
     override def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =

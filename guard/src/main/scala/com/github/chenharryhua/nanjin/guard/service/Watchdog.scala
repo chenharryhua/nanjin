@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.effect.kernel.Async
+import cats.effect.syntax.monadCancel.monadCancelOps_
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
@@ -16,11 +16,11 @@ import org.typelevel.cats.time.instances.duration
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
-final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
+final private class Watchdog[F[_]: Async](theService: F[Unit], handler: ServiceEventHandler[F])
     extends duration {
 
   private val F = Async[F]
-  private val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
+  private val serviceParams: ServiceParams = handler.serviceParams
 
   private def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
@@ -37,10 +37,10 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublishe
       val stackTrace: StackTrace = StackTrace(ex)
 
       tickStatus.next(now).flatMap {
-        case None      => lifecyclePublisher.service_stop(StopReason.ByException(stackTrace)).as(None)
+        case None      => handler.service_stop(StopReason.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            _ <- lifecyclePublisher.service_panic(nts.tick, stackTrace)
+            _ <- handler.service_panic(nts.tick, stackTrace)
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
       }
@@ -52,12 +52,12 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublishe
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (lifecyclePublisher.service_start(status.tick) <* theService)
+            (handler.service_start(status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
-                _ => lifecyclePublisher.service_stop(StopReason.Successfully).as(None)
+                _ => handler.service_stop(StopReason.Successfully).as(None)
               )
-              .onCancel(lifecyclePublisher.service_cancel)
+              .onCancel(handler.service_cancel)
           }
           .drain
       }
@@ -66,6 +66,6 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublishe
 private object Watchdog {
   def stream[F[_]: Async](
     theService: F[Unit],
-    lifecyclePublisher: LifecyclePublisher[F]): Stream[F, Nothing] =
+    lifecyclePublisher: ServiceEventHandler[F]): Stream[F, Nothing] =
     new Watchdog[F](theService, lifecyclePublisher).stream
 }

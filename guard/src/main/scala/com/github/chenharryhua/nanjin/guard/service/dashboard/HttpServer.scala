@@ -6,12 +6,12 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.tickStream
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.service.{
   History,
-  LifecyclePublisher,
-  MetricsPublisher,
-  ScrapeMetrics
+  MetricsEventHandler,
+  ReportedEventHandler,
+  ScrapeMetrics,
+  ServiceEventHandler
 }
 import fs2.Stream
 import fs2.concurrent.Topic
@@ -41,25 +41,25 @@ private[service] object HttpServer {
 
   def apply[F[_]: Async](
     emberServerBuilder: Option[EmberServerBuilder[F]],
-    metricsPublisher: MetricsPublisher[F],
-    lifecyclePublisher: LifecyclePublisher[F],
-    errorHistory: History[F, ReportedEvent]): Stream[F, Nothing] =
-    val dataRouter = HttpDataRouter[F](metricsPublisher, lifecyclePublisher, errorHistory).router
+    metricsEventHandler: MetricsEventHandler[F],
+    serviceEventHandler: ServiceEventHandler[F],
+    reportedEventHandler: ReportedEventHandler[F]): Stream[F, Nothing] =
+    val dataRouter = HttpDataRouter[F](metricsEventHandler, serviceEventHandler, reportedEventHandler).router
 
     emberServerBuilder match {
       case None      => Stream.empty.covary[F]
       case Some(esb) =>
-        metricsPublisher.serviceParams.servicePolicies.realtimeMetrics match {
+        metricsEventHandler.serviceParams.servicePolicies.realtimeMetrics match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
-              serviceName = metricsPublisher.serviceParams.serviceName.value,
-              zoneId = metricsPublisher.serviceParams.zoneId,
+              serviceName = metricsEventHandler.serviceParams.serviceName.value,
+              zoneId = metricsEventHandler.serviceParams.zoneId,
               maxPoints = rm.maxPoints,
               policy = rm.policy
             )
-            Stream.eval(wsRouter(bc, metricsPublisher.scrapeMetrics)).flatMap { case (ws, updates) =>
+            Stream.eval(wsRouter(bc, metricsEventHandler.scrapeMetrics)).flatMap { case (ws, updates) =>
               def route(wsb2: WebSocketBuilder2[F]): Kleisli[F, Request[F], Response[F]] =
                 Router(
                   "/" -> dataRouter,

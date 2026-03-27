@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
@@ -11,9 +11,8 @@ import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import logging.{Log, LogSink, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import com.github.chenharryhua.nanjin.guard.service.logging.{Log, LogSink, Logger}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.log4cats.LoggerName
@@ -76,11 +75,10 @@ final private class GeneralAgent[F[_]: {Async, Console}](
   domain: Domain,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  errorHistory: History[F, ReportedEvent],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
-  alarmLevel: Ref[F, Option[AlarmLevel]],
-  adhocMetrics: AdhocMetrics[F])
+  metricsEventHandler: MetricsEventHandler[F],
+  reportedEventHandler: ReportedEventHandler[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
@@ -91,11 +89,10 @@ final private class GeneralAgent[F[_]: {Async, Console}](
       domain = Domain(name),
       metricRegistry = metricRegistry,
       channel = channel,
-      errorHistory = errorHistory,
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
-      alarmLevel = alarmLevel,
-      adhocMetrics = adhocMetrics
+      metricsEventHandler = metricsEventHandler,
+      reportedEventHandler = reportedEventHandler
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -126,21 +123,18 @@ final private class GeneralAgent[F[_]: {Async, Console}](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override val adhoc: AdhocMetrics[F] = adhocMetrics
+  override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
   override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
-    Resource.pure(
-      Herald(
-        serviceParams = serviceParams,
-        domain = domain,
-        alarmLevel = alarmLevel,
-        alarmThreshold = f(AlarmLevel),
-        channel = channel,
-        errorHistory = errorHistory))
+    Resource.pure(reportedEventHandler.create(domain, f(AlarmLevel)))
 
   override def logger(using ln: LoggerName): Resource[F, Log[F]] =
     Resource
       .eval(LogSink(serviceParams.logFormat, zoneId, ln))
       .map(logSink =>
-        Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logSink = logSink))
+        Logger(
+          serviceParams = serviceParams,
+          domain = domain,
+          alarmLevel = reportedEventHandler.alarmLevel,
+          logSink = logSink))
 }

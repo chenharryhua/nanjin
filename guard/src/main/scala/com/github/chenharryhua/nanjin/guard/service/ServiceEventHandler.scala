@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
-final private class LifecyclePublisher[F[_]: Sync] private (
+final private class ServiceEventHandler[F[_]: Sync] private (
   val serviceParams: ServiceParams,
   panicHistory: History[F, ServicePanic],
   channel: Channel[F, Event],
@@ -47,14 +47,14 @@ final private class LifecyclePublisher[F[_]: Sync] private (
     panicHistory.value
 }
 
-private object LifecyclePublisher {
+private object ServiceEventHandler {
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event]): Stream[F, LifecyclePublisher[F]] = {
+    channel: Channel[F, Event]): Stream[F, ServiceEventHandler[F]] = {
     val history = History[F, ServicePanic](serviceParams.historyCapacity.panic)
 
     Stream.eval((history, log_sink(serviceParams)).mapN { case (panicHistory, logSink) =>
-      new LifecyclePublisher[F](
+      new ServiceEventHandler[F](
         serviceParams = serviceParams,
         panicHistory = panicHistory,
         channel = channel,
