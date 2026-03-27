@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.logging
+package com.github.chenharryhua.nanjin.guard.service.logging
 
 import cats.Monad
 import cats.effect.kernel.Clock

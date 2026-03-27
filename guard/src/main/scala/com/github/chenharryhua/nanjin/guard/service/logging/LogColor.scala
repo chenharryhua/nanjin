@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.logging
+package com.github.chenharryhua.nanjin.guard.service.logging
 
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel

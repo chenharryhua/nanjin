@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher}
+import cats.effect.std.{Console, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -12,11 +12,10 @@ import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogSink, Logger}
+import logging.{Log, LogSink, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.typelevel.log4cats.LoggerName
 
 import java.time.ZoneId
@@ -72,12 +71,12 @@ sealed trait Agent[F[_]] {
 
 }
 
-final private class GeneralAgent[F[_]: Async: Console](
+final private class GeneralAgent[F[_]: {Async, Console}](
   serviceParams: ServiceParams,
   domain: Domain,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
+  errorHistory: History[F, ReportedEvent],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
   alarmLevel: Ref[F, Option[AlarmLevel]],

@@ -1,7 +1,6 @@
-package com.github.chenharryhua.nanjin.guard.logging
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Ref, Sync}
-import cats.effect.std.AtomicCell
 import cats.syntax.applicative.catsSyntaxApplicativeByName
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.catsSyntaxFlatMapOps
@@ -10,9 +9,10 @@ import cats.syntax.order.{catsSyntaxOrder, catsSyntaxPartialOrder}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
+import com.github.chenharryhua.nanjin.guard.service.History
+import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.concurrent.Channel
 import io.circe.Encoder
-import org.apache.commons.collections4.queue.CircularFifoQueue
 
 object Herald {
   def apply[F[_]: Sync](
@@ -21,7 +21,7 @@ object Herald {
     alarmLevel: Ref[F, Option[AlarmLevel]],
     alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
-    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Log[F] =
+    errorHistory: History[F, ReportedEvent]): Log[F] =
     new ReportedEventPublisher[F](serviceParams, domain, alarmLevel, alarmThreshold, channel, errorHistory)
 
   final private class ReportedEventPublisher[F[_]](
@@ -30,7 +30,7 @@ object Herald {
     alarmLevel: Ref[F, Option[AlarmLevel]],
     alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
-    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(using F: Sync[F])
+    errorHistory: History[F, ReportedEvent])(using F: Sync[F])
       extends Log[F] {
 
     override def create[S: Encoder](
@@ -46,7 +46,7 @@ object Herald {
 
     override def publish(event: ReportedEvent): F[Unit] =
       channel.send(event) >>
-        errorHistory.modify(queue => (queue, queue.add(event)))
+        errorHistory.add(event)
           .whenA(event.level === AlarmLevel.Error)
 
     // Combine dynamic alarmLevel with static alarmThreshold (floor).

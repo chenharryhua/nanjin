@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.logging
+package com.github.chenharryhua.nanjin.guard.service.logging
 
 import cats.effect.kernel.{Ref, Sync}
 import cats.syntax.functor.toFunctorOps
@@ -6,6 +6,7 @@ import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, StackTrace}
+import com.github.chenharryhua.nanjin.guard.service.create_reported_event
 import io.circe.Encoder
 
 object Logger {

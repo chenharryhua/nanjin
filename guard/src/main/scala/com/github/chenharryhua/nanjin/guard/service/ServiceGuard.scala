@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, SecureRandom, UUIDGen}
+import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.catsSyntaxOptionId
@@ -17,7 +17,6 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 
 import java.util.UUID
@@ -38,8 +37,7 @@ private[guard] object ServiceGuard {
   final private class ServiceGuardImpl[F[_]: {Network, Async, Console}](
     serviceName: Service,
     config: ServiceConfig[F])
-      extends ServiceGuard[F] {
-    self =>
+      extends ServiceGuard[F] { self =>
 
     private val F = Async[F]
 
@@ -80,12 +78,11 @@ private[guard] object ServiceGuard {
       for {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-        reQueue = AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](serviceParams.historyCapacity.error))
-        errorHistory <- Stream.eval(reQueue)
+        errorHistory <- Stream.eval(History[F, ReportedEvent](serviceParams.historyCapacity.error))
         alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
         channel <- Stream.eval(Channel.unbounded[F, Event])
         metricRegistry: MetricRegistry = new MetricRegistry()
-        metricsPublisher <- MetricsPublisher(serviceParams, ScrapeMetrics(metricRegistry), channel)
+        metricsPublisher <- MetricsPublisher(serviceParams, channel, ScrapeMetrics(metricRegistry))
         lifecyclePublisher <- LifecyclePublisher(serviceParams, channel)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
