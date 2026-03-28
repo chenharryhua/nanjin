@@ -8,9 +8,9 @@ import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.aws.{SimpleNotificationService, SnsArn}
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceId}
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
-import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
@@ -19,7 +19,7 @@ import software.amazon.awssdk.services.sns.model.PublishRequest
 
 object SlackObserver {
   def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
-    new SlackObserver[F](client, SlackTranslator[F], AlarmLevel.Warn)
+    new SlackObserver[F](client, SlackTranslator[F])
 }
 
 /** Notes: Slack messages `https://api.slack.com/docs/messages/builder`
@@ -27,15 +27,11 @@ object SlackObserver {
 
 final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
-  translator: Translator[F, SlackApp],
-  threshold: AlarmLevel)(using F: Concurrent[F])
+  translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
-  def withAlarmLevel(f: AlarmLevel.type => AlarmLevel): SlackObserver[F] =
-    new SlackObserver[F](client, translator, f(AlarmLevel))
-
   override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
-    new SlackObserver[F](client, translator = f(translator), threshold)
+    new SlackObserver[F](client, translator = f(translator))
 
   private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[Unit] = {
     val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn.value).message(msg)
@@ -50,8 +46,7 @@ final class SlackObserver[F[_]: Clock](
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
-          translator.filter(EventPipe.alarmLevel(threshold))
-            .translate(e)
+          translator.translate(e)
             .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalize(ofm.terminated.flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
     } yield event

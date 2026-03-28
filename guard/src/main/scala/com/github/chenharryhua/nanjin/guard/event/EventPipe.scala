@@ -35,8 +35,9 @@ object EventPipe {
     override def apply(event: Event): Option[Event] = Some(event)
   }
 
-  def alarmLevel(threshold: AlarmLevel): EventPipe =
+  def alarmLevel(f: AlarmLevel.type => AlarmLevel): EventPipe =
     new EventPipe {
+      private val threshold: AlarmLevel = f(AlarmLevel)
       override def apply(event: Event): Option[Event] =
         event match {
           case evt @ Event.ReportedEvent(_, _, _, _, level, _, _) =>
