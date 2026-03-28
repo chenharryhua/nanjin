@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.http.client
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.functor.given
 import org.http4s.client.Client
 
 /** Entry points for creating OAuth 2.0 authenticators.

@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.kernel.*
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import natchez.Span
 import org.http4s.client.Client
 import org.http4s.{Header, Headers, Response}

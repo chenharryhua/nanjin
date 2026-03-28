@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
+import cats.syntax.applicativeError.given
+import cats.syntax.eq.given
+import cats.syntax.flatMap.given
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 import org.http4s.Method.POST

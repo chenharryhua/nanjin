@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.foldable.toFoldableOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicativeError.given
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.foldable.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event

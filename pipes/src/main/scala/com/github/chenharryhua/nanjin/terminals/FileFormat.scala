@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Show
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.eq.given
 import io.circe.{Decoder, Encoder}
 
 enum FileFormat(val value: Int, val format: String, val alias: String):

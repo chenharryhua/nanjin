@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Show
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.eq.given
 import io.circe.{Codec, Decoder, Encoder}
 import io.lemonlabs.uri.Url
 

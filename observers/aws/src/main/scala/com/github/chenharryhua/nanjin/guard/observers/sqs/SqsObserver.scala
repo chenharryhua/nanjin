@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.guard.observers.sqs
 import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.effect.std.UUIDGen
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.foldable.toFoldableOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.show.toShow
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.foldable.given
+import cats.syntax.functor.given
+import cats.syntax.show.given
+import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
 import com.github.chenharryhua.nanjin.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.Event

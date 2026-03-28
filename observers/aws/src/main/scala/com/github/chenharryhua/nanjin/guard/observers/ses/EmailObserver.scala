@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.applicative.catsSyntaxApplicativeByName
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicative.given
+import cats.syntax.applicativeError.given
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
@@ -77,7 +77,6 @@ final class EmailObserver[F[_]] private (
         case ColorScheme.DebugColor => (w, e)
         case ColorScheme.WarnColor  => (w + 1, e)
         case ColorScheme.ErrorColor => (w, e + 1)
-
       }
     }
 
