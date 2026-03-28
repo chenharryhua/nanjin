@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.record
 
 import cats.data.Cont
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.eq.given
 import fs2.kafka.*
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.into

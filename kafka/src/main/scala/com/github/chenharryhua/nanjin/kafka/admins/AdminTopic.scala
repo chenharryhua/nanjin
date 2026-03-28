@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.syntax.traverseFilter.toTraverseFilterOps
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{

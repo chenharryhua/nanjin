@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.Temporal
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.functor.given
 import fs2.Pipe
 import fs2.kafka.{CommittableOffset, CommittableOffsetBatch}
 

@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
 import cats.effect.kernel.Async
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.{
   AvroSchemaPair,

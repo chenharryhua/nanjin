@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
-import cats.syntax.bifunctor.toBifunctorOps
-import cats.syntax.bitraverse.catsSyntaxBitraverse
+import cats.syntax.bifunctor.given
+import cats.syntax.bitraverse.given
 import cats.{Bifunctor, Bitraverse}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}

@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
-import cats.implicits.toTraverseOps
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.given
+import cats.syntax.applicativeError.given
+import cats.syntax.eq.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.kafka.{
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,

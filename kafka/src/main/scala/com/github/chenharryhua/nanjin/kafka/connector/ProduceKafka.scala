@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.foldable.toFoldableOps
+import cats.syntax.flatMap.given
+import cats.syntax.foldable.given
 import cats.{Endo, Foldable}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.TopicName

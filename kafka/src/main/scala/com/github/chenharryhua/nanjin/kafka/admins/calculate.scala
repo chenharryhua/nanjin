@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.apply.given
 import com.github.chenharryhua.nanjin.kafka.{LagBehind, Offset, OffsetRange, TopicPartitionMap}
 
 private object calculate {
