@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.syntax.eq.catsSyntaxEq
+import cats.data.NonEmptyList
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Per
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{toDateTimeCronOps, CronExpr}
 
-import java.time.{Duration, Instant}
+import java.time.{Duration, Instant, LocalDateTime, LocalTime}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -62,8 +62,8 @@ object EventPipe {
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(mrt, _, _, _, _) =>
-            mrt match {
+          case MetricsSnapshot(index, _, _, _, _) =>
+            index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) =>
                 val inSlot =
@@ -75,12 +75,30 @@ object EventPipe {
         }
     }
 
+  def localTimeFilter(localTimes: NonEmptyList[LocalTime]): EventPipe =
+    new EventPipe {
+      override def apply(event: Event): Option[Event] =
+        event match {
+          case MetricsSnapshot(index, _, _, _, _) =>
+            val isKeep = index match {
+              case Adhoc(_)       => true
+              case Periodic(tick) =>
+                localTimes.exists { lt =>
+                  val zdt = LocalDateTime.of(tick.local(_.conclude).toLocalDate, lt).atZone(tick.zoneId)
+                  if tick.isWithinOpenClosed(zdt.toInstant) then true else false
+                }
+            }
+            if isKeep then Some(event) else None
+          case others => Some(others)
+        }
+    }
+
   def indexFilter(divisor: Int): EventPipe =
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(mrt, _, _, _, _) =>
-            mrt match {
+          case MetricsSnapshot(index, _, _, _, _) =>
+            index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) => if ((tick.index % divisor) === 0) Some(event) else None
             }
@@ -93,8 +111,8 @@ object EventPipe {
 
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(mrt, _, _, _, _) =>
-            mrt match {
+          case MetricsSnapshot(index, _, _, _, _) =>
+            index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) =>
                 val n_interval: Double =

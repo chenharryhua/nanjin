@@ -411,11 +411,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
-    .settings(
-      publish / skip := true,
-      ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
-      ThisBuild / publishTo := Some(
-        "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
-      ThisBuild / publishConfiguration      := publishConfiguration.value.withOverwrite(true),
-      ThisBuild / publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
-    )
+ 
