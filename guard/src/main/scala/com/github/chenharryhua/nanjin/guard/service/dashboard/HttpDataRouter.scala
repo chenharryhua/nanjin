@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{
   MetricsEventHandler,
@@ -52,7 +52,7 @@ final private class HttpDataRouter[F[_]](
       Ok(interpretServiceParams(serviceParams))
 
     case GET -> Root / "service" / "stop" =>
-      Ok(serviceEventHandler.service_stop(StopReason.Maintenance).as("Stopping"))
+      Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
 
     case GET -> Root / "service" / "jvm" =>
       val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
@@ -75,11 +75,11 @@ final private class HttpDataRouter[F[_]](
      */
 
     case GET -> Root / "metrics" / "report" =>
-      val text = metricsEventHandler.http_report.map(documents.snapshot_to_yaml_html("Report"))
+      val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report"))
       Ok(text)
 
     case GET -> Root / "metrics" / "reset" =>
-      val text = metricsEventHandler.http_reset.map(documents.snapshot_to_yaml_html("Reset"))
+      val text = metricsEventHandler.httpReset.map(documents.snapshot_to_yaml_html("Reset"))
       Ok(text)
 
     case GET -> Root / "metrics" / "history" =>

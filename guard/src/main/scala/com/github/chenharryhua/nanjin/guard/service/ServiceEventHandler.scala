@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Console
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.flatMap.{catsSyntaxFlatMapOps, catsSyntaxIfM, toFlatMapOps}
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicative.given 
+import cats.syntax.apply.given 
+import cats.syntax.flatMap.given 
+import cats.syntax.functor.given 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
@@ -23,16 +23,16 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   private def publish(event: Event): F[Unit] =
     channel.send(event) >> logSink.write(event)
 
-  def service_start(tick: Tick): F[Unit] =
+  def serviceStart(tick: Tick): F[Unit] =
     publish(ServiceStart(serviceParams, tick))
 
-  def service_panic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
+  def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
     publish(ServicePanic(serviceParams, tick, stackTrace)) >>
       history.add(panic)
   }
 
-  def service_stop(cause: StopReason): F[Unit] =
+  def serviceStop(cause: StopReason): F[Unit] =
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)
@@ -40,8 +40,8 @@ final private class ServiceEventHandler[F[_]: Sync] private (
       _ <- channel.closeWithElement(event)
     } yield ()
 
-  def service_cancel: F[Unit] =
-    channel.isClosed.ifM(().pure[F], service_stop(StopReason.ByCancellation))
+  def serviceCancel: F[Unit] =
+    channel.isClosed.ifM(().pure[F], serviceStop(StopReason.ByCancellation))
 
   def panicHistory: F[Vector[ServicePanic]] = history.value
 }

@@ -74,6 +74,7 @@ private[guard] object ServiceGuard {
     override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
       for {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
+        // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         channel <- Stream.eval(Channel.unbounded[F, Event])
         seHandler <- ServiceEventHandler(serviceParams, channel)
@@ -89,9 +90,9 @@ private[guard] object ServiceGuard {
             reportedEventHandler = reHandler
           )
         event <- channel.stream // main stream
-          .concurrently(meHandler.reset_periodically)
-          .concurrently(meHandler.report_periodically)
-          .concurrently(Watchdog.stream(F.defer(runAgent(agent)), seHandler))
+          .concurrently(meHandler.resetPeriodically)
+          .concurrently(meHandler.reportPeriodically)
+          .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler).stream)
           .concurrently(
             HttpServer(
               emberServerBuilder = emberServerBuilder,

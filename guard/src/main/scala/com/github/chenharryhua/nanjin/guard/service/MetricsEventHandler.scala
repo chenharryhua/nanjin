@@ -48,19 +48,19 @@ final private class MetricsEventHandler[F[_]] private (
       _ <- history.add(ms)
     } yield ms
 
-  private def tickingBy(kind: Kind): Stream[F, Tick] =
+  private def ticking_by(kind: Kind): Stream[F, Tick] =
     tickStream.tickScheduled[F](serviceParams.zoneId, _.fresh(kind.policy))
 
   /*
    * Report
    */
-  def http_report: F[MetricsSnapshot] =
+  def httpReport: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
       build_metrics_snapshot(report_kind, Adhoc(ts))
     }
 
-  def report_periodically: Stream[F, Nothing] =
-    tickingBy(report_kind).evalMap { tick =>
+  def reportPeriodically: Stream[F, Nothing] =
+    ticking_by(report_kind).evalMap { tick =>
       publish(report_kind, Periodic(tick))
     }.drain
 
@@ -71,13 +71,13 @@ final private class MetricsEventHandler[F[_]] private (
   private val reset_counters: F[Unit] =
     F.blocking(scrapeMetrics.resetCounter())
 
-  def http_reset: F[MetricsSnapshot] =
+  def httpReset: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
       build_metrics_snapshot(reset_kind, Adhoc(ts)) <* reset_counters
     }
 
-  def reset_periodically: Stream[F, Nothing] =
-    tickingBy(reset_kind).evalMap { tick =>
+  def resetPeriodically: Stream[F, Nothing] =
+    ticking_by(reset_kind).evalMap { tick =>
       publish(reset_kind, Periodic(tick)) >> reset_counters
     }.drain
 

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.apply.given
-import cats.syntax.option.{catsSyntaxOptionId, none}
+import cats.syntax.option.{none, given}
 import cats.{Functor, Semigroupal}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent

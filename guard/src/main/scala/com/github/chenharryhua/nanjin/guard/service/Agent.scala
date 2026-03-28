@@ -111,7 +111,7 @@ final private class GeneralAgent[F[_]: {Async, Console}](
   override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
   override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
-    Resource.pure(reportedEventHandler.createLog(f(AlarmLevel)))
+    Resource.pure(reportedEventHandler.createLogger(f(AlarmLevel)))
 
   override def logger(using loggerName: LoggerName): Resource[F, Log[F]] =
     Resource

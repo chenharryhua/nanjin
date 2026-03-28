@@ -34,7 +34,7 @@ final private class ReportedEventHandler[F[_]](
       alarmThreshold = alarmThreshold,
       channel = channel)
 
-  def createLog(threshold: AlarmLevel): Log[F] =
+  def createLogger(threshold: AlarmLevel): Log[F] =
     new ReportedEventHandler[F](
       domain = domain,
       alarmLevel = alarmLevel,

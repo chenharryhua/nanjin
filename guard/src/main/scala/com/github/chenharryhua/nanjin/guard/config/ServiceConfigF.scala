@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.derived.derived
 import cats.effect.kernel.Clock
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicative.given 
+import cats.syntax.apply.given 
+import cats.syntax.functor.given 
 import cats.{Applicative, Endo, Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.{TimeZone, UpTime}

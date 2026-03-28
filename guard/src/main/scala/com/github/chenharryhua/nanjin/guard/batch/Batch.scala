@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
-import cats.effect.kernel.syntax.concurrent.concurrentParTraverseOps
+import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
-import cats.effect.syntax.clock.clockOps
-import cats.effect.syntax.monadCancel.{monadCancelOps, monadCancelOps_}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
-import cats.syntax.show.showInterpolator
-import cats.syntax.traverse.toTraverseOps
+import cats.effect.syntax.clock.given
+import cats.effect.syntax.monadCancel.given
+import cats.syntax.applicativeError.given
+import cats.syntax.apply.given
+import cats.syntax.eq.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.monadError.given
+import cats.syntax.show.given
+import cats.syntax.traverse.given
 import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel

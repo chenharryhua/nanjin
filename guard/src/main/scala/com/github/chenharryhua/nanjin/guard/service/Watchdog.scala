@@ -37,35 +37,29 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], handler: ServiceE
       val stackTrace: StackTrace = StackTrace(ex)
 
       tickStatus.next(now).flatMap {
-        case None      => handler.service_stop(StopReason.ByException(stackTrace)).as(None)
+        case None      => handler.serviceStop(StopReason.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            _ <- handler.service_panic(nts.tick, stackTrace)
+            _ <- handler.servicePanic(nts.tick, stackTrace)
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
       }
     }
 
-  private val stream: Stream[F, Nothing] =
+  val stream: Stream[F, Nothing] =
     Stream
       .eval(PolicyTick.zeroth[F](serviceParams.zoneId, serviceParams.servicePolicies.restart.policy))
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (handler.service_start(status.tick) <* theService)
+            (handler.serviceStart(status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
-                _ => handler.service_stop(StopReason.Successfully).as(None)
+                _ => handler.serviceStop(StopReason.Successfully).as(None)
               )
-              .onCancel(handler.service_cancel)
+              .onCancel(handler.serviceCancel)
           }
           .drain
       }
 }
 
-private object Watchdog {
-  def stream[F[_]: Async](
-    theService: F[Unit],
-    serviceEventHandler: ServiceEventHandler[F]): Stream[F, Nothing] =
-    new Watchdog[F](theService, serviceEventHandler).stream
-}

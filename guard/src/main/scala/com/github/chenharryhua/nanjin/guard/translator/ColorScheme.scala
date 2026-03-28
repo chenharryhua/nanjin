@@ -4,7 +4,7 @@ import cats.Defer
 import cats.data.ContT
 import cats.derived.derived
 import cats.kernel.Order
-import cats.syntax.order.catsSyntaxOrder
+import cats.syntax.order.given 
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsSnapshot,
