@@ -17,7 +17,8 @@ object Main {
    * Chart
    */
   private val chartVar: Var[Option[js.Dynamic]] = Var(Option.empty[js.Dynamic])
-  private val connector: WsConnector = new WsConnector(config.port, config.maxPoints)
+  private val connector: WsConnector =
+    new WsConnector(FrontendConfig.fromWindow(), config.maxPoints)
 
   /*
    * Canvas

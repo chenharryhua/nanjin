@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
@@ -9,10 +10,11 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, Servic
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.Duration
+import java.time.{Duration, LocalTime}
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
-import com.github.chenharryhua.nanjin.guard.event.EventPipe
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
+import fs2.Stream
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -65,5 +67,24 @@ class EventFilterTest extends AnyFunSuite {
     assert(tb.index + 3 == tc.index)
     assert(Duration.between(tb.conclude, tc.conclude) == Duration.ofSeconds(3))
     assert(d.isInstanceOf[ServiceStop])
+  }
+
+  test("3.sampling - local time") {
+    val run: Stream[IO, Event] = service
+      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
+      .eventStream(_ => IO.sleep(7.seconds))
+      .map(checkJson)
+      .filter(
+        EventPipe.localTimeFilter(
+          NonEmptyList.of(
+            LocalTime.now().plusSeconds(3),
+            LocalTime.now().plusSeconds(12),
+            LocalTime.now().plusSeconds(120))
+        ).filter)
+
+    val List(a, b, c) = run.compile.toList.unsafeRunSync()
+    assert(b.asInstanceOf[MetricsSnapshot].index.isInstanceOf[Periodic])
+    assert(a.isInstanceOf[ServiceStart])
+    assert(c.isInstanceOf[ServiceStop])
   }
 }

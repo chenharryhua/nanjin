@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cats.derived.derived
 import cats.effect.kernel.Sync
 import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.show.{showInterpolator, toShow}
+import cats.syntax.eq.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.show.{showInterpolator, given}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import fs2.timeseries.TimeStamped

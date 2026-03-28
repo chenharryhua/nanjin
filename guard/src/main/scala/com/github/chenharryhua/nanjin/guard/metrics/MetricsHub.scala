@@ -4,9 +4,9 @@ import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.kernel.Group
-import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.option.{catsSyntaxOptionId, none}
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.option.{none, given}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.{MetricLabel, Squants}
@@ -43,7 +43,7 @@ trait MetricsHub[F[_]] {
   def permanentCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
-  def balanceGauge[A: Group: Encoder](
+  def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
     target: (String, A)): Resource[F, BalanceGauge[F, A]]
 }
@@ -138,7 +138,7 @@ object MetricsHub {
         _ <- gauge(name, identity).register(stm.commit(ta.get))
       } yield ta
 
-    override def balanceGauge[A: Group: Encoder](
+    override def balanceGauge[A: {Group, Encoder}](
       source: (String, A),
       target: (String, A)): Resource[F, BalanceGauge[F, A]] = {
       val (sourceName, sourceValue) = source

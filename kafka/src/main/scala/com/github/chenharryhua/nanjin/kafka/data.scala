@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.order.given
 import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.IronRefined.PlusConversion
 import com.github.chenharryhua.nanjin.common.OpaqueLift

@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,

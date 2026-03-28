@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.apply.given
+import cats.syntax.traverse.given
 import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 

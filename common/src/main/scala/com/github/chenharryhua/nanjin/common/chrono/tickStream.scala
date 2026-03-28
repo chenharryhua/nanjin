@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.{Async, Sync, Temporal}
 import cats.effect.std.Random
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import fs2.{Pull, Stream}
 
 import java.time.{Duration, ZoneId}

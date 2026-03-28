@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicativeError.given
+import cats.syntax.functor.given
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
 import doobie.syntax.string.toSqlInterpolator

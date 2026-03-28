@@ -1,22 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher}
-import com.codahale.metrics.MetricRegistry
-import com.github.benmanes.caffeine.cache.Cache
+import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.{Console, Dispatcher}
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
-import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogSink, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import com.github.chenharryhua.nanjin.guard.service.logging.{Log, LogSink, Logger}
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.typelevel.log4cats.LoggerName
 
 import java.time.ZoneId
@@ -61,27 +56,19 @@ sealed trait Agent[F[_]] {
   def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
 
   /*
-   * cache
-   */
-  def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]]
-
-  /*
    * retry
    */
   def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 
 }
 
-final private class GeneralAgent[F[_]: Async: Console](
+final private class GeneralAgent[F[_]: {Async, Console}](
   serviceParams: ServiceParams,
-  domain: Domain,
-  metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
-  alarmLevel: Ref[F, Option[AlarmLevel]],
-  adhocMetrics: AdhocMetrics[F])
+  metricsEventHandler: MetricsEventHandler[F],
+  reportedEventHandler: ReportedEventHandler[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
@@ -89,14 +76,11 @@ final private class GeneralAgent[F[_]: Async: Console](
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](
       serviceParams = serviceParams,
-      domain = Domain(name),
-      metricRegistry = metricRegistry,
       channel = channel,
-      errorHistory = errorHistory,
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
-      alarmLevel = alarmLevel,
-      adhocMetrics = adhocMetrics
+      metricsEventHandler = metricsEventHandler,
+      reportedEventHandler = reportedEventHandler.withDomain(name)
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -109,8 +93,8 @@ final private class GeneralAgent[F[_]: Async: Console](
     tickStream.tickImmediate[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(label, domain)
-    new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
+    val metricLabel = MetricLabel(label, reportedEventHandler.domain)
+    new MetricsHub.Impl[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
   }
 
   override def batch(label: String): Batch[F] = new Batch[F](metricsHub(label), uuidGenerator)
@@ -121,27 +105,21 @@ final private class GeneralAgent[F[_]: Async: Console](
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, f)
 
-  override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
-    CaffeineCache[F, K, V](cache)
-
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override val adhoc: AdhocMetrics[F] = adhocMetrics
+  override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
   override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
-    Resource.pure(
-      Herald(
-        serviceParams = serviceParams,
-        domain = domain,
-        alarmLevel = alarmLevel,
-        alarmThreshold = f(AlarmLevel),
-        channel = channel,
-        errorHistory = errorHistory))
+    Resource.pure(reportedEventHandler.createLogger(f(AlarmLevel)))
 
-  override def logger(using ln: LoggerName): Resource[F, Log[F]] =
+  override def logger(using loggerName: LoggerName): Resource[F, Log[F]] =
     Resource
-      .eval(LogSink(serviceParams.logFormat, zoneId, ln))
+      .eval(LogSink(serviceParams.logFormat, zoneId, loggerName))
       .map(logSink =>
-        Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logSink = logSink))
+        Logger(
+          serviceParams = serviceParams,
+          domain = reportedEventHandler.domain,
+          alarmLevel = reportedEventHandler.alarmLevel,
+          logSink = logSink))
 }

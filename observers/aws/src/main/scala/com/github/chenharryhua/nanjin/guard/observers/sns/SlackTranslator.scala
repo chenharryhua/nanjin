@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.show.{showInterpolator, toShow}
+import cats.syntax.eq.given
+import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}

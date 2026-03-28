@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.flatMap.given
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 
 import java.time.ZoneId

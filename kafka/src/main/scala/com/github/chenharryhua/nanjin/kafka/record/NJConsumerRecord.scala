@@ -4,7 +4,7 @@ import cats.Bitraverse
 import cats.data.Cont
 import cats.derived.derived
 import cats.kernel.Eq
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.eq.given
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper

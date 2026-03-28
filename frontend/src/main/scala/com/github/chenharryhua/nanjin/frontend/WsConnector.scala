@@ -7,9 +7,9 @@ import org.scalajs.dom.{CloseEvent, Event, MessageEvent, WebSocket}
 
 import scala.scalajs.js
 
-final class WsConnector(port: Int, maxPoints: Int) {
+final class WsConnector(config: FrontendConfig, maxPoints: Int) {
   private val manager: ChartManager = new ChartManager(maxPoints)
-  private val ws: WebSocket = new WebSocket(s"ws://localhost:$port/dashboard/ws")
+  private val ws: WebSocket = new WebSocket(s"${config.wsBaseUrl}/dashboard/ws")
 
   def connect(chartVar: Var[Option[js.Dynamic]]): Unit = {
 

@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.syntax.option.catsSyntaxOptionId
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.option.given
+import cats.syntax.eq.given
 import fs2.{Chunk, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade

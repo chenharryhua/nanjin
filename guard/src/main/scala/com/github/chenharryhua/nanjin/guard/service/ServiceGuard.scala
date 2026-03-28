@@ -1,23 +1,19 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, SecureRandom, UUIDGen}
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.option.catsSyntaxOptionId
-import com.codahale.metrics.MetricRegistry
+import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 
 import java.util.UUID
@@ -38,8 +34,7 @@ private[guard] object ServiceGuard {
   final private class ServiceGuardImpl[F[_]: {Network, Async, Console}](
     serviceName: Service,
     config: ServiceConfig[F])
-      extends ServiceGuard[F] {
-    self =>
+      extends ServiceGuard[F] { self =>
 
     private val F = Async[F]
 
@@ -79,36 +74,32 @@ private[guard] object ServiceGuard {
     override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
       for {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
+        // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-        reQueue = AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](serviceParams.historyCapacity.error))
-        errorHistory <- Stream.eval(reQueue)
-        alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
         channel <- Stream.eval(Channel.unbounded[F, Event])
-        metricRegistry: MetricRegistry = new MetricRegistry()
-        metricsPublisher <- MetricsPublisher(serviceParams, ScrapeMetrics(metricRegistry), channel)
-        lifecyclePublisher <- LifecyclePublisher(serviceParams, channel)
+        seHandler <- ServiceEventHandler(serviceParams, channel)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, config.alarmLevel)
+        meHandler <- MetricsEventHandler(serviceParams, channel)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
-            domain = Domain(serviceParams.serviceName.value),
-            metricRegistry = metricRegistry,
             channel = channel,
-            errorHistory = errorHistory,
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
-            alarmLevel = alarmLevel,
-            adhocMetrics = metricsPublisher
+            metricsEventHandler = meHandler,
+            reportedEventHandler = reHandler
           )
         event <- channel.stream // main stream
-          .concurrently(metricsPublisher.reset_periodically)
-          .concurrently(metricsPublisher.report_periodically)
-          .concurrently(Watchdog.stream(F.defer(runAgent(agent)), lifecyclePublisher))
+          .concurrently(meHandler.resetPeriodically)
+          .concurrently(meHandler.reportPeriodically)
+          .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler).stream)
           .concurrently(
             HttpServer(
               emberServerBuilder = emberServerBuilder,
-              metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher,
-              errorHistory = errorHistory))
+              metricsEventHandler = meHandler,
+              serviceEventHandler = seHandler,
+              reportedEventHandler = reHandler
+            ))
       } yield event
 
     override def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =

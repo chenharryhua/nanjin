@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin
 
 import cats.Endo
 import cats.data.Reader
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.apply.given
+import cats.syntax.eq.given
 import fs2.Chunk
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps

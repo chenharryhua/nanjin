@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.toShow
-import com.comcast.ip4s.Port
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -15,15 +14,9 @@ import java.time.ZoneId
  * `com.github.chenharryhua.nanjin.frontend.BackendConfig`
  */
 
-final case class BackendConfig(
-  serviceName: String,
-  zoneId: ZoneId,
-  port: Port,
-  maxPoints: Int,
-  policy: Policy) {
+final case class BackendConfig(serviceName: String, zoneId: ZoneId, maxPoints: Int, policy: Policy) {
   private val no_spaces_json = Json.obj(
     "serviceName" -> Json.fromString(serviceName),
-    "port" -> Json.fromInt(port.value),
     "zoneId" -> zoneId.asJson,
     "maxPoints" -> Json.fromInt(maxPoints),
     "policy" -> policy.show.asJson

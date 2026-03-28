@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
-import cats.syntax.show.toShow
+import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
@@ -37,7 +37,7 @@ private object documents {
 
   def service_panic_history(
     serviceParams: ServiceParams,
-    panics: List[Event.ServicePanic],
+    panics: Vector[Event.ServicePanic],
     now: ZonedDateTime): Json = {
     val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
 
@@ -70,7 +70,7 @@ private object documents {
 
   def service_error_history(
     serviceParams: ServiceParams,
-    reportedEvents: List[ReportedEvent],
+    reportedEvents: Vector[ReportedEvent],
     now: ZonedDateTime): Json =
     Json.obj(
       Attribute(serviceParams.serviceName).snakeJsonEntry,
@@ -92,8 +92,8 @@ private object documents {
     )
 
   def service_health_check(
-    panics: List[Event.ServicePanic],
-    snapshots: List[Event.MetricsSnapshot],
+    panics: Vector[Event.ServicePanic],
+    snapshots: Vector[Event.MetricsSnapshot],
     now: Instant): Either[String, Json] = {
     val deps_health_check: Json = {
       val res = snapshots.lastOption
@@ -168,7 +168,7 @@ private object documents {
 
   def metrics_history(
     serviceParams: ServiceParams,
-    metricsSnapshots: List[Event.MetricsSnapshot],
+    metricsSnapshots: Vector[Event.MetricsSnapshot],
     now: ZonedDateTime): Text.TypedTag[String] = {
 
     val list = metricsSnapshots.reverse.map { mr =>

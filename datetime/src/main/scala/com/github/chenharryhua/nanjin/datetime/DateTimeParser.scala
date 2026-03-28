@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.Alternative
 import cats.data.NonEmptyList
-import cats.syntax.all.*
+import cats.syntax.either.given
+import cats.syntax.apply.given
 
 import java.time.*
 import java.time.format.DateTimeParseException

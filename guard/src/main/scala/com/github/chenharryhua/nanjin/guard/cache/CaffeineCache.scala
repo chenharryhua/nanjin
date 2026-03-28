@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.cache
 
-import cats.effect.syntax.monadCancel.monadCancelOps_
+import cats.effect.syntax.monadCancel.given
 import cats.effect.kernel.{Async, Deferred, Ref, Resource}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.foldable.toFoldableOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
+import cats.syntax.applicativeError.given
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.foldable.given
+import cats.syntax.functor.given
+import cats.syntax.monadError.given
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
 

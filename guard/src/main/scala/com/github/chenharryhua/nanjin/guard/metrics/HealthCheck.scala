@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.effect.syntax.temporal.genTemporalOps
+import cats.effect.syntax.temporal.given
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.functor.given
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy

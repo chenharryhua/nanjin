@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.data.NonEmptySet
-import cats.syntax.apply.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal}
-import cats.syntax.bifunctor.toBifunctorOps
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.functorFilter.toFunctorFilterOps
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.apply.given
+import cats.syntax.bifunctor.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.functorFilter.given
+import cats.syntax.traverse.given
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{

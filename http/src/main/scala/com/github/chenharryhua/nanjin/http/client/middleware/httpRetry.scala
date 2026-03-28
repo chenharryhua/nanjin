@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.kernel.{Async, Clock, Resource, Temporal}
 import cats.effect.std.NonEmptyHotswap
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.applicativeError.catsSyntaxApplicativeErrorId
-import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.traverse.toTraverseOps
+import cats.syntax.applicative.given
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import monocle.Monocle.focus
 import org.http4s.client.Client

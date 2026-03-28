@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource, Temporal}
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.foldable.toFoldableOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.aws.SnsArn
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.foldable.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
+import com.github.chenharryhua.nanjin.aws.{SimpleNotificationService, SnsArn}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
@@ -23,25 +22,13 @@ object SlackObserver {
     new SlackObserver[F](client, SlackTranslator[F])
 }
 
-/** Notes: slack messages `https://api.slack.com/docs/messages/builder`
+/** Notes: Slack messages `https://api.slack.com/docs/messages/builder`
   */
 
 final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
-
-  /** supporters will be notified:
-    *
-    * ServicePanic
-    *
-    * ServiceStop
-    */
-//  def at(supporters: String): SlackObserver[F] = {
-//    val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-//    val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-//    new SlackObserver[F](client, translator)
-//  }
 
   override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))
@@ -59,7 +46,8 @@ final class SlackObserver[F[_]: Clock](
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
-          translator.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
+          translator.translate(e)
+            .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalize(ofm.terminated.flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
     } yield event
 }

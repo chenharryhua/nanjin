@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.functor.given
 import com.fasterxml.jackson.databind.JsonNode
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json

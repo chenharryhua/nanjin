@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.syntax.bifunctor.toBifunctorOps
-import cats.syntax.partialOrder.catsSyntaxEq
+import cats.syntax.bifunctor.given
+import cats.syntax.partialOrder.given
 import com.github.chenharryhua.nanjin.terminals.Compression.Level
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory

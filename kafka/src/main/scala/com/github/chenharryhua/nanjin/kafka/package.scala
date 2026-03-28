@@ -9,9 +9,10 @@ import org.apache.kafka.clients.consumer.CloseOptions
 import org.apache.kafka.common.TopicPartition
 
 import scala.jdk.DurationConverters.ScalaDurationOps
+
 package object kafka {
-  final val TOPIC: String = "topic"
-  final val PARTITION: String = "partition"
+  final private val TOPIC: String = "topic"
+  final private val PARTITION: String = "partition"
 
   given Ordering[TopicPartition] = Ordering.by(tp => (tp.topic(), tp.partition()))
   given Order[TopicPartition] = Order.fromOrdering[TopicPartition]

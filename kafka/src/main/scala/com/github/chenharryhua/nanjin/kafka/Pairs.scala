@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.apply.given
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
