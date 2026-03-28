@@ -4,9 +4,9 @@ import cats.Applicative
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.eq.given 
-import cats.syntax.functor.given 
-import cats.syntax.group.given 
+import cats.syntax.eq.given
+import cats.syntax.functor.given
+import cats.syntax.group.given
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.GaugeKind

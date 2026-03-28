@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Console
-import cats.syntax.applicative.given 
-import cats.syntax.apply.given 
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
+import cats.syntax.applicative.given
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}

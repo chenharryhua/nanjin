@@ -4,13 +4,12 @@ import cats.data.{Kleisli, NonEmptyList}
 import cats.derived.derived
 import cats.effect.std.Random
 import cats.kernel.Eq
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.apply.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
-import cats.syntax.either.catsSyntaxEither
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
-import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.applicative.given
+import cats.syntax.apply.given
+import cats.syntax.either.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.order.given
 import cats.syntax.show.showInterpolator
 import cats.{Functor, Monad, Show}
 import cron4s.CronExpr

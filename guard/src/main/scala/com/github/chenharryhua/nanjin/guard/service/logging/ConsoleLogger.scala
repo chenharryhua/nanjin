@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service.logging
 import cats.Monad
 import cats.effect.kernel.Clock
 import cats.effect.std.Console
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
 import java.time.ZoneId

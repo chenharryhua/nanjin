@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.Eval
-import cats.syntax.eq.given 
-import cats.syntax.show.given 
+import cats.syntax.eq.given
+import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event

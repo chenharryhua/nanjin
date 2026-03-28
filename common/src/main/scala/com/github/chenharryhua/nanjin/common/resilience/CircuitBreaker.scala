@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
 import cats.effect.kernel.{Async, Outcome, Resource}
-import cats.effect.syntax.spawn.genSpawnOps
-import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.flatMap.toFlatMapOps
+import cats.effect.syntax.spawn.given
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.Stream
 import io.circe.{Encoder, Json}

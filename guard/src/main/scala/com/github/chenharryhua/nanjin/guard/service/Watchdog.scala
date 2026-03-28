@@ -62,4 +62,3 @@ final private class Watchdog[F[_]: Async](theService: F[Unit], handler: ServiceE
           .drain
       }
 }
-

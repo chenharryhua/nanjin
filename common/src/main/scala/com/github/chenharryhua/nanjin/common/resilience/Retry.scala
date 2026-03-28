@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.common.resilience
 import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.Async
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.either.catsSyntaxEitherId
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicative.given
+import cats.syntax.either.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, TickedValue}
 
 import java.time.ZoneId

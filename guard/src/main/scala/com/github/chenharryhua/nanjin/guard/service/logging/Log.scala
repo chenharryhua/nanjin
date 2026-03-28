@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.service.logging
 
 import cats.effect.MonadCancel
-import cats.syntax.applicativeError.given 
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.{MonadError, Semigroup}
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent

@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Monad
 import cats.effect.kernel.{Clock, Ref}
-import cats.syntax.applicative.given 
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
+import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}

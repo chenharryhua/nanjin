@@ -42,7 +42,7 @@ final private class ReportedEventHandler[F[_]](
       serviceParams = serviceParams,
       alarmThreshold = threshold,
       channel = channel)
-      
+
   def errorHistory: F[Vector[ReportedEvent]] = history.value
 
   override def create[S: Encoder](

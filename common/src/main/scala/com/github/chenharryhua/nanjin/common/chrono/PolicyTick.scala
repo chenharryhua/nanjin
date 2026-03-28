@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cats.Monad
 import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.{Random, SecureRandom}
-import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.syntax.option.none
 
 import java.time.{Instant, ZoneId}

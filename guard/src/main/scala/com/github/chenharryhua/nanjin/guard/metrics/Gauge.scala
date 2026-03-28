@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.effect.syntax.temporal.given 
-import cats.syntax.functor.given 
+import cats.effect.syntax.temporal.given
+import cats.syntax.functor.given
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy

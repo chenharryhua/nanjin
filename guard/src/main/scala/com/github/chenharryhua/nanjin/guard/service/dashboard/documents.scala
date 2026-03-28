@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
-import cats.syntax.show.given 
+import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}

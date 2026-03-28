@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
-import cats.syntax.traverse.given 
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}

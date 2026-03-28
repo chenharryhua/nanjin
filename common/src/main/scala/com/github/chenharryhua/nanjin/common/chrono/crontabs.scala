@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.syntax.either.catsSyntaxEither
+import cats.syntax.either.given
 import cron4s.{Cron, CronExpr}
 import io.circe.{Decoder, Encoder}
 import org.apache.commons.lang3.exception.ExceptionUtils
