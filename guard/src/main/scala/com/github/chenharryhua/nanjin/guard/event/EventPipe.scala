@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.order.given
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
@@ -32,6 +34,16 @@ object EventPipe {
   val identity: EventPipe = new EventPipe {
     override def apply(event: Event): Option[Event] = Some(event)
   }
+
+  def alarmLevel(threshold: AlarmLevel): EventPipe =
+    new EventPipe {
+      override def apply(event: Event): Option[Event] =
+        event match {
+          case evt @ Event.ReportedEvent(_, _, _, _, level, _, _) =>
+            if level >= threshold then Some(evt) else None
+          case other => Some(other)
+        }
+    }
 
   def noAdhoc: EventPipe =
     new EventPipe {
