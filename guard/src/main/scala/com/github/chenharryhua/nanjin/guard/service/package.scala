@@ -1,16 +1,10 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Sync
-import cats.effect.std.Console
 import cats.syntax.apply.given
 import cats.syntax.option.{none, given}
 import cats.{Functor, Semigroupal}
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{Correlation, Domain, Message, StackTrace, Timestamp}
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
-import io.circe.Encoder
-import org.typelevel.log4cats.{LoggerName, SelfAwareLogger}
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import org.typelevel.log4cats.SelfAwareLogger
 
 package object service {
   private[service] def get_alarm_level[F[_]: {Functor, Semigroupal}](
@@ -25,24 +19,4 @@ package object service {
         else none[AlarmLevel]
       }
 
-  private[service] def log_sink[F[_]: {Sync, Console}](serviceParams: ServiceParams): F[LogSink[F]] =
-    LogSink[F](serviceParams.logFormat, serviceParams.zoneId, LoggerName(serviceParams.serviceName.value))
-
-  private[service] def create_reported_event[F[_], S: Encoder](
-    serviceParams: ServiceParams,
-    domain: Domain,
-    message: S,
-    level: AlarmLevel,
-    stackTrace: Option[StackTrace])(using F: Sync[F]): F[ReportedEvent] =
-    (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
-      ReportedEvent(
-        serviceParams = serviceParams,
-        domain = domain,
-        timestamp = Timestamp(ts),
-        correlation = Correlation(token),
-        level = level,
-        stackTrace = stackTrace,
-        message = Message(Encoder[S].apply(message))
-      )
-    }
 }

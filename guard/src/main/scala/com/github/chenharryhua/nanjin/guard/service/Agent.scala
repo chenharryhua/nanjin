@@ -3,13 +3,14 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
+import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import com.github.chenharryhua.nanjin.guard.service.logging.{Log, LogSink, Logger}
+import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.log4cats.LoggerName
@@ -40,8 +41,9 @@ sealed trait Agent[F[_]] {
   /*
    * Service Message
    */
-  def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]]
-  def logger(using ln: LoggerName): Resource[F, Log[F]]
+  def herald: Log[F]
+  def logger(using ln: LoggerName): Log[F]
+  def heraldLogger(using ln: LoggerName): Log[F]
 
   /*
    * metrics
@@ -110,16 +112,13 @@ final private class GeneralAgent[F[_]: {Async, Console}](
 
   override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
-  override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
-    Resource.pure(reportedEventHandler.createLogger(f(AlarmLevel)))
+  override val herald: Log[F] =
+    reportedEventHandler.spawnHerald
 
-  override def logger(using loggerName: LoggerName): Resource[F, Log[F]] =
-    Resource
-      .eval(LogSink(serviceParams.logFormat, zoneId, loggerName))
-      .map(logSink =>
-        Logger(
-          serviceParams = serviceParams,
-          domain = reportedEventHandler.domain,
-          alarmLevel = reportedEventHandler.alarmLevel,
-          logSink = logSink))
+  override def logger(using loggerName: LoggerName): Log[F] =
+    reportedEventHandler.spawnLogger(loggerName)
+
+  override def heraldLogger(using ln: LoggerName): Log[F] =
+    herald |+| logger
+
 }

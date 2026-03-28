@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Sync}
-import cats.effect.std.Console
 import cats.syntax.applicative.given
-import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
@@ -47,13 +45,14 @@ final private class ServiceEventHandler[F[_]: Sync] private (
 }
 
 private object ServiceEventHandler {
-  def apply[F[_]: {Async, Console}](
+  def apply[F[_]: Async](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event]): Stream[F, ServiceEventHandler[F]] = {
+    channel: Channel[F, Event],
+    logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
       History[F, ServicePanic](serviceParams.historyCapacity.panic)
 
-    Stream.eval((history, log_sink(serviceParams)).mapN { case (panicHistory, logSink) =>
+    Stream.eval(history.map { panicHistory =>
       new ServiceEventHandler[F](
         serviceParams = serviceParams,
         history = panicHistory,

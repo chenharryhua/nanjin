@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
-import cats.effect.std.Console
 import cats.effect.syntax.clock.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
@@ -115,20 +114,21 @@ final private class MetricsEventHandler[F[_]] private (
 }
 
 private object MetricsEventHandler {
-  def apply[F[_]: {Async, Console}](
+  def apply[F[_]: Async](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event]
+    channel: Channel[F, Event],
+    logSink: LogSink[F]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
 
-    Stream.eval((history, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
+    Stream.eval(history).map { metricsHistory =>
       new MetricsEventHandler[F](
         serviceParams = serviceParams,
         scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
         history = metricsHistory,
         channel = channel,
         logSink = logSink)
-    })
+    }
   }
 }
