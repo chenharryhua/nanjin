@@ -99,7 +99,7 @@ final private class MetricsEventHandler[F[_]] private (
   override def report: F[Unit] =
     for {
       ts <- serviceParams.zonedNow
-      _ <- publish(reset_kind, Adhoc(ts))
+      _ <- publish(report_kind, Adhoc(ts))
     } yield ()
 
   override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =

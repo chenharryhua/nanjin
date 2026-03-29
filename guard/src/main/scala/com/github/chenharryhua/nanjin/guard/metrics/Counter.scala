@@ -13,7 +13,6 @@ trait Counter[F[_]]:
   def inc(num: Long): F[Unit]
   extension (c: Counter[F])
     def inc(num: Int): F[Unit] = c.inc(num.toLong)
-    def inc(): F[Unit] = c.inc(1)
 end Counter
 
 object Counter {
