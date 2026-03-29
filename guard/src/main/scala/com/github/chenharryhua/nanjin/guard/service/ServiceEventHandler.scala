@@ -1,16 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
-import cats.effect.std.Console
 import cats.syntax.applicative.given
-import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason, Timestamp}
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -18,10 +16,10 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   val serviceParams: ServiceParams,
   history: History[F, ServicePanic],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  logSink: Kleisli[F, Event, Unit]
 ) {
   private def publish(event: Event): F[Unit] =
-    channel.send(event) >> logSink.write(event)
+    channel.send(event) >> logSink.run(event)
 
   def serviceStart(tick: Tick): F[Unit] =
     publish(ServiceStart(serviceParams, tick))
@@ -36,7 +34,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)
-      _ <- logSink.write(event)
+      _ <- logSink.run(event)
       _ <- channel.closeWithElement(event)
     } yield ()
 
@@ -47,13 +45,14 @@ final private class ServiceEventHandler[F[_]: Sync] private (
 }
 
 private object ServiceEventHandler {
-  def apply[F[_]: {Async, Console}](
+  def apply[F[_]: Async](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event]): Stream[F, ServiceEventHandler[F]] = {
+    channel: Channel[F, Event],
+    logSink: Kleisli[F, Event, Unit]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
       History[F, ServicePanic](serviceParams.historyCapacity.panic)
 
-    Stream.eval((history, log_sink(serviceParams)).mapN { case (panicHistory, logSink) =>
+    Stream.eval(history.map { panicHistory =>
       new ServiceEventHandler[F](
         serviceParams = serviceParams,
         history = panicHistory,

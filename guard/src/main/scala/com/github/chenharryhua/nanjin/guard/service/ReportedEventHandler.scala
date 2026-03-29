@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.kernel.{Ref, Sync}
+import cats.effect.std.Console
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
@@ -9,67 +11,99 @@ import cats.syntax.functor.given
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Correlation, Domain, Event, Message, StackTrace, Timestamp}
 import com.github.chenharryhua.nanjin.guard.service.History
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 
-final private class ReportedEventHandler[F[_]](
+final private class ReportedEventHandler[F[_]: {Console, Sync}](
   val domain: Domain,
-  val alarmLevel: Ref[F, Option[AlarmLevel]],
+  val alarmThreshold: Ref[F, Option[AlarmLevel]],
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
-  alarmThreshold: AlarmLevel,
-  channel: Channel[F, Event]
-)(using F: Sync[F])
-    extends Log[F] {
+  channel: Channel[F, Event],
+  logSink: Kleisli[F, Event, Unit]
+) {
+  private def create_reported_event[S: Encoder](
+    message: S,
+    level: AlarmLevel,
+    stackTrace: Option[StackTrace])(using F: Sync[F]): F[ReportedEvent] =
+    (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
+      ReportedEvent(
+        serviceParams = serviceParams,
+        domain = domain,
+        timestamp = Timestamp(ts),
+        correlation = Correlation(token),
+        level = level,
+        stackTrace = stackTrace,
+        message = Message(Encoder[S].apply(message))
+      )
+    }
+
   def withDomain(name: String): ReportedEventHandler[F] =
     new ReportedEventHandler[F](
       domain = Domain(name),
-      alarmLevel = alarmLevel,
-      history = history,
-      serviceParams = serviceParams,
       alarmThreshold = alarmThreshold,
-      channel = channel)
-
-  def createLogger(threshold: AlarmLevel): Log[F] =
-    new ReportedEventHandler[F](
-      domain = domain,
-      alarmLevel = alarmLevel,
       history = history,
       serviceParams = serviceParams,
-      alarmThreshold = threshold,
-      channel = channel)
+      channel = channel,
+      logSink = logSink)
+
+  val herald: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
+
+    override def publish(event: ReportedEvent): F[Unit] =
+      channel.send(event) >>
+        history.add(event).whenA(event.level === AlarmLevel.Error)
+
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
+
+  val logger: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
+
+    override def publish(event: ReportedEvent): F[Unit] =
+      logSink.run(event)
+
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
+
+  val heraldLogger: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
+
+    override def publish(event: ReportedEvent): F[Unit] =
+      logSink.run(event) >>
+        channel.send(event) >>
+        history.add(event).whenA(event.level === AlarmLevel.Error)
+
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
 
   def errorHistory: F[Vector[ReportedEvent]] = history.value
-
-  override def create[S: Encoder](
-    message: S,
-    level: AlarmLevel,
-    stackTrace: Option[StackTrace]): F[ReportedEvent] =
-    create_reported_event[F, S](
-      serviceParams = serviceParams,
-      domain = domain,
-      message = message,
-      level = level,
-      stackTrace = stackTrace)
-
-  override def publish(event: ReportedEvent): F[Unit] =
-    channel.send(event) >>
-      history.add(event).whenA(event.level === AlarmLevel.Error)
-
-  // Combine dynamic alarmLevel with static alarmThreshold (floor).
-  // Ensures Herald never emits below alarmThreshold, regardless of runtime logging level.
-  override def enabled(level: AlarmLevel): F[Boolean] =
-    alarmLevel.get.map(_.map(_.max(alarmThreshold)).exists(_ <= level))
 }
 
 private object ReportedEventHandler:
-  def apply[F[_]: Async](
+  def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
+    logSink: Kleisli[F, Event, Unit],
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =
@@ -78,15 +112,15 @@ private object ReportedEventHandler:
     val initial: F[Ref[F, Option[AlarmLevel]]] =
       Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))
 
-    val re = (history, initial).mapN { (errorHistory, alarmLevel) =>
+    val reh = (history, initial).mapN { (errorHistory, alarmThreshold) =>
       new ReportedEventHandler(
         domain = Domain(serviceParams.serviceName.value),
-        alarmLevel = alarmLevel,
+        alarmThreshold = alarmThreshold,
         history = errorHistory,
         serviceParams = serviceParams,
-        alarmThreshold = AlarmLevel.Error,
-        channel = channel
+        channel = channel,
+        logSink = logSink
       )
     }
-    Stream.eval(re)
+    Stream.eval(reh)
   }

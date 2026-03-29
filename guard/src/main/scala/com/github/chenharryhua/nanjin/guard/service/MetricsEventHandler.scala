@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.data.Kleisli
 import cats.effect.kernel.Async
-import cats.effect.std.Console
 import cats.effect.syntax.clock.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
@@ -14,7 +14,6 @@ import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Per
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -23,7 +22,7 @@ final private class MetricsEventHandler[F[_]] private (
   val scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  logSink: Kleisli[F, Event, Unit]
 )(using F: Async[F])
     extends AdhocMetrics[F] {
 
@@ -44,7 +43,7 @@ final private class MetricsEventHandler[F[_]] private (
     for {
       ms <- build_metrics_snapshot(kind, index)
       _ <- channel.send(ms)
-      _ <- logSink.write(ms)
+      _ <- logSink.run(ms)
       _ <- history.add(ms)
     } yield ms
 
@@ -115,20 +114,21 @@ final private class MetricsEventHandler[F[_]] private (
 }
 
 private object MetricsEventHandler {
-  def apply[F[_]: {Async, Console}](
+  def apply[F[_]: Async](
     serviceParams: ServiceParams,
-    channel: Channel[F, Event]
+    channel: Channel[F, Event],
+    logSink: Kleisli[F, Event, Unit]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
 
-    Stream.eval((history, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
+    Stream.eval(history).map { metricsHistory =>
       new MetricsEventHandler[F](
         serviceParams = serviceParams,
         scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
         history = metricsHistory,
         channel = channel,
         logSink = logSink)
-    })
+    }
   }
 }

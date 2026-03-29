@@ -132,37 +132,43 @@ private object documents {
   private def table_title_section(
     serviceParams: ServiceParams,
     now: ZonedDateTime,
-    took: Duration): Text.TypedTag[String] = {
+    took: Option[Duration]): Text.TypedTag[String] = {
     val service_name = Attribute(serviceParams.serviceName).textEntry
     val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
-    val spend = Attribute(Took(took)).textEntry
     val present = Attribute(Present(now)).map(_.text).textEntry
-
-    table(
-      tr(
-        th(service_name.tag),
-        th(policy.tag),
-        th(timezone.tag),
-        th(uptime.tag),
-        th(spend.tag),
-        th(present.tag)),
-      tr(
-        td(service_name.text),
-        td(policy.text),
-        td(timezone.text),
-        td(uptime.text),
-        td(spend.text),
-        td(present.text))
-    )
+    took.fold(
+      table(
+        tr(th(service_name.tag), th(policy.tag), th(timezone.tag), th(uptime.tag), th(present.tag)),
+        tr(td(service_name.text), td(policy.text), td(timezone.text), td(uptime.text), td(present.text))
+      )
+    ) { tk =>
+      val spend = Attribute(Took(tk)).textEntry
+      table(
+        tr(
+          th(service_name.tag),
+          th(policy.tag),
+          th(timezone.tag),
+          th(uptime.tag),
+          th(spend.tag),
+          th(present.tag)),
+        tr(
+          td(service_name.text),
+          td(policy.text),
+          td(timezone.text),
+          td(uptime.text),
+          td(spend.text),
+          td(present.text))
+      )
+    }
   }
 
   def snapshot_to_yaml_html(title: String)(ms: MetricsSnapshot): Text.TypedTag[String] = {
     val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
     html(
       html_header(s"$title-${ms.serviceParams.serviceName.value}"),
-      body(div(table_title_section(ms.serviceParams, ms.timestamp.value, ms.took.value), pre(yaml)))
+      body(div(table_title_section(ms.serviceParams, ms.timestamp.value, Some(ms.took.value)), pre(yaml)))
     )
   }
 
@@ -185,7 +191,7 @@ private object documents {
     }
 
     val histories =
-      div(table_title_section(serviceParams, now, Duration.ZERO), h3("Metrics History"), list)
+      div(table_title_section(serviceParams, now, None), h3("Metrics History"), list)
 
     html(html_header(s"History-${serviceParams.serviceName.value}"), body(div(histories)))
   }

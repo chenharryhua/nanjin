@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
+import com.github.chenharryhua.nanjin.guard.service.logging.EventLogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -77,9 +78,10 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         channel <- Stream.eval(Channel.unbounded[F, Event])
-        seHandler <- ServiceEventHandler(serviceParams, channel)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, config.alarmLevel)
-        meHandler <- MetricsEventHandler(serviceParams, channel)
+        logSink <- EventLogSink[F](serviceParams)
+        seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.alarmLevel)
+        meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,

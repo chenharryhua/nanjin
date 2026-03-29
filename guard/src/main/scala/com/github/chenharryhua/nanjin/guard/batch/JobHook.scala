@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.effect.kernel.{MonadCancel, Resource}
+import cats.effect.kernel.MonadCancel
 import cats.syntax.flatMap.given
 import cats.{Applicative, Contravariant, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
@@ -78,7 +78,7 @@ object JobHook {
    * Concrete, configured Bridges
    */
 
-  private def _emptyBridge[F[_], A](using F: Applicative[F]) =
+  def noop[F[_], A](using F: Applicative[F]): Bridge[F, A] =
     new Bridge[F, A](
       completed = _ => F.unit,
       errored = _ => F.unit,
@@ -86,39 +86,37 @@ object JobHook {
       kickoff = _ => F.unit
     )
 
-  def noop[F[_]: Applicative, A]: Resource[F, Bridge[F, A]] =
-    Resource.pure[F, Bridge[F, A]](_emptyBridge)
+  def apply[F[_]](logger: Log[F]): ByLogger[F] = ByLogger[F](logger)
 
-  final class ByLogger[F[_]] private[JobHook] (logger: Resource[F, Log[F]]) {
+  /*
+   * Bridge by logger
+   */
 
-    def universal[A](f: (A, JobResultState) => Json): Resource[F, Bridge[F, A]] =
-      logger.map { log =>
-        new Bridge[F, A](
-          completed = { (jrv: JobResultValue[A]) =>
-            val json: Json =
-              Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
-            if (jrv.resultState.done) log.good(Json.obj("done" -> json))
-            else log.warn(Json.obj("fail" -> json))
-          },
-          errored = (jre: JobResultError) => log.error(jre.resultState, jre.error),
-          canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
-          kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
-        )
-      }
+  final class ByLogger[F[_]](log: Log[F]) {
 
-    def standard[A: Encoder]: Resource[F, Bridge[F, A]] =
+    def universal[A](f: (A, JobResultState) => Json): Bridge[F, A] =
+      new Bridge[F, A](
+        completed = { (jrv: JobResultValue[A]) =>
+          val json: Json =
+            Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
+          if (jrv.resultState.done) log.good(Json.obj("done" -> json))
+          else log.warn(Json.obj("fail" -> json))
+        },
+        errored = (jre: JobResultError) => log.error(jre.resultState, jre.error),
+        canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
+        kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
+      )
+
+    def standard[A: Encoder]: Bridge[F, A] =
       universal[A]((a, _) => a.asJson)
 
-    def json: Resource[F, Bridge[F, Json]] = standard[Json]
+    def json: Bridge[F, Json] = standard[Json]
   }
-
-  def apply[F[_]](logger: Resource[F, Log[F]]): ByLogger[F] =
-    new ByLogger[F](logger)
 
   given monoidBridge[F[_], A](using F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
     new Monoid[Bridge[F, A]] {
 
-      override val empty: Bridge[F, A] = _emptyBridge[F, A]
+      override val empty: Bridge[F, A] = noop[F, A]
 
       override def combine(x: Bridge[F, A], y: Bridge[F, A]): Bridge[F, A] =
         new Bridge[F, A](
