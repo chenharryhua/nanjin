@@ -65,6 +65,10 @@ import io.circe.Encoder
   * }}}
   */
 abstract class Log[F[_]](using F: MonadError[F, Throwable]) {
+  /*
+   * Log SPI
+   */
+
   // create must be sink-independent
   private[logging] def create[S: Encoder](
     message: S,
@@ -74,6 +78,10 @@ abstract class Log[F[_]](using F: MonadError[F, Throwable]) {
   private[logging] def publish(event: ReportedEvent): F[Unit]
 
   private[logging] def enabled(level: AlarmLevel): F[Boolean]
+
+  /*
+   * Log API
+   */
 
   private def log[S: Encoder](
     message: => S,

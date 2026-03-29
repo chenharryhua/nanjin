@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service.logging
 
+import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.flatMap.given
@@ -14,42 +15,47 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   SimpleTextTranslator,
   Translator
 }
+import fs2.Stream
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{LoggerName, MessageLogger}
-import fs2.Stream
+
 import java.time.ZoneId
 
-final class EventLogSink[F[_]: Sync] private (
+final private class EventLogSink[F[_]: Sync] private (
   logger: MessageLogger[F],
   translator: Translator[F, String],
   logColor: LogColor
 ) {
-  def write(event: Event): F[Unit] =
-    translator
-      .translate(event)
-      .flatMap(_.traverse { text =>
-        ColorScheme.decorate[F, Unit](event).run {
-          case ColorScheme.GoodColor  => logger.info(s"${logColor.good(eventTitle(event))} $text")
-          case ColorScheme.InfoColor  => logger.info(s"${logColor.info(eventTitle(event))} $text")
-          case ColorScheme.WarnColor  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
-          case ColorScheme.ErrorColor => logger.error(s"${logColor.error(eventTitle(event))} $text")
-          case ColorScheme.DebugColor => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
-        }
-      })
-      .void
+  val writer: Kleisli[F, Event, Unit] =
+    Kleisli { (event: Event) =>
+      translator
+        .translate(event)
+        .flatMap(_.traverse { text =>
+          ColorScheme.decorate[F, Unit](event).run {
+            case ColorScheme.GoodColor  => logger.info(s"${logColor.good(eventTitle(event))} $text")
+            case ColorScheme.InfoColor  => logger.info(s"${logColor.info(eventTitle(event))} $text")
+            case ColorScheme.WarnColor  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
+            case ColorScheme.ErrorColor => logger.error(s"${logColor.error(eventTitle(event))} $text")
+            case ColorScheme.DebugColor => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
+          }
+        })
+        .void
+    }
 }
 
-object EventLogSink {
-  def apply[F[_]: Console](serviceParams: ServiceParams)(using F: Sync[F]): Stream[F, EventLogSink[F]] =
+private[service] object EventLogSink {
+  def apply[F[_]: Console](serviceParams: ServiceParams)(using
+    F: Sync[F]): Stream[F, Kleisli[F, Event, Unit]] =
     Stream.eval(
       F.delay(
-        getLogSink[F](
+        eventLogSink[F](
           logFormat = serviceParams.logFormat,
           zoneId = serviceParams.zoneId,
           loggerName = LoggerName(serviceParams.serviceName.value))))
+      .map(_.writer)
 
-  private def getLogSink[F[_]: {Sync, Console}](
+  private def eventLogSink[F[_]: {Sync, Console}](
     logFormat: LogFormat,
     zoneId: ZoneId,
     loggerName: LoggerName): EventLogSink[F] =

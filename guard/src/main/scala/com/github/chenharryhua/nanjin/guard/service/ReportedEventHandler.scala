@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
@@ -12,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Correlation, Domain, Event, Message, StackTrace, Timestamp}
 import com.github.chenharryhua.nanjin.guard.service.History
-import com.github.chenharryhua.nanjin.guard.service.logging.{EventLogSink, Log}
+import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -23,7 +24,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
-  eventLogSink: EventLogSink[F]
+  logSink: Kleisli[F, Event, Unit]
 ) {
   private def create_reported_event[S: Encoder](
     message: S,
@@ -48,7 +49,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       history = history,
       serviceParams = serviceParams,
       channel = channel,
-      eventLogSink = eventLogSink)
+      logSink = logSink)
 
   val herald: Log[F] = new Log[F] {
     override def create[S: Encoder](
@@ -73,7 +74,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       create_reported_event[S](message, level, stackTrace)
 
     override def publish(event: ReportedEvent): F[Unit] =
-      eventLogSink.write(event)
+      logSink.run(event)
 
     override def enabled(level: AlarmLevel): F[Boolean] =
       alarmThreshold.get.map(_.exists(_ <= level))
@@ -86,7 +87,7 @@ private object ReportedEventHandler:
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    eventLogSink: EventLogSink[F],
+    logSink: Kleisli[F, Event, Unit],
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =
@@ -102,7 +103,7 @@ private object ReportedEventHandler:
         history = errorHistory,
         serviceParams = serviceParams,
         channel = channel,
-        eventLogSink = eventLogSink
+        logSink = logSink
       )
     }
     Stream.eval(reh)
