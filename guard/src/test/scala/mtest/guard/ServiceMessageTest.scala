@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.log4cats.LoggerName
 
 import scala.concurrent.duration.DurationDouble
 
@@ -21,30 +20,30 @@ class ServiceMessageTest extends AnyFunSuite {
           .withMetricReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    (agent.logger(using LoggerName("provided")) |+| agent.herald(_.Good)).use(log =>
-      log.info("a") >>
-        log.info(1) >>
-        log.info(List(1, 2, 3)) >>
-        log.info(true) >>
-        log.info(Json.obj("a" -> 1.asJson)) >>
-        log.info(Json.Null))
+    val log = agent.logger |+| agent.herald
+    log.info("a") >>
+      log.info(1) >>
+      log.info(List(1, 2, 3)) >>
+      log.info(true) >>
+      log.info(Json.obj("a" -> 1.asJson)) >>
+      log.info(Json.Null)
 
   private def warn(agent: Agent[IO]): IO[Unit] =
-    (agent.logger |+| agent.herald(_.Error)).use(log =>
-      log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
-        log.warn(Json.Null) >>
-        log.warn("oops", new Exception()) >>
-        log.warn(Json.Null, new Exception()))
+    val log = agent.logger |+| agent.herald
+    log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
+      log.warn(Json.Null) >>
+      log.warn("oops", new Exception()) >>
+      log.warn(Json.Null, new Exception())
 
   private def mix(agent: Agent[IO]): IO[Unit] =
-    (agent.logger |+| agent.herald(_.Warn)).use(log =>
-      agent.adhoc.report >>
-        agent.adhoc.reset >>
-        log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
-        log.info(Json.Null) >>
-        log.warn("oops", new Exception()) >>
-        log.good("Okay") >>
-        log.debug("debug"))
+    val log = agent.logger |+| agent.herald
+    agent.adhoc.report >>
+      agent.adhoc.reset >>
+      log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
+      log.info(Json.Null) >>
+      log.warn("oops", new Exception()) >>
+      log.good("Okay") >>
+      log.debug("debug")
 
   test("1. info json space2") {
     service

@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Per
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
+import com.github.chenharryhua.nanjin.guard.service.logging.EventLogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -22,7 +22,7 @@ final private class MetricsEventHandler[F[_]] private (
   val scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  eventLogSink: EventLogSink[F]
 )(using F: Async[F])
     extends AdhocMetrics[F] {
 
@@ -43,7 +43,7 @@ final private class MetricsEventHandler[F[_]] private (
     for {
       ms <- build_metrics_snapshot(kind, index)
       _ <- channel.send(ms)
-      _ <- logSink.write(ms)
+      _ <- eventLogSink.write(ms)
       _ <- history.add(ms)
     } yield ms
 
@@ -117,7 +117,7 @@ private object MetricsEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: LogSink[F]
+    eventLogSink: EventLogSink[F]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
@@ -128,7 +128,7 @@ private object MetricsEventHandler {
         scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
         history = metricsHistory,
         channel = channel,
-        logSink = logSink)
+        eventLogSink = eventLogSink)
     }
   }
 }

@@ -5,7 +5,7 @@ import cats.effect.std.Console
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.config.LogFormat
+import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
@@ -17,10 +17,10 @@ import com.github.chenharryhua.nanjin.guard.translator.{
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{LoggerName, MessageLogger}
-
+import fs2.Stream
 import java.time.ZoneId
 
-final class LogSink[F[_]: Sync](
+final class EventLogSink[F[_]: Sync] private (
   logger: MessageLogger[F],
   translator: Translator[F, String],
   logColor: LogColor
@@ -40,32 +40,43 @@ final class LogSink[F[_]: Sync](
       .void
 }
 
-object LogSink {
-  def apply[F[_]: {Sync, Console}](logFormat: LogFormat, zoneId: ZoneId, loggerName: LoggerName): LogSink[F] =
+object EventLogSink {
+  def apply[F[_]: Console](serviceParams: ServiceParams)(using F: Sync[F]): Stream[F, EventLogSink[F]] =
+    Stream.eval(
+      F.delay(
+        getLogSink[F](
+          logFormat = serviceParams.logFormat,
+          zoneId = serviceParams.zoneId,
+          loggerName = LoggerName(serviceParams.serviceName.value))))
+
+  private def getLogSink[F[_]: {Sync, Console}](
+    logFormat: LogFormat,
+    zoneId: ZoneId,
+    loggerName: LoggerName): EventLogSink[F] =
     logFormat match {
       /*
        * console
        */
       case LogFormat.Console_PlainText =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = SimpleTextTranslator[F],
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         )
       case LogFormat.Console_Json_OneLine =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         )
       case LogFormat.Console_Json_MultiLine =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         )
       case LogFormat.Console_JsonVerbose =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = Translator.idTranslator.map(_.asJson.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
@@ -75,19 +86,19 @@ object LogSink {
        * slf4j
        */
       case LogFormat.Slf4j_PlainText =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = SimpleTextTranslator[F],
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.none
         )
       case LogFormat.Slf4j_Json_OneLine =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.none
         )
       case LogFormat.Slf4j_Json_MultiLine =>
-        new LogSink[F](
+        new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.spaces2),
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.none

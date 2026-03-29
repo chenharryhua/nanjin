@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason, Timestamp}
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
+import com.github.chenharryhua.nanjin.guard.service.logging.EventLogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -16,10 +16,10 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   val serviceParams: ServiceParams,
   history: History[F, ServicePanic],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  eventLogSink: EventLogSink[F]
 ) {
   private def publish(event: Event): F[Unit] =
-    channel.send(event) >> logSink.write(event)
+    channel.send(event) >> eventLogSink.write(event)
 
   def serviceStart(tick: Tick): F[Unit] =
     publish(ServiceStart(serviceParams, tick))
@@ -34,7 +34,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)
-      _ <- logSink.write(event)
+      _ <- eventLogSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()
 
@@ -48,7 +48,7 @@ private object ServiceEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
+    eventLogSink: EventLogSink[F]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
       History[F, ServicePanic](serviceParams.historyCapacity.panic)
 
@@ -57,7 +57,7 @@ private object ServiceEventHandler {
         serviceParams = serviceParams,
         history = panicHistory,
         channel = channel,
-        logSink = logSink)
+        eventLogSink = eventLogSink)
     })
   }
 }

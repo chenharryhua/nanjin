@@ -212,12 +212,10 @@ class MetricsTest extends AnyFunSuite {
 
   test("13.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
-      agent.herald(_.Debug).use { log =>
-        agent
-          .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
-            log.warn(tv.tick, tv.value).as(tv.map(_ => false))))
-          .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
-      }
+      agent
+        .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
+          agent.herald.warn(tv.tick, tv.value).as(tv.map(_ => false))))
+        .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)

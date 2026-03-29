@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.flatMap.given 
-import cats.syntax.functor.given 
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.Endo
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger

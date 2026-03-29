@@ -1,9 +1,7 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
-import cats.syntax.semigroupk.toSemigroupKOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
@@ -39,7 +37,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("exception.quasi")
         .parallel(jobs*)
-        .quasiBatch(JobHook.noop[IO, Int] <+> JobHook(agent.logger <+> agent.herald(_.Info)).standard)
+        .quasiBatch(JobHook(agent.heraldLogger).standard)
         .use { mb =>
           IO {
             assert(mb.jobs.head.done)
@@ -55,12 +53,11 @@ class BatchParallelTest extends AnyFunSuite {
     var errorJob: BatchJob = null
     var canceledJob: BatchJob = null
     var succJob: BatchJob = null
-    val tracer: Resource[IO, JobHook.Bridge[IO, Int]] = JobHook
-      .noop[IO, Int]
-      .map(
-        _.onError(jo => IO { errorJob = jo.resultState.job })
-          .onCancel(jo => IO { canceledJob = jo })
-          .onComplete(jo => IO { succJob = jo.resultState.job }))
+    val tracer: JobHook.Bridge[IO, Int] =
+      JobHook.noop[IO, Int]
+        .onError(jo => IO { errorJob = jo.resultState.job })
+        .onCancel(jo => IO { canceledJob = jo })
+        .onComplete(jo => IO { succJob = jo.resultState.job })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -106,8 +103,8 @@ class BatchParallelTest extends AnyFunSuite {
     var completedJob: List[JobResultState] = Nil
     val tracer = JobHook
       .noop[IO, Int]
-      .map(_.onCancel(jo => IO { canceledJob = jo }).onComplete(jo =>
-        IO { completedJob = jo.resultState :: completedJob }))
+      .onCancel(jo => IO { canceledJob = jo }).onComplete(jo =>
+        IO { completedJob = jo.resultState :: completedJob })
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     val se = service.eventStream { agent =>

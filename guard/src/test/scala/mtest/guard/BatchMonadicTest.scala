@@ -43,10 +43,8 @@ class BatchMonadicTest extends AnyFunSuite {
   test("2.exception") {
     var completedJob: JobResultState = null
     var errorJob: JobResultState = null
-    val tracer = JobHook
-      .noop[IO, Json]
-      .map(_.onComplete(jo => IO { completedJob = jo.resultState }).onError(jo =>
-        IO { errorJob = jo.resultState }))
+    val tracer = JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState }).onError(jo =>
+      IO { errorJob = jo.resultState })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -73,10 +71,9 @@ class BatchMonadicTest extends AnyFunSuite {
   test("3.invincible - exception") {
     var completedJob: List[JobResultState] = Nil
     var errorJob: JobResultState = null
-    val tracer = JobHook
-      .noop[IO, Json]
-      .map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }).onError(jo =>
-        IO { errorJob = jo.resultState }))
+    val tracer = JobHook.noop[IO, Json]
+      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+      .onError(jo => IO { errorJob = jo.resultState })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -113,7 +110,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
     val tracer =
-      JobHook.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
+      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -147,7 +144,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
     val tracer =
-      JobHook.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
+      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -180,8 +177,7 @@ class BatchMonadicTest extends AnyFunSuite {
     var canceledJob: BatchJob = null
     val tracer = JobHook
       .noop[IO, Json]
-      .map(_.onCancel(bj => IO { canceledJob = bj }).onComplete(jrv =>
-        IO { completedJob = jrv :: completedJob }))
+      .onCancel(bj => IO { canceledJob = bj }).onComplete(jrv => IO { completedJob = jrv :: completedJob })
 
     val se = service.eventStream { agent =>
       agent
@@ -204,5 +200,4 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(completedJob.size == 2)
     assert(canceledJob.index == 3)
   }
-
 }

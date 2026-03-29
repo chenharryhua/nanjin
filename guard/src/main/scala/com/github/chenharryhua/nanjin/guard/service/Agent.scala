@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.typelevel.log4cats.LoggerName
 
 import java.time.ZoneId
 import java.util.UUID
@@ -41,9 +40,10 @@ sealed trait Agent[F[_]] {
   /*
    * Service Message
    */
-  def herald: Log[F]
-  def logger(using ln: LoggerName): Log[F]
-  def heraldLogger(using ln: LoggerName): Log[F]
+
+  val herald: Log[F]
+  val logger: Log[F]
+  val heraldLogger: Log[F]
 
   /*
    * metrics
@@ -112,13 +112,10 @@ final private class GeneralAgent[F[_]: {Async, Console}](
 
   override val adhoc: AdhocMetrics[F] = metricsEventHandler
 
-  override val herald: Log[F] =
-    reportedEventHandler.spawnHerald
+  override val herald: Log[F] = reportedEventHandler.herald
 
-  override def logger(using loggerName: LoggerName): Log[F] =
-    reportedEventHandler.spawnLogger(loggerName)
+  override val logger: Log[F] = reportedEventHandler.logger
 
-  override def heraldLogger(using ln: LoggerName): Log[F] =
-    herald |+| logger
+  override val heraldLogger: Log[F] = herald |+| logger
 
 }

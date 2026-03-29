@@ -10,13 +10,12 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
-import com.github.chenharryhua.nanjin.guard.service.logging.LogSink
+import com.github.chenharryhua.nanjin.guard.service.logging.EventLogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
 import org.http4s.ember.server.EmberServerBuilder
-import org.typelevel.log4cats.LoggerName
 
 import java.util.UUID
 
@@ -79,13 +78,10 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         channel <- Stream.eval(Channel.unbounded[F, Event])
-        logSink = LogSink[F](
-          serviceParams.logFormat,
-          serviceParams.zoneId,
-          LoggerName(serviceParams.serviceName.value))
-        seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, config.alarmLevel)
-        meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
+        eventLogSink <- EventLogSink[F](serviceParams)
+        seHandler <- ServiceEventHandler(serviceParams, channel, eventLogSink)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, eventLogSink, config.alarmLevel)
+        meHandler <- MetricsEventHandler(serviceParams, channel, eventLogSink)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
