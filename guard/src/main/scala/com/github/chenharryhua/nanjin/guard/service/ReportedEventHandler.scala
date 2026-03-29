@@ -50,38 +50,34 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       channel = channel,
       eventLogSink = eventLogSink)
 
-  val herald: Log[F] =
-    new Log[F] {
-      override def create[S: Encoder](
-        message: S,
-        level: AlarmLevel,
-        stackTrace: Option[StackTrace]): F[ReportedEvent] =
-        create_reported_event[S](message, level, stackTrace)
+  val herald: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
 
-      override def publish(event: ReportedEvent): F[Unit] =
-        channel.send(event) >>
-          history.add(event).whenA(event.level === AlarmLevel.Error)
+    override def publish(event: ReportedEvent): F[Unit] =
+      channel.send(event) >>
+        history.add(event).whenA(event.level === AlarmLevel.Error)
 
-      // Combine dynamic alarmLevel with static threshold (floor).
-      // Ensures Herald never emits below threshold, regardless of runtime logging level.
-      override def enabled(level: AlarmLevel): F[Boolean] =
-        alarmThreshold.get.map(_.exists(_ <= level))
-    }
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
 
-  val logger: Log[F] =
-    new Log[F] {
-      override def create[S: Encoder](
-        message: S,
-        level: AlarmLevel,
-        stackTrace: Option[StackTrace]): F[ReportedEvent] =
-        create_reported_event[S](message, level, stackTrace)
+  val logger: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
 
-      override def publish(event: ReportedEvent): F[Unit] =
-        eventLogSink.write(event)
+    override def publish(event: ReportedEvent): F[Unit] =
+      eventLogSink.write(event)
 
-      override def enabled(level: AlarmLevel): F[Boolean] =
-        alarmThreshold.get.map(_.exists(_ <= level))
-    }
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
 
   def errorHistory: F[Vector[ReportedEvent]] = history.value
 }
