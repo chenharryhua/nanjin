@@ -26,6 +26,10 @@ final private class HttpDataRouter[F[_]](
     extends Http4sDsl[F] {
   private val serviceParams = metricsEventHandler.serviceParams
 
+  private val DISABLED = "Disabled"
+  private def toJson(level: Option[AlarmLevel]): Json =
+    level.fold(DISABLED.asJson)(_.asJson)
+
   val router: HttpRoutes[F] = HttpRoutes.of[F] {
 
     /*
@@ -95,10 +99,33 @@ final private class HttpDataRouter[F[_]](
      */
 
     case GET -> Root / "alarm" / "level" =>
-      Ok(reportedEventHandler.alarmThreshold.get)
+      Ok(reportedEventHandler.alarmThreshold.get.map(toJson))
 
     case POST -> Root / "alarm" / level =>
-      val lvl = AlarmLevel.values.find(_.toString.equalsIgnoreCase(level))
-      reportedEventHandler.alarmThreshold.set(lvl) >> Ok(lvl)
+      if level.equalsIgnoreCase(DISABLED) then
+        reportedEventHandler.alarmThreshold.getAndSet(None)
+          .flatMap(prev =>
+            Ok(
+              Json.obj(
+                "previous" -> toJson(prev),
+                "current" -> toJson(None)
+              )))
+      else
+        AlarmLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
+          case lvl @ Some(_) =>
+            reportedEventHandler.alarmThreshold.getAndSet(lvl)
+              .flatMap(prev =>
+                Ok(
+                  Json.obj(
+                    "previous" -> toJson(prev),
+                    "current" -> toJson(lvl)
+                  )))
+          case None =>
+            BadRequest(
+              Json.obj(
+                "invalid_alarm_level" -> level.asJson,
+                "valid" -> (DISABLED :: AlarmLevel.values.map(_.toString).toList).asJson
+              ))
+        }
   }
 }

@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
-import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
@@ -116,6 +115,6 @@ final private class GeneralAgent[F[_]: {Async, Console}](
 
   override val logger: Log[F] = reportedEventHandler.logger
 
-  override val heraldLogger: Log[F] = herald |+| logger
+  override val heraldLogger: Log[F] = reportedEventHandler.heraldLogger
 
 }

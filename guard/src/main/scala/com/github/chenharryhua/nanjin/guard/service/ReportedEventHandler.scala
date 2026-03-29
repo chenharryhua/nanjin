@@ -80,6 +80,22 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       alarmThreshold.get.map(_.exists(_ <= level))
   }
 
+  val heraldLogger: Log[F] = new Log[F] {
+    override def create[S: Encoder](
+      message: S,
+      level: AlarmLevel,
+      stackTrace: Option[StackTrace]): F[ReportedEvent] =
+      create_reported_event[S](message, level, stackTrace)
+
+    override def publish(event: ReportedEvent): F[Unit] =
+      logSink.run(event) >>
+        channel.send(event) >>
+        history.add(event).whenA(event.level === AlarmLevel.Error)
+
+    override def enabled(level: AlarmLevel): F[Boolean] =
+      alarmThreshold.get.map(_.exists(_ <= level))
+  }
+
   def errorHistory: F[Vector[ReportedEvent]] = history.value
 }
 
