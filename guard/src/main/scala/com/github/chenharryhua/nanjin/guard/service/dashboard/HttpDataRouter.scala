@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{
   MetricsEventHandler,
@@ -88,5 +89,16 @@ final private class HttpDataRouter[F[_]](
         metrics <- metricsEventHandler.snapshotHistory
       } yield documents.metrics_history(serviceParams, metrics, now)
       Ok(text)
+
+    /*
+     * Realtime Alarm Level
+     */
+
+    case GET -> Root / "alarm" / "level" =>
+      Ok(reportedEventHandler.alarmThreshold.get)
+
+    case POST -> Root / "alarm" / level =>
+      val lvl = AlarmLevel.values.find(_.toString.equalsIgnoreCase(level))
+      reportedEventHandler.alarmThreshold.set(lvl) >> Ok(lvl)
   }
 }
