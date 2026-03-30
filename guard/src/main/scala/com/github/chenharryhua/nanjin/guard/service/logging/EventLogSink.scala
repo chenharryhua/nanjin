@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service.logging
 
-import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.flatMap.given
@@ -8,6 +7,7 @@ import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.service.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   ColorScheme,
@@ -27,8 +27,8 @@ final private class EventLogSink[F[_]: Sync] private (
   translator: Translator[F, String],
   logColor: LogColor
 ) {
-  val writer: Kleisli[F, Event, Unit] =
-    Kleisli { (event: Event) =>
+  val logSink: LogSink[F] =
+    LogSink { (event: Event) =>
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
@@ -45,15 +45,14 @@ final private class EventLogSink[F[_]: Sync] private (
 }
 
 private[service] object EventLogSink {
-  def apply[F[_]: Console](serviceParams: ServiceParams)(using
-    F: Sync[F]): Stream[F, Kleisli[F, Event, Unit]] =
+  def apply[F[_]: Console](serviceParams: ServiceParams)(using F: Sync[F]): Stream[F, LogSink[F]] =
     Stream.eval(
       F.delay(
         eventLogSink[F](
           logFormat = serviceParams.logFormat,
           zoneId = serviceParams.zoneId,
           loggerName = LoggerName(serviceParams.serviceName.value))))
-      .map(_.writer)
+      .map(_.logSink)
 
   private def eventLogSink[F[_]: {Sync, Console}](
     logFormat: LogFormat,

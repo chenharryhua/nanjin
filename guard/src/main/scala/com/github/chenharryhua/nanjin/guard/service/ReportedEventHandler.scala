@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
@@ -24,7 +23,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
-  logSink: Kleisli[F, Event, Unit]
+  logSink: LogSink[F]
 ) {
   private def create_reported_event[S: Encoder](
     message: S,
@@ -74,7 +73,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       create_reported_event[S](message, level, stackTrace)
 
     override def publish(event: ReportedEvent): F[Unit] =
-      logSink.run(event)
+      logSink.write(event)
 
     override def enabled(level: AlarmLevel): F[Boolean] =
       alarmThreshold.get.map(_.exists(_ <= level))
@@ -88,7 +87,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
       create_reported_event[S](message, level, stackTrace)
 
     override def publish(event: ReportedEvent): F[Unit] =
-      logSink.run(event) >>
+      logSink.write(event) >>
         channel.send(event) >>
         history.add(event).whenA(event.level === AlarmLevel.Error)
 
@@ -103,7 +102,7 @@ private object ReportedEventHandler:
   def apply[F[_]: {Async, Console}](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: Kleisli[F, Event, Unit],
+    logSink: LogSink[F],
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =

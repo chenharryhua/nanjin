@@ -126,4 +126,16 @@ class Performance extends AnyFunSuite {
     println(s"cost:  ${timeout.toNanos / i} nano")
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
+
+  test("9.performance herald") {
+    val (fd, i) = service
+      .eventStreamS(agent => fs2.Stream.repeatEval(agent.herald.info("hello")).take(3_000_000))
+      .compile
+      .fold(0)((s, _) => s + 1)
+      .timed
+      .unsafeRunSync()
+
+    println(s"cost:  ${fd.toNanos / i} nano")
+    println(s"speed: ${i / fd.toMillis} k/s")
+  }
 }
