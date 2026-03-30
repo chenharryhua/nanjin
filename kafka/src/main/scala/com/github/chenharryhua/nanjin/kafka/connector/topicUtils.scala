@@ -125,13 +125,13 @@ private object topicUtils {
   def circumscribed_generic_record_stream[F[_]](
     client: KafkaConsume[F, Array[Byte], Array[Byte]],
     ranges: TopicPartitionMap[OffsetRange],
-    pull: PullGenericRecord): Stream[F, CircumscribedStream[F, Unit, Either[PullException, Record]]] =
+    pull: PullGenericRecord): Stream[F, CircumscribedStream[F, Unit, Either[PullError, Record]]] =
     client.partitionsMapStream.map { pms =>
       val streams
-        : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
+        : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]]] =
         pms.toList.mapFilter { case (tp, stream) =>
           ranges.get(tp).map { offsetRange =>
-            val sgr: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]] =
+            val sgr: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]] =
               stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true)
                 .mapChunks { crs =>
                   crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
@@ -141,12 +141,11 @@ private object topicUtils {
           }
         }.toMap
 
-      new CircumscribedStream[F, Unit, Either[PullException, Record]] {
+      new CircumscribedStream[F, Unit, Either[PullError, Record]] {
         override def stopConsuming: F[Unit] =
           client.stopConsuming
-        override def rangedStreams: Map[
-          PartitionRange,
-          Stream[F, CommittableConsumerRecord[F, Unit, Either[PullException, Record]]]] =
+        override def rangedStreams
+          : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]]] =
           streams
       }
     }

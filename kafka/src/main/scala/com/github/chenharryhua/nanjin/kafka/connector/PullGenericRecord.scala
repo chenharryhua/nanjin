@@ -3,10 +3,10 @@ import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
-import io.circe.syntax.EncoderOps
 import io.scalaland.chimney.dsl.transformInto
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumReader}
+import org.apache.avro.generic.GenericData.Record
+import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.io.DecoderFactory
 import org.apache.kafka.common.serialization.Serdes
 
@@ -15,8 +15,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.control.NonFatal
 
-final case class PullException(metaInfo: MetaInfo, exception: Throwable)
-    extends Exception(metaInfo.asJson.noSpaces, exception)
+final case class PullError(metaInfo: MetaInfo, throwable: Throwable)
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
@@ -25,7 +24,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private def getDecoder(skm: Schema): Array[Byte] => Any =
     skm.getType match {
       case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[GenericData.Record](skm)
+        val reader = new GenericDatumReader[Record](skm)
         (data: Array[Byte]) =>
           if data eq null then null
           else
@@ -64,15 +63,15 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
 
   private val headerSchema = SchemaFor[NJHeader].schema
-  def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullException, GenericData.Record] =
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullError, Record] =
     try {
-      val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
-        val header = new GenericData.Record(headerSchema)
+      val headers: Array[Record] = ccr.headers().toArray.map { h =>
+        val header = new Record(headerSchema)
         header.put("key", h.key())
         header.put("value", ByteBuffer.wrap(h.value()))
         header
       }
-      val record: GenericData.Record = new GenericData.Record(schema)
+      val record: Record = new Record(schema)
       record.put("topic", ccr.topic)
       record.put("partition", ccr.partition)
       record.put("offset", ccr.offset)
@@ -86,10 +85,9 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       record.put("headers", headers.toSeq.asJava)
       Right(record)
     } catch {
-      case NonFatal(ex) => Left(PullException(MetaInfo(ccr), ex))
+      case NonFatal(ex) => Left(PullError(MetaInfo(ccr), ex))
     }
 
-  def toGenericRecord(
-    ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullException, GenericData.Record] =
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullError, Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }
