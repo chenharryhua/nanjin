@@ -1,30 +1,35 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.applicative.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.MeterKind
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
-import squants.{Quantity, UnitOfMeasure}
+import com.github.chenharryhua.nanjin.guard.event.{
+  Category,
+  MeterKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants
+}
+import squants.{Each, Quantity, UnitOfMeasure}
 trait Meter[F[_]]:
   def mark(num: Long): F[Unit]
 
-  final def mark(num: Int): F[Unit] =
-    mark(num.toLong)
+  final def mark(num: Int): F[Unit] = mark(num.toLong)
 end Meter
 
 object Meter {
-  def noop[F[_]](using F: Applicative[F]): Meter[F] = new Meter[F] {
-    override def mark(num: Long): F[Unit] = F.unit
-  }
+  def noop[F[_]](using F: Applicative[F]): Meter[F] =
+    (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
-    private val label: MetricLabel,
-    private val metricRegistry: metrics.MetricRegistry,
-    private val squants: Squants,
-    private val name: MetricName)
+    label: MetricLabel,
+    metricRegistry: metrics.MetricRegistry,
+    squants: Squants,
+    name: MetricName)
       extends Meter[F] {
 
     private val F = Sync[F]
@@ -44,7 +49,7 @@ object Meter {
 
   }
 
-  final class Builder private[guard] (isEnabled: Boolean, squants: Squants) extends EnableConfig[Builder] {
+  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants) extends EnableConfig[Builder] {
 
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, squants)
@@ -52,14 +57,22 @@ object Meter {
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um))
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
+    private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
       using F: Sync[F]): Resource[F, Meter[F]] = {
       val meter: Resource[F, Meter[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
         })(_.unregister)
 
-      fold_create_noop(isEnabled)(meter, Resource.pure(noop[F]))
+      if isEnabled then meter else noop[F].pure
     }
   }
+
+  private[metrics] def apply[F[_]: Sync](
+    mr: metrics.MetricRegistry,
+    label: MetricLabel,
+    name: String,
+    f: Endo[Builder]): Resource[F, Meter[F]] =
+    f(new Builder(isEnabled = true, squants = Squants(Each)))
+      .build[F](label, name, mr)
 }
