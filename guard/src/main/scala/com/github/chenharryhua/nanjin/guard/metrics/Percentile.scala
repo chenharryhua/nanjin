@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Applicative
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
+import cats.syntax.applicative.given
 import cats.syntax.eq.given
 import cats.syntax.functor.given
 import cats.syntax.group.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.GaugeKind
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.event.{Category, GaugeKind, MetricID, MetricLabel, MetricName}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -54,7 +54,7 @@ object Percentile {
       override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
     }
 
-  private class Impl[F[_]](private val ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
+  private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
 
     private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
 
@@ -78,7 +78,7 @@ object Percentile {
       }
   }
 
-  final class Builder private[guard] (
+  final class Builder private[Percentile] (
     isEnabled: Boolean,
     translator: Ior[Long, Long] => Json
   ) extends EnableConfig[Builder] {
@@ -89,7 +89,7 @@ object Percentile {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, translator)
 
-    private[guard] def build[F[_]: Async](
+    private[Percentile] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
       metricRegistry: MetricRegistry,
@@ -113,7 +113,16 @@ object Percentile {
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield new Impl[F](ref)
 
-      if (isEnabled) impl else Resource.pure(noop)
+      if (isEnabled) impl else noop.pure
     }
   }
+
+  private[metrics] def apply[F[_]: Async](
+    mr: MetricRegistry,
+    label: MetricLabel,
+    name: String,
+    f: Endo[Builder],
+    dispatcher: Dispatcher[F]): Resource[F, Percentile[F]] =
+    f(new Builder(isEnabled = true, translator = translator))
+      .build[F](label, name, mr, dispatcher)
 }

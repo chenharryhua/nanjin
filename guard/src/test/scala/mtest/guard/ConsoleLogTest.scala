@@ -56,7 +56,7 @@ class ConsoleLogTest extends AnyFunSuite {
 
   test("2.console - pretty json") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
+      .updateConfig(_.withLogFormat(_.Slf4j_Json_OneLine))
       .eventStream(action)
       .map(checkJson)
       .compile

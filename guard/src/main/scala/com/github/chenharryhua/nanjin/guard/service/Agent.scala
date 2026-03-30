@@ -95,13 +95,14 @@ final private class GeneralAgent[F[_]: {Async, Console}](
 
   override def metricsHub(label: String): MetricsHub[F] = {
     val metricLabel = MetricLabel(label, reportedEventHandler.domain)
-    new MetricsHub.Impl[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
+    MetricsHub[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
   }
-
-  override def batch(label: String): Batch[F] = new Batch[F](metricsHub(label), uuidGenerator)
 
   override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
     f(metricsHub(label))
+
+  override def batch(label: String): Batch[F] =
+    new Batch[F](metricsHub(label), uuidGenerator)
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, f)

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
+import cats.Endo
 import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.effect.syntax.temporal.given
@@ -7,15 +8,19 @@ import cats.syntax.functor.given
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.event.GaugeKind
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.event.{
+  Category,
+  GaugeKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  StackTrace
+}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
-import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZoneId
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 trait Gauge[F[_]]:
@@ -37,18 +42,18 @@ object Gauge {
     }
 
   private class Impl[F[_]: Async](
-    private val label: MetricLabel,
-    private val metricRegistry: metrics.MetricRegistry,
-    private val timeout: FiniteDuration,
-    private val name: String,
-    private val dispatcher: Dispatcher[F],
-    private val zoneId: ZoneId
+    label: MetricLabel,
+    metricRegistry: metrics.MetricRegistry,
+    timeout: FiniteDuration,
+    name: String,
+    dispatcher: Dispatcher[F],
+    zoneId: ZoneId
   ) extends Gauge[F] {
 
     private val F = Async[F]
 
     private def trans_error(ex: Throwable): Json =
-      Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
+      StackTrace(ex).value.headOption.asJson
 
     private def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
       Resource
@@ -81,7 +86,7 @@ object Gauge {
       } yield ref
   }
 
-  final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
+  final class Builder private[Gauge] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
 
     def withTimeout(timeout: FiniteDuration): Builder =
@@ -90,7 +95,7 @@ object Gauge {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout)
 
-    private[guard] def build[F[_]: Async](
+    private[Gauge] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
       metricRegistry: metrics.MetricRegistry,
@@ -99,7 +104,17 @@ object Gauge {
       val gauge: Gauge[F] =
         new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
 
-      fold_create_noop(isEnabled)(gauge, noop[F])
+      if isEnabled then gauge else noop
     }
   }
+
+  private[metrics] def apply[F[_]: Async](
+    mr: metrics.MetricRegistry,
+    label: MetricLabel,
+    name: String,
+    f: Endo[Builder],
+    dispatcher: Dispatcher[F],
+    zoneId: ZoneId): Gauge[F] =
+    f(new Builder(isEnabled = true, timeout = 5.seconds))
+      .build[F](label, name, mr, dispatcher, zoneId)
 }

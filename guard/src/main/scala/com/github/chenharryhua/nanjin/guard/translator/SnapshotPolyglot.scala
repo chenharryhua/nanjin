@@ -128,8 +128,8 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   // for database etc
   def toVanillaJson: Json = {
-    val counters = snapshot.counters.map(c => c.metricId -> c.asJson)
-    val gauges = snapshot.gauges.map(g => g.metricId -> g.gauge.asJson)
+    val counters = snapshot.counters.map(c => c.metricId -> c.counter.asJson)
+    val gauges = snapshot.gauges.map(g => g.metricId -> g.gauge.value)
     val meters = snapshot.meters.map(m => m.metricId -> m.meter.asJson)
     val histograms = snapshot.histograms.map(h => h.metricId -> h.histogram.asJson)
     val timers = snapshot.timers.map(t => t.metricId -> t.timer.asJson)
@@ -139,7 +139,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
   // for screen display
   def toPrettyJson: Json = {
     val counters: List[(MetricID, Json)] =
-      snapshot.counters.map(c => c.metricId -> c.asJson)
+      snapshot.counters.map(c => c.metricId -> c.counter.asJson)
     val gauges: List[(MetricID, Json)] =
       snapshot.gauges.mapFilter(g =>
         if (g.gauge.value === Json.Null) None else Some(g.metricId -> g.gauge.value))

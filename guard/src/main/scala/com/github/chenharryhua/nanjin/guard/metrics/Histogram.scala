@@ -1,33 +1,37 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.applicative.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.HistogramKind
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
-import squants.{Quantity, UnitOfMeasure}
+import com.github.chenharryhua.nanjin.guard.event.{
+  Category,
+  HistogramKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants
+}
+import squants.{Each, Quantity, UnitOfMeasure}
 
 trait Histogram[F[_]]:
   def update(num: Long): F[Unit]
 
-  final def update(num: Int): F[Unit] =
-    update(num.toLong)
+  final def update(num: Int): F[Unit] = update(num.toLong)
 end Histogram
 
 object Histogram {
   def noop[F[_]](using F: Applicative[F]): Histogram[F] =
-    new Histogram[F] {
-      override def update(num: Long): F[Unit] = F.unit
-    }
+    (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
-    private val label: MetricLabel,
-    private val metricRegistry: metrics.MetricRegistry,
-    private val squants: Squants,
-    private val reservoir: Option[metrics.Reservoir],
-    private val name: MetricName)
+    label: MetricLabel,
+    metricRegistry: metrics.MetricRegistry,
+    squants: Squants,
+    reservoir: Option[metrics.Reservoir],
+    name: MetricName)
       extends Histogram[F] {
 
     private val F = Sync[F]
@@ -54,7 +58,7 @@ object Histogram {
 
   }
 
-  final class Builder private[guard] (
+  final class Builder private[Histogram] (
     isEnabled: Boolean,
     squants: Squants,
     reservoir: Option[metrics.Reservoir])
@@ -69,8 +73,10 @@ object Histogram {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, squants, reservoir)
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      using F: Sync[F]): Resource[F, Histogram[F]] = {
+    private[Histogram] def build[F[_]](
+      label: MetricLabel,
+      name: String,
+      metricRegistry: metrics.MetricRegistry)(using F: Sync[F]): Resource[F, Histogram[F]] = {
       val histogram: Resource[F, Histogram[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](
@@ -81,7 +87,15 @@ object Histogram {
             name = metricName)
         })(_.unregister)
 
-      fold_create_noop(isEnabled)(histogram, Resource.pure(noop[F]))
+      if isEnabled then histogram else noop[F].pure
     }
   }
+
+  private[metrics] def apply[F[_]: Sync](
+    mr: metrics.MetricRegistry,
+    label: MetricLabel,
+    name: String,
+    f: Endo[Builder]): Resource[F, Histogram[F]] =
+    f(new Builder(isEnabled = true, squants = Squants(Each), reservoir = None))
+      .build[F](label, name, mr)
 }

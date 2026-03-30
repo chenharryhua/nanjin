@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
@@ -16,10 +15,10 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   val serviceParams: ServiceParams,
   history: History[F, ServicePanic],
   channel: Channel[F, Event],
-  logSink: Kleisli[F, Event, Unit]
+  logSink: LogSink[F]
 ) {
   private def publish(event: Event): F[Unit] =
-    channel.send(event) >> logSink.run(event)
+    channel.send(event) >> logSink.write(event)
 
   def serviceStart(tick: Tick): F[Unit] =
     publish(ServiceStart(serviceParams, tick))
@@ -34,7 +33,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)
-      _ <- logSink.run(event)
+      _ <- logSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()
 
@@ -48,7 +47,7 @@ private object ServiceEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: Kleisli[F, Event, Unit]): Stream[F, ServiceEventHandler[F]] = {
+    logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
       History[F, ServicePanic](serviceParams.historyCapacity.panic)
 

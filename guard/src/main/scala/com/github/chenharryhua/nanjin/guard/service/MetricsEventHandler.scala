@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.Kleisli
 import cats.effect.kernel.Async
 import cats.effect.syntax.clock.given
 import cats.syntax.apply.given
@@ -22,7 +21,7 @@ final private class MetricsEventHandler[F[_]] private (
   val scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
-  logSink: Kleisli[F, Event, Unit]
+  logSink: LogSink[F]
 )(using F: Async[F])
     extends AdhocMetrics[F] {
 
@@ -43,7 +42,7 @@ final private class MetricsEventHandler[F[_]] private (
     for {
       ms <- build_metrics_snapshot(kind, index)
       _ <- channel.send(ms)
-      _ <- logSink.run(ms)
+      _ <- logSink.write(ms)
       _ <- history.add(ms)
     } yield ms
 
@@ -99,7 +98,7 @@ final private class MetricsEventHandler[F[_]] private (
   override def report: F[Unit] =
     for {
       ts <- serviceParams.zonedNow
-      _ <- publish(reset_kind, Adhoc(ts))
+      _ <- publish(report_kind, Adhoc(ts))
     } yield ()
 
   override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
@@ -117,7 +116,7 @@ private object MetricsEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: Kleisli[F, Event, Unit]
+    logSink: LogSink[F]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)

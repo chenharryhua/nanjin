@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.applicative.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.TimerKind
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, TimerKind}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
@@ -37,10 +37,10 @@ object Timer {
     }
 
   private class Impl[F[_]: Sync](
-    private val label: MetricLabel,
-    private val metricRegistry: metrics.MetricRegistry,
-    private val reservoir: Option[metrics.Reservoir],
-    private val name: MetricName
+    label: MetricLabel,
+    metricRegistry: metrics.MetricRegistry,
+    reservoir: Option[metrics.Reservoir],
+    name: MetricName
   ) extends Timer[F] {
 
     private val F = Sync[F]
@@ -67,7 +67,7 @@ object Timer {
 
   }
 
-  final class Builder private[guard] (
+  final class Builder private[Timer] (
     isEnabled: Boolean,
     reservoir: Option[metrics.Reservoir]
   ) extends EnableConfig[Builder] {
@@ -78,18 +78,20 @@ object Timer {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir)
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
+    private[Timer] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
       using F: Sync[F]): Resource[F, Timer[F]] = {
       val timer: Resource[F, Timer[F]] =
-        Resource.make(MetricName(name).map { metricName =>
-          new Impl[F](
-            label = label,
-            metricRegistry = metricRegistry,
-            reservoir = reservoir,
-            name = metricName)
-        })(_.unregister)
+        Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
 
-      fold_create_noop(isEnabled)(timer, Resource.pure(noop[F]))
+      if isEnabled then timer else noop.pure
     }
   }
+
+  private[metrics] def apply[F[_]: Sync](
+    mr: metrics.MetricRegistry,
+    label: MetricLabel,
+    name: String,
+    f: Endo[Builder]): Resource[F, Timer[F]] =
+    f(new Builder(isEnabled = true, reservoir = None))
+      .build[F](label, name, mr)
 }

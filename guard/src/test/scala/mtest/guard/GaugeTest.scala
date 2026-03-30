@@ -19,7 +19,10 @@ class GaugeTest extends AnyFunSuite {
   test("1.gauge") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("gauge")(_.gauge("gauge").register(IO(1)).map(_ => Kleisli((_: Unit) => IO.unit)))
+        .facilitate("gauge")(
+          _.gauge("gauge")
+            .register(IO(1))
+            .map(_ => Kleisli((_: Unit) => IO.unit)))
         .surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
