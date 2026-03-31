@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.effect.syntax.temporal.given
 import cats.syntax.functor.given
-import com.codahale.metrics
+import com.codahale.metrics.{Gauge as CodahaleGauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{
@@ -31,26 +31,16 @@ trait Gauge[F[_]]:
 end Gauge
 
 object Gauge {
-  def noop[F[_]: Concurrent]: Gauge[F] =
-    new Gauge[F] {
-      override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-        Resource.unit[F]
-      override def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit] =
-        Resource.unit[F]
-      override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
-        Resource.eval(Concurrent[F].ref(value))
-    }
 
-  private class Impl[F[_]: Async](
+  private class Impl[F[_]](
     label: MetricLabel,
-    metricRegistry: metrics.MetricRegistry,
+    metricRegistry: MetricRegistry,
     timeout: FiniteDuration,
     name: String,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId
-  ) extends Gauge[F] {
-
-    private val F = Async[F]
+  )(using F: Async[F])
+      extends Gauge[F] {
 
     private def trans_error(ex: Throwable): Json =
       StackTrace(ex).value.headOption.asJson
@@ -61,7 +51,7 @@ object Gauge {
           metricRegistry.gauge(
             metricID.identifier,
             () =>
-              new metrics.Gauge[Json] {
+              new CodahaleGauge[Json] {
                 override def getValue: Json =
                   Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
               }
@@ -98,18 +88,28 @@ object Gauge {
     private[Gauge] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: metrics.MetricRegistry,
+      metricRegistry: MetricRegistry,
       dispatcher: Dispatcher[F],
       zoneId: ZoneId): Gauge[F] = {
       val gauge: Gauge[F] =
         new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
+
+      val noop: Gauge[F] =
+        new Gauge[F] {
+          override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
+            Resource.unit[F]
+          override def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit] =
+            Resource.unit[F]
+          override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
+            Resource.eval(Concurrent[F].ref(value))
+        }
 
       if isEnabled then gauge else noop
     }
   }
 
   private[metrics] def apply[F[_]: Async](
-    mr: metrics.MetricRegistry,
+    mr: MetricRegistry,
     label: MetricLabel,
     name: String,
     f: Endo[Builder],

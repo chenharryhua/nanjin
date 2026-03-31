@@ -13,9 +13,7 @@ import java.time.{Instant, ZoneId}
 /** PolicyTick wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
   * according to the policy.
   */
-final class PolicyTick[F[_]: {Random, Monad}] private (
-  val tick: Tick,
-  decisions: LazyList[PolicyF.CalcTick[F]]) {
+final class PolicyTick[F[_]: {Random, Monad}] private (val tick: Tick, decisions: LazyList[TickStepper[F]]) {
 
   def renewPolicy(policy: Policy): PolicyTick[F] =
     new PolicyTick(tick, PolicyF.evaluatePolicy(policy.policy))
@@ -27,9 +25,9 @@ final class PolicyTick[F[_]: {Random, Monad}] private (
     decisions match {
       case head #:: tail =>
         if (now.isBefore(tick.conclude)) { // pretend it concludes on time
-          head(PolicyF.TickRequest(tick, tick.conclude)).map(tk => Some(new PolicyTick(tk, tail)))
+          head.step(tick, tick.conclude).map(tk => Some(new PolicyTick(tk, tail)))
         } else
-          head(PolicyF.TickRequest(tick, now)).map(tk => Some(new PolicyTick(tk, tail)))
+          head.step(tick, now).map(tk => Some(new PolicyTick(tk, tail)))
 
       case _ => none[PolicyTick[F]].pure[F]
     }

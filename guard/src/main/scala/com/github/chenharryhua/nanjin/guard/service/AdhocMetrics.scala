@@ -15,6 +15,6 @@ trait AdhocMetrics[F[_]]:
     */
   def report: F[Unit]
 
-  def cheapSnapshot(tick: Tick): F[MetricsSnapshot]
+  def snapshot(tick: Tick, f: ScrapeMode.type => ScrapeMode): F[MetricsSnapshot]
 
 end AdhocMetrics

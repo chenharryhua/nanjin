@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
+import cats.Endo
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
@@ -7,7 +8,6 @@ import cats.syntax.applicative.given
 import cats.syntax.eq.given
 import cats.syntax.functor.given
 import cats.syntax.group.given
-import cats.{Applicative, Endo}
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.{Category, GaugeKind, MetricID, MetricLabel, MetricName}
@@ -47,13 +47,6 @@ trait Percentile[F[_]] {
 }
 
 object Percentile {
-  def noop[F[_]](using F: Applicative[F]): Percentile[F] =
-    new Percentile[F] {
-      override def incNumerator(numerator: Long): F[Unit] = F.unit
-      override def incDenominator(denominator: Long): F[Unit] = F.unit
-      override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
-    }
-
   private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
 
     private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
@@ -89,13 +82,11 @@ object Percentile {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, translator)
 
-    private[Percentile] def build[F[_]: Async](
+    private[Percentile] def build[F[_]](
       label: MetricLabel,
       name: String,
       metricRegistry: MetricRegistry,
-      dispatcher: Dispatcher[F]): Resource[F, Percentile[F]] = {
-
-      val F = Async[F]
+      dispatcher: Dispatcher[F])(using F: Async[F]): Resource[F, Percentile[F]] = {
 
       val impl: Resource[F, Percentile[F]] = for {
         metricName <- Resource.eval(MetricName(name))
@@ -112,6 +103,13 @@ object Percentile {
           )
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield new Impl[F](ref)
+
+      val noop: Percentile[F] =
+        new Percentile[F] {
+          override def incNumerator(numerator: Long): F[Unit] = F.unit
+          override def incDenominator(denominator: Long): F[Unit] = F.unit
+          override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
+        }
 
       if (isEnabled) impl else noop.pure
     }

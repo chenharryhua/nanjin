@@ -101,8 +101,8 @@ final private class MetricsEventHandler[F[_]] private (
       _ <- publish(report_kind, Adhoc(ts))
     } yield ()
 
-  override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
-    F.blocking(scrapeMetrics.snapshot(ScrapeMode.Cheap)).timed.map { case (took, snapshot) =>
+  override def snapshot(tick: Tick, f: ScrapeMode.type => ScrapeMode): F[MetricsSnapshot] =
+    F.blocking(scrapeMetrics.snapshot(f(ScrapeMode))).timed.map { case (took, snapshot) =>
       MetricsSnapshot(
         index = Periodic(tick),
         serviceParams = serviceParams,

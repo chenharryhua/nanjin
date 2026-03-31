@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.effect.syntax.temporal.given
 import cats.syntax.functor.given
-import com.codahale.metrics
+import com.codahale.metrics.{Gauge as CodahaleGauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{Category, GaugeKind, MetricID, MetricLabel, MetricName}
@@ -25,24 +25,15 @@ trait HealthCheck[F[_]]:
 end HealthCheck
 
 object HealthCheck {
-  def noop[F[_]]: HealthCheck[F] =
-    new HealthCheck[F] {
-      override def register(hc: F[Boolean]): Resource[F, Unit] =
-        Resource.unit[F]
-      override def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit] =
-        Resource.unit[F]
-    }
 
-  private class Impl[F[_]: Async](
+  private class Impl[F[_]](
     label: MetricLabel,
-    metricRegistry: metrics.MetricRegistry,
+    metricRegistry: MetricRegistry,
     timeout: FiniteDuration,
     name: String,
     dispatcher: Dispatcher[F],
-    zoneId: ZoneId)
+    zoneId: ZoneId)(using F: Async[F])
       extends HealthCheck[F] {
-
-    private val F = Async[F]
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       for {
@@ -54,7 +45,7 @@ object HealthCheck {
             metricRegistry.gauge(
               metricID,
               () =>
-                new metrics.Gauge[Boolean] {
+                new CodahaleGauge[Boolean] {
                   override def getValue: Boolean =
                     Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
                 }
@@ -79,18 +70,26 @@ object HealthCheck {
     private[HealthCheck] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: metrics.MetricRegistry,
+      metricRegistry: MetricRegistry,
       dispatcher: Dispatcher[F],
       zoneId: ZoneId): HealthCheck[F] = {
       val hc: HealthCheck[F] =
         new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
 
-      if isEnabled then hc else noop[F]
+      val noop: HealthCheck[F] =
+        new HealthCheck[F] {
+          override def register(hc: F[Boolean]): Resource[F, Unit] =
+            Resource.unit[F]
+          override def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit] =
+            Resource.unit[F]
+        }
+
+      if isEnabled then hc else noop
     }
   }
 
   private[metrics] def apply[F[_]: Async](
-    mr: metrics.MetricRegistry,
+    mr: MetricRegistry,
     label: MetricLabel,
     name: String,
     f: Endo[Builder],

@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
+import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
-import cats.{Applicative, Endo}
-import com.codahale.metrics
+import com.codahale.metrics.{Counter as CodahaleCounter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.{Category, CounterKind, MetricID, MetricLabel, MetricName}
 
@@ -14,18 +14,15 @@ trait Counter[F[_]]:
 end Counter
 
 object Counter {
-  def noop[F[_]: Applicative]: Counter[F] = (_: Long) => ().pure[F]
 
-  private class Impl[F[_]: Sync](
+  private class Impl[F[_]](
     label: MetricLabel,
-    metricRegistry: metrics.MetricRegistry,
+    metricRegistry: MetricRegistry,
     isRisk: Boolean,
-    name: MetricName)
+    name: MetricName)(using F: Sync[F])
       extends Counter[F] {
 
-    private val F = Sync[F]
-
-    private lazy val (counter_name: String, counter: metrics.Counter) =
+    private lazy val (counter_name: String, counter: CodahaleCounter) =
       if (isRisk) {
         val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
         (id, metricRegistry.counter(id))
@@ -47,21 +44,21 @@ object Counter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk)
 
-    private[Counter] def build[F[_]](
-      label: MetricLabel,
-      name: String,
-      metricRegistry: metrics.MetricRegistry)(using F: Sync[F]): Resource[F, Counter[F]] = {
+    private[Counter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
+      F: Sync[F]): Resource[F, Counter[F]] = {
       val counter: Resource[F, Counter[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label, metricRegistry, isRisk, metricName)
         })(_.unregister)
 
-      if isEnabled then counter else noop[F].pure
+      val noop: Counter[F] = (_: Long) => ().pure[F]
+
+      if isEnabled then counter else noop.pure
     }
   }
 
   private[metrics] def apply[F[_]: Sync](
-    mr: metrics.MetricRegistry,
+    mr: MetricRegistry,
     label: MetricLabel,
     name: String,
     f: Endo[Builder]): Resource[F, Counter[F]] =
