@@ -1,20 +1,14 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.gauges
 
 import cats.Endo
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Dispatcher
 import cats.syntax.applicative.given
 import cats.syntax.eq.given
 import cats.syntax.functor.given
 import cats.syntax.group.given
-import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{Category, GaugeKind, MetricID, MetricLabel, MetricName}
 import io.circe.Json
-import io.circe.syntax.EncoderOps
-
-import scala.util.Try
 
 trait Percentile[F[_]] {
 
@@ -82,26 +76,12 @@ object Percentile {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, translator)
 
-    private[Percentile] def build[F[_]](
-      label: MetricLabel,
-      name: String,
-      metricRegistry: MetricRegistry,
-      dispatcher: Dispatcher[F])(using F: Async[F]): Resource[F, Percentile[F]] = {
+    private[Percentile] def build[F[_]](gp: GaugeParams[F], name: String)(using
+      F: Async[F]): Resource[F, Percentile[F]] = {
 
       val impl: Resource[F, Percentile[F]] = for {
-        metricName <- Resource.eval(MetricName(name))
-        metricID = MetricID(label, metricName, Category.Gauge(GaugeKind.Ratio)).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
-        _ <- Resource.make(F.delay {
-          metricRegistry.gauge(
-            metricID,
-            () =>
-              new Gauge[Json] {
-                override def getValue: Json =
-                  Try(dispatcher.unsafeRunSync(ref.get.map(translator))).fold(_ => Json.Null, _.asJson)
-              }
-          )
-        })(_ => F.delay(metricRegistry.remove(metricID)).void)
+        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Ratio).register(ref.get.map(translator)))
       } yield new Impl[F](ref)
 
       val noop: Percentile[F] =
@@ -116,11 +96,8 @@ object Percentile {
   }
 
   private[metrics] def apply[F[_]: Async](
-    mr: MetricRegistry,
-    label: MetricLabel,
+    gp: GaugeParams[F],
     name: String,
-    f: Endo[Builder],
-    dispatcher: Dispatcher[F]): Resource[F, Percentile[F]] =
-    f(new Builder(isEnabled = true, translator = translator))
-      .build[F](label, name, mr, dispatcher)
+    f: Endo[Builder]): Resource[F, Percentile[F]] =
+    f(new Builder(true, translator)).build[F](gp, name)
 }

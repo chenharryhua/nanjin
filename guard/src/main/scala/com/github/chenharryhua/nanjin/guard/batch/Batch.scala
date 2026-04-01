@@ -16,7 +16,8 @@ import cats.syntax.traverse.given
 import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, MetricsHub}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import com.github.chenharryhua.nanjin.guard.metrics.gauges.ActiveGauge
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.Monocle.focus
@@ -69,7 +70,7 @@ object Batch {
         .percentile(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
-      _ <- mtx.gauge("completed jobs").register(progress.get.map(toJson))
+      _ <- mtx.gauge("completed jobs", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
       Kleisli { (jrs: JobResultState) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(jrs)))
@@ -80,7 +81,7 @@ object Batch {
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
-      _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed").register(progress.get.map(toJson))
+      _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
       Kleisli((jrs: JobResultState) => F.uncancelable(_ => progress.update(_.appended(jrs)))),
       active)

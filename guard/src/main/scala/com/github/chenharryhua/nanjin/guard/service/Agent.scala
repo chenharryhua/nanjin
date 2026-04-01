@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, Dispatcher}
-import com.github.chenharryhua.nanjin.common.chrono.*
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricLabel}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricsHub, MetricsHubS}
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -48,8 +48,11 @@ sealed trait Agent[F[_]] {
    * metrics
    */
   def metricsHub(label: String): MetricsHub[F]
+  def metricsHubS(label: String): MetricsHubS[F]
+
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
-  def adhoc: AdhocMetrics[F]
+  
+  val adhoc: AdhocMetrics[F]
 
   /*
    * circuit breaker
@@ -97,6 +100,9 @@ final private class GeneralAgent[F[_]: {Async, Console}](
     val metricLabel = MetricLabel(label, reportedEventHandler.domain)
     MetricsHub[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
   }
+
+  override def metricsHubS(label: String): MetricsHubS[F] =
+    MetricsHubS(metricsHub(label))
 
   override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
     f(metricsHub(label))
