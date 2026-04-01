@@ -4,12 +4,17 @@ import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.kernel.Group
-import cats.syntax.flatMap.given
-import cats.syntax.functor.given
-import cats.syntax.option.{none, given}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.gauges.{
+  ActiveGauge,
+  BalanceGauge,
+  Gauge,
+  GaugeParams,
+  HealthCheck,
+  IdleGauge,
+  Percentile
+}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
@@ -28,17 +33,18 @@ sealed trait MetricsHub[F[_]] {
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
 
   // gauges
-  def gauge(name: String, f: Endo[Gauge.Builder] = identity): Gauge[F]
+
+  def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit]
+
+  def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
 
   def percentile(name: String, f: Endo[Percentile.Builder] = identity): Resource[F, Percentile[F]]
 
-  def healthCheck(name: String, f: Endo[HealthCheck.Builder] = identity): HealthCheck[F]
+  def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Resource[F, IdleGauge[F]]
 
-  def idleGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, IdleGauge[F]]
+  def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Resource[F, ActiveGauge[F]]
 
-  def activeGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, ActiveGauge[F]]
-
-  def permanentCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
+  def permanentCounter(name: String): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
   def balanceGauge[A: {Group, Encoder}](
@@ -60,7 +66,6 @@ object MetricsHub {
     dispatcher: Dispatcher[F],
     zoneId: ZoneId)
       extends MetricsHub[F] {
-    private val F = Async[F]
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
       Counter[F](metricRegistry, metricLabel, name, f)
@@ -76,45 +81,31 @@ object MetricsHub {
 
     // gauges
 
-    override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
-      Gauge[F](metricRegistry, metricLabel, name, f, dispatcher, zoneId)
+    private val gaugeParams = GaugeParams[F](dispatcher, metricRegistry, metricLabel, zoneId)
 
-    override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] =
-      HealthCheck[F](metricRegistry, metricLabel, name, f, dispatcher, zoneId)
+    override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit] =
+      Gauge[F](gaugeParams, name, f)
+
+    override def healthCheck(
+      name: String,
+      f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit] =
+      HealthCheck[F](gaugeParams, name, f)
 
     override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
-      Percentile(metricRegistry, metricLabel, name, f, dispatcher)
+      Percentile(gaugeParams, name, f)
 
     // derived
 
-    override def idleGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, IdleGauge[F]] =
-      for {
-        lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
-        _ <- gauge(name, f).register(
-          for {
-            pre <- lastUpdate.get
-            now <- F.monotonic
-          } yield defaultFormatter.format(now - pre)
-        )
-      } yield new IdleGauge[F] {
-        override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
-      }
+    override def idleGauge(name: String, f: Endo[IdleGauge.Builder]): Resource[F, IdleGauge[F]] =
+      IdleGauge(gaugeParams, name, f)
 
-    override def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, ActiveGauge[F]] =
-      for {
-        active <- Resource.eval(F.ref(true))
-        kickoff <- Resource.eval(F.monotonic)
-        _ <- gauge(name, f).register(
-          active.get
-            .ifM(F.monotonic.map(now => defaultFormatter.format(now - kickoff).some), F.pure(none[String])))
-      } yield new ActiveGauge[F] {
-        override val deactivate: F[Unit] = active.set(false)
-      }
+    override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Resource[F, ActiveGauge[F]] =
+      ActiveGauge(gaugeParams, name, f)
 
-    override def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]] =
+    override def permanentCounter(name: String): Resource[F, Counter[F]] =
       for {
         ref <- Resource.eval(Ref[F].of[Long](0L))
-        _ <- gauge(name, f).register(ref.get)
+        _ <- gauge(name, _.register(ref.get))
       } yield new Counter[F] {
         override def inc(num: Long): F[Unit] = ref.update(_ + num)
       }
@@ -122,7 +113,7 @@ object MetricsHub {
     override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
       for {
         ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
-        _ <- gauge(name, identity).register(stm.commit(ta.get))
+        _ <- gauge(name, _.register(stm.commit(ta.get)))
       } yield ta
 
     override def balanceGauge[A: {Group, Encoder}](
@@ -134,13 +125,15 @@ object MetricsHub {
         stm <- Resource.eval(STM.runtime[F])
         src <- Resource.eval(stm.commit(stm.TVar.of(sourceValue)))
         tgt <- Resource.eval(stm.commit(stm.TVar.of(targetValue)))
-        _ <- gauge(s"Balance($sourceName<->$targetName)", identity).register {
-          val get: stm.Txn[Json] = for {
-            a <- src.get
-            b <- tgt.get
-          } yield List(a, b).asJson
-          stm.commit(get)
-        }
+        _ <- gauge(
+          s"Balance($sourceName<->$targetName)",
+          _.register {
+            val get: stm.Txn[Json] = for {
+              a <- src.get
+              b <- tgt.get
+            } yield List(a, b).asJson
+            stm.commit(get)
+          })
       } yield new BalanceGauge[F, A] {
         private def transfer(from: stm.TVar[A], to: stm.TVar[A], num: A): stm.Txn[Unit] =
           for {

@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
+import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
-import cats.{Applicative, Endo}
-import com.codahale.metrics
+import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.{
   Category,
@@ -22,17 +22,13 @@ trait Meter[F[_]]:
 end Meter
 
 object Meter {
-  def noop[F[_]](using F: Applicative[F]): Meter[F] =
-    (_: Long) => F.unit
 
-  private class Impl[F[_]: Sync](
+  private class Impl[F[_]](
     label: MetricLabel,
-    metricRegistry: metrics.MetricRegistry,
+    metricRegistry: MetricRegistry,
     squants: Squants,
-    name: MetricName)
+    name: MetricName)(using F: Sync[F])
       extends Meter[F] {
-
-    private val F = Sync[F]
 
     private val meter_name: String =
       MetricID(
@@ -41,7 +37,7 @@ object Meter {
         Category.Meter(kind = MeterKind.Meter, squants = squants)
       ).identifier
 
-    private lazy val meter: metrics.Meter = metricRegistry.meter(meter_name)
+    private lazy val meter: CodahaleMeter = metricRegistry.meter(meter_name)
 
     override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
 
@@ -57,19 +53,21 @@ object Meter {
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um))
 
-    private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      using F: Sync[F]): Resource[F, Meter[F]] = {
+    private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
+      F: Sync[F]): Resource[F, Meter[F]] = {
       val meter: Resource[F, Meter[F]] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
         })(_.unregister)
 
-      if isEnabled then meter else noop[F].pure
+      val noop: Meter[F] = (_: Long) => F.unit
+
+      if isEnabled then meter else noop.pure
     }
   }
 
   private[metrics] def apply[F[_]: Sync](
-    mr: metrics.MetricRegistry,
+    mr: MetricRegistry,
     label: MetricLabel,
     name: String,
     f: Endo[Builder]): Resource[F, Meter[F]] =

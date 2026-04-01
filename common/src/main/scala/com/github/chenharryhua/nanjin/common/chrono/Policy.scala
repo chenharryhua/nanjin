@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.data.{Kleisli, NonEmptyList}
+import cats.data.NonEmptyList
 import cats.derived.derived
 import cats.effect.std.Random
 import cats.kernel.Eq
@@ -48,9 +48,6 @@ private object PolicyF {
   final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
   final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
 
-  type CalcTick[F[_]] = Kleisli[F, TickRequest, Tick]
-  final case class TickRequest(tick: Tick, now: Instant)
-
   /*
    * eval Policy
    */
@@ -63,29 +60,29 @@ private object PolicyF {
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
 
-  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[CalcTick[F]]] =
-    Algebra[PolicyF, LazyList[CalcTick[F]]] {
+  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
+    Algebra[PolicyF, LazyList[TickStepper[F]]] {
 
       case Empty() => LazyList.empty
 
       case Crontab(cronExpr) =>
-        val calcTick: CalcTick[F] = Kleisli { case TickRequest(tick, now) =>
+        val seed: TickStepper[F] = TickStepper { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
             case Some(value) => tick.nextTick(now, value.toInstant).pure[F]
-            case None        => // should not happen but in case
+            case None        => // should not happen
               sys.error(show"$cronExpr returned None at $now. This should never happen.")
           }
         }
-        LazyList.continually(calcTick)
+        LazyList.continually(seed)
 
       case FixedDelay(delays) =>
-        val seed: LazyList[CalcTick[F]] = LazyList.from(delays.toList).map[CalcTick[F]] { delay =>
-          Kleisli { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).pure[F] }
+        val seed: LazyList[TickStepper[F]] = LazyList.from(delays.toList).map[TickStepper[F]] { delay =>
+          TickStepper { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).pure[F] }
         }
         LazyList.continually(seed).flatten
 
       case FixedRate(delay) =>
-        LazyList.continually(Kleisli { case TickRequest(tick, now) =>
+        LazyList.continually(TickStepper { case TickRequest(tick, now) =>
           tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).pure[F]
         })
 
@@ -98,43 +95,43 @@ private object PolicyF {
 
       // https://en.wikipedia.org/wiki/Join_and_meet
       case Meet(first, second) =>
-        first.zip(second).map { case (fa: CalcTick[F], fb: CalcTick[F]) =>
-          Kleisli { (req: TickRequest) =>
-            (fa(req), fb(req)).mapN { (ra, rb) =>
+        first.zip(second).map { case (sa: TickStepper[F], sb: TickStepper[F]) =>
+          TickStepper { (req: TickRequest) =>
+            (sa(req), sb(req)).mapN { (ra, rb) =>
               if (ra.snooze < rb.snooze) ra else rb // shorter win
             }
           }
         }
 
       case Except(policy, except) =>
-        policy.map { (f: CalcTick[F]) =>
-          Kleisli { (req: TickRequest) =>
-            f(req).flatMap { tick =>
+        policy.map { (stepper: TickStepper[F]) =>
+          TickStepper { (req: TickRequest) =>
+            stepper(req).flatMap { tick =>
               if (tick.local(_.conclude).toLocalTime === except) {
-                f(TickRequest(tick, tick.conclude)).map(nt => tick.withSnoozeStretch(nt.snooze))
+                stepper.step(tick, tick.conclude).map(nt => tick.withSnoozeStretch(nt.snooze))
               } else tick.pure[F]
             }
           }
         }
 
       case Offset(policy, offset) =>
-        policy.map { (f: CalcTick[F]) =>
-          Kleisli { (req: TickRequest) =>
-            f(req).map(_.withSnoozeStretch(offset))
+        policy.map { (stepper: TickStepper[F]) =>
+          TickStepper { (req: TickRequest) =>
+            stepper(req).map(_.withSnoozeStretch(offset))
           }
         }
 
       case Jitter(policy, min, max) =>
-        policy.map { (f: CalcTick[F]) =>
-          Kleisli { (req: TickRequest) =>
+        policy.map { (stepper: TickStepper[F]) =>
+          TickStepper { (req: TickRequest) =>
             rng.betweenLong(min.toNanos, max.toNanos).flatMap { delay =>
-              f(req).map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS)))
+              stepper(req).map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS)))
             }
           }
         }
     }
 
-  def evaluatePolicy[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[CalcTick[F]] =
+  def evaluatePolicy[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
     scheme.cata(algebra(Random[F])).apply(policy)
 
   private val EMPTY: String = "empty"
@@ -356,9 +353,10 @@ object Policy {
   /** should be non-negative
     */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
-    val nel = NonEmptyList(head.toJava, tail.toList.map(_.toJava))
-    require(nel.forall(!_.isNegative), "every delay should be positive or zero")
-    Policy(Fix(FixedDelay(nel)))
+    val nel: NonEmptyList[FiniteDuration] = NonEmptyList.of(head, tail*)
+    require(nel.forall(_ >= ScalaDuration.Zero), "every delay should be positive or zero")
+    require(nel.exists(_ > ScalaDuration.Zero), "at least one is positive")
+    Policy(Fix(FixedDelay(nel.map(_.toJava))))
   }
 
   /** @param delay

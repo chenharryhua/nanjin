@@ -56,9 +56,6 @@ final private class HttpDataRouter[F[_]](
     case GET -> Root / "service" / "params" =>
       Ok(interpretServiceParams(serviceParams))
 
-    case GET -> Root / "service" / "stop" =>
-      Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
-
     case GET -> Root / "service" / "jvm" =>
       val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
       Ok(json)
@@ -74,6 +71,9 @@ final private class HttpDataRouter[F[_]](
         case Left(value)  => ServiceUnavailable(value)
         case Right(value) => Ok(value)
       }
+
+    case POST -> Root / "service" / "stop" =>
+      Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
 
     /*
      * Metrics

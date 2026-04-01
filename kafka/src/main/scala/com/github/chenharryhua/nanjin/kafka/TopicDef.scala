@@ -8,7 +8,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
     extends KafkaGenericSerde(key, value)
 
-final class TopicDef[K, V](val topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
+final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
   def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, key, value)
   def consumerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,

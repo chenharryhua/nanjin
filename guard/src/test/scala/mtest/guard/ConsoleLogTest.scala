@@ -18,8 +18,8 @@ class ConsoleLogTest extends AnyFunSuite {
   private def action(agent: Agent[IO]): IO[Unit] = {
     val mtx = agent.facilitate("job") { mtx =>
       for {
-        _ <- mtx.gauge("7").register(IO(1000000000))
-        _ <- mtx.healthCheck("6").register(IO(true))
+        _ <- mtx.gauge("7", _.register(IO(1000000000)))
+        _ <- mtx.gauge("6", _.register(IO(true)))
         _ <- mtx.timer("5").evalMap(_.elapsed(10.second).replicateA(100))
         _ <- mtx.meter("4", _.enable(true)).evalMap(_.mark(10000).replicateA(100))
         _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))

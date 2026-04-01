@@ -19,10 +19,8 @@ class GaugeTest extends AnyFunSuite {
   test("1.gauge") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("gauge")(
-          _.gauge("gauge")
-            .register(IO(1))
-            .map(_ => Kleisli((_: Unit) => IO.unit)))
+        .facilitate("gauge")(_.gauge("gauge", _.register(IO(1)))
+          .map(_ => Kleisli((_: Unit) => IO.unit)))
         .surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
@@ -34,8 +32,13 @@ class GaugeTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("health")(
-          _.healthCheck("health", _.withTimeout(1.second).enable(true)).register(IO(true)))
-        .surround(agent.adhoc.report.void)
+          _.healthCheck(
+            "health",
+            _.withTimeout(1.second)
+              .withPolicy(_.crontab(_.secondly))
+              .enable(true)
+              .register(IO(true))))
+        .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val health: Map[MetricID, Boolean] = retrieveHealthChecks(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -44,7 +47,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("3.active gauge") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report.void)
+      agent.facilitate("active")(_.activeGauge("active")).surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val active = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -53,7 +56,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("4.idle gauge") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.wakeUp >> agent.adhoc.report.void)
+      agent.facilitate("idle")(_.idleGauge("idle")).use(_.wakeUp >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -74,8 +77,10 @@ class GaugeTest extends AnyFunSuite {
   test("6.gauge timeout") {
     val mr = service.eventStream { agent =>
       agent.facilitate("timeout.gauge")(
-        _.gauge("gauge", _.withTimeout(1.second).enable(true))
-          .register(IO.never[Int])
+        _.gauge(
+          "gauge",
+          _.withTimeout(1.second).enable(true)
+            .register(IO.never[Int]))
           .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
@@ -86,8 +91,10 @@ class GaugeTest extends AnyFunSuite {
   test("7.gauge exception") {
     val mr = service.eventStream { agent =>
       agent.facilitate("timeout.gauge")(
-        _.gauge("gauge", _.withTimeout(1.second).enable(true))
-          .register(IO.raiseError[Int](new Exception("oops")))
+        _.gauge(
+          "gauge",
+          _.withTimeout(1.second).enable(true)
+            .register(IO.raiseError[Int](new Exception("oops"))))
           .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
@@ -107,9 +114,9 @@ class GaugeTest extends AnyFunSuite {
     service.eventStream { agent =>
       agent.facilitate("expensive") { fac =>
         val mtx = for {
-          _ <- fac.gauge("3").register(compute(3.second), _.fixedDelay(15.minutes))
-          _ <- fac.gauge("2").register(compute(2.second), _.fixedDelay(15.minutes))
-          _ <- fac.gauge("1").register(compute(1.second), _.fixedDelay(15.minutes))
+          _ <- fac.gauge("3", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(3.second)))
+          _ <- fac.gauge("2", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(2.second)))
+          _ <- fac.gauge("1", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(1.second)))
         } yield ()
         mtx.surround(agent.adhoc.report.void)
       }

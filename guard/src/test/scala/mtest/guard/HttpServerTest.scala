@@ -9,7 +9,10 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
 import io.circe.{jawn, Json}
+import org.http4s.Method.POST
+import org.http4s.Request
 import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.implicits.uri
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Megabytes}
 
@@ -24,6 +27,7 @@ class HttpServerTest extends AnyFunSuite {
   )
 
   test("1.stop service") {
+    val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/service/stop")
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -37,7 +41,7 @@ class HttpServerTest extends AnyFunSuite {
           c.expect[String]("http://localhost:9999/panics") >>
           c.expect[String]("http://localhost:9999/errors") >>
           c.expect[String]("http://localhost:9999/alarm/level") >>
-          c.expect[String]("http://localhost:9999/service/stop")
+          c.expect[String](stop)
       }
       .delayBy(5.seconds)
 
@@ -52,7 +56,7 @@ class HttpServerTest extends AnyFunSuite {
           agent
             .facilitate("test") { ag =>
               for {
-                _ <- ag.gauge("a").register(IO(1))
+                _ <- ag.gauge("a", _.register(IO(1)))
                 _ <- ag.counter("a").evalMap(_.inc(1))
                 _ <- ag.histogram("a", _.enable(true).withUnit(Bytes)).evalMap(_.update(1))
                 _ <- ag.meter("a", _.withUnit(Megabytes)).evalMap(_.mark(1))
@@ -69,6 +73,7 @@ class HttpServerTest extends AnyFunSuite {
   }
 
   test("3.panic history") {
+    val stop = Request[IO](method = POST, uri = uri"http://localhost:9997/service/stop")
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -78,7 +83,7 @@ class HttpServerTest extends AnyFunSuite {
             assert(
               jawn.parse(j).toOption.get.hcursor.downField("history")
                 .as[List[Json]].toOption.get.size > 2)) >>
-          c.expect[String]("http://localhost:9997/service/stop")
+          c.expect[String](stop)
       }
       .delayBy(5.seconds)
 

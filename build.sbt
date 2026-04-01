@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.2-SNAPSHOT"
+ThisBuild / version      := "0.21.3-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.1"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -105,7 +105,7 @@ lazy val common = (project in file("common"))
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
 
-      "org.scala-js" % "scalajs-library_2.13" % "1.20.2" % Provided, // doc by cron
+      "org.scala-js" % "scalajs-library_2.13" % "1.21.0" % Provided, // doc by cron
 // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ testLib
