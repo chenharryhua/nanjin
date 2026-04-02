@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaGenericSerde, KafkaSerde, Unregistered}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaRecordSerde, KafkaSerde, Unregistered}
 import fs2.kafka.{ConsumerSettings, ProducerSettings}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
 final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
-    extends KafkaGenericSerde(key, value)
+    extends KafkaRecordSerde(key, value)
 
 final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
   def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, key, value)
