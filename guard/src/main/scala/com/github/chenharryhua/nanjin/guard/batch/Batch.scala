@@ -15,6 +15,7 @@ import cats.syntax.show.given
 import cats.syntax.traverse.given
 import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.guard.batch.BatchKind
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import com.github.chenharryhua.nanjin.guard.metrics.gauges.ActiveGauge
@@ -62,7 +63,7 @@ object Batch {
     def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
-  private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: JobKind, mode: BatchMode)(using
+  private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: BatchKind, mode: BatchMode)(using
     F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
@@ -109,11 +110,12 @@ object Batch {
     batchId: UUID,
     batchPanel: BatchMetrics[F],
     predicate: Reader[A, Boolean]) {
-    private def batchJob(jni: JobNameIndex[F, A]) =
-      BatchJob(jni.name, jni.index, metricLabel, mode, JobKind.Value, batchId)
+
+    private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
+      BatchJob(jni.name, jni.index, metricLabel, mode, kind, batchId)
 
     def batch_value(jni: JobNameIndex[F, A]): F[JobResultValue[A]] = {
-      val job = batchJob(jni)
+      val job: BatchJob = batchJob(jni, BatchKind.Value)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           val jrs = JobResultState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
@@ -131,7 +133,7 @@ object Batch {
     }
 
     def batch_quasi(jni: JobNameIndex[F, A]): F[JobResultState] = {
-      val job = batchJob(jni)
+      val job: BatchJob = batchJob(jni, BatchKind.Quasi)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
@@ -195,7 +197,7 @@ object Batch {
           .guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
+        createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jrs: List[JobResultState]) =>
             BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
         }
@@ -213,7 +215,7 @@ object Batch {
           .guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
+        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
             val sorted: List[JobResultValue[A]] = jrv.sortBy(_.resultState.job.index)
             val brs: BatchResultState =
@@ -255,7 +257,7 @@ object Batch {
         }.guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Quasi, mode)
+        createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
           .evalMap(bp => exec(bp, batchId))
           .map(sequential_batch_result_state(metrics, mode, batchId))
       }
@@ -270,7 +272,7 @@ object Batch {
           .guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
+        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
           sequential_batch_result_value(metrics, mode, batchId)
         }
       }
@@ -345,7 +347,7 @@ object Batch {
                 index = index,
                 label = metrics.metricLabel,
                 mode = mode,
-                kind = JobKind.Value,
+                kind = BatchKind.Value,
                 batchId = batchId)
 
             rfa
@@ -384,7 +386,7 @@ object Batch {
                 index = index,
                 label = metrics.metricLabel,
                 mode = mode,
-                kind = JobKind.Quasi,
+                kind = BatchKind.Quasi,
                 batchId = batchId)
 
             rfa

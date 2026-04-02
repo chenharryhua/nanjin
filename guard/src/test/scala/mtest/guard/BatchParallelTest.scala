@@ -5,6 +5,8 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
+  BatchKind,
+  BatchMode,
   JobHook,
   JobResultState,
   PostConditionUnsatisfied
@@ -90,6 +92,8 @@ class BatchParallelTest extends AnyFunSuite {
         .use { mb =>
           IO {
             assert(!mb.jobs.head.done)
+            assert(mb.jobs.head.job.mode === BatchMode.Parallel(3))
+            assert(mb.jobs.head.job.kind === BatchKind.Quasi)
             assert(!mb.jobs(1).done)
             assert(mb.jobs(2).done)
           }.void
@@ -122,6 +126,8 @@ class BatchParallelTest extends AnyFunSuite {
     val sorted = completedJob.sortBy(_.job.index)
 
     assert(sorted.head.job.index == 1)
+    assert(sorted.head.job.kind === BatchKind.Value)
+    assert(sorted.head.job.mode === BatchMode.Parallel(3))
     assert(sorted.head.done)
 
     assert(sorted(1).job.index == 2)

@@ -7,7 +7,13 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
-import com.github.chenharryhua.nanjin.guard.batch.{JobHook, JobResultError, PostConditionUnsatisfied}
+import com.github.chenharryhua.nanjin.guard.batch.{
+  BatchKind,
+  BatchMode,
+  JobHook,
+  JobResultError,
+  PostConditionUnsatisfied
+}
 
 class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
@@ -31,6 +37,8 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent.batch("exception").sequential(jobs*).quasiBatch(JobHook.noop)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(true)
+          mb.jobs.head.job.mode.shouldBe(BatchMode.Sequential)
+          mb.jobs.head.job.kind.shouldBe(BatchKind.Quasi)
           mb.jobs(1).done.shouldBe(false)
           mb.jobs(2).done.shouldBe(true)
           mb.jobs(3).done.shouldBe(true)

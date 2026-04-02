@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics.gauges
 
-import cats.Functor
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Resource, Temporal}
+import cats.effect.syntax.temporal.genTemporalOps
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 
@@ -22,13 +22,13 @@ object HealthCheck {
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(isEnabled, timeout, Some(f(Policy)))
 
-    def register[F[_]: Functor](fb: F[Boolean]): Registered[F] =
+    def register[F[_]](fb: F[Boolean])(using F: Temporal[F]): Registered[F] =
       Registered[F](
         _.withKind(_.HealthCheck)
           .enable(isEnabled)
-          .withTimeout(timeout)
+          .withTimeout(timeout.plus(timeout)) // avoid race condition
           .withPolicy(policy)
-          .register(fb))
+          .register(F.handleError(fb.timeout(timeout))(_ => false)))
   }
 
   final class Registered[F[_]] private[HealthCheck] (

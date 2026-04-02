@@ -21,12 +21,14 @@ object IdleGauge:
           _ <- Gauge(
             gp,
             name,
-            _.withKind(_.Gauge).enable(isEnabled).register(
-              for {
-                pre <- lastUpdate.get
-                now <- F.monotonic
-              } yield defaultFormatter.format(now - pre)
-            ))
+            _.withKind(_.Gauge)
+              .enable(isEnabled)
+              .register(
+                for {
+                  pre <- lastUpdate.get
+                  now <- F.monotonic
+                } yield defaultFormatter.format(now - pre)
+              ))
         } yield new IdleGauge[F] {
           override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
         }

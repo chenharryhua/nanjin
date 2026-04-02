@@ -23,8 +23,13 @@ object ActiveGauge:
           _ <- Gauge(
             gp,
             name,
-            _.withKind(_.Gauge).enable(isEnabled).register(active.get
-              .ifM(F.monotonic.map(now => defaultFormatter.format(now - kickoff).some), F.pure(none[String])))
+            _.withKind(_.Gauge)
+              .enable(isEnabled)
+              .register(
+                active.get
+                  .ifM(
+                    F.monotonic.map(now => defaultFormatter.format(now - kickoff).some),
+                    F.pure(none[String])))
           )
         } yield new ActiveGauge[F] {
           override val deactivate: F[Unit] = active.set(false)
