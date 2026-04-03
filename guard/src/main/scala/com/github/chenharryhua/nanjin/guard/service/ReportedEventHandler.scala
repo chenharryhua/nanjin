@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.Async
 import cats.effect.kernel.{Ref, Sync}
-import cats.effect.std.Console
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
@@ -17,7 +16,7 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 
-final private class ReportedEventHandler[F[_]: {Console, Sync}](
+final private class ReportedEventHandler[F[_]: Sync](
   val domain: Domain,
   val alarmThreshold: Ref[F, Option[AlarmLevel]],
   history: History[F, ReportedEvent],
@@ -99,7 +98,7 @@ final private class ReportedEventHandler[F[_]: {Console, Sync}](
 }
 
 private object ReportedEventHandler:
-  def apply[F[_]: {Async, Console}](
+  def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
     logSink: LogSink[F],

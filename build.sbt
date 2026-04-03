@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.25"
+val awsV = "2.42.27"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
@@ -26,7 +26,7 @@ val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
 val fs2KafkaV = "3.9.1"
 val fs2V = "3.13.0"
-val hadoopV = "3.4.3"
+val hadoopV = "3.5.0"
 val http4sV = "0.23.33"
 val ironV = "3.3.0"
 val jacksonV = "2.21.2"
@@ -36,7 +36,6 @@ val logbackV = "1.5.32"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
 val natchezV = "0.3.9"
-val nettyV = "4.2.12.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
 val skunkV = "0.6.5"
@@ -254,7 +253,9 @@ lazy val observer_kafka = (project in file("observers/kafka"))
   .settings(name := "nj-observer-kafka")
   .settings(
     libraryDependencies ++= testLib
-  )
+  ).settings(dependencyOverrides ++= List(
+    "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.2" // snyk by kafka-avro-serializer
+  ))
 
 lazy val observer_database = (project in file("observers/database"))
   .dependsOn(guard)
@@ -319,6 +320,9 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test
     ) ++ jacksonLib ++ testLib)
+  .settings(dependencyOverrides ++= List(
+    "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.2" // snyk by kafka-avro-serializer
+  ))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
@@ -356,17 +360,17 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
       "org.apache.avro"        % "avro"           % avroV,
       "org.tukaani"            % "xz"             % "1.12",
-      "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
-      "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
+      "at.yawk.lz4"            % "lz4-java"       % "1.10.4" // drop-in replacement of org.lz4:lz4-java
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
-  .settings(dependencyOverrides ++= List(
-    "org.apache.zookeeper" % "zookeeper"        % "3.9.5", // snyk by hadoop-auth
-    "io.airlift"           % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
-    "org.eclipse.jetty"    % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-    "io.netty"             % "netty-codec-http" % nettyV, // snyk by hadoop-common
-    "io.netty"             % "netty-codec-smtp" % nettyV // snyk by hadoop-client
-  ))
+  .settings(
+    dependencyOverrides ++= List(
+      "io.airlift"        % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
+      "org.eclipse.jetty" % "jetty-server"      % "12.1.8", // snyk by hadoop-common
+      "io.netty"          % "netty-codec-http"  % "4.2.12.Final", // snyk by hadoop-common
+      "io.netty"          % "netty-codec-http2" % "4.2.12.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-smtp"  % "4.2.12.Final" // snyk by hadoop-client
+    ))
 
 // ==========================
 // Example

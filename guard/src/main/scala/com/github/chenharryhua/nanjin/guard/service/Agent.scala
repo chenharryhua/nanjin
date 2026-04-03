@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{Console, Dispatcher}
+import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
@@ -51,7 +51,7 @@ sealed trait Agent[F[_]] {
   def metricsHubS(label: String): MetricsHubS[F]
 
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
-  
+
   val adhoc: AdhocMetrics[F]
 
   /*
@@ -66,7 +66,7 @@ sealed trait Agent[F[_]] {
 
 }
 
-final private class GeneralAgent[F[_]: {Async, Console}](
+final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],

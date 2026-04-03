@@ -15,7 +15,7 @@ import java.util.UUID
 import scala.util.Try
 import scala.util.matching.Regex
 
-enum JobKind derives Encoder, Show:
+enum BatchKind derives Encoder, Show:
   case Quasi, Value
 
 enum BatchMode:
@@ -49,7 +49,7 @@ final case class BatchJob(
   index: Int,
   label: MetricLabel,
   mode: BatchMode,
-  kind: JobKind,
+  kind: BatchKind,
   batchId: UUID):
   val batch: String = label.label
   val domain: String = label.domain.value

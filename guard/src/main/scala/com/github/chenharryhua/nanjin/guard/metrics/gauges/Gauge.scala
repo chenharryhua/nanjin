@@ -23,6 +23,9 @@ object Gauge {
     private[Gauge] val policy: Option[Policy],
     private[Gauge] val kind: GaugeKind)
       extends EnableConfig[Builder] {
+    /*
+     * Transformation
+     */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy, kind)
 
@@ -38,28 +41,28 @@ object Gauge {
     private[gauges] def withKind(f: GaugeKind.type => GaugeKind): Builder =
       new Builder(isEnabled, timeout, policy, f(GaugeKind))
 
+    // transition
     def register[F[_]: Functor, A: Encoder](fa: F[A]): Registered[F] =
       new Registered[F](builder = this, initial = fa.map(a => Encoder[A].apply(a)))
   }
 
   final class Registered[F[_]] private[Gauge] (builder: Builder, initial: F[Json]) {
-    private def trans_error(ex: Throwable): Json = StackTrace(ex).value.headOption.asJson
+    private def trans_error(ex: Throwable): Json = StackTrace(ex).headOption.asJson
 
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
       metricID <- Resource.eval(MetricName(name).map { metricName =>
         MetricID(gp.label, metricName, Category.Gauge(builder.kind)).identifier
       })
-      _ <- Resource.make(
-        F.delay(
-          gp.metricRegistry.gauge(
-            metricID,
-            () =>
-              new CodahaleGauge[Json] {
-                override def getValue: Json =
-                  Try(gp.dispatcher.unsafeRunTimed(json, builder.timeout)).fold(trans_error, identity)
-              }
-          )))(_ => F.delay(gp.metricRegistry.remove(metricID)).void)
+      _ <- Resource.make(F.delay {
+        gp.metricRegistry.gauge(
+          metricID,
+          () =>
+            new CodahaleGauge[Json] {
+              override def getValue: Json =
+                Try(gp.dispatcher.unsafeRunTimed(json, builder.timeout)).fold(trans_error, identity)
+            })
+      })(_ => F.delay(gp.metricRegistry.remove(metricID)).void)
     } yield ()
 
     private[Gauge] def build(gp: GaugeParams[F], name: String)(using F: Async[F]): Resource[F, Unit] =

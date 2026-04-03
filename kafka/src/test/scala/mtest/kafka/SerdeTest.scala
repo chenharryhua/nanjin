@@ -1,10 +1,14 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.serdes.{Registered, Structured}
-import fs2.kafka.{GenericDeserializer, Key, Value}
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Registered, Structured}
+import fs2.kafka.{GenericDeserializer, Headers, Key, Value}
+import io.circe.Json
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.nio.ByteBuffer
 
 final case class Foo(a: Int, b: String)
 
@@ -33,5 +37,12 @@ class SerdeTest extends AnyFunSuite {
     assertThrows[NullPointerException](ctx.asValue(s1).serde.serializer().serialize("t", null))
     val s2 = Structured[GenericRecord].option.become[Option[Foo]].orNull
     assert(ctx.asValue(s2).serde.serializer().serialize("t", null) == null)
+  }
+
+  test("attempt - should not throw exception") {
+    val s1 = Primitive[ByteBuffer].become[Json]
+    val deSer = ctx.asValue(s1).deserializer[IO].map(_.attempt).use(
+      _.deserialize("a", Headers.empty, Array(1, 2, 3))).unsafeRunSync()
+    assert(deSer.isLeft)
   }
 }

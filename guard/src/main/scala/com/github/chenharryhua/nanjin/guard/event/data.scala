@@ -20,7 +20,9 @@ opaque type StackTrace = List[String]
 object StackTrace:
   def apply(ex: Throwable): StackTrace =
     ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
-  extension (st: StackTrace) inline def value: List[String] = st
+  extension (st: StackTrace)
+    inline def value: List[String] = st
+    def headOption: Option[String] = st.headOption
 
   given Show[StackTrace] = _.mkString("\n\t")
   given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
