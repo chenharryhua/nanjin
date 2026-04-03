@@ -57,6 +57,28 @@ object BiTransform:
         Printer.noSpaces.printToByteBuffer(b)
   end given
 
+  given BiTransform[Array[Byte], Json] =
+    new BiTransform[Array[Byte], Json]:
+      override def to(a: Array[Byte]): Json =
+        io.circe.jawn.parseByteArray(a) match
+          case Left(ex)     => throw ex // scalafix:ok
+          case Right(value) => value
+
+      override def from(b: Json): Array[Byte] =
+        Printer.noSpaces.printToByteBuffer(b).array()
+  end given
+
+  given BiTransform[String, Json] =
+    new BiTransform[String, Json]:
+      override def to(a: String): Json =
+        io.circe.jawn.parse(a) match
+          case Left(ex)     => throw ex // scalafix:ok
+          case Right(value) => value
+
+      override def from(b: Json): String =
+        Printer.noSpaces.print(b)
+  end given
+
   /*
    * Primitive
    */

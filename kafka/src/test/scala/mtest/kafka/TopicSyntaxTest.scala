@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import io.circe.Json
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -38,6 +39,8 @@ class TopicSyntaxTest extends AnyFunSuite {
     Primitive[java.lang.Double].become[Option[Double]]
     Primitive[java.lang.Float].become[Option[Float]]
     Primitive[java.lang.Boolean].become[Option[Boolean]]
+    Primitive[String].become[Json]
+    Primitive[Array[Byte]].become[Json]
   }
 
   test("schema-based") {
