@@ -23,7 +23,7 @@ class HttpServerTest extends AnyFunSuite {
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
-      .withRealTimeMetrics(100, _.crontab(_.every5Minutes))
+      .withDashboard(100, _.crontab(_.every5Minutes))
   )
 
   test("1.stop service") {

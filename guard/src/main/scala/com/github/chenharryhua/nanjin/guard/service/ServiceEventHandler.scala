@@ -49,7 +49,7 @@ private object ServiceEventHandler {
     channel: Channel[F, Event],
     logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
-      History[F, ServicePanic](serviceParams.historyCapacity.panic)
+      History[F, ServicePanic](serviceParams.servicePolicies.restart.capacity.value)
 
     Stream.eval(history.map { panicHistory =>
       new ServiceEventHandler[F](

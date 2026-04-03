@@ -134,7 +134,7 @@ private object documents {
     now: ZonedDateTime,
     took: Option[Duration]): Text.TypedTag[String] = {
     val service_name = Attribute(serviceParams.serviceName).textEntry
-    val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
+    val policy = Attribute(serviceParams.servicePolicies.report.policy).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
     val present = Attribute(Present(now)).map(_.text).textEntry

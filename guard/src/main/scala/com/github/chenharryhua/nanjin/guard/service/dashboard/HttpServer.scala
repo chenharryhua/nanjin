@@ -49,14 +49,14 @@ private[service] object HttpServer {
     emberServerBuilder match {
       case None      => Stream.empty.covary[F]
       case Some(esb) =>
-        metricsEventHandler.serviceParams.servicePolicies.realtimeMetrics match {
+        metricsEventHandler.serviceParams.servicePolicies.dashboard match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
               serviceName = metricsEventHandler.serviceParams.serviceName.value,
               zoneId = metricsEventHandler.serviceParams.zoneId,
-              maxPoints = rm.maxPoints,
+              maxPoints = rm.maxPoints.value,
               policy = rm.policy
             )
             Stream.eval(wsRouter(bc, metricsEventHandler.scrapeMetrics)).flatMap { case (ws, updates) =>
