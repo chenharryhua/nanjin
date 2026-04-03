@@ -56,7 +56,7 @@ private[service] object HttpServer {
             val bc = BackendConfig(
               serviceName = metricsEventHandler.serviceParams.serviceName.value,
               zoneId = metricsEventHandler.serviceParams.zoneId,
-              maxPoints = rm.maxPoints.value,
+              maxPoints = rm.maxPoints,
               policy = rm.policy
             )
             Stream.eval(wsRouter(bc, metricsEventHandler.scrapeMetrics)).flatMap { case (ws, updates) =>

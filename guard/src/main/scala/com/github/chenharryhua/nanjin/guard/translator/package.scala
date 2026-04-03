@@ -65,7 +65,7 @@ package object translator {
         "restart" -> Json.obj(
           Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
           "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson,
-          Attribute(serviceParams.servicePolicies.restart.capacity).snakeJsonEntry
+          Attribute(serviceParams.servicePolicies.restart.history).snakeJsonEntry
         ),
         "metrics_realtime" ->
           serviceParams.servicePolicies.dashboard.map { tm =>
@@ -76,15 +76,13 @@ package object translator {
           }.asJson,
         "metrics_report" -> Json.obj(
           Attribute(serviceParams.servicePolicies.report.policy).map(_.show).snakeJsonEntry,
-          Attribute(serviceParams.servicePolicies.report.capacity).snakeJsonEntry
+          Attribute(serviceParams.servicePolicies.report.history).snakeJsonEntry
         ),
         "metrics_reset" -> serviceParams.servicePolicies.metricsReset.show.asJson
       ),
       "launch_time" -> serviceParams.launchTime.asJson,
       Attribute(serviceParams.logFormat).snakeJsonEntry,
-      "history_capacity" -> Json.obj(
-        "error_queue_size" -> serviceParams.historyCapacity.error.asJson
-      ),
+      "error_history_capacity" -> serviceParams.errorHistory.asJson,
       "nanjin" -> serviceParams.nanjin.asJson,
       Attribute(serviceParams.brief).snakeJsonEntry
     )

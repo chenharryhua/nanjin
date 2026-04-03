@@ -19,10 +19,10 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final case class RestartPolicy(policy: Policy, capacity: Capacity, threshold: Option[Duration])
+final case class RestartPolicy(policy: Policy, history: Capacity, threshold: Option[Duration])
     derives Codec.AsObject
 final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject
-final case class MetricsReportPolicy(policy: Policy, capacity: Capacity) derives Codec.AsObject
+final case class MetricsReportPolicy(policy: Policy, history: Capacity) derives Codec.AsObject
 
 final case class ServicePolicies(
   restart: RestartPolicy,
@@ -30,8 +30,6 @@ final case class ServicePolicies(
   report: MetricsReportPolicy,
   metricsReset: Policy
 ) derives Codec.AsObject
-
-final case class HistoryCapacity(error: Capacity) derives Codec.AsObject
 
 final case class Host(name: HostName, port: Option[Port]) derives Codec.AsObject {
   override def toString: String =
@@ -52,7 +50,7 @@ final case class ServiceParams(
   serviceId: ServiceId,
   launchTime: ZonedDateTime,
   servicePolicies: ServicePolicies,
-  historyCapacity: HistoryCapacity,
+  errorHistory: Capacity,
   logFormat: LogFormat,
   nanjin: Option[Json],
   brief: Brief
@@ -93,7 +91,7 @@ object ServiceParams {
         report = MetricsReportPolicy(Policy.empty, defaultCapacity),
         metricsReset = Policy.empty
       ),
-      historyCapacity = HistoryCapacity(defaultCapacity),
+      errorHistory = defaultCapacity,
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief
@@ -149,7 +147,7 @@ private object ServiceConfigF {
           .modify(rp => h.fold(rp.copy(policy = p))(c => MetricsReportPolicy(p, Capacity(c))))
       case WithHomePage(v, c) => c.focus(_.homepage).replace(v)
 
-      case WithErrorCapacity(v, c) => c.focus(_.historyCapacity.error).replace(Capacity(v))
+      case WithErrorCapacity(v, c) => c.focus(_.errorHistory).replace(Capacity(v))
 
       case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
 

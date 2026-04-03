@@ -119,7 +119,7 @@ private object MetricsEventHandler {
     logSink: LogSink[F]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
-      History[F, MetricsSnapshot](serviceParams.servicePolicies.report.capacity.value)
+      History[F, MetricsSnapshot](serviceParams.servicePolicies.report.history)
 
     Stream.eval(history).map { metricsHistory =>
       new MetricsEventHandler[F](

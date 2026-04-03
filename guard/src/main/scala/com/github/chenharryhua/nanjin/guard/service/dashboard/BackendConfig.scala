@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.guard.config.Capacity
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import scalatags.Text
@@ -14,11 +15,11 @@ import java.time.ZoneId
  * `com.github.chenharryhua.nanjin.frontend.BackendConfig`
  */
 
-final case class BackendConfig(serviceName: String, zoneId: ZoneId, maxPoints: Int, policy: Policy) {
+final case class BackendConfig(serviceName: String, zoneId: ZoneId, maxPoints: Capacity, policy: Policy) {
   private val no_spaces_json = Json.obj(
     "serviceName" -> Json.fromString(serviceName),
     "zoneId" -> zoneId.asJson,
-    "maxPoints" -> Json.fromInt(maxPoints),
+    "maxPoints" -> (maxPoints.asJson),
     "policy" -> policy.show.asJson
   ).noSpaces
 
