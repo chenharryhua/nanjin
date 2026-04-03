@@ -25,8 +25,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
 
   def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
-    publish(ServicePanic(serviceParams, tick, stackTrace)) >>
-      history.add(panic)
+    publish(panic) >> history.add(panic)
   }
 
   def serviceStop(cause: StopReason): F[Unit] =
