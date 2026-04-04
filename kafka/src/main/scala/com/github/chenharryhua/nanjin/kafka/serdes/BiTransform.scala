@@ -46,6 +46,10 @@ object BiTransform:
         JsonSchemaUtils.envelope(schema, globalObjectMapper.valueToTree[JsonNode](b))
   end given
 
+  /*
+   * Circe Json
+   */
+
   given BiTransform[ByteBuffer, Json] =
     new BiTransform[ByteBuffer, Json]:
       override def to(a: ByteBuffer): Json =
@@ -83,33 +87,27 @@ object BiTransform:
    * Primitive
    */
   given BiTransform[java.lang.Integer, Option[Int]] with
-    override def from(b: Option[Int]): Integer =
-      b.map(Integer.valueOf).orNull
+    override def from(b: Option[Int]): Integer = b.map(Int.box).orNull
     override def to(a: java.lang.Integer): Option[Int] = Option(a)
 
   given BiTransform[java.lang.Long, Option[Long]] with
-    override def from(b: Option[Long]): java.lang.Long =
-      b.map(java.lang.Long.valueOf).orNull
+    override def from(b: Option[Long]): java.lang.Long = b.map(Long.box).orNull
     override def to(a: java.lang.Long): Option[Long] = Option(a)
 
   given BiTransform[java.lang.Float, Option[Float]] with
-    override def from(b: Option[Float]): java.lang.Float =
-      b.map(java.lang.Float.valueOf).orNull
+    override def from(b: Option[Float]): java.lang.Float = b.map(Float.box).orNull
     override def to(a: java.lang.Float): Option[Float] = Option(a)
 
   given BiTransform[java.lang.Short, Option[Short]] with
-    override def from(b: Option[Short]): java.lang.Short =
-      b.map(java.lang.Short.valueOf).orNull
+    override def from(b: Option[Short]): java.lang.Short = b.map(Short.box).orNull
     override def to(a: java.lang.Short): Option[Short] = Option(a)
 
   given BiTransform[java.lang.Double, Option[Double]] with
-    override def from(b: Option[Double]): java.lang.Double =
-      b.map(java.lang.Double.valueOf).orNull
+    override def from(b: Option[Double]): java.lang.Double = b.map(Double.box).orNull
     override def to(a: java.lang.Double): Option[Double] = Option(a)
 
   given BiTransform[java.lang.Boolean, Option[Boolean]] with
-    override def from(b: Option[Boolean]): java.lang.Boolean =
-      b.map(java.lang.Boolean.valueOf).orNull
+    override def from(b: Option[Boolean]): java.lang.Boolean = b.map(Boolean.box).orNull
     override def to(a: java.lang.Boolean): Option[Boolean] = Option(a)
 
   /*

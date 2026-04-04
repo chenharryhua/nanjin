@@ -45,4 +45,13 @@ class SerdeTest extends AnyFunSuite {
       _.deserialize("a", Headers.empty, Array(1, 2, 3))).unsafeRunSync()
     assert(deSer.isLeft)
   }
+
+  test("primitive") {
+    val s1 = Primitive[Integer].become[Option[Int]]
+    val List(_, _, _, x) =
+      ctx.asValue(s1).serializer[IO].use(_.serialize("a", Headers.empty, Some(10))).unsafeRunSync().toList
+    assert(x === 10)
+    val y = ctx.asValue(s1).serializer[IO].use(_.serialize("a", Headers.empty, None)).unsafeRunSync()
+    println(y === null)
+  }
 }
