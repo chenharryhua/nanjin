@@ -102,5 +102,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("codec derives") {
     summon[Encoder[NJConsumerRecord[Json, Json]]]
     summon[Decoder[NJConsumerRecord[Json, Json]]]
+    summon[Decoder[ZonedConsumerRecord[Json, Int]]]
+    summon[Encoder[ZonedConsumerRecord[Int, Int]]]
   }
 }
