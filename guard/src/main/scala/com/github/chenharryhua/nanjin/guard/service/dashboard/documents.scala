@@ -44,7 +44,7 @@ private object documents {
     Json.obj(
       Attribute(serviceParams.serviceName).snakeJsonEntry,
       Attribute(serviceParams.serviceId).snakeJsonEntry,
-      "is_active" -> Json.fromBoolean(active),
+      "active" -> Json.fromBoolean(active),
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,

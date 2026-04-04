@@ -1,7 +1,12 @@
 package example
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.aws.{CloudWatch, SimpleEmailService, SimpleNotificationService, SimpleQueueService}
+import com.github.chenharryhua.nanjin.aws.{
+  CloudWatch,
+  SimpleEmailService,
+  SimpleNotificationService,
+  SimpleQueueService
+}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.event.EventPipe
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
@@ -29,7 +34,6 @@ object observers {
       .includeDimensions(_.withServiceID.withServiceName)
 
   val sqsObserver: SqsObserver[IO] =
-    SqsObserver(
-      SimpleQueueService[IO](sydneyTime, _.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
+    SqsObserver(SimpleQueueService[IO](sydneyTime, _.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
 
 }

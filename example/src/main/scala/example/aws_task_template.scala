@@ -16,10 +16,11 @@ object aws_task_template {
   val task: TaskGuard[IO] = TaskGuard[IO]("nanjin").updateConfig(
     _.withZoneId(sydneyTime)
       .withHomePage("https://github.com/chenharryhua/nanjin")
-      .withMetricReport(_.crontab(_.every15Minutes))
+      .withMetricReport(96, _.crontab(_.every15Minutes))
       .withMetricReset(_.crontab(_.daily.midnight))
       .withRestartPolicy(
         8.hours,
+        32,
         _
           .fixedDelay(3.seconds, 2.minutes, 1.hour)
           .limited(3)
