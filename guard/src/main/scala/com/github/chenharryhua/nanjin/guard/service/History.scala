@@ -33,6 +33,7 @@ private object History {
 
   def apply[F[_]: Concurrent, A](max: Option[Capacity]): F[History[F, A]] =
     max match {
+      case Some(value) if value.value <= 0 => noop.pure
       case Some(value) => Ref.of[F, Vector[A]](Vector.empty[A]).map(new Impl[F, A](_, value))
       case None        => noop.pure
     }
