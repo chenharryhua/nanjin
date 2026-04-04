@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
 import org.typelevel.cats.time.zoneidInstances
+
 import java.time.{Duration, ZoneId}
 import java.util.UUID
 
@@ -86,3 +87,14 @@ object UpTime:
   given Encoder[UpTime] = OpaqueLift.lift[UpTime, Duration, Encoder]
   given Decoder[UpTime] = OpaqueLift.lift[UpTime, Duration, Decoder]
 end UpTime
+
+opaque type Capacity = Int
+object Capacity:
+  def apply(value: Int): Capacity = value
+
+  extension (c: Capacity) inline def value: Int = c
+
+  given Show[Capacity] = OpaqueLift.lift[Capacity, Int, Show]
+  given Encoder[Capacity] = OpaqueLift.lift[Capacity, Int, Encoder]
+  given Decoder[Capacity] = OpaqueLift.lift[Capacity, Int, Decoder]
+end Capacity

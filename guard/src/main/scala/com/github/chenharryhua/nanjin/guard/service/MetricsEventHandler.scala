@@ -25,8 +25,8 @@ final private class MetricsEventHandler[F[_]] private (
 )(using F: Async[F])
     extends AdhocMetrics[F] {
 
-  private val report_kind: Kind = Report(serviceParams.servicePolicies.metricsReport)
-  private val reset_kind: Kind = Reset(serviceParams.servicePolicies.metricsReset)
+  private val report_kind: Kind = Report(serviceParams.servicePolicies.report.policy)
+  private val reset_kind: Kind = Reset(serviceParams.servicePolicies.reset)
 
   private def build_metrics_snapshot(kind: Kind, index: Index): F[MetricsSnapshot] =
     F.blocking(scrapeMetrics.snapshot(ScrapeMode.Full)).timed.map { case (took, snapshot) =>
@@ -119,7 +119,7 @@ private object MetricsEventHandler {
     logSink: LogSink[F]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
-      History[F, MetricsSnapshot](serviceParams.historyCapacity.metric)
+      History[F, MetricsSnapshot](serviceParams.servicePolicies.report.history)
 
     Stream.eval(history).map { metricsHistory =>
       new MetricsEventHandler[F](

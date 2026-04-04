@@ -2,34 +2,16 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.NonEmptyList
 import cats.derived.derived
-import cats.effect.std.Random
 import cats.kernel.Eq
-import cats.syntax.applicative.given
-import cats.syntax.apply.given
-import cats.syntax.either.given
-import cats.syntax.flatMap.given
-import cats.syntax.functor.given
-import cats.syntax.order.given
 import cats.syntax.show.showInterpolator
-import cats.{Functor, Monad, Show}
+import cats.{Functor, Show}
 import cron4s.CronExpr
-import cron4s.lib.javatime.javaTemporalInstance
-import cron4s.syntax.all.*
 import higherkindness.droste.data.Fix
-import higherkindness.droste.{scheme, Algebra, Coalgebra}
-import io.circe.Decoder.Result
-import io.circe.DecodingFailure.Reason
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
-import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.all.*
+import io.circe.{Decoder, Encoder, HCursor}
 
-import java.time.temporal.ChronoUnit
-import java.time.{Duration, Instant, LocalTime}
-import scala.annotation.tailrec
+import java.time.{Duration, LocalTime}
 import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.util.Try
 
 sealed trait PolicyF[K] extends Product derives Functor
 
@@ -48,254 +30,32 @@ private object PolicyF {
   final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
   final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
 
-  /*
-   * eval Policy
-   */
+  val EMPTY: String = "empty"
+  val CRONTAB: String = "crontab"
+  val JITTER: String = "jitter"
+  val JITTER_MIN: String = "min"
+  val JITTER_MAX: String = "max"
+  val FIXED_DELAY: String = "fixedDelay"
+  val FIXED_RATE: String = "fixedRate"
+  val LIMITED: String = "limited"
+  val POLICY: String = "policy"
+  val FOLLOWED_BY: String = "followedBy"
+  val FOLLOWED_BY_LEADER: String = "leader"
+  val FOLLOWED_BY_FOLLOWER: String = "follower"
+  val MEET: String = "meet"
+  val MEET_FIRST: String = "first"
+  val MEET_SECOND: String = "second"
+  val REPEAT: String = "repeat"
+  val EXCEPT: String = "except"
+  val OFFSET: String = "offset"
 
-  @tailrec
-  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Instant = {
-    val next = wakeup.plus(delay.multipliedBy(count))
-    if (next.isAfter(now)) next
-    else
-      fixedRateSnooze(wakeup, now, delay, count + 1)
-  }
-
-  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
-    Algebra[PolicyF, LazyList[TickStepper[F]]] {
-
-      case Empty() => LazyList.empty
-
-      case Crontab(cronExpr) =>
-        val seed: TickStepper[F] = TickStepper { case TickRequest(tick, now) =>
-          cronExpr.next(now.atZone(tick.zoneId)) match {
-            case Some(value) => tick.nextTick(now, value.toInstant).pure[F]
-            case None        => // should not happen
-              sys.error(show"$cronExpr returned None at $now. This should never happen.")
-          }
-        }
-        LazyList.continually(seed)
-
-      case FixedDelay(delays) =>
-        val seed: LazyList[TickStepper[F]] = LazyList.from(delays.toList).map[TickStepper[F]] { delay =>
-          TickStepper { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).pure[F] }
-        }
-        LazyList.continually(seed).flatten
-
-      case FixedRate(delay) =>
-        LazyList.continually(TickStepper { case TickRequest(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).pure[F]
-        })
-
-      // ops
-      case Limited(policy, limit) => policy.take(limit)
-
-      case FollowedBy(leader, follower) => leader #::: follower
-
-      case Repeat(policy) => LazyList.continually(policy).flatten
-
-      // https://en.wikipedia.org/wiki/Join_and_meet
-      case Meet(first, second) =>
-        first.zip(second).map { case (sa: TickStepper[F], sb: TickStepper[F]) =>
-          TickStepper { (req: TickRequest) =>
-            (sa(req), sb(req)).mapN { (ra, rb) =>
-              if (ra.snooze < rb.snooze) ra else rb // shorter win
-            }
-          }
-        }
-
-      case Except(policy, except) =>
-        policy.map { (stepper: TickStepper[F]) =>
-          TickStepper { (req: TickRequest) =>
-            stepper(req).flatMap { tick =>
-              if (tick.local(_.conclude).toLocalTime === except) {
-                stepper.step(tick, tick.conclude).map(nt => tick.withSnoozeStretch(nt.snooze))
-              } else tick.pure[F]
-            }
-          }
-        }
-
-      case Offset(policy, offset) =>
-        policy.map { (stepper: TickStepper[F]) =>
-          TickStepper { (req: TickRequest) =>
-            stepper(req).map(_.withSnoozeStretch(offset))
-          }
-        }
-
-      case Jitter(policy, min, max) =>
-        policy.map { (stepper: TickStepper[F]) =>
-          TickStepper { (req: TickRequest) =>
-            rng.betweenLong(min.toNanos, max.toNanos).flatMap { delay =>
-              stepper(req).map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS)))
-            }
-          }
-        }
-    }
-
-  def evaluatePolicy[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
-    scheme.cata(algebra(Random[F])).apply(policy)
-
-  private val EMPTY: String = "empty"
-  private val CRONTAB: String = "crontab"
-  private val JITTER: String = "jitter"
-  private val JITTER_MIN: String = "min"
-  private val JITTER_MAX: String = "max"
-  private val FIXED_DELAY: String = "fixedDelay"
-  private val FIXED_RATE: String = "fixedRate"
-  private val LIMITED: String = "limited"
-  private val POLICY: String = "policy"
-  private val FOLLOWED_BY: String = "followedBy"
-  private val FOLLOWED_BY_LEADER: String = "leader"
-  private val FOLLOWED_BY_FOLLOWER: String = "follower"
-  private val MEET: String = "meet"
-  private val MEET_FIRST: String = "first"
-  private val MEET_SECOND: String = "second"
-  private val REPEAT: String = "repeat"
-  private val EXCEPT: String = "except"
-  private val OFFSET: String = "offset"
-
-  /*
-   * Show Policy
-   */
-  val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case Empty() => show"$EMPTY"
-
-    case Crontab(cronExpr) => show"$CRONTAB($cronExpr)"
-
-    case FixedDelay(delays) => show"$FIXED_DELAY(${delays.toList.mkString(",")})"
-    case FixedRate(delay)   => show"$FIXED_RATE($delay)"
-
-    // ops
-    case Limited(policy, limit)       => show"$policy.$LIMITED($limit)"
-    case FollowedBy(leader, follower) => show"$leader.$FOLLOWED_BY($follower)"
-    case Repeat(policy)               => show"$policy.$REPEAT"
-    case Meet(first, second)          => show"$first.$MEET($second)"
-    case Except(policy, except)       => show"$policy.$EXCEPT($except)"
-    case Offset(policy, offset)       => show"$policy.$OFFSET($offset)"
-    case Jitter(policy, min, max)     => show"$policy.$JITTER($min,$max)"
-  }
-
-  /*
-   * Json Encoder
-   */
-  private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
-    case Empty() =>
-      Json.obj(EMPTY -> Json.True)
-    case Crontab(cronExpr) =>
-      Json.obj(CRONTAB -> cronExpr.asJson)
-    case FixedDelay(delays) =>
-      Json.obj(FIXED_DELAY -> delays.asJson)
-    case FixedRate(delays) =>
-      Json.obj(FIXED_RATE -> delays.asJson)
-    case Limited(policy, limit) =>
-      Json.obj(LIMITED -> limit.asJson, POLICY -> policy)
-    case FollowedBy(leader, follower) =>
-      Json.obj(FOLLOWED_BY -> Json.obj(FOLLOWED_BY_LEADER -> leader, FOLLOWED_BY_FOLLOWER -> follower))
-    case Repeat(policy) =>
-      Json.obj(REPEAT -> policy)
-    case Meet(first, second) =>
-      Json.obj(MEET -> Json.obj(MEET_FIRST -> first, MEET_SECOND -> second))
-    case Except(policy, except) =>
-      Json.obj(EXCEPT -> except.asJson, POLICY -> policy)
-    case Offset(policy, offset) =>
-      Json.obj(OFFSET -> offset.asJson, POLICY -> policy)
-    case Jitter(policy, min, max) =>
-      Json.obj(JITTER -> Json.obj(JITTER_MIN -> min.asJson, JITTER_MAX -> max.asJson, POLICY -> policy))
-  }
-
-  val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
-    (a: Fix[PolicyF]) => scheme.cata(jsonAlgebra).apply(a)
-
-  /*
-   * Json Decoder
-   */
-  private val jsonCoalgebra: Coalgebra[PolicyF, HCursor] = {
-    def empty(hc: HCursor): Result[Empty[HCursor]] =
-      hc.get[Json](EMPTY).map(_ => Empty[HCursor]())
-
-    def crontab(hc: HCursor): Result[Crontab[HCursor]] =
-      hc.get[CronExpr](CRONTAB).map(ce => Crontab[HCursor](ce))
-
-    def jitter(hc: HCursor): Result[Jitter[HCursor]] = {
-      val min = hc.downField(JITTER).downField(JITTER_MIN).as[Duration]
-      val max = hc.downField(JITTER).downField(JITTER_MAX).as[Duration]
-      val plc = hc.downField(JITTER).downField(POLICY).as[HCursor]
-
-      (plc, min, max).mapN(Jitter[HCursor])
-    }
-
-    def fixedDelay(hc: HCursor): Result[FixedDelay[HCursor]] =
-      hc.get[NonEmptyList[Duration]](FIXED_DELAY).map(FixedDelay[HCursor])
-
-    def fixedRate(hc: HCursor): Result[FixedRate[HCursor]] =
-      hc.get[Duration](FIXED_RATE).map(FixedRate[HCursor])
-
-    def limited(hc: HCursor): Result[Limited[HCursor]] = {
-      val lmt = hc.get[Int](LIMITED)
-      val plc = hc.downField(POLICY).as[HCursor]
-      (plc, lmt).mapN(Limited[HCursor])
-    }
-
-    def followedBy(hc: HCursor): Result[FollowedBy[HCursor]] = {
-      val leader = hc.downField(FOLLOWED_BY).downField(FOLLOWED_BY_LEADER).as[HCursor]
-      val follower = hc.downField(FOLLOWED_BY).downField(FOLLOWED_BY_FOLLOWER).as[HCursor]
-      (leader, follower).mapN(FollowedBy[HCursor])
-    }
-
-    def meet(hc: HCursor): Result[Meet[HCursor]] = {
-      val first = hc.downField(MEET).downField(MEET_FIRST).as[HCursor]
-      val second = hc.downField(MEET).downField(MEET_SECOND).as[HCursor]
-      (first, second).mapN(Meet[HCursor])
-    }
-
-    def repeat(hc: HCursor): Result[Repeat[HCursor]] =
-      hc.downField(REPEAT).as[HCursor].map(Repeat[HCursor])
-
-    def except(hc: HCursor): Result[Except[HCursor]] = {
-      val ept = hc.get[LocalTime](EXCEPT)
-      val plc = hc.downField(POLICY).as[HCursor]
-      (plc, ept).mapN(Except[HCursor])
-    }
-
-    def offset(hc: HCursor): Result[Offset[HCursor]] = {
-      val ost = hc.get[Duration](OFFSET)
-      val plc = hc.downField(POLICY).as[HCursor]
-      (plc, ost).mapN(Offset[HCursor])
-    }
-
-    Coalgebra[PolicyF, HCursor] { hc =>
-      val result =
-        empty(hc)
-          .orElse(crontab(hc))
-          .orElse(jitter(hc))
-          .orElse(fixedDelay(hc))
-          .orElse(fixedRate(hc))
-          .orElse(limited(hc))
-          .orElse(followedBy(hc))
-          .orElse(meet(hc))
-          .orElse(except(hc))
-          .orElse(offset(hc))
-          .orElse(repeat(hc))
-
-      result match {
-        case Left(value)  => throw value // scalafix:ok
-        case Right(value) => value
-      }
-    }
-  }
-
-  val decoderFixPolicyF: Decoder[Fix[PolicyF]] =
-    (hc: HCursor) =>
-      Try(scheme.ana(jsonCoalgebra).apply(hc)).toEither.leftMap { ex =>
-        val reason = Reason.CustomReason(ExceptionUtils.getMessage(ex))
-        DecodingFailure(reason, hc)
-      }
 }
 
 // don't extend AnyVal as monocle doesn't like it
 // use case class for free equal method
 final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
-  override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
+  override def toString: String = ShowPolicy(policy)
 
   /** @param num
     *   non-positive num essentially disable the policy
@@ -343,8 +103,8 @@ object Policy {
   import PolicyF.{Crontab, Empty, FixedDelay, FixedRate}
 
   given Show[Policy] = Show.fromToString
-  given Encoder[Policy] = (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)
-  given Decoder[Policy] = (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
+  given Encoder[Policy] = (a: Policy) => CodecPolicy.encoder(a.policy)
+  given Decoder[Policy] = (c: HCursor) => CodecPolicy.decoder(c).map(Policy(_))
   given Eq[Policy] = Eq.fromUniversalEquals[Policy]
 
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))

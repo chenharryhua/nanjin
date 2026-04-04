@@ -32,12 +32,10 @@ private[guard] object ServiceGuard {
     config: ServiceConfig[F]): ServiceGuard[F] =
     new ServiceGuardImpl[F](serviceName, config)
 
-  final private class ServiceGuardImpl[F[_]: {Network, Async, Console}](
+  final private class ServiceGuardImpl[F[_]: {Network, Console}](
     serviceName: Service,
-    config: ServiceConfig[F])
+    config: ServiceConfig[F])(implicit F: Async[F])
       extends ServiceGuard[F] { self =>
-
-    private val F = Async[F]
 
     override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
       new ServiceGuardImpl[F](serviceName, f(config))
@@ -94,7 +92,7 @@ private[guard] object ServiceGuard {
         event <- channel.stream // main stream
           .concurrently(meHandler.resetPeriodically)
           .concurrently(meHandler.reportPeriodically)
-          .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler).stream)
+          .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler))
           .concurrently(
             HttpServer(
               emberServerBuilder = emberServerBuilder,

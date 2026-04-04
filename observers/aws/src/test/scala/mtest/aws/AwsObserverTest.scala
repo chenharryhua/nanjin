@@ -18,7 +18,7 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
-    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).limited(1)))
+    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, 0, _.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter("meter", _.withUnit(Bytes)))
@@ -89,7 +89,7 @@ class AwsObserverTest extends AnyFunSuite {
 
     TaskGuard[IO]("email")
       .service("email")
-      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(10, _.crontab(_.secondly)))
       .eventStream(_ => IO.never)
       .through(mail)
       .compile

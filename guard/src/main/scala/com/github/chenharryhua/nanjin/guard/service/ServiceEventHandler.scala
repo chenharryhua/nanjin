@@ -25,8 +25,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
 
   def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
-    publish(ServicePanic(serviceParams, tick, stackTrace)) >>
-      history.add(panic)
+    publish(panic) >> history.add(panic)
   }
 
   def serviceStop(cause: StopReason): F[Unit] =
@@ -49,7 +48,7 @@ private object ServiceEventHandler {
     channel: Channel[F, Event],
     logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
-      History[F, ServicePanic](serviceParams.historyCapacity.panic)
+      History[F, ServicePanic](serviceParams.servicePolicies.restart.history)
 
     Stream.eval(history.map { panicHistory =>
       new ServiceEventHandler[F](

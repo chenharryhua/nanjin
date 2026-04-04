@@ -32,7 +32,7 @@ private[service] object HttpServer {
 
     for {
       topic <- Topic[F, TimedMeters]
-      history <- History[F, TimedMeters](backendConfig.maxPoints)
+      history <- History[F, TimedMeters](Some(backendConfig.maxPoints))
       stream = ts.evalMap { tm =>
         history.add(tm) >> topic.publish1(tm)
       }.onFinalize(history.clear <* topic.close).drain
@@ -49,8 +49,10 @@ private[service] object HttpServer {
     emberServerBuilder match {
       case None      => Stream.empty.covary[F]
       case Some(esb) =>
-        metricsEventHandler.serviceParams.servicePolicies.realtimeMetrics match {
+        metricsEventHandler.serviceParams.servicePolicies.dashboard match {
           case None =>
+            Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
+          case Some(rm) if rm.maxPoints.value <= 0 =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
