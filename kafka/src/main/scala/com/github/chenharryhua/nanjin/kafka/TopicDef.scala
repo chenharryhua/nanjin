@@ -19,6 +19,15 @@ final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], valu
     ConsumerSettings[F, K, V](using k, v).withProperties(cs.properties)
   }
 
+  def attemptConsumerSettings[F[_]: Sync](
+    srClient: SchemaRegistryClient,
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, Either[Throwable, K], Either[Throwable, V]] = {
+    val k = key.asKey(srClient, srs.config).deserializer[F].map(_.attempt)
+    val v = value.asValue(srClient, srs.config).deserializer[F].map(_.attempt)
+    ConsumerSettings(using k, v).withProperties(cs.properties)
+  }
+
   def producerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
     srs: SchemaRegistrySettings,
