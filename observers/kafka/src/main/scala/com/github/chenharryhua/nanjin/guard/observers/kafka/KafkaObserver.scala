@@ -44,7 +44,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
               topicName.value,
               EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value).asJson,
               evt.asJson)))
-    val topic = TopicDef(topicName, Primitive[ByteBuffer].circe, Primitive[ByteBuffer].circe)
+    val topic = TopicDef(topicName, Primitive[ByteBuffer].become[Json], Primitive[ByteBuffer].become[Json])
     (ss: Stream[F, Event]) =>
       for {
         client <- ctx.produce(topic).clientS

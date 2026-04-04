@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
 import fs2.kafka.{Key, KeyOrValue, Value}
-import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -46,8 +45,6 @@ trait Unregistered[A] { outer =>
     }
 
   final def become[B](using b: BiTransform[A, B]): Unregistered[B] =
-    emap(b.to)(b.from)
-  final def circe(using b: BiTransform[A, Json]): Unregistered[Json] =
     emap(b.to)(b.from)
 
   // turn null into None
