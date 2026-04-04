@@ -78,7 +78,7 @@ package object translator {
           Attribute(serviceParams.servicePolicies.report.policy).map(_.show).snakeJsonEntry,
           Attribute(serviceParams.servicePolicies.report.history).snakeJsonEntry
         ),
-        "metrics_reset" -> serviceParams.servicePolicies.metricsReset.show.asJson
+        "metrics_reset" -> serviceParams.servicePolicies.reset.show.asJson
       ),
       "launch_time" -> serviceParams.launchTime.asJson,
       Attribute(serviceParams.logFormat).snakeJsonEntry,

@@ -26,7 +26,7 @@ final private class MetricsEventHandler[F[_]] private (
     extends AdhocMetrics[F] {
 
   private val report_kind: Kind = Report(serviceParams.servicePolicies.report.policy)
-  private val reset_kind: Kind = Reset(serviceParams.servicePolicies.metricsReset)
+  private val reset_kind: Kind = Reset(serviceParams.servicePolicies.reset)
 
   private def build_metrics_snapshot(kind: Kind, index: Index): F[MetricsSnapshot] =
     F.blocking(scrapeMetrics.snapshot(ScrapeMode.Full)).timed.map { case (took, snapshot) =>

@@ -32,7 +32,7 @@ private[service] object HttpServer {
 
     for {
       topic <- Topic[F, TimedMeters]
-      history <- History[F, TimedMeters](backendConfig.maxPoints)
+      history <- History[F, TimedMeters](Some(backendConfig.maxPoints))
       stream = ts.evalMap { tm =>
         history.add(tm) >> topic.publish1(tm)
       }.onFinalize(history.clear <* topic.close).drain
