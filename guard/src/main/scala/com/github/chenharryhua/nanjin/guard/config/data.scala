@@ -90,10 +90,7 @@ end UpTime
 
 opaque type Capacity = Int
 object Capacity:
-  def apply(value: Int): Capacity = {
-    require(value > 0, s"Capacity($value) should be bigger than zero")
-    value
-  }
+  def apply(value: Int): Capacity = value
 
   extension (c: Capacity) inline def value: Int = c
 

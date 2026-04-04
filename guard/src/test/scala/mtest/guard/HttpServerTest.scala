@@ -90,7 +90,7 @@ class HttpServerTest extends AnyFunSuite {
     val res = TaskGuard[IO]("panic")
       .service("history")
       .updateConfig(
-        _.withRestartPolicy(1.hour, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+        _.withRestartPolicy(1.hour, 3, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream(_ => IO.raiseError(new Exception))
       .map(checkJson)
       .compile

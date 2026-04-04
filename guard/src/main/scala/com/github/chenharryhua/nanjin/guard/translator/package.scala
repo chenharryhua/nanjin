@@ -67,11 +67,11 @@ package object translator {
           "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson,
           Attribute(serviceParams.servicePolicies.restart.history).snakeJsonEntry
         ),
-        "metrics_realtime" ->
+        "dashboard" ->
           serviceParams.servicePolicies.dashboard.map { tm =>
             Json.obj(
               Attribute(tm.policy).map(_.show).snakeJsonEntry,
-              "max_points" -> Json.fromInt(tm.maxPoints.value)
+              Attribute(tm.maxPoints).snakeJsonEntry
             )
           }.asJson,
         "metrics_report" -> Json.obj(

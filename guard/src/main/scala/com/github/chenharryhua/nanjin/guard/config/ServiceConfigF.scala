@@ -97,7 +97,7 @@ object ServiceParams {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[X] extends Product derives Functor
+sealed private trait ServiceConfigF[X] extends Product derives Functor
 
 private object ServiceConfigF {
 
@@ -185,15 +185,9 @@ final class ServiceConfig[F[_]: Applicative] private (
     f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont =
       Fix(WithRestartPolicy(f(Policy), Some(Capacity(historyCapacity)), Some(threshold.toJava), cont)))
-  def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), None, Some(threshold.toJava), cont)))
-  def withRestartPolicy(historyCapacity: Int, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(Capacity(historyCapacity)), None, cont)))
 
   def withMetricReport(historyCapacity: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricReportPolicy(f(Policy), Some(Capacity(historyCapacity)), cont)))
-  def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReportPolicy(f(Policy), None, cont)))
 
   def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricResetPolicy(f(Policy), cont)))

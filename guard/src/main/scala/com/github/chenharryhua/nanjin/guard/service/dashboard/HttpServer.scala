@@ -52,6 +52,8 @@ private[service] object HttpServer {
         metricsEventHandler.serviceParams.servicePolicies.dashboard match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
+          case Some(rm) if rm.maxPoints.value <= 0 =>
+            Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
               serviceName = metricsEventHandler.serviceParams.serviceName.value,
