@@ -20,8 +20,7 @@ object aws_task_template {
       .withMetricReset(_.crontab(_.daily.midnight))
       .withRestartPolicy(
         8.hours,
-        _
-          .fixedDelay(3.seconds, 2.minutes, 1.hour)
+        _.fixedDelay(3.seconds, 2.minutes, 1.hour)
           .limited(3)
           .followedBy(_.fixedRate(2.hours).limited(12))
           .followedBy(_.crontab(_.daily.tenAM)))
