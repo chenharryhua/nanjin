@@ -192,8 +192,8 @@ final class ServiceConfig[F[_]: Applicative] private (
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
 
-  def withHistoryCapacity(panic: Int, error: Int, metrics: Int): ServiceConfig[F] =
-    copy(cont = Fix(WithHistoryCapacity(Capacity(panic), Capacity(error), Capacity(metrics), cont)))
+  def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
+    copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
 
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
