@@ -105,7 +105,7 @@ private object ReportedEventHandler:
     alarmLevel: AlarmLevel
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =
-      History[F, ReportedEvent](serviceParams.errorHistory)
+      History[F, ReportedEvent](serviceParams.history.map(_.errors))
 
     val initial: F[Ref[F, Option[AlarmLevel]]] =
       Ref.of[F, Option[AlarmLevel]](Some(alarmLevel))

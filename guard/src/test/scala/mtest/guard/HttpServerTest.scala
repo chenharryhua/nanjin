@@ -22,7 +22,7 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(1.hour, 10, _.fixedDelay(1.seconds))
+      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withDashboard(100, _.crontab(_.every5Minutes))
   )
 
@@ -49,7 +49,7 @@ class HttpServerTest extends AnyFunSuite {
       guard
         .service("http stop")
         .updateConfig(
-          _.withMetricReport(10, _.crontab(_.secondly))
+          _.withMetricReport(_.crontab(_.secondly))
             .withHttpServer(_.withPort(port"9999"))
             .withLogFormat(_.Slf4j_Json_OneLine))
         .eventStream { agent =>
@@ -90,7 +90,7 @@ class HttpServerTest extends AnyFunSuite {
     val res = TaskGuard[IO]("panic")
       .service("history")
       .updateConfig(
-        _.withRestartPolicy(1.hour, 3, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+        _.withRestartPolicy(1.hour, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream(_ => IO.raiseError(new Exception))
       .map(checkJson)
       .compile

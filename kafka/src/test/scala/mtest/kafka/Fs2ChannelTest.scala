@@ -279,7 +279,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("15. attempt consume") {
     val ret = ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record).debug()
       .timeout(3.seconds).compile.toList.unsafeRunSync()
-    assert(ret.size ==1)
+    assert(ret.size == 1)
     assert(ret.head.value.isRight)
   }
 }

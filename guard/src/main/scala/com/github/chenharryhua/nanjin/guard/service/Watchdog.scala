@@ -20,7 +20,7 @@ private object Watchdog:
   def apply[F[_]](theService: F[Unit], handler: ServiceEventHandler[F])(using
     F: Async[F]): Stream[F, Nothing] = {
 
-    val rp: RestartPolicy = handler.serviceParams.servicePolicies.restart
+    val rp: RestartPolicy = handler.serviceParams.policies.restart
 
     def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
       F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>

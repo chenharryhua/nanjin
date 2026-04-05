@@ -49,7 +49,7 @@ private[service] object HttpServer {
     emberServerBuilder match {
       case None      => Stream.empty.covary[F]
       case Some(esb) =>
-        metricsEventHandler.serviceParams.servicePolicies.dashboard match {
+        metricsEventHandler.serviceParams.policies.dashboard match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) if rm.maxPoints.value <= 0 =>

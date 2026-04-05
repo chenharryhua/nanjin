@@ -40,7 +40,7 @@ class ConsoleLogTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .updateConfig(
-        _.addBrief(Json.fromString("brief")).withRestartPolicy(10.hour, 10, _.fixedRate(2.second).limited(1)))
+        _.addBrief(Json.fromString("brief")).withRestartPolicy(10.hour, _.fixedRate(2.second).limited(1)))
 
   test("1.console - verbose json") {
     val mr = service

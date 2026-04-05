@@ -67,7 +67,7 @@ private object HtmlTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
-    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
+    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 

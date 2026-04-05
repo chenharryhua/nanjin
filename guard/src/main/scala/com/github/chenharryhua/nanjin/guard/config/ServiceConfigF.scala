@@ -19,15 +19,14 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final case class RestartPolicy(policy: Policy, history: Option[Capacity], threshold: Option[Duration])
-    derives Codec.AsObject
+final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
 final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject
-final case class ReportPolicy(policy: Policy, history: Option[Capacity]) derives Codec.AsObject
+final case class HistoryCapacity(panics: Capacity, errors: Capacity, metrics: Capacity) derives Codec.AsObject
 
 final case class ServicePolicies(
   restart: RestartPolicy,
   dashboard: Option[DashboardPolicy],
-  report: ReportPolicy,
+  report: Policy,
   reset: Policy
 ) derives Codec.AsObject
 
@@ -49,9 +48,9 @@ final case class ServiceParams(
   serviceName: Service,
   serviceId: ServiceId,
   launchTime: ZonedDateTime,
-  servicePolicies: ServicePolicies,
-  errorHistory: Option[Capacity],
-  logFormat: LogFormat,
+  policies: ServicePolicies,
+  history: Option[HistoryCapacity],
+  logFormat: Option[LogFormat],
   nanjin: Option[Json],
   brief: Brief
 ) derives Codec.AsObject {
@@ -84,14 +83,14 @@ object ServiceParams {
       serviceName = serviceName,
       serviceId = serviceId,
       launchTime = launchTime,
-      servicePolicies = ServicePolicies(
-        restart = RestartPolicy(Policy.empty, None, None),
+      policies = ServicePolicies(
+        restart = RestartPolicy(Policy.empty, None),
         dashboard = None,
-        report = ReportPolicy(Policy.empty, None),
+        report = Policy.empty,
         reset = Policy.empty
       ),
-      errorHistory = None,
-      logFormat = LogFormat.Console_PlainText,
+      history = None,
+      logFormat = None,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief
     )
@@ -103,26 +102,24 @@ private object ServiceConfigF {
 
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
 
-  final case class WithMetricReportPolicy[K](policy: Policy, history: Option[Capacity], cont: K)
+  final case class WithMetricReport[K](policy: Policy, cont: K) extends ServiceConfigF[K]
+
+  final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
       extends ServiceConfigF[K]
 
-  final case class WithRestartPolicy[K](
-    policy: Policy,
-    history: Option[Capacity],
-    threshold: Option[Duration],
-    cont: K)
+  final case class WithMetricReset[K](policy: Policy, cont: K) extends ServiceConfigF[K]
+
+  final case class WithHomePage[K](homepage: Option[Homepage], cont: K) extends ServiceConfigF[K]
+
+  final case class WithTaskName[K](task: Task, cont: K) extends ServiceConfigF[K]
+
+  final case class WithLogFormat[K](format: LogFormat, cont: K) extends ServiceConfigF[K]
+
+  final case class WithHistoryCapacity[K](panic: Capacity, error: Capacity, metrics: Capacity, cont: K)
       extends ServiceConfigF[K]
 
-  final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
-
-  final case class WithHomePage[K](value: Option[Homepage], cont: K) extends ServiceConfigF[K]
-
-  final case class WithErrorCapacity[K](value: Option[Capacity], cont: K) extends ServiceConfigF[K]
-
-  final case class WithTaskName[K](value: Task, cont: K) extends ServiceConfigF[K]
-
-  final case class WithLogFormat[K](value: LogFormat, cont: K) extends ServiceConfigF[K]
-  final case class WithDashboardPolicy[K](policy: Policy, maxPoints: Int, cont: K) extends ServiceConfigF[K]
+  final case class WithDashboardPolicy[K](policy: Policy, maxPoints: Capacity, cont: K)
+      extends ServiceConfigF[K]
 
   def algebra(
     serviceName: Service,
@@ -141,25 +138,14 @@ private object ServiceConfigF {
           host = host
         )
 
-      case WithRestartPolicy(p, h, t, c) =>
-        c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, h, t))
-
-      case WithMetricResetPolicy(v, c) =>
-        c.focus(_.servicePolicies.reset).replace(v)
-
-      case WithMetricReportPolicy(p, h, c) =>
-        c.focus(_.servicePolicies.report).replace(ReportPolicy(p, h))
-
-      case WithHomePage(v, c) => c.focus(_.homepage).replace(v)
-
-      case WithErrorCapacity(v, c) => c.focus(_.errorHistory).replace(v)
-
-      case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
-
-      case WithLogFormat(v, c) => c.focus(_.logFormat).replace(v)
-
-      case WithDashboardPolicy(p, m, c) =>
-        c.focus(_.servicePolicies.dashboard).replace(Some(DashboardPolicy(p, Capacity(m))))
+      case WithRestartPolicy(p, t, c)      => c.focus(_.policies.restart).replace(RestartPolicy(p, t))
+      case WithMetricReset(v, c)           => c.focus(_.policies.reset).replace(v)
+      case WithMetricReport(p, c)          => c.focus(_.policies.report).replace(p)
+      case WithHomePage(v, c)              => c.focus(_.homepage).replace(v)
+      case WithTaskName(v, c)              => c.focus(_.taskName).replace(v)
+      case WithLogFormat(v, c)             => c.focus(_.logFormat).replace(Some(v))
+      case WithHistoryCapacity(p, e, m, c) => c.focus(_.history).replace(Some(HistoryCapacity(p, e, m)))
+      case WithDashboardPolicy(p, m, c) => c.focus(_.policies.dashboard).replace(Some(DashboardPolicy(p, m)))
     }
 }
 
@@ -179,18 +165,14 @@ final class ServiceConfig[F[_]: Applicative] private (
     alarmLevel: AlarmLevel = this.alarmLevel): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, alarmLevel)
 
-  def withRestartPolicy(
-    threshold: FiniteDuration,
-    historyCapacity: Int,
-    f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont =
-      Fix(WithRestartPolicy(f(Policy), Some(Capacity(historyCapacity)), Some(threshold.toJava), cont)))
+  def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
 
-  def withMetricReport(historyCapacity: Int, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReportPolicy(f(Policy), Some(Capacity(historyCapacity)), cont)))
+  def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithMetricReport(f(Policy), cont)))
 
   def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricResetPolicy(f(Policy), cont)))
+    copy(cont = Fix(WithMetricReset(f(Policy), cont)))
 
   def withMetricDailyReset: ServiceConfig[F] =
     withMetricReset(_.crontab(_.daily.midnight))
@@ -206,14 +188,12 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
     copy(httpBuilder = Some(f))
-  def disableHttpServer: ServiceConfig[F] =
-    copy(httpBuilder = None)
-
-  def withErrorHistoryCapacity(value: Int): ServiceConfig[F] =
-    copy(cont = Fix(WithErrorCapacity(Some(Capacity(value)), cont)))
 
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
+
+  def withHistoryCapacity(panic: Int, error: Int, metrics: Int): ServiceConfig[F] =
+    copy(cont = Fix(WithHistoryCapacity(Capacity(panic), Capacity(error), Capacity(metrics), cont)))
 
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
@@ -222,7 +202,7 @@ final class ServiceConfig[F[_]: Applicative] private (
     copy(alarmLevel = f(AlarmLevel))
 
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithDashboardPolicy(f(Policy), maxPoints, cont)))
+    copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
 
   private[guard] def evalConfig(
     serviceName: Service,

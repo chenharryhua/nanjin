@@ -88,7 +88,7 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
+    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     SlackApp(
       username = evt.serviceParams.taskName.value,
@@ -108,7 +108,7 @@ private object SlackTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): SlackApp = {
-    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
+    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
