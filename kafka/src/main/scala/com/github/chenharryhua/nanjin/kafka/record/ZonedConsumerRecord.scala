@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.record
 
-import io.circe.Codec
+import cats.Bitraverse
+import cats.derived.derived
+import io.circe.{Decoder, Encoder}
 
 import java.time.ZonedDateTime
 
@@ -16,4 +18,4 @@ final case class ZonedConsumerRecord[K, V](
   serializedValueSize: Int,
   key: Option[K],
   value: Option[V]
-) derives Codec.AsObject
+) derives Encoder, Decoder, Bitraverse

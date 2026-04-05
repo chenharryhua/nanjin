@@ -25,7 +25,7 @@ object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
+      Attribute(evt.serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry
@@ -35,7 +35,7 @@ object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt).map(_.upTime.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
+      Attribute(evt.serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.cause).snakeJsonEntry
     )

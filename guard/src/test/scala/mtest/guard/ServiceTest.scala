@@ -23,9 +23,10 @@ class ServiceTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("service-level-guard").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(1.hour, -1, _.fixedDelay(1.seconds))
+      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withLogFormat(_.Slf4j_Json_OneLine)
       .withInitialAlarmLevel(_.Debug)
+      .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
@@ -39,7 +40,7 @@ class ServiceTest extends AnyFunSuite {
   test("2.escalate to up level if retry failed") {
     val List(a, b, c, d, e, f, g, h) = guard
       .service("retry")
-      .updateConfig(_.withRestartPolicy(1.hour, 0, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream { ga =>
         ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
           .use(_(ga.herald.info("info") *> IO.raiseError(new Exception)))
@@ -60,7 +61,7 @@ class ServiceTest extends AnyFunSuite {
   test("3.force reset") {
     val s :: b :: c :: d :: Nil = guard
       .service("reset")
-      .updateConfig(_.withMetricReport(0, _.empty))
+      .updateConfig(_.withMetricReport(_.empty))
       .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
       .map(checkJson)
       .compile
@@ -82,7 +83,7 @@ class ServiceTest extends AnyFunSuite {
     println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
-      .updateConfig(_.withRestartPolicy(2.hour, 1, _ => policy))
+      .updateConfig(_.withRestartPolicy(2.hour, _ => policy))
       .eventStream(_ => IO.raiseError[Int](new Exception("oops")).void)
       .map(checkJson)
       .evalMapFilter[IO, Tick] {
@@ -130,7 +131,7 @@ class ServiceTest extends AnyFunSuite {
         .flatMap { box =>
           guard
             .service("threshold")
-            .updateConfig(_.withRestartPolicy(2.seconds, -1, _ => policy))
+            .updateConfig(_.withRestartPolicy(2.seconds, _ => policy))
             .eventStream { _ =>
               box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) <*
                 IO.raiseError[Int](new Exception("oops"))
@@ -162,9 +163,9 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(
-        _.withRestartPolicy(2.seconds, 0, _.fixedDelay(1.second))
+        _.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
           .withMetricReset(_.empty)
-          .withMetricReport(1, _.crontab(_.secondly))
+          .withMetricReport(_.crontab(_.secondly))
           .withMetricDailyReset)
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
@@ -176,7 +177,7 @@ class ServiceTest extends AnyFunSuite {
   test("7.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
-      .updateConfig(_.withRestartPolicy(1.hour, 0, _.empty))
+      .updateConfig(_.withRestartPolicy(1.hour, _.empty))
       .eventStream { _ =>
         val c = true
         val err: Int = if (c) throw new Exception else 1
@@ -193,7 +194,7 @@ class ServiceTest extends AnyFunSuite {
   test("8. closure - io") {
     val List(a, b) = guard
       .service("closure")
-      .updateConfig(_.withRestartPolicy(1.hour, -1, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream { agent =>
         val a = UUID.randomUUID()
         agent.herald.warn(a.toString) *> IO.raiseError(new Exception)
@@ -208,7 +209,7 @@ class ServiceTest extends AnyFunSuite {
   test("9. closure - stream") {
     val List(a, b) = guard
       .service("closure")
-      .updateConfig(_.withRestartPolicy(1.hour, 1, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStreamS { agent =>
         val a = UUID.randomUUID()
 
@@ -226,7 +227,7 @@ class ServiceTest extends AnyFunSuite {
   test("10.exception throw by java") {
     val res = guard
       .service("ex")
-      .updateConfig(_.withRestartPolicy(1.hour, 1, _.fixedRate(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
       .eventStream { _ =>
         assert(1 == 2)
         IO.unit
@@ -245,7 +246,7 @@ class ServiceTest extends AnyFunSuite {
   test("11. exception thrown elsewhere") {
     val res = guard
       .service("ex")
-      .updateConfig(_.withRestartPolicy(1.hour, -1, _.fixedRate(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
       .eventStream { _ =>
         Future[Int] {
           Thread.sleep(2_000)
@@ -265,7 +266,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d) =
       guard
         .service("cancel")
-        .updateConfig(_.withRestartPolicy(1.hour, 1, _.fixedRate(1.seconds).limited(1)))
+        .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
         .eventStream(_ => IO.raiseError(new Exception))
         .compile
         .toList

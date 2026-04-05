@@ -46,13 +46,17 @@ final private class EventLogSink[F[_]: Sync] private (
 
 private[service] object EventLogSink {
   def apply[F[_]: Console](serviceParams: ServiceParams)(using F: Sync[F]): Stream[F, LogSink[F]] =
-    Stream.eval(
-      F.delay(
-        eventLogSink[F](
-          logFormat = serviceParams.logFormat,
-          zoneId = serviceParams.zoneId,
-          loggerName = LoggerName(serviceParams.serviceName.value))))
-      .map(_.logSink)
+    serviceParams.logFormat match {
+      case Some(format) =>
+        Stream.eval(
+          F.delay(
+            eventLogSink[F](
+              logFormat = format,
+              zoneId = serviceParams.zoneId,
+              loggerName = LoggerName(serviceParams.serviceName.value))))
+          .map(_.logSink)
+      case None => Stream(LogSink(_ => F.unit))
+    }
 
   private def eventLogSink[F[_]: {Sync, Console}](
     logFormat: LogFormat,

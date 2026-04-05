@@ -63,26 +63,22 @@ package object translator {
       Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
       "service_policies" -> Json.obj(
         "restart" -> Json.obj(
-          Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
-          "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson,
-          Attribute(serviceParams.servicePolicies.restart.history).snakeJsonEntry
+          Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
+          "threshold" -> serviceParams.policies.restart.threshold.map(defaultFormatter.format).asJson
         ),
         "dashboard" ->
-          serviceParams.servicePolicies.dashboard.map { tm =>
+          serviceParams.policies.dashboard.map { tm =>
             Json.obj(
               Attribute(tm.policy).map(_.show).snakeJsonEntry,
               Attribute(tm.maxPoints).snakeJsonEntry
             )
           }.asJson,
-        "metrics_report" -> Json.obj(
-          Attribute(serviceParams.servicePolicies.report.policy).map(_.show).snakeJsonEntry,
-          Attribute(serviceParams.servicePolicies.report.history).snakeJsonEntry
-        ),
-        "metrics_reset" -> serviceParams.servicePolicies.reset.show.asJson
+        "metrics_report" -> serviceParams.policies.report.show.asJson,
+        "metrics_reset" -> serviceParams.policies.reset.show.asJson
       ),
-      "launch_time" -> serviceParams.launchTime.asJson,
       Attribute(serviceParams.logFormat).snakeJsonEntry,
-      "error_history_capacity" -> serviceParams.errorHistory.asJson,
+      "history_capacity" -> serviceParams.history.asJson,
+      "launch_time" -> serviceParams.launchTime.asJson,
       "nanjin" -> serviceParams.nanjin.asJson,
       Attribute(serviceParams.brief).snakeJsonEntry
     )

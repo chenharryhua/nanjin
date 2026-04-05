@@ -132,6 +132,16 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         settings.consumerSettings)
     )
 
+  def attemptConsume[K, V](topic: TopicDef[K, V])(using
+    F: Async[F]): ConsumeKafka[F, Either[Throwable, K], Either[Throwable, V]] =
+    new ConsumeKafka(
+      topic.topicName,
+      topic.attemptConsumerSettings(
+        schema_registry_internal,
+        settings.schemaRegistrySettings,
+        settings.consumerSettings)
+    )
+
   def consume[K, V](
     topicName: TopicName,
     k: Resource[F, KeyDeserializer[F, K]],

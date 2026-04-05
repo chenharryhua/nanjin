@@ -32,7 +32,7 @@ object SimpleTextTranslator {
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"index:${evt.tick.index}"
     val act = Attribute(Took(evt.tick.active)).labelledText
-    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
+    val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
 
     s"""|
         |  ${service_event(evt)}
@@ -44,7 +44,7 @@ object SimpleTextTranslator {
   }
 
   private def service_stop(evt: ServiceStop): String = {
-    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
+    val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
 
     s"""|
         |  ${service_event(evt)}

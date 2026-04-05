@@ -14,14 +14,14 @@ sealed private trait History[F[_], A] {
 
 private object History {
   final private class Impl[F[_], A](vector: Ref[F, Vector[A]], max: Capacity) extends History[F, A] {
-    def add(a: A): F[Unit] =
+    override def add(a: A): F[Unit] =
       vector.update { v =>
         if (v.size >= max.value) v.tail :+ a else v :+ a
       }
 
-    val value: F[Vector[A]] = vector.get
+    override val value: F[Vector[A]] = vector.get
 
-    val clear: F[Unit] = vector.set(Vector.empty)
+    override val clear: F[Unit] = vector.set(Vector.empty)
   }
 
   private def noop[F[_], A](using F: Applicative[F]): History[F, A] =

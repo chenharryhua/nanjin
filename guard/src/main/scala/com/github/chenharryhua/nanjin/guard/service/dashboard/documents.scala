@@ -46,7 +46,7 @@ private object documents {
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       "active" -> Json.fromBoolean(active),
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
-      Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
       Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
@@ -134,7 +134,7 @@ private object documents {
     now: ZonedDateTime,
     took: Option[Duration]): Text.TypedTag[String] = {
     val service_name = Attribute(serviceParams.serviceName).textEntry
-    val policy = Attribute(serviceParams.servicePolicies.report.policy).textEntry
+    val policy = Attribute(serviceParams.policies.report).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
     val present = Attribute(Present(now)).map(_.text).textEntry
