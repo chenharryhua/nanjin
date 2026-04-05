@@ -115,7 +115,7 @@ private object ServiceConfigF {
 
   final case class WithLogFormat[K](format: LogFormat, cont: K) extends ServiceConfigF[K]
 
-  final case class WithHistoryCapacity[K](panic: Capacity, error: Capacity, metrics: Capacity, cont: K)
+  final case class WithHistoryCapacity[K](panics: Capacity, errors: Capacity, metrics: Capacity, cont: K)
       extends ServiceConfigF[K]
 
   final case class WithDashboardPolicy[K](policy: Policy, maxPoints: Capacity, cont: K)

@@ -24,7 +24,8 @@ class HttpServerTest extends AnyFunSuite {
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withDashboard(100, _.crontab(_.every5Minutes))
-  )
+      .withHistoryCapacity(32, 32, 32)
+      .withLogFormat(_.Slf4j_Json_OneLine))
 
   test("1.stop service") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/service/stop")
@@ -48,10 +49,8 @@ class HttpServerTest extends AnyFunSuite {
     val run =
       guard
         .service("http stop")
-        .updateConfig(
-          _.withMetricReport(_.crontab(_.secondly))
-            .withHttpServer(_.withPort(port"9999"))
-            .withLogFormat(_.Slf4j_Json_OneLine))
+        .updateConfig(_.withMetricReport(_.crontab(_.secondly))
+          .withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
             .facilitate("test") { ag =>
@@ -90,7 +89,9 @@ class HttpServerTest extends AnyFunSuite {
     val res = TaskGuard[IO]("panic")
       .service("history")
       .updateConfig(
-        _.withRestartPolicy(1.hour, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+        _.withRestartPolicy(1.hour, _.fixedDelay(1.second))
+          .withHttpServer(_.withPort(port"9997"))
+          .withHistoryCapacity(3, 3, 3))
       .eventStream(_ => IO.raiseError(new Exception))
       .map(checkJson)
       .compile
