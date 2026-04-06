@@ -1,22 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
-import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
+import cats.data.{NonEmptyList, ReaderT}
 import cats.effect.kernel.Async
 import cats.syntax.apply.given
-import cats.syntax.flatMap.given
-import cats.syntax.functor.given
-import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap, given}
+import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
-import scala.collection.immutable.SortedSet
 
 final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   topicName: TopicName,
@@ -50,42 +46,16 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   override lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
-  override def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
-    val topic_offset: Map[TopicPartition, Long] =
-      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
-
-    NonEmptySet.fromSet(SortedSet.from(topic_offset.keySet)) match {
-      case None      => Stream.empty
-      case Some(tps) =>
-        KafkaConsumer
-          .stream(consumerSettings.withAutoOffsetReset(AutoOffsetReset.None))
-          .evalTap { c =>
-            c.assign(tps) *>
-              topic_offset.toList.traverse { case (p, o) => c.seek(p, o) }
-          }
-          .flatMap(_.stream)
-    }
-  }
+  override def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+    KafkaConsumer
+      .stream(consumerSettings.withAutoOffsetReset(AutoOffsetReset.None))
+      .evalTap(assignByMap(_, topicName, partitionOffsets))
+      .flatMap(_.stream)
 
   override def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap { c =>
-        for {
-          _ <- c.assign(topicName.value)
-          partitions <- c.partitionsFor(topicName.value)
-          tps = partitions.map { pi =>
-            new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
-          }.toMap
-          tpm <- c.offsetsForTimes(tps)
-          _ <- tpm.toList.traverse { case (tp, oot) =>
-            oot match {
-              case Some(ot) => c.seek(tp, ot.offset())
-              case None     => c.seekToEnd(NonEmptyList.one(tp))
-            }
-          }
-        } yield ()
-      }
+      .evalTap(assignByTime(_, topicName, time))
       .flatMap(_.stream)
 
   /*
