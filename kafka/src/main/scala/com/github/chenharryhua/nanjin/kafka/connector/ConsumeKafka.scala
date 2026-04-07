@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.kafka.connector
 import cats.Endo
 import cats.data.{NonEmptyList, ReaderT}
 import cats.effect.kernel.Async
-import cats.syntax.apply.given
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
@@ -90,12 +89,8 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
       ranges <- Stream.eval(topicUtils.get_offset_range(kc, topicName, or))
-      stream <-
-        if (ranges.isEmpty) Stream.empty
-        else {
-          Stream.eval(topicUtils.assign_offset_range(kc, ranges)) *>
-            topicUtils.circumscribed_stream(kc, ranges)
-        }
+      isAssigned <- Stream.eval(topicUtils.assign_offset_range(kc, ranges))
+      stream <- if isAssigned then topicUtils.circumscribed_stream(kc, ranges) else Stream.empty
     } yield stream
 
   override def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]] =

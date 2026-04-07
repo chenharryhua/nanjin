@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.data.{NonEmptyList, NonEmptySet}
+import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
-import cats.syntax.applicative.given
-import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.apply.given 
+import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{given_Order_TopicPartition, TopicName, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.CommittableConsumerRecord
 import fs2.kafka.consumer.{KafkaAssignment, KafkaOffsets, KafkaTopicsV2}
@@ -42,16 +42,14 @@ trait ConsumerService[F[_], K, V] {
   protected def assignByMap(
     kc: KafkaAssignment[F] & KafkaTopicsV2[F] & KafkaOffsets[F],
     tn: TopicName,
-    map: Map[Int, Long])(using Sync[F]): F[Unit] =
-    kc.partitionsFor(tn.value).map(_.flatMap { pi =>
-      map.get(pi.partition())
-        .map(o => new TopicPartition(tn.value, pi.partition()) -> o)
-    }).flatMap {
-      case head :: next =>
-        val nes = NonEmptySet.of(head._1, next.map(_._1)*)
-        kc.assign(nes) <* (head :: next).traverse { case (p, o) => kc.seek(p, o) }
-      case Nil => ().pure[F]
+    map: Map[Int, Long])(using F: Sync[F]): F[Unit] = {
+    val tpm = TopicPartitionMap(map.map { case (p, o) => new TopicPartition(tn.value, p) -> o })
+
+    tpm.nonEmptyKeySet match {
+      case Some(value) => kc.assign(value) <* tpm.toList.traverse { case (p, o) => kc.seek(p, o) }
+      case None        => F.raiseError(new Exception(show"empty map of $tn"))
     }
+  }
 
   def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]]
 
