@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
@@ -31,11 +30,7 @@ package object translator {
       case _: Event.ServiceStop      => "Stop Service"
       case _: Event.ServicePanic     => "Service Panic"
       case _: Event.ReportedEvent    => "Reported Event"
-      case ms: Event.MetricsSnapshot =>
-        ms.kind match {
-          case Report(_) => "Metrics Report"
-          case Reset(_)  => "Metrics Reset"
-        }
+      case ms: Event.MetricsSnapshot => "Metrics Report"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
@@ -73,8 +68,7 @@ package object translator {
               Attribute(tm.maxPoints).snakeJsonEntry
             )
           }.asJson,
-        "metrics_report" -> serviceParams.policies.report.show.asJson,
-        "metrics_reset" -> serviceParams.policies.reset.show.asJson
+        "metrics_report" -> serviceParams.policies.report.show.asJson
       ),
       Attribute(serviceParams.logFormat).snakeJsonEntry,
       "history_capacity" -> serviceParams.history.asJson,

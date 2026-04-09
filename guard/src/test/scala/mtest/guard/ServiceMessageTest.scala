@@ -17,7 +17,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .service("Forward")
       .updateConfig(
         _.withInitialAlarmLevel(_.Debug)
-          .withMetricReport(_.fixedRate(100.milliseconds)))
+          .withMetricsReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     val log = agent.logger |+| agent.herald
@@ -38,7 +38,6 @@ class ServiceMessageTest extends AnyFunSuite {
   private def mix(agent: Agent[IO]): IO[Unit] =
     val log = agent.logger |+| agent.herald
     agent.adhoc.report >>
-      agent.adhoc.reset >>
       log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
       log.info(Json.Null) >>
       log.warn("oops", new Exception()) >>

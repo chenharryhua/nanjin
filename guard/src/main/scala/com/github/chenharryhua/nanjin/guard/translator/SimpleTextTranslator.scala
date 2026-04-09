@@ -54,7 +54,7 @@ object SimpleTextTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
-    val policy = Attribute(evt.kind.policy).labelledText
+    val policy = Attribute(evt.serviceParams.policies.report).labelledText
     val label = Attribute(evt.label).labelledText
     val took = Attribute(evt.took).labelledText
 

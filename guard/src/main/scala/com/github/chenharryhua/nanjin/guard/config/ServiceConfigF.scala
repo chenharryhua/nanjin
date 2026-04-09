@@ -20,8 +20,7 @@ sealed private trait ServiceConfigF[X] extends Product derives Functor
 private object ServiceConfigF {
 
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
-  final case class WithMetricReport[K](policy: Policy, cont: K) extends ServiceConfigF[K]
-  final case class WithMetricReset[K](policy: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricsReport[K](policy: Policy, cont: K) extends ServiceConfigF[K]
   final case class WithHomepage[K](homepage: Option[Homepage], cont: K) extends ServiceConfigF[K]
   final case class WithTaskName[K](task: Task, cont: K) extends ServiceConfigF[K]
   final case class WithLogFormat[K](format: LogFormat, cont: K) extends ServiceConfigF[K]
@@ -53,8 +52,7 @@ private object ServiceConfigF {
         )
 
       case WithRestartPolicy(p, t, c)      => c.focus(_.policies.restart).replace(RestartPolicy(p, t))
-      case WithMetricReset(v, c)           => c.focus(_.policies.reset).replace(v)
-      case WithMetricReport(p, c)          => c.focus(_.policies.report).replace(p)
+      case WithMetricsReport(p, c)         => c.focus(_.policies.report).replace(p)
       case WithHomepage(v, c)              => c.focus(_.homepage).replace(v)
       case WithTaskName(v, c)              => c.focus(_.taskName).replace(v)
       case WithLogFormat(v, c)             => c.focus(_.logFormat).replace(Some(v))
@@ -82,16 +80,10 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
 
-  def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReport(f(Policy), cont)))
+  def withMetricsReport(f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithMetricsReport(f(Policy), cont)))
 
-  def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReset(f(Policy), cont)))
-
-  def withMetricDailyReset: ServiceConfig[F] =
-    withMetricReset(_.crontab(_.daily.midnight))
-
-  def withHomePage(hp: String): ServiceConfig[F] =
+  def withHomepage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
 
   def withTaskName(tn: String): ServiceConfig[F] =

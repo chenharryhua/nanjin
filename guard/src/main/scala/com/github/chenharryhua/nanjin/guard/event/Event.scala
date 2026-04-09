@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
 import monocle.{Optional, Prism}
@@ -30,17 +29,12 @@ object Event {
   final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: StopReason)
       extends Event
 
-  final case class MetricsSnapshot(
-    index: Index,
-    serviceParams: ServiceParams,
-    snapshot: Snapshot,
-    kind: Kind,
-    took: Took)
+  final case class MetricsSnapshot(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends Event {
     override val timestamp: Timestamp = Timestamp(index.scrapeTime)
     val label: Label = index match
-      case ac @ Index.Adhoc(_)  => Label(s"${kind.show}-${ac.productPrefix}")
-      case Index.Periodic(tick) => Label(s"${kind.show}-${tick.index}")
+      case Index.Adhoc(_)       => Label("Report-Adhoc")
+      case Index.Periodic(tick) => Label(s"Report-${tick.index}")
   }
 
   final case class ReportedEvent(
@@ -68,11 +62,8 @@ object Event {
       .andThen(GenLens[MetricsSnapshot](_.index))
       .andThen(GenPrism[Index, Adhoc])
 
-  val reportingTick: Optional[Event, Tick] =
-    metricsSnapshot.filter(_.kind match {
-      case Kind.Report(_) => true
-      case Kind.Reset(_)  => false
-    })
+  val reportTick: Optional[Event, Tick] =
+    metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
       .andThen(GenPrism[Index, Periodic])
       .andThen(GenLens[Periodic](_.tick))

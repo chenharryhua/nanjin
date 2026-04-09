@@ -18,8 +18,7 @@ final case class HistoryCapacity(panics: Capacity, errors: Capacity, metrics: Ca
 final case class ServicePolicies(
   restart: RestartPolicy,
   dashboard: Option[DashboardPolicy],
-  report: Policy,
-  reset: Policy
+  report: Policy
 ) derives Codec.AsObject
 
 final case class Host(name: HostName, port: Option[Port]) derives Codec.AsObject {
@@ -78,8 +77,7 @@ object ServiceParams {
       policies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
         dashboard = None,
-        report = Policy.empty,
-        reset = Policy.empty
+        report = Policy.empty
       ),
       history = None,
       logFormat = None,

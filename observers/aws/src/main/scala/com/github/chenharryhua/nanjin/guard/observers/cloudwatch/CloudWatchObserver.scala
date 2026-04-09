@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.Report
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Pipe, Stream}
@@ -148,7 +147,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       // indexed by ServiceID and MetricName's uuid
       lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
       event <- events.evalTap {
-        case mr @ MetricsSnapshot(Periodic(_), sp, snapshot, Report(_), _) =>
+        case mr @ MetricsSnapshot(Periodic(_), sp, snapshot, _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, Snapshot.empty.lookupCount))
             publish(cwc, data)

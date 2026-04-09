@@ -96,7 +96,7 @@ private object HtmlTranslator extends all {
 
   private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
     val label = Attribute(evt.label).textEntry
-    val policy = Attribute(evt.kind.policy).textEntry
+    val policy = Attribute(evt.serviceParams.policies.report).textEntry
     val took = Attribute(evt.took).textEntry
     val fg = frag(
       tr(th(label.tag), th(policy.tag), th(took.tag)),

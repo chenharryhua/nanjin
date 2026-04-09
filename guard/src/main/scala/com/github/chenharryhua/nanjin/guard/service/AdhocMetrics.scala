@@ -7,10 +7,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
   */
 trait AdhocMetrics[F[_]]:
 
-  /** reset all counters to zero
-    */
-  def reset: F[Unit]
-
   /** report current metrics
     */
   def report: F[Unit]

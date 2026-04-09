@@ -90,7 +90,6 @@ private[guard] object ServiceGuard {
             reportedEventHandler = reHandler
           )
         event <- channel.stream // main stream
-          .concurrently(meHandler.resetPeriodically)
           .concurrently(meHandler.reportPeriodically)
           .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler))
           .concurrently(
