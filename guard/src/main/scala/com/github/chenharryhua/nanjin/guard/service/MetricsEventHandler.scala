@@ -5,7 +5,7 @@ import cats.effect.syntax.clock.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
@@ -16,12 +16,13 @@ import fs2.concurrent.Channel
 
 final private class MetricsEventHandler[F[_]] private (
   val serviceParams: ServiceParams,
-  val scrapeMetrics: ScrapeMetrics,
+  scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
   logSink: LogSink[F]
 )(using F: Async[F])
     extends AdhocMetrics[F] {
+  val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
 
   private def build_full_snapshot(index: Index): F[MetricsSnapshot] =
     scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
@@ -65,17 +66,21 @@ final private class MetricsEventHandler[F[_]] private (
       _ <- publish(Adhoc(ts))
     } yield ()
 
-  override def snapshot(tick: Tick, f: ScrapeMode.type => ScrapeMode): F[MetricsSnapshot] =
-    scrapeMetrics.snapshot(f(ScrapeMode)).timed.map { case (took, snapshot) =>
-      MetricsSnapshot(
-        index = Periodic(tick),
-        serviceParams = serviceParams,
-        snapshot = snapshot,
-        took = Took(took))
-    }
+  override def snapshots(
+    f: Policy.type => Policy,
+    g: ScrapeMode.type => ScrapeMode): Stream[F, MetricsSnapshot] =
+    tickStream.tickScheduled(serviceParams.zoneId, f).evalMap(tick =>
+      scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
+        MetricsSnapshot(
+          index = Periodic(tick),
+          serviceParams = serviceParams,
+          snapshot = snapshot,
+          took = Took(took))
+      })
 
-  override def meteredCounts(tick: Tick): F[Map[MetricID, Long]] =
-    F.delay(scrapeMetrics.meteredCounts)
+  override def meteredCounts(f: Policy.type => Policy): Stream[F, TickedValue[Map[MetricID, Long]]] =
+    tickStream.tickScheduled(serviceParams.zoneId, f)
+      .map(tick => TickedValue(tick, scrapeMetrics.meteredCounts))
 }
 
 private object MetricsEventHandler {

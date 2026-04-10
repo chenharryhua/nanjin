@@ -15,8 +15,8 @@ import scalatags.Text.all.*
 
 final private class HttpWsRouter[F[_]: Async](
   backendConfig: BackendConfig,
-  topic: Topic[F, TimedMeters],
-  history: History[F, TimedMeters]
+  topic: Topic[F, TickedMeters],
+  history: History[F, TickedMeters]
 ) extends Http4sDsl[F] {
 
   private val home_page: Text.TypedTag[String] =

@@ -5,12 +5,10 @@ import cats.effect.kernel.Async
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.common.chrono.tickStream
 import com.github.chenharryhua.nanjin.guard.service.{
   History,
   MetricsEventHandler,
   ReportedEventHandler,
-  ScrapeMetrics,
   ServiceEventHandler
 }
 import fs2.Stream
@@ -24,20 +22,17 @@ private[service] object HttpServer {
 
   private def wsRouter[F[_]: Async](
     backendConfig: BackendConfig,
-    scrapeMetrics: ScrapeMetrics): F[(HttpWsRouter[F], Stream[F, Nothing])] = {
-
-    val ts: Stream[F, TimedMeters] =
-      tickStream.tickScheduled[F](backendConfig.zoneId, _.fresh(backendConfig.policy))
-        .map(tick => TimedMeters(tick.conclude, scrapeMetrics.meteredCounts))
+    meh: MetricsEventHandler[F]): F[(HttpWsRouter[F], Stream[F, Nothing])] =
 
     for {
-      topic <- Topic[F, TimedMeters]
-      history <- History[F, TimedMeters](Some(backendConfig.maxPoints))
-      stream = ts.evalMap { tm =>
-        history.add(tm) >> topic.publish1(tm)
-      }.onFinalize(history.clear <* topic.close).drain
-    } yield (HttpWsRouter[F](backendConfig, topic, history), stream)
-  }
+      topic <- Topic[F, TickedMeters]
+      history <- History[F, TickedMeters](Some(backendConfig.maxPoints))
+      updates = meh.meteredCounts(_.fresh(backendConfig.policy))
+        .map(TickedMeters(_))
+        .evalMap(tm => history.add(tm) >> topic.publish1(tm))
+        .onFinalize(history.clear <* topic.close)
+        .drain
+    } yield (HttpWsRouter[F](backendConfig, topic, history), updates)
 
   def apply[F[_]: Async](
     emberServerBuilder: Option[EmberServerBuilder[F]],
@@ -61,7 +56,7 @@ private[service] object HttpServer {
               maxPoints = rm.maxPoints,
               policy = rm.policy
             )
-            Stream.eval(wsRouter(bc, metricsEventHandler.scrapeMetrics)).flatMap { case (ws, updates) =>
+            Stream.eval(wsRouter(bc, metricsEventHandler)).flatMap { case (ws, updates) =>
               def route(wsb2: WebSocketBuilder2[F]): Kleisli[F, Request[F], Response[F]] =
                 Router(
                   "/" -> dataRouter,

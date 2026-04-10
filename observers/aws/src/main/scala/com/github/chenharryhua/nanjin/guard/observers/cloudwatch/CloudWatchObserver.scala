@@ -5,9 +5,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.aws.CloudWatch
-import com.github.chenharryhua.nanjin.aws.CloudWatchNs
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.aws.{CloudWatch, CloudWatchNs}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
@@ -17,7 +15,6 @@ import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time
 
-import java.time.ZoneId
 import java.util
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
@@ -159,9 +156,8 @@ final class CloudWatchObserver[F[_]: Async] private (
     } yield event
   }
 
-  def scrape(namespace: CloudWatchNs, zoneId: ZoneId, f: Policy.type => Policy)(
-    getMetrics: Tick => F[MetricsSnapshot]): Stream[F, Event] =
-    tickStream.tickScheduled(zoneId, f).evalMap(getMetrics).through(observe(namespace))
+  def scrape(namespace: CloudWatchNs, sms: Stream[F, MetricsSnapshot]): Stream[F, Event] =
+    sms.through(observe(namespace))
 
   private case class MetricKey(
     timestamp: Timestamp,
