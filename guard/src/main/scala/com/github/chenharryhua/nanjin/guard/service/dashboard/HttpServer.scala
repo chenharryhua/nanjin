@@ -28,7 +28,7 @@ private[service] object HttpServer {
 
     val ts: Stream[F, TimedMeters] =
       tickStream.tickScheduled[F](backendConfig.zoneId, _.fresh(backendConfig.policy))
-        .map(tick => TimedMeters(tick.conclude, scrapeMetrics.meterCounters))
+        .map(tick => TimedMeters(tick.conclude, scrapeMetrics.meteredCounts))
 
     for {
       topic <- Topic[F, TimedMeters]

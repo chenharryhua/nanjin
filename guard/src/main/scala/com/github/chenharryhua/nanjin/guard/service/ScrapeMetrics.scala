@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.effect.kernel.Sync
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricElement, MetricID, Snapshot}
 import io.circe.jawn.{decode, parse}
@@ -120,39 +121,46 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   /*
    * Gauges
    */
-  private def gauges(mode: ScrapeMode): List[MetricElement.Gauge] =
-    mode match {
-      case ScrapeMode.Cheap => Nil
-      case ScrapeMode.Full  =>
-        metricRegistry.getGauges.asScala.iterator.flatMap { case (name, gauge) =>
-          decode[MetricID](name) match {
-            case Left(_)    => None
-            case Right(mid) =>
-              parse(gauge.getValue.toString) match {
-                case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
-                case Left(_)     => None
-              }
+  private def gauges: List[MetricElement.Gauge] =
+    metricRegistry.getGauges.asScala.iterator.flatMap { case (name, gauge) =>
+      decode[MetricID](name) match {
+        case Left(_)    => None
+        case Right(mid) =>
+          parse(gauge.getValue.toString) match {
+            case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
+            case Left(_)     => None
           }
-        }.toList
-    }
+      }
+    }.toList
 
   /*
    * API
    */
 
-  def resetCounter(): Unit =
-    metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
+  def snapshot[F[_]](mode: ScrapeMode)(using F: Sync[F]): F[Snapshot] =
+    mode match {
+      case ScrapeMode.Cheap =>
+        F.delay(
+          Snapshot(
+            counters = counters,
+            meters = meters,
+            timers = timers,
+            histograms = histograms,
+            gauges = Nil
+          ))
+      case ScrapeMode.Full => // gauge may run blocking actions
+        F.blocking(
+          Snapshot(
+            counters = counters,
+            meters = meters,
+            timers = timers,
+            histograms = histograms,
+            gauges = gauges
+          ))
+    }
 
-  def snapshot(mode: ScrapeMode): Snapshot =
-    Snapshot(
-      counters = counters,
-      meters = meters,
-      timers = timers,
-      histograms = histograms,
-      gauges = gauges(mode)
-    )
-
-  def meterCounters: Map[MetricID, Long] = {
+  // Counts from Meter and Timer metrics only
+  def meteredCounts: Map[MetricID, Long] = {
     val mc: Map[MetricID, Long] =
       metricRegistry.getMeters.asScala
         .flatMap { case (mid, meter) =>
