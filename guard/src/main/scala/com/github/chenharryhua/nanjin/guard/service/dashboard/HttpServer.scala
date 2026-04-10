@@ -23,7 +23,6 @@ private[service] object HttpServer {
   private def wsRouter[F[_]: Async](
     backendConfig: BackendConfig,
     meh: MetricsEventHandler[F]): F[(HttpWsRouter[F], Stream[F, Nothing])] =
-
     for {
       topic <- Topic[F, TickedMeters]
       history <- History[F, TickedMeters](Some(backendConfig.maxPoints))
@@ -47,7 +46,7 @@ private[service] object HttpServer {
         metricsEventHandler.serviceParams.policies.dashboard match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
-          case Some(rm) if rm.maxPoints.value <= 0 =>
+          case Some(rm) if rm.maxPoints.value <= 1 =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
