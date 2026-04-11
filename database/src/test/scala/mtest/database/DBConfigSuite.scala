@@ -3,7 +3,6 @@ package mtest.database
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.database.*
 import munit.CatsEffectSuite
-import io.github.iltotore.iron.*
 
 val testDb: Postgres = Postgres(
   host = "localhost",
@@ -43,22 +42,16 @@ class DBConfigSuite extends CatsEffectSuite {
   test("DBConfig.testConnection returns false on invalid DB") {
     val invalidDb =
       Postgres(
-        Username("unknown"),
-        Password("unknown"),
-        Host("localhost"),
-        Port(5432),
-        Database("postgres")
+        "unknown",
+        "unknown",
+        "localhost",
+        5432,
+        "postgres"
       )
     val dbConfig = DBConfig(invalidDb)
     dbConfig.testConnection[IO].map { result =>
       assertEquals(result, false) // should fail to connect
     }
-  }
-
-  test("table-name") {
-    val tn: TableName = "abc"
-    val tn2 = TableName("abc")
-    println((tn, tn2))
   }
 
 }

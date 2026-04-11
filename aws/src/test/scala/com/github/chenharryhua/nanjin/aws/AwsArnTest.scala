@@ -9,7 +9,7 @@ import io.circe.syntax.EncoderOps
 
 class AwsArnTest extends AnyFunSuite {
   test("iam") {
-    val iam: IamArn = "arn:aws:iam::123456789012:role/ab-c"
+    val iam: IamArn = IamArn("arn:aws:iam::123456789012:role/ab-c")
     println(iam.asJson)
     println(iam.show)
   }

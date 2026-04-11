@@ -89,7 +89,6 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.github.iltotore" %% "iron"                   % ironV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
@@ -148,6 +147,7 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
+      "io.github.iltotore" %% "iron"        % ironV,
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV

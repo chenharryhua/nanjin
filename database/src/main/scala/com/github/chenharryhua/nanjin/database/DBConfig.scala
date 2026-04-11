@@ -44,8 +44,8 @@ object DBConfig {
       val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
       cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg
     }
     new DBConfig(initConfig, Nil) {}
@@ -56,8 +56,8 @@ object DBConfig {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
       cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg.addDataSourceProperty("ssl", "true")
       cfg.addDataSourceProperty("sslfactory", "com.amazon.redshift.ssl.NonValidatingFactory")
       cfg
@@ -70,8 +70,8 @@ object DBConfig {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
       cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database}")
-      cfg.setUsername(db.username.value)
-      cfg.setPassword(db.password.value)
+      cfg.setUsername(db.username)
+      cfg.setPassword(db.password)
       cfg
     }
     new DBConfig(initConfig, Nil) {}

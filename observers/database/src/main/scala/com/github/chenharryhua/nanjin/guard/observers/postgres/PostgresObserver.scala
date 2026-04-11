@@ -7,7 +7,6 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
@@ -43,8 +42,8 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
   private def execute(pg: PreparedCommand[F, Json], msg: Json): F[Unit] =
     pg.execute(msg).void
 
-  def observe(tableName: TableName): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
-    val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
+  def observe(tableName: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
+    val cmd: Command[Json] = sql"INSERT INTO #$tableName VALUES ($json)".command
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       log <- Stream.eval(Slf4jLogger.create[F])
