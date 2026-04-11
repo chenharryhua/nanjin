@@ -2,20 +2,22 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.order.given
 import cats.{Order, PartialOrder, Show}
-import com.github.chenharryhua.nanjin.common.IronRefined.PlusConversion
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Codec, Decoder, Encoder}
-import io.github.iltotore.iron.RefinedType
-import io.github.iltotore.iron.constraint.string.Match
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
-private type TNC = Match["""^[a-zA-Z0-9_.\-]+$"""]
-type TopicName = TopicName.T
-object TopicName extends RefinedType[String, TNC] with PlusConversion[String, TNC]:
-  given Show[T] = OpaqueLift.lift[T, String, Show]
-  given Encoder[T] = OpaqueLift.lift[T, String, Encoder]
-  given Decoder[T] = OpaqueLift.lift[T, String, Decoder]
+opaque type TopicName = String
+object TopicName:
+  def apply(tn: String): TopicName = tn
+  extension (tn: TopicName) inline def value: String = tn
+
+  given Show[TopicName] = OpaqueLift.lift[TopicName, String, Show]
+  given Encoder[TopicName] = OpaqueLift.lift[TopicName, String, Encoder]
+  given Decoder[TopicName] = OpaqueLift.lift[TopicName, String, Decoder]
+
+  given Conversion[String, TopicName] with
+    override def apply(tn: String): TopicName = TopicName(tn)
 end TopicName
 
 opaque type GroupId = String
@@ -28,7 +30,7 @@ object GroupId:
   given Decoder[GroupId] = OpaqueLift.lift[GroupId, String, Decoder]
 
   given Conversion[String, GroupId] with
-    override def apply(x: String): GroupId = GroupId(x)
+    override def apply(gid: String): GroupId = GroupId(gid)
 end GroupId
 
 opaque type Offset = Long
