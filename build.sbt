@@ -147,7 +147,6 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
-      "io.github.iltotore" %% "iron"        % ironV,
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV

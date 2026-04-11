@@ -5,7 +5,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.aws.{CloudWatch, CloudWatchNs}
+import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
@@ -131,12 +131,12 @@ final class CloudWatchObserver[F[_]: Async] private (
     timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
   }
 
-  def observe(namespace: CloudWatchNs): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
+  def observe(namespace: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
     def publish(cwc: CloudWatch[F], mds: List[MetricDatum]): F[Unit] =
       mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
         .grouped(20)
         .toList
-        .traverse(md => cwc.putMetricData(_.namespace(namespace.value).metricData(md.asJava)).attempt)
+        .traverse(md => cwc.putMetricData(_.namespace(namespace).metricData(md.asJava)).attempt)
         .void
 
     for {
@@ -156,7 +156,7 @@ final class CloudWatchObserver[F[_]: Async] private (
     } yield event
   }
 
-  def scrape(namespace: CloudWatchNs, sms: Stream[F, MetricsSnapshot]): Stream[F, Event] =
+  def scrape(namespace: String, sms: Stream[F, MetricsSnapshot]): Stream[F, Event] =
     sms.through(observe(namespace))
 
   private case class MetricKey(
