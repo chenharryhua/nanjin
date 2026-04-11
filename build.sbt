@@ -360,7 +360,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
       "org.apache.avro"        % "avro"           % avroV,
       "org.tukaani"            % "xz"             % "1.12",
-      "at.yawk.lz4"            % "lz4-java"       % "1.10.4" // drop-in replacement of org.lz4:lz4-java
+      "at.yawk.lz4"            % "lz4-java"       % "1.11.0" // drop-in replacement of org.lz4:lz4-java
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(
