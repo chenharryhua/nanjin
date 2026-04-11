@@ -66,12 +66,7 @@ final case class EmailContent(
   body: String,
   cc: List[Email] = List.empty,
   bcc: List[Email] = List.empty)
-
-object EmailContent:
-  import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-  given Encoder[EmailContent] = deriveEncoder
-  given Decoder[EmailContent] = deriveDecoder
-end EmailContent
+    derives Codec.AsObject
 
 // sqs
 
