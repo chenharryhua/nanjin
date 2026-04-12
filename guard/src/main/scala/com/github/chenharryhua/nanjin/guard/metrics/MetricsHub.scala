@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.kernel.Group
 import com.codahale.metrics.MetricRegistry
@@ -43,8 +43,6 @@ sealed trait MetricsHub[F[_]] {
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Resource[F, IdleGauge[F]]
 
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Resource[F, ActiveGauge[F]]
-
-  def permanentCounter(name: String): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
   def balanceGauge[A: {Group, Encoder}](
@@ -101,14 +99,6 @@ object MetricsHub {
 
     override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Resource[F, ActiveGauge[F]] =
       ActiveGauge(gaugeParams, name, f)
-
-    override def permanentCounter(name: String): Resource[F, Counter[F]] =
-      for {
-        ref <- Resource.eval(Ref[F].of[Long](0L))
-        _ <- gauge(name, _.register(ref.get))
-      } yield new Counter[F] {
-        override def inc(num: Long): F[Unit] = ref.update(_ + num)
-      }
 
     override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
       for {

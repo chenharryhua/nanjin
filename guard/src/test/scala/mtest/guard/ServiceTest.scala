@@ -21,7 +21,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 class ServiceTest extends AnyFunSuite {
 
   val guard: TaskGuard[IO] = TaskGuard[IO]("service-level-guard").updateConfig(
-    _.withHomePage("https://abc.com/efg")
+    _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withLogFormat(_.Slf4j_Json_OneLine)
@@ -56,22 +56,6 @@ class ServiceTest extends AnyFunSuite {
     assert(f.isInstanceOf[ReportedEvent])
     assert(g.isInstanceOf[ReportedEvent])
     assert(h.isInstanceOf[ServiceStop])
-  }
-
-  test("3.force reset") {
-    val s :: b :: c :: d :: Nil = guard
-      .service("reset")
-      .updateConfig(_.withMetricReport(_.empty))
-      .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync().runtimeChecked
-
-    assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricsSnapshot])
-    assert(c.isInstanceOf[MetricsSnapshot])
-    assert(d.isInstanceOf[ServiceStop])
   }
 
   test("4.policy start over") {
@@ -162,11 +146,8 @@ class ServiceTest extends AnyFunSuite {
   test("6.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
-      .updateConfig(
-        _.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
-          .withMetricReset(_.empty)
-          .withMetricReport(_.crontab(_.secondly))
-          .withMetricDailyReset)
+      .updateConfig(_.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
+        .withMetricsReport(_.crontab(_.secondly)))
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
       .compile

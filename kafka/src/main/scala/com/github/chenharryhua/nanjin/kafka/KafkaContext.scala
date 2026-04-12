@@ -273,12 +273,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .map(_.keys.map(_.topic()).toList.distinct.diff(keeps))
       .flatMap(
         _.traverse { tn =>
-          SnapshotConsumer[F](TopicName.applyUnsafe(tn), consumer).partitionsFor
+          SnapshotConsumer[F](TopicName(tn), consumer).partitionsFor
             .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId.value, tps.toSet))
             .attempt
             .map {
               case Left(_)  => None
-              case Right(_) => Some(TopicName.applyUnsafe(tn))
+              case Right(_) => Some(TopicName(tn))
             }
         }
       )

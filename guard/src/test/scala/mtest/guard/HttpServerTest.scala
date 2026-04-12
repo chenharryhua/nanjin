@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 
 class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
-    _.withHomePage("https://abc.com/efg")
+    _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withDashboard(100, _.crontab(_.every5Minutes))
@@ -34,7 +34,6 @@ class HttpServerTest extends AnyFunSuite {
       .build
       .use { c =>
         c.expect[String]("http://localhost:9999/metrics/report") >>
-          c.expect[String]("http://localhost:9999/metrics/reset") >>
           c.expect[String]("http://localhost:9999/metrics/history") >>
           c.expect[String]("http://localhost:9999/service/jvm") >>
           c.expect[String]("http://localhost:9999/service/params") >>
@@ -49,7 +48,7 @@ class HttpServerTest extends AnyFunSuite {
     val run =
       guard
         .service("http stop")
-        .updateConfig(_.withMetricReport(_.crontab(_.secondly))
+        .updateConfig(_.withMetricsReport(_.crontab(_.secondly))
           .withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent

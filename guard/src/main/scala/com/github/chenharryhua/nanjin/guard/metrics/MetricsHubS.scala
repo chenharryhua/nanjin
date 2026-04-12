@@ -28,7 +28,6 @@ trait MetricsHubS[F[_]] {
   def percentile(name: String, f: Endo[Percentile.Builder] = identity): Stream[F, Percentile[F]]
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Stream[F, IdleGauge[F]]
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Stream[F, ActiveGauge[F]]
-  def permanentCounter(name: String): Stream[F, Counter[F]]
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]]
   def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
@@ -69,9 +68,6 @@ object MetricsHubS {
 
       override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Stream[F, ActiveGauge[F]] =
         Stream.resource(hub.activeGauge(name, f))
-
-      override def permanentCounter(name: String): Stream[F, Counter[F]] =
-        Stream.resource(hub.permanentCounter(name))
 
       override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]] =
         Stream.resource(hub.txnGauge(stm, initial)(name))

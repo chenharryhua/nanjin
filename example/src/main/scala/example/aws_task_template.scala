@@ -15,9 +15,8 @@ import scala.concurrent.duration.DurationInt
 object aws_task_template {
   val task: TaskGuard[IO] = TaskGuard[IO]("nanjin").updateConfig(
     _.withZoneId(sydneyTime)
-      .withHomePage("https://github.com/chenharryhua/nanjin")
-      .withMetricReport(_.crontab(_.every15Minutes))
-      .withMetricReset(_.crontab(_.daily.midnight))
+      .withHomepage("https://github.com/chenharryhua/nanjin")
+      .withMetricsReport(_.crontab(_.every15Minutes))
       .withRestartPolicy(
         8.hours,
         _.fixedDelay(3.seconds, 2.minutes, 1.hour)

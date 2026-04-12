@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.28"
+val awsV = "2.42.33"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
@@ -27,7 +27,7 @@ val drosteV = "0.10.0"
 val fs2KafkaV = "3.9.1"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
-val http4sV = "0.23.33"
+val http4sV = "0.23.34"
 val ironV = "3.3.0"
 val jacksonV = "2.21.2"
 val kantanV = "0.8.0"
@@ -89,7 +89,6 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.github.iltotore" %% "iron"                   % ironV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
@@ -360,7 +359,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
       "org.apache.avro"        % "avro"           % avroV,
       "org.tukaani"            % "xz"             % "1.12",
-      "at.yawk.lz4"            % "lz4-java"       % "1.10.4" // drop-in replacement of org.lz4:lz4-java
+      "at.yawk.lz4"            % "lz4-java"       % "1.11.0" // drop-in replacement of org.lz4:lz4-java
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(

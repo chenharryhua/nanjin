@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.data.NonEmptySet
+import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.syntax.bifunctor.given
 import cats.syntax.flatMap.given
@@ -94,13 +94,11 @@ private object topicUtils {
   def assign_offset_range[F[_]: Applicative, K, V](
     client: KafkaConsumer[F, K, V],
     ranges: TopicPartitionMap[OffsetRange]): F[Boolean] =
-    NonEmptySet
-      .fromSet(ranges.treeMap.keySet)
-      .traverse(tps =>
-        client.assign(tps) *>
-          tps.toNonEmptyList.toList
-            .traverse(tp => ranges.get(tp).traverse(or => client.seek(tp, or.from))))
-      .map(_.traverse(_.flatten).flatten.nonEmpty)
+    ranges.nonEmptyKeySet match {
+      case Some(tps) =>
+        client.assign(tps) *> ranges.toList.traverse((tp, or) => client.seek(tp, or.from)).map(_.nonEmpty)
+      case None => false.pure[F]
+    }
 
   def circumscribed_stream[F[_], K, V](
     client: KafkaConsume[F, K, V],

@@ -3,6 +3,7 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.aws.Email
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -44,7 +45,7 @@ class AwsObserverTest extends AnyFunSuite {
         .withOldestFirst
 
     service
-      .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
+      .through(mail.observe(Email("abc@google.com"), NonEmptyList.one(Email("efg@tek.com")), "title"))
       .debug()
       .compile
       .drain
@@ -85,11 +86,11 @@ class AwsObserverTest extends AnyFunSuite {
       EmailObserver(ses_client)
         .withPolicy(_.fixedDelay(2.seconds).limited(3))
         .withZoneId(sydneyTime)
-        .observe("a@b.c", NonEmptyList.one("b@c.d"), "email")
+        .observe(Email("a@b.c"), NonEmptyList.one(Email("b@c.d")), "email")
 
     TaskGuard[IO]("email")
       .service("email")
-      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
       .eventStream(_ => IO.never)
       .through(mail)
       .compile

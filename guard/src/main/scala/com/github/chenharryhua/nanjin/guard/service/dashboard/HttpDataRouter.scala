@@ -83,10 +83,6 @@ final private class HttpDataRouter[F[_]](
       val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report"))
       Ok(text)
 
-    case GET -> Root / "metrics" / "reset" =>
-      val text = metricsEventHandler.httpReset.map(documents.snapshot_to_yaml_html("Reset"))
-      Ok(text)
-
     case GET -> Root / "metrics" / "history" =>
       val text = for {
         now <- serviceParams.zonedNow

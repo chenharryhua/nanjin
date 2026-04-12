@@ -98,7 +98,7 @@ final private class GeneralAgent[F[_]: Async](
 
   override def metricsHub(label: String): MetricsHub[F] = {
     val metricLabel = MetricLabel(label, reportedEventHandler.domain)
-    MetricsHub[F](metricLabel, metricsEventHandler.scrapeMetrics.metricRegistry, dispatcher, zoneId)
+    MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId)
   }
 
   override def metricsHubS(label: String): MetricsHubS[F] =

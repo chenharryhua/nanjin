@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.data.NonEmptySet
 import cats.syntax.apply.given
 import cats.syntax.traverse.given
 import io.circe.{Codec, Decoder, Encoder, HCursor, Json}
@@ -22,6 +23,8 @@ object TopicPartitionMap:
     inline def treeMap: TreeMap[TopicPartition, V] = m
     def keySet: TreeSet[TopicPartition] = m.keySet
     def values: List[V] = m.values.toList
+    def nonEmptyKeySet: Option[NonEmptySet[TopicPartition]] = NonEmptySet.fromSet(keySet)
+    def toList: List[(TopicPartition, V)] = treeMap.toList
 
     def nonEmpty: Boolean = m.nonEmpty
     def isEmpty: Boolean = m.isEmpty

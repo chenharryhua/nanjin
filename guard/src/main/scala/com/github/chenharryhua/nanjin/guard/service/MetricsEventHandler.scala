@@ -2,82 +2,53 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
 import cats.effect.syntax.clock.given
-import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import fs2.Stream
 import fs2.concurrent.Channel
 
 final private class MetricsEventHandler[F[_]] private (
   val serviceParams: ServiceParams,
-  val scrapeMetrics: ScrapeMetrics,
+  scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
   logSink: LogSink[F]
 )(using F: Async[F])
     extends AdhocMetrics[F] {
+  val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
 
-  private val report_kind: Kind = Report(serviceParams.policies.report)
-  private val reset_kind: Kind = Reset(serviceParams.policies.reset)
-
-  private def build_metrics_snapshot(kind: Kind, index: Index): F[MetricsSnapshot] =
-    F.blocking(scrapeMetrics.snapshot(ScrapeMode.Full)).timed.map { case (took, snapshot) =>
-      MetricsSnapshot(
-        index = index,
-        serviceParams = serviceParams,
-        snapshot = snapshot,
-        kind = kind,
-        took = Took(took))
+  private def build_full_snapshot(index: Index): F[MetricsSnapshot] =
+    scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
+      MetricsSnapshot(index = index, serviceParams = serviceParams, snapshot = snapshot, took = Took(took))
     }
 
-  private def publish(kind: Kind, index: Index): F[MetricsSnapshot] =
+  private def publish(index: Index): F[MetricsSnapshot] =
     for {
-      ms <- build_metrics_snapshot(kind, index)
+      ms <- build_full_snapshot(index)
       _ <- channel.send(ms)
       _ <- logSink.write(ms)
       _ <- history.add(ms)
     } yield ms
-
-  private def ticking_by(kind: Kind): Stream[F, Tick] =
-    tickStream.tickScheduled[F](serviceParams.zoneId, _.fresh(kind.policy))
 
   /*
    * Report
    */
   def httpReport: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
-      build_metrics_snapshot(report_kind, Adhoc(ts))
+      build_full_snapshot(Adhoc(ts))
     }
 
   def reportPeriodically: Stream[F, Nothing] =
-    ticking_by(report_kind).evalMap { tick =>
-      publish(report_kind, Periodic(tick))
-    }.drain
-
-  /*
-   * Reset
-   */
-
-  private val reset_counters: F[Unit] =
-    F.blocking(scrapeMetrics.resetCounter())
-
-  def httpReset: F[MetricsSnapshot] =
-    serviceParams.zonedNow.flatMap { ts =>
-      build_metrics_snapshot(reset_kind, Adhoc(ts)) <* reset_counters
-    }
-
-  def resetPeriodically: Stream[F, Nothing] =
-    ticking_by(reset_kind).evalMap { tick =>
-      publish(reset_kind, Periodic(tick)) >> reset_counters
-    }.drain
+    tickStream.tickScheduled[F](serviceParams.zoneId, _.fresh(serviceParams.policies.report))
+      .evalMap(tick => publish(Periodic(tick)))
+      .drain
 
   /*
    * History
@@ -88,28 +59,28 @@ final private class MetricsEventHandler[F[_]] private (
   /*
    * API
    */
-  override def reset: F[Unit] =
-    for {
-      ts <- serviceParams.zonedNow
-      _ <- publish(reset_kind, Adhoc(ts))
-      _ <- reset_counters
-    } yield ()
 
   override def report: F[Unit] =
     for {
       ts <- serviceParams.zonedNow
-      _ <- publish(report_kind, Adhoc(ts))
+      _ <- publish(Adhoc(ts))
     } yield ()
 
-  override def snapshot(tick: Tick, f: ScrapeMode.type => ScrapeMode): F[MetricsSnapshot] =
-    F.blocking(scrapeMetrics.snapshot(f(ScrapeMode))).timed.map { case (took, snapshot) =>
-      MetricsSnapshot(
-        index = Periodic(tick),
-        serviceParams = serviceParams,
-        snapshot = snapshot,
-        kind = report_kind,
-        took = Took(took))
-    }
+  override def snapshots(
+    f: Policy.type => Policy,
+    g: ScrapeMode.type => ScrapeMode): Stream[F, MetricsSnapshot] =
+    tickStream.tickScheduled(serviceParams.zoneId, f).evalMap(tick =>
+      scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
+        MetricsSnapshot(
+          index = Periodic(tick),
+          serviceParams = serviceParams,
+          snapshot = snapshot,
+          took = Took(took))
+      })
+
+  override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
+    tickStream.tickScheduled(serviceParams.zoneId, f)
+      .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
 }
 
 private object MetricsEventHandler {

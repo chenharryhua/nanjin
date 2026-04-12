@@ -5,12 +5,11 @@ import cats.effect.kernel.Async
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.common.chrono.tickStream
 import com.github.chenharryhua.nanjin.guard.service.{
   History,
+  MeteredCounts,
   MetricsEventHandler,
   ReportedEventHandler,
-  ScrapeMetrics,
   ServiceEventHandler
 }
 import fs2.Stream
@@ -24,20 +23,15 @@ private[service] object HttpServer {
 
   private def wsRouter[F[_]: Async](
     backendConfig: BackendConfig,
-    scrapeMetrics: ScrapeMetrics): F[(HttpWsRouter[F], Stream[F, Nothing])] = {
-
-    val ts: Stream[F, TimedMeters] =
-      tickStream.tickScheduled[F](backendConfig.zoneId, _.fresh(backendConfig.policy))
-        .map(tick => TimedMeters(tick.conclude, scrapeMetrics.meterCounters))
-
+    meh: MetricsEventHandler[F]): F[(HttpWsRouter[F], Stream[F, Nothing])] =
     for {
-      topic <- Topic[F, TimedMeters]
-      history <- History[F, TimedMeters](Some(backendConfig.maxPoints))
-      stream = ts.evalMap { tm =>
-        history.add(tm) >> topic.publish1(tm)
-      }.onFinalize(history.clear <* topic.close).drain
-    } yield (HttpWsRouter[F](backendConfig, topic, history), stream)
-  }
+      topic <- Topic[F, MeteredCounts]
+      history <- History[F, MeteredCounts](Some(backendConfig.maxPoints))
+      updates = meh.meteredCounts(_.fresh(backendConfig.policy))
+        .evalMap(tm => history.add(tm) >> topic.publish1(tm))
+        .onFinalize(history.clear <* topic.close)
+        .drain
+    } yield (HttpWsRouter[F](backendConfig, topic, history), updates)
 
   def apply[F[_]: Async](
     emberServerBuilder: Option[EmberServerBuilder[F]],
@@ -52,7 +46,7 @@ private[service] object HttpServer {
         metricsEventHandler.serviceParams.policies.dashboard match {
           case None =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
-          case Some(rm) if rm.maxPoints.value <= 0 =>
+          case Some(rm) if rm.maxPoints.value <= 1 =>
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
@@ -61,7 +55,7 @@ private[service] object HttpServer {
               maxPoints = rm.maxPoints,
               policy = rm.policy
             )
-            Stream.eval(wsRouter(bc, metricsEventHandler.scrapeMetrics)).flatMap { case (ws, updates) =>
+            Stream.eval(wsRouter(bc, metricsEventHandler)).flatMap { case (ws, updates) =>
               def route(wsb2: WebSocketBuilder2[F]): Kleisli[F, Request[F], Response[F]] =
                 Router(
                   "/" -> dataRouter,

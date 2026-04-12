@@ -42,20 +42,6 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("3.performance permanent counter") {
-    var i: Int = 0
-    service
-      .eventStream(
-        _.facilitate("counter")(_.permanentCounter("permanent").use(_.inc(1).map(_ => i += 1).foreverM)))
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
-  }
-
   test("4.performance meter") {
     var i: Int = 0
     service

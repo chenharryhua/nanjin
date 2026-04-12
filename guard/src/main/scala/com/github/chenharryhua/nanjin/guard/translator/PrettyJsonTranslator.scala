@@ -45,7 +45,7 @@ object PrettyJsonTranslator {
       Attribute(evt).map(_.label).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).map(_.show).snakeJsonEntry,
-      Attribute(evt.kind.policy).map(_.show).snakeJsonEntry,
+      Attribute(evt.serviceParams.policies.report).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry

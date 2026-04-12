@@ -22,7 +22,7 @@ class ChunkSizeTest extends AnyFunSuite {
 
   test("chunk size - json") {
     val cs = ChunkSize(10)
-    val cs2: ChunkSize = 100
+    val cs2: ChunkSize = -100
     println((cs.asJson, cs2.asJson))
   }
 

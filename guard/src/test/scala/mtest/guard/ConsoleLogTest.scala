@@ -31,7 +31,6 @@ class ConsoleLogTest extends AnyFunSuite {
     }
     mtx.use(
       _.run(1) >>
-        agent.adhoc.reset >>
         agent.adhoc.report) >>
       IO.raiseError(new Exception("oops"))
   }
@@ -67,7 +66,7 @@ class ConsoleLogTest extends AnyFunSuite {
   test("3.console - simple text") {
     val mr = service
       .updateConfig(
-        _.withLogFormat(_.Console_PlainText).withHomePage("homepage.com").withHttpServer(identity))
+        _.withLogFormat(_.Console_PlainText).withHomepage("homepage.com").withHttpServer(identity))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)

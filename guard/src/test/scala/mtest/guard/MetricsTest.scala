@@ -6,10 +6,9 @@ import cats.effect.unsafe.implicits.global
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveCounter,
   retrieveHistogram,
@@ -52,7 +51,6 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieveCounter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieveRiskCounter(mr.snapshot.counters).values.isEmpty)
     assert(mr.index.isInstanceOf[Index.Adhoc])
-    assert(mr.kind === Kind.Report(Policy.empty))
   }
 
   test("2.counter risk") {
@@ -239,18 +237,15 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("15. meter + counter") {
-    val List(report, reset) = service.eventStream { agent =>
+    val List(report) = service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {
           m <- mtx.meter("aaa-bbb")
           c <- mtx.counter("aaa-bbb")
         } yield m.mark(10) >> c.inc(10)
       }
-      run.use(a => a >> agent.adhoc.report >> agent.adhoc.reset)
+      run.use(a => a >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
-    assert(report.kind === Kind.Report(Policy.empty))
-    assert(reset.kind === Kind.Reset(Policy.empty))
     assert(report.index.isInstanceOf[Index.Adhoc])
-    assert(reset.index.isInstanceOf[Index.Adhoc])
   }
 }
