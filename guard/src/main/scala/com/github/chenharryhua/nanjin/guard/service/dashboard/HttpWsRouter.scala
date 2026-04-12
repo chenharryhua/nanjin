@@ -5,6 +5,8 @@ import cats.syntax.applicative.given
 import com.github.chenharryhua.nanjin.guard.service.{History, MeteredCounts}
 import fs2.concurrent.Topic
 import fs2.{Pipe, Stream}
+import io.circe.Json
+import io.circe.syntax.given
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
 import org.http4s.server.websocket.WebSocketBuilder2
@@ -34,6 +36,20 @@ final private class HttpWsRouter[F[_]: Async](
         script(`type` := "module", src := "/dashboard/nj-frontend.js"))
     )
 
+  private def text(mc: MeteredCounts): WebSocketFrame.Text = {
+    val series = mc.counts.map { case (mid, count) =>
+      Json.obj(
+        "label" -> Json.fromString(s"${mid.metricLabel.label}(${mid.metricName.name})"),
+        "value" -> Json.fromLong(count)
+      )
+    }
+    WebSocketFrame.Text(
+      Json.obj(
+        "ts" -> Json.fromLong(mc.timestamp.toEpochMilli),
+        "series" -> series.asJson
+      ).noSpaces)
+  }
+
   def router(wsb2: WebSocketBuilder2[F]): HttpRoutes[F] =
     HttpRoutes.of[F] {
       /*
@@ -47,10 +63,10 @@ final private class HttpWsRouter[F[_]: Async](
           (preserved ++ topic.subscribe(5))
             .zipWithPrevious
             .map {
-              case (Some(prev), curr) => curr.merge(prev)
+              case (Some(prev), curr) => curr.delta(prev)
               case (None, curr)       => curr
             }
-            .map(_.text)
+            .map(text)
 
         val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => ().pure[F])
 
