@@ -5,12 +5,12 @@ import cats.effect.syntax.clock.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -78,9 +78,9 @@ final private class MetricsEventHandler[F[_]] private (
           took = Took(took))
       })
 
-  override def meteredCounts(f: Policy.type => Policy): Stream[F, TickedValue[Map[MetricID, Long]]] =
+  override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
     tickStream.tickScheduled(serviceParams.zoneId, f)
-      .map(tick => TickedValue(tick, scrapeMetrics.meteredCounts))
+      .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
 }
 
 private object MetricsEventHandler {

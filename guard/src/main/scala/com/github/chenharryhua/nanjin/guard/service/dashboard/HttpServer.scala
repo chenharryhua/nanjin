@@ -7,6 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.service.{
   History,
+  MeteredCounts,
   MetricsEventHandler,
   ReportedEventHandler,
   ServiceEventHandler
@@ -24,10 +25,9 @@ private[service] object HttpServer {
     backendConfig: BackendConfig,
     meh: MetricsEventHandler[F]): F[(HttpWsRouter[F], Stream[F, Nothing])] =
     for {
-      topic <- Topic[F, TickedMeters]
-      history <- History[F, TickedMeters](Some(backendConfig.maxPoints))
+      topic <- Topic[F, MeteredCounts]
+      history <- History[F, MeteredCounts](Some(backendConfig.maxPoints))
       updates = meh.meteredCounts(_.fresh(backendConfig.policy))
-        .map(TickedMeters(_))
         .evalMap(tm => history.add(tm) >> topic.publish1(tm))
         .onFinalize(history.clear <* topic.close)
         .drain
