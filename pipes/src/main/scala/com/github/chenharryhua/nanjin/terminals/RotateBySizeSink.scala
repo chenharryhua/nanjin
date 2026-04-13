@@ -5,7 +5,6 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
 import cats.syntax.functor.given
-import cats.syntax.monadError.given
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -37,80 +36,72 @@ final private class RotateBySizeSink[F[_]](
     *   current Hotswap managing the writer resource
     * @param data
     *   stream of elements to write
-    * @param previousTick
-    *   tick representing the previous file's timing window
+    * @param currentTick
+    *   tick representing the current file's timing window
     * @param count
     *   number of elements already written to the current file
     *
     * @return
-    *   Pull emitting one TickedValue per file, where each TickedValue contains:
-    *   - tick: the temporal window (commence, acquires, conclude)
-    *   - value: RotateFile with file URL and number of records written
+    *   RotateFile with file URL and number of records written
     *
     * ===Semantics===
     *
     *   1. Each file corresponds to one TickedValue.
-    *   2. `previousTick` represents the previous file; `nextTick` generates the new tick for the current
-    *      file.
-    *   3. `acquires` marks the moment writing starts, `conclude` marks when writing ends.
-    *   4. Files that exceed `sizeLimit` are split across ticks, generating multiple TickedValues.
-    *   5. The tick index increments sequentially starting from 1.
+    *   2. Files that exceed `sizeLimit` are split across ticks, generating multiple TickedValues.
+    *   3. The tick index increments sequentially starting from 1.
     */
   private def doWork[A](
     getWriter: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     data: Stream[F, A],
-    previousTick: TickedValue[CreateRotateFile],
+    currentTick: TickedValue[CreateRotateFile],
     count: Long
-  ): Pull[F, TickedValue[RotateFile], Unit] = {
+  ): Pull[F, RotateFile, Unit] = {
     def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
       Pull.eval(hotswap.get.use(_.write(as)))
-        .adaptError(ex => RotateWriteException(previousTick.map(pathBuilder), ex))
 
     data.pull.uncons.flatMap {
       case None =>
         for {
           now <- Pull.eval(F.realTimeInstant)
-          currentTick = previousTick.withNextTick(previousTick.tick.conclude, now).map { crf =>
+          _ <- Pull.output1[F, RotateFile](
             RotateFile(
-              open = crf.openTime.toLocalDateTime,
-              close = now.atZone(previousTick.tick.zoneId).toLocalDateTime,
-              url = pathBuilder(crf),
+              create = currentTick.value,
+              closed = now.atZone(currentTick.tick.zoneId),
+              url = pathBuilder(currentTick.value),
               recordCount = count
-            )
-          }
-          _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick)
+            ))
         } yield ()
 
       case Some((as, stream)) =>
         val dataSize = as.size
         // invariant: count is always < sizeLimit, therefore splitAt always consumes > 0
         if ((dataSize + count) < sizeLimit) {
-          writeChunk(as) >> doWork(getWriter, hotswap, stream, previousTick, dataSize + count)
+          writeChunk(as) >> doWork(getWriter, hotswap, stream, currentTick, dataSize + count)
         } else {
           val (first, second) = as.splitAt((sizeLimit - count).toInt)
 
           for {
             _ <- writeChunk(first)
-            now <- Pull.eval(F.realTimeInstant)
-            currentTick = previousTick.withNextTick(previousTick.tick.conclude, now)
-            crf = CreateRotateFile(currentTick.tick)
+            now <- Pull.eval(F.realTimeInstant) // end of current tick
+            nextTick = currentTick.withNextTick(currentTick.tick.conclude, now)
+            crf = CreateRotateFile(nextTick.tick)
             _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(crf))))
-            _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick.map { crf =>
+            _ <- Pull.output1[F, RotateFile](
               RotateFile(
-                open = crf.openTime.toLocalDateTime,
-                close = currentTick.tick.local(_.conclude), // == now
-                url = pathBuilder(crf),
+                create = currentTick.value,
+                closed = now.atZone(currentTick.tick.zoneId),
+                url = pathBuilder(currentTick.value),
                 recordCount = count + first.size
               )
-            })
-            _ <- doWork(getWriter, hotswap, stream.cons(second), currentTick.as(crf), 0L)
+            )
+            _ <- doWork(getWriter, hotswap, stream.cons(second), nextTick.as(crf), 0L)
           } yield ()
         }
     }
   }
 
-  private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, TickedValue[RotateFile]] = {
+  private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, RotateFile] = {
     val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], TickedValue[CreateRotateFile])] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
         val crf = CreateRotateFile(tick)
@@ -118,12 +109,12 @@ final private class RotateBySizeSink[F[_]](
       }
 
     Stream.resource(resources).flatMap { case (hotswap, tv) =>
-      doWork(getWriter = getWriter, hotswap = hotswap, data = data, previousTick = tv, count = 0L).stream
+      doWork(getWriter = getWriter, hotswap = hotswap, data = data, currentTick = tv, count = 0L).stream
     }
   }
 
   private def generic_record_stream_step_leg(get_writer: Schema => GetWriter[GenericRecord])(
-    ss: Stream[F, GenericRecord]): Stream[F, TickedValue[RotateFile]] =
+    ss: Stream[F, GenericRecord]): Stream[F, RotateFile] =
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
         persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema)).pull.echo
@@ -207,7 +198,7 @@ final private class RotateBySizeSink[F[_]](
   }
 
   // json node
-  override def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]] = {
+  override def jsonNode: Pipe[F, JsonNode, RotateFile] = {
     val get_writer: GetWriter[JsonNode] =
       Reader(url => HadoopWriter.jsonNodeR(configuration, url))
 
