@@ -27,21 +27,29 @@ object tickStream {
   /** Stream ticks according to a policy in a **“sleep first, then emit”** pattern.
     *
     * Stream ticks in a **strict schedule** pattern.
+    *
+    * Index start from one
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
     Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap(fromTickStatus[F])
 
   /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
     * continues according to the policy.
+    *
+    * Index start from zero
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
     Stream
       .eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy)))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
-  /** Stream ticks according to a policy in an **“emit first, then sleep to next”** pattern.
+  /** Stream ticks according to a policy in an
+    *
+    * **“emit first, then sleep to next”** pattern.
     *
     * Stream ticks in an **“at-least schedule”** manner according to the given `Policy`.
+    *
+    * Index start from one
     */
   def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap { initStatus =>

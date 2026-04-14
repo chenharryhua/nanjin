@@ -27,7 +27,7 @@ class TickStreamSpec extends AnyFunSuite {
   }
 
   test("2.tickScheduled emits first tick after snooze") {
-    val ticks = takeTicks(tickStream.tickScheduled[IO](zoneId, _ => policy), 3).unsafeRunSync()
+    val ticks = takeTicks(tickStream.tickScheduled[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 1)
     assert(ticks.sliding(2).forall {

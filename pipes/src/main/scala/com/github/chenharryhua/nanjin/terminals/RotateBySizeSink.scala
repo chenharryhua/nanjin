@@ -4,9 +4,9 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
-import cats.syntax.functor.given
+import cats.syntax.monadError.given
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -36,7 +36,7 @@ final private class RotateBySizeSink[F[_]](
     *   current Hotswap managing the writer resource
     * @param data
     *   stream of elements to write
-    * @param currentTick
+    * @param current
     *   tick representing the current file's timing window
     * @param count
     *   number of elements already written to the current file
@@ -54,11 +54,12 @@ final private class RotateBySizeSink[F[_]](
     getWriter: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     data: Stream[F, A],
-    currentTick: TickedValue[CreateRotateFile],
+    current: CreateRotateFile,
     count: Long
   ): Pull[F, RotateFile, Unit] = {
     def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
       Pull.eval(hotswap.get.use(_.write(as)))
+        .adaptError(ex => RotateWriteException(current, pathBuilder(current), count, ex))
 
     data.pull.uncons.flatMap {
       case None =>
@@ -66,9 +67,9 @@ final private class RotateBySizeSink[F[_]](
           now <- Pull.eval(F.realTimeInstant)
           _ <- Pull.output1[F, RotateFile](
             RotateFile(
-              create = currentTick.value,
-              closed = now.atZone(currentTick.tick.zoneId),
-              url = pathBuilder(currentTick.value),
+              create = current,
+              closed = now,
+              url = pathBuilder(current),
               recordCount = count
             ))
         } yield ()
@@ -77,39 +78,38 @@ final private class RotateBySizeSink[F[_]](
         val dataSize = as.size
         // invariant: count is always < sizeLimit, therefore splitAt always consumes > 0
         if ((dataSize + count) < sizeLimit) {
-          writeChunk(as) >> doWork(getWriter, hotswap, stream, currentTick, dataSize + count)
+          writeChunk(as) >> doWork(getWriter, hotswap, stream, current, dataSize + count)
         } else {
           val (first, second) = as.splitAt((sizeLimit - count).toInt)
 
           for {
             _ <- writeChunk(first)
             now <- Pull.eval(F.realTimeInstant) // end of current tick
-            nextTick = currentTick.withNextTick(currentTick.tick.conclude, now)
-            crf = CreateRotateFile(nextTick.tick)
-            _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(crf))))
+            next = current.copy(index = current.index + 1, time = now.atZone(current.time.getZone))
+            _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(next))))
             _ <- Pull.output1[F, RotateFile](
               RotateFile(
-                create = currentTick.value,
-                closed = now.atZone(currentTick.tick.zoneId),
-                url = pathBuilder(currentTick.value),
+                create = current,
+                closed = now,
+                url = pathBuilder(current),
                 recordCount = count + first.size
               )
             )
-            _ <- doWork(getWriter, hotswap, stream.cons(second), nextTick.as(crf), 0L)
+            _ <- doWork(getWriter, hotswap, stream.cons(second), next, 0L)
           } yield ()
         }
     }
   }
 
   private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, RotateFile] = {
-    val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], TickedValue[CreateRotateFile])] =
+    val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], CreateRotateFile)] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
-        val crf = CreateRotateFile(tick)
-        NonEmptyHotswap(getWriter(pathBuilder(crf))).map((_, TickedValue(tick, crf)))
+        val crf = CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.commence))
+        NonEmptyHotswap(getWriter(pathBuilder(crf))).map((_, crf))
       }
 
-    Stream.resource(resources).flatMap { case (hotswap, tv) =>
-      doWork(getWriter = getWriter, hotswap = hotswap, data = data, currentTick = tv, count = 0L).stream
+    Stream.resource(resources).flatMap { case (hotswap, crf) =>
+      doWork(getWriter = getWriter, hotswap = hotswap, data = data, current = crf, count = 0L).stream
     }
   }
 

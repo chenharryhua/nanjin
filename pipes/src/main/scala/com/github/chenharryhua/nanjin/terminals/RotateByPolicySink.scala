@@ -4,8 +4,8 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
+import cats.syntax.monadError.given
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -19,7 +19,7 @@ import scalapb.GeneratedMessage
 final private class RotateByPolicySink[F[_]: Async](
   configuration: Configuration,
   pathBuilder: CreateRotateFile => Url,
-  rotateSequence: Stream[F, TickedValue[CreateRotateFile]])
+  rotateSequence: Stream[F, CreateRotateFile])
     extends RotateByPolicy[F] {
 
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
@@ -27,40 +27,32 @@ final private class RotateByPolicySink[F[_]: Async](
   private def doWork[A](
     getWriter: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
-    merged: Stream[F, Either[Chunk[A], TickedValue[CreateRotateFile]]],
-    currentTick: TickedValue[CreateRotateFile],
+    merged: Stream[F, Either[Chunk[A], CreateRotateFile]],
+    current: CreateRotateFile,
     count: Long
   ): Pull[F, RotateFile, Unit] =
     merged.pull.uncons1.flatMap {
       case None =>
-        for {
-          now <- Pull.eval(Async[F].realTimeInstant)
-          _ <- Pull.output1[F, RotateFile](
-            RotateFile(
-              create = currentTick.value,
-              closed = now.atZone(currentTick.tick.zoneId),
-              url = pathBuilder(currentTick.value),
-              recordCount = count)
-          )
-        } yield ()
+        Pull.eval(Async[F].realTimeInstant).flatMap(now =>
+          Pull.output1[F, RotateFile](RotateFile(current, now, pathBuilder(current), count)))
 
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull
-              .eval(hotswap.get.use(_.write(data))) >>
-              doWork(getWriter, hotswap, tail, currentTick, count + data.size)
-          case Right(nextTick) =>
+            Pull.eval(hotswap.get.use(_.write(data)).adaptError(ex =>
+              RotateWriteException(current, pathBuilder(current), count, ex))) >>
+              doWork(getWriter, hotswap, tail, current, count + data.size)
+          case Right(next) =>
             for {
-              _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(nextTick.value))))
+              _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(next))))
               _ <- Pull.output1[F, RotateFile](
                 RotateFile(
-                  create = currentTick.value,
-                  closed = nextTick.tick.zoned(_.acquires),
-                  url = pathBuilder(currentTick.value),
+                  create = current,
+                  closed = next.time.toInstant,
+                  url = pathBuilder(current),
                   recordCount = count
                 ))
-              _ <- doWork(getWriter, hotswap, tail, nextTick, 0L)
+              _ <- doWork(getWriter, hotswap, tail, next, 0L)
             } yield ()
         }
     }
@@ -70,13 +62,13 @@ final private class RotateByPolicySink[F[_]: Async](
       case None               => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
-          .resource(NonEmptyHotswap(getWriter(pathBuilder(head.value))))
+          .resource(NonEmptyHotswap(getWriter(pathBuilder(head))))
           .flatMap { hotswap =>
             doWork(
               getWriter = getWriter,
               hotswap = hotswap,
               merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
-              currentTick = head,
+              current = head,
               count = 0L).stream
           }
           .pull

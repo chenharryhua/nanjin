@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
 import org.apache.hadoop.conf.Configuration
@@ -232,12 +232,11 @@ final class Hadoop[F[_]](config: Configuration) {
     */
   def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(using
     F: Async[F]): RotateByPolicy[F] = {
-    val tvs: Stream[F, TickedValue[CreateRotateFile]] =
+    val crfs: Stream[F, CreateRotateFile] =
       tickStream.tickFuture[F](zoneId, f).map { tick =>
-        val crf = CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
-        TickedValue(tick, crf)
+        CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
       }
-    new RotateByPolicySink[F](config, pathBuilder, tvs)
+    new RotateByPolicySink[F](config, pathBuilder, crfs)
   }
 
   /** Create a size-based rotating sink.

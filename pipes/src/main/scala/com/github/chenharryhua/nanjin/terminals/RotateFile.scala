@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
+import org.typelevel.cats.time.zoneddatetimeInstances
 
-import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
+import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 
 /** Instruction to create a new rotated file.
@@ -27,15 +28,6 @@ final case class CreateRotateFile(
   time: ZonedDateTime
 )
 
-object CreateRotateFile:
-  def apply(tick: Tick): CreateRotateFile =
-    new CreateRotateFile(
-      sequenceId = tick.sequenceId,
-      index = tick.index + 1,
-      time = tick.zoned(_.conclude)
-    )
-end CreateRotateFile
-
 /** Result of a completed rotation window.
   *
   * One `RotateFile` is emitted for every finished `Tick`.
@@ -51,8 +43,8 @@ end CreateRotateFile
   *   - close: the moment when the file is closed
   */
 
-final case class RotateFile(create: CreateRotateFile, closed: ZonedDateTime, url: Url, recordCount: Long) {
-  val window: Duration = Duration.between(create.time, closed)
+final case class RotateFile(create: CreateRotateFile, closed: Instant, url: Url, recordCount: Long) {
+  val window: Duration = Duration.between(create.time.toInstant, closed)
 }
 
 object RotateFile {
@@ -63,7 +55,7 @@ object RotateFile {
         "url" -> a.url.asJson,
         "recordCount" -> Json.fromLong(a.recordCount),
         "create" -> a.create.time.toLocalDateTime.asJson,
-        "closed" -> a.closed.toLocalDateTime.asJson,
+        "closed" -> a.closed.atZone(a.create.time.getZone).toLocalDateTime.asJson,
         "window" -> DurationFormatter.defaultFormatter.format(a.window).asJson,
         "zoneId" -> a.create.time.getZone.asJson,
         "sequenceId" -> a.create.sequenceId.asJson
@@ -85,8 +77,13 @@ object RotateFile {
           index = idx,
           time = create.atZone(zoneId)
         ),
-        closed = closed.atZone(zoneId),
+        closed = closed.atZone(zoneId).toInstant,
         url = url,
         recordCount = recordCount
       )
 }
+
+final case class RotateWriteException(create: CreateRotateFile, url: Url, offset: Long, throwable: Throwable)
+    extends Exception(
+      show"fail writing $url offset=$offset, index=${create.index}, create=${create.time}",
+      throwable)
