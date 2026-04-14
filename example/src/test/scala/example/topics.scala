@@ -3,7 +3,6 @@ package example
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import io.circe.Codec
-import io.github.iltotore.iron.*
 import org.apache.avro.generic.GenericRecord
 
 final case class Foo(a: Int, b: String)

@@ -156,8 +156,8 @@ final class CloudWatchObserver[F[_]: Async] private (
     } yield event
   }
 
-  def scrape(namespace: String, sms: Stream[F, MetricsSnapshot]): Stream[F, Event] =
-    sms.through(observe(namespace))
+  def scrape(namespace: String): Pipe[F, MetricsSnapshot, Unit] =
+    _.through(observe(namespace)).void
 
   private case class MetricKey(
     timestamp: Timestamp,

@@ -4,7 +4,6 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import com.github.chenharryhua.nanjin.kafka.connector.PullError
@@ -52,7 +51,7 @@ object kafka_connector_s3 {
   val dump: fs2.Stream[IO, Event] =
     aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
+      val sink: Pipe[IO, GenericRecord, RotateFile] = // rotate files every 5 minutes
         hadoop.rotateSink(ga.zoneId, _.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
       ga.facilitate("abc")(logMetrics).use { _ =>
         ctx

@@ -81,7 +81,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .repeatN(number)
       .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
         path / file.fileName(t)).binAvro)
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -107,7 +107,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .chunkN(1000)
       .unchunks
       .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -152,7 +152,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

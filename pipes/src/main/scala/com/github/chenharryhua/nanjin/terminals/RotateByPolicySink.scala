@@ -6,7 +6,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
 import cats.syntax.monadError.given
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -19,7 +18,8 @@ import scalapb.GeneratedMessage
 
 final private class RotateByPolicySink[F[_]: Async](
   configuration: Configuration,
-  tickedUrl: Stream[F, TickedValue[Url]])
+  pathBuilder: CreateRotateFile => Url,
+  rotateSequence: Stream[F, CreateRotateFile])
     extends RotateByPolicy[F] {
 
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
@@ -27,61 +27,48 @@ final private class RotateByPolicySink[F[_]: Async](
   private def doWork[A](
     getWriter: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
-    merged: Stream[F, Either[Chunk[A], TickedValue[Url]]],
-    currentTick: TickedValue[Url],
+    merged: Stream[F, Either[Chunk[A], CreateRotateFile]],
+    current: CreateRotateFile,
     count: Long
-  ): Pull[F, TickedValue[RotateFile], Unit] =
+  ): Pull[F, RotateFile, Unit] =
     merged.pull.uncons1.flatMap {
       case None =>
-        for {
-          now <- Pull.eval(Async[F].realTimeInstant)
-          _ <- Pull.output1[F, TickedValue[RotateFile]](currentTick.map { url =>
-            RotateFile(
-              open = currentTick.tick.local(_.acquires),
-              close = now.atZone(currentTick.tick.zoneId).toLocalDateTime,
-              url = url,
-              recordCount = count)
-          })
-        } yield ()
+        Pull.eval(Async[F].realTimeInstant).flatMap(now =>
+          Pull.output1[F, RotateFile](RotateFile(current, now, pathBuilder(current), count)))
 
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull
-              .eval(hotswap.get.use(_.write(data)))
-              .adaptError(ex => RotateWriteException(currentTick, ex)) >>
-              doWork(getWriter, hotswap, tail, currentTick, count + data.size)
-          case Right(nextTick) =>
+            Pull.eval(hotswap.get.use(_.write(data)).adaptError(ex =>
+              RotateWriteException(current, pathBuilder(current), count, ex))) >>
+              doWork(getWriter, hotswap, tail, current, count + data.size)
+          case Right(next) =>
             for {
-              _ <- Pull.eval(hotswap.swap(getWriter(nextTick.value)))
-              _ <- Pull.output1[F, TickedValue[RotateFile]](
-                currentTick.map(url =>
-                  RotateFile(
-                    open = currentTick.tick.local(_.acquires),
-                    close = nextTick.tick.local(_.acquires),
-                    url = url,
-                    recordCount = count
-                  )))
-              _ <- doWork(getWriter, hotswap, tail, nextTick, 0L)
+              _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(next))))
+              _ <- Pull.output1[F, RotateFile](
+                RotateFile(
+                  create = current,
+                  closed = next.time.toInstant,
+                  url = pathBuilder(current),
+                  recordCount = count
+                ))
+              _ <- doWork(getWriter, hotswap, tail, next, 0L)
             } yield ()
         }
     }
 
-  private def persist[A](
-    data: Stream[F, Chunk[A]],
-    ticks: Stream[F, TickedValue[Url]],
-    getWriter: GetWriter[A]): Pull[F, TickedValue[RotateFile], Unit] =
-    ticks.pull.uncons1.flatMap {
+  private def persist[A](data: Stream[F, Chunk[A]], getWriter: GetWriter[A]): Pull[F, RotateFile, Unit] =
+    rotateSequence.pull.uncons1.flatMap {
       case None               => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
-          .resource(NonEmptyHotswap(getWriter(head.value)))
+          .resource(NonEmptyHotswap(getWriter(pathBuilder(head))))
           .flatMap { hotswap =>
             doWork(
               getWriter = getWriter,
               hotswap = hotswap,
               merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
-              currentTick = head,
+              current = head,
               count = 0L).stream
           }
           .pull
@@ -89,10 +76,10 @@ final private class RotateByPolicySink[F[_]: Async](
     }
 
   private def generic_record_stream_peek_one(get_writer: Schema => GetWriter[GenericRecord])(
-    ss: Stream[F, GenericRecord]): Stream[F, TickedValue[RotateFile]] =
+    ss: Stream[F, GenericRecord]): Stream[F, RotateFile] =
     ss.pull.peek1.flatMap {
       case Some((gr, stream)) =>
-        persist(stream.chunks, tickedUrl, get_writer(gr.getSchema))
+        persist(stream.chunks, get_writer(gr.getSchema))
       case None => Pull.done
     }.stream
 
@@ -113,7 +100,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream
   }
 
   // binary avro
@@ -128,7 +115,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.binAvroR[F](configuration, schema, url))
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream
   }
 
   // jackson json
@@ -143,7 +130,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.jacksonR[F](configuration, schema, url))
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream
   }
 
   // parquet
@@ -160,7 +147,7 @@ final private class RotateByPolicySink[F[_]: Async](
       HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f).map(f), url)
     }
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream
   }
 
   // bytes
@@ -168,7 +155,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[Byte] =
       Reader(url => HadoopWriter.byteR[F](configuration, url))
 
-    (ss: Stream[F, Byte]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, Byte]) => persist(ss.chunks, get_writer).stream
   }
 
   // circe json
@@ -176,7 +163,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[Json] =
       Reader(url => HadoopWriter.circeR[F](configuration, url))
 
-    (ss: Stream[F, Json]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss.chunks, get_writer).stream
   }
 
   // kantan csv
@@ -185,8 +172,7 @@ final private class RotateByPolicySink[F[_]: Async](
       Reader(url =>
         HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(headerWithCrlf(csvConfiguration))))
 
-    (ss: Stream[F, Seq[String]]) =>
-      persist(ss.map(csvRow(csvConfiguration)).chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)).chunks, get_writer).stream
   }
 
   // text
@@ -194,7 +180,7 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[String] =
       Reader(url => HadoopWriter.stringR(configuration, url))
 
-    (ss: Stream[F, String]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, String]) => persist(ss.chunks, get_writer).stream
   }
 
   // protobuf
@@ -202,14 +188,14 @@ final private class RotateByPolicySink[F[_]: Async](
     val get_writer: GetWriter[GeneratedMessage] =
       Reader(url => HadoopWriter.protobufR(configuration, url))
 
-    (ss: Stream[F, GeneratedMessage]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, GeneratedMessage]) => persist(ss.chunks, get_writer).stream
   }
 
   // json node
-  override def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]] = {
+  override def jsonNode: Pipe[F, JsonNode, RotateFile] = {
     val get_writer: GetWriter[JsonNode] =
       Reader(url => HadoopWriter.jsonNodeR(configuration, url))
 
-    (ss: Stream[F, JsonNode]) => persist(ss.chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, JsonNode]) => persist(ss.chunks, get_writer).stream
   }
 }

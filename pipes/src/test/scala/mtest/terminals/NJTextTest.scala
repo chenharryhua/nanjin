@@ -87,10 +87,10 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / fk.fileName(t)).text)
-      .evalTap(tv => IO.println(tv.value.window))
-      .debug()
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(100.milliseconds))(t => path / fk.fileName(t)).text)
+      .evalTap(tv => IO.println(tv.window))
+      .debug(_.asJson.noSpaces)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -115,9 +115,9 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / fk.fileName(t)).text)
-      .debug()
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .through(hdp.rotateSink(sydneyTime, 15000)(t => path / fk.fileName(t)).text)
+      .debug(_.asJson.noSpaces)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -167,7 +167,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value.recordCount)
+      .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
