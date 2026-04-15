@@ -38,7 +38,7 @@ val monocleV = "3.3.0"
 val natchezV = "0.3.9"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
-val skunkV = "0.6.5"
+val skunkV = "1.0.0"
 val slf4jV = "2.0.17"
 
 lazy val commonSettings = List(
