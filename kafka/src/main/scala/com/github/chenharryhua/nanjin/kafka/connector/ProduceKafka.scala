@@ -44,11 +44,13 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
     }
   }
 
-  override lazy val sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]] =
-    (ss: Stream[F, ProducerRecord[K, V]]) =>
+  override lazy val chunkSink: Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
+    (ss: Stream[F, ProducerRecords[K, V]]) =>
       KafkaProducer.stream[F, K, V](producerSettings).flatMap { producer =>
-        ss.chunks.evalMap(producer.produce).parEvalMap(Int.MaxValue)(a => a)
+        ss.evalMap(producer.produce).parEvalMap(Int.MaxValue)(a => a)
       }
+  override lazy val sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]] =
+    _.chunks.through(chunkSink)
 
   /*
    * for testing and repl

@@ -4,7 +4,7 @@ import cats.Foldable
 import cats.data.ReaderT
 import cats.effect.kernel.{Concurrent, Resource}
 import com.github.chenharryhua.nanjin.kafka.{OffsetRange, PartitionRange, TopicPartitionMap}
-import fs2.kafka.{CommittableConsumerRecord, KafkaProducer, ProducerRecord, ProducerResult}
+import fs2.kafka.{CommittableConsumerRecord, KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -48,6 +48,7 @@ trait ProducerService[F[_], K, V] {
 
   def pairSink: Pipe[F, (K, V), ProducerResult[K, V]]
   def sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]]
+  def chunkSink: Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]]
 
   def produceOne(k: K, v: V): F[RecordMetadata]
   def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata]
