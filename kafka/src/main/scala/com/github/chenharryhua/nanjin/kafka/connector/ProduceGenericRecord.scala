@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.admins.SchemaRegistryApi
 import com.github.chenharryhua.nanjin.kafka.schema.jackson2GenericRecord
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, OptionalAvroSchemaPair, TopicName}
 import fs2.kafka.*
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -48,17 +48,20 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
   /*
    * sink
    */
-  lazy val sink: Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
-    (grStream: Stream[F, GenericRecord]) =>
+  lazy val chunkSink: Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
+    (grStream: Stream[F, Chunk[GenericRecord]]) =>
       for {
         pair <- Stream.eval(validateSchema)
         push = new PushGenericRecord(srClient, topicName, pair)
         producer <- KafkaProducer.stream(producerSettings)
-        prs <- grStream.chunks
+        prs <- grStream
           .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
           .parEvalMap(Int.MaxValue)(identity)
       } yield prs
   }
+
+  lazy val sink: Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] =
+    _.chunks.through(chunkSink)
 
   def produceOne(record: GenericRecord): F[RecordMetadata] =
     for {

@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.42.35"
+val awsV = "2.42.36"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.9.0"
@@ -35,7 +35,7 @@ val log4catsV = "2.8.0"
 val logbackV = "1.5.32"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
-val natchezV = "0.3.9"
+val natchezV = "0.3.10"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
 val skunkV = "1.0.0"
@@ -258,11 +258,11 @@ lazy val observer_kafka = (project in file("observers/kafka"))
 
 lazy val observer_database = (project in file("observers/database"))
   .dependsOn(guard)
-  .dependsOn(database)
   .settings(commonSettings *)
   .settings(name := "nj-observer-database")
   .settings(
     libraryDependencies ++= List(
+      "org.tpolecat" %% "skunk-core"                % skunkV,
       "org.tpolecat" %% "skunk-circe"               % skunkV,
       "org.typelevel" %% "scalac-compat-annotation" % docV // doc
     ) ++ testLib
@@ -280,7 +280,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-core"   % doobieV,
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
-      "org.tpolecat" %% "skunk-core"    % skunkV,
+
       // java
       "com.zaxxer"     % "HikariCP"        % "7.0.2",
       "org.postgresql" % "postgresql"      % postgresV % Test,
