@@ -37,7 +37,7 @@ import scala.util.Try
   * @tparam F
   *   Effect type
   */
-final class KafkaContext[F[_]] private (val settings: KafkaSettings)
+final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] {
 
   /** Returns a new KafkaContext with updated settings. */
@@ -195,8 +195,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     ProduceGenericRecord[F](
       topicName = topicName,
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
-      fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(topicName),
-      srs = settings.schemaRegistrySettings,
+      srClient = schema_registry_internal,
       producerSettings =
         ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
           .withProperties(settings.producerSettings.properties)
@@ -285,10 +284,4 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .map(_.flatten)
     program.use(identity)
   }
-}
-
-object KafkaContext {
-
-  /** Construct a KafkaContext from KafkaSettings. */
-  def apply[F[_]](settings: KafkaSettings): KafkaContext[F] = new KafkaContext[F](settings)
 }

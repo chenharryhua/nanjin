@@ -79,6 +79,10 @@ final case class KafkaSettings(
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     copy(schemaRegistrySettings = schemaRegistrySettings.withProperty(key, value))
 
+  def withAdminClient(f: AdminClientSettings => AdminClientSettings): KafkaSettings =
+    copy(adminSettings = f(adminSettings))
+
+  def context[F[_]]: KafkaContext[F] = new KafkaContext[F](this)
 }
 
 object KafkaSettings {
