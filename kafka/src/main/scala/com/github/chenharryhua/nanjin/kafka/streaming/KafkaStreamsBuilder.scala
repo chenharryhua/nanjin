@@ -7,7 +7,7 @@ import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.HasProperties
 import com.github.chenharryhua.nanjin.common.utils.toProperties
-import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistrySettings}
+import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
@@ -35,7 +35,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
   streamSettings: KafkaStreamSettings,
   srClient: SchemaRegistryClient,
-  schemaRegistrySettings: SchemaRegistrySettings,
+  serdeSettings: SerdeSettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
   startUpTimeout: Duration)(using F: Async[F])
     extends HasProperties {
@@ -95,7 +95,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       applicationId = applicationId,
       streamSettings = streamSettings,
       srClient = srClient,
-      schemaRegistrySettings = schemaRegistrySettings,
+      serdeSettings = serdeSettings,
       top = top,
       startUpTimeout = value
     )
@@ -105,7 +105,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       applicationId = applicationId,
       streamSettings = streamSettings.withProperty(key, value),
       srClient = srClient,
-      schemaRegistrySettings = schemaRegistrySettings,
+      serdeSettings = serdeSettings,
       top = top,
       startUpTimeout = startUpTimeout
     )
@@ -115,14 +115,14 @@ final class KafkaStreamsBuilder[F[_]] private (
       applicationId = applicationId,
       streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) },
       srClient = srClient,
-      schemaRegistrySettings = schemaRegistrySettings,
+      serdeSettings = serdeSettings,
       top = top,
       startUpTimeout = startUpTimeout
     )
 
   lazy val topology: Topology = {
     val streamsBuilder: StreamsBuilder = new StreamsBuilder()
-    val streamsSerde: StreamsSerde = new StreamsSerde(srClient, schemaRegistrySettings)
+    val streamsSerde: StreamsSerde = new StreamsSerde(srClient, serdeSettings)
     top(streamsBuilder, streamsSerde)
 
     streamsBuilder.build(toProperties(properties))
@@ -134,13 +134,13 @@ object KafkaStreamsBuilder {
     applicationId: String,
     streamSettings: KafkaStreamSettings,
     srClient: SchemaRegistryClient,
-    schemaRegistrySettings: SchemaRegistrySettings,
+    serdeSettings: SerdeSettings,
     top: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings,
       srClient = srClient,
-      schemaRegistrySettings = schemaRegistrySettings,
+      serdeSettings = serdeSettings,
       top = top,
       startUpTimeout = Duration.Inf
     )

@@ -18,9 +18,7 @@ class UpAndDownJsonTest extends AnyFunSuite {
       KafkaSettings.local
         .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
-        .withSchemaRegistryProperty(
-          KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE,
-          classOf[JsonNode].getName)
+        .withSerdeProperty(KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE, classOf[JsonNode].getName)
     )
 
   private val topic = TopicName("up.and.down.json2")

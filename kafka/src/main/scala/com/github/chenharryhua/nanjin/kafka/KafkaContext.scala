@@ -60,7 +60,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     *   StateStores instance
     */
   def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
-    StateStores[K, V](topic.register(schema_registry_internal, settings.schemaRegistrySettings))
+    StateStores[K, V](topic.register(schema_registry_internal, settings.serdeSettings))
 
   /** Returns the registered Serde pair for a topic.
     *
@@ -72,13 +72,13 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     *   Value type
     */
   def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
-    topic.register(schema_registry_internal, settings.schemaRegistrySettings)
+    topic.register(schema_registry_internal, settings.serdeSettings)
 
   def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
-    rs.asKey(schema_registry_internal, settings.schemaRegistrySettings.config)
+    rs.asKey(schema_registry_internal, settings.serdeSettings.properties)
 
   def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
-    rs.asValue(schema_registry_internal, settings.schemaRegistrySettings.config)
+    rs.asValue(schema_registry_internal, settings.serdeSettings.properties)
 
   // --------------------------------------------------------------------------
   // Schema Registry
@@ -87,12 +87,12 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   private lazy val schema_registry_internal: SchemaRegistryClient = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val baseUrl: String =
-      settings.schemaRegistrySettings.config.getOrElse(
+      settings.serdeSettings.properties.getOrElse(
         url_config,
         throw new IllegalStateException(s"Fatal error: $url_config is absent")
       ) // scalafix:ok
 
-    val cacheCapacity: Int = settings.schemaRegistrySettings.config
+    val cacheCapacity: Int = settings.serdeSettings.properties
       .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_CONFIG)
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
@@ -126,10 +126,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume[K, V](topic: TopicDef[K, V])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
-      topic.consumerSettings(
-        schema_registry_internal,
-        settings.schemaRegistrySettings,
-        settings.consumerSettings)
+      topic.consumerSettings(schema_registry_internal, settings.serdeSettings, settings.consumerSettings)
     )
 
   def attemptConsume[K, V](topic: TopicDef[K, V])(using
@@ -138,7 +135,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       topic.topicName,
       topic.attemptConsumerSettings(
         schema_registry_internal,
-        settings.schemaRegistrySettings,
+        settings.serdeSettings,
         settings.consumerSettings)
     )
 
@@ -177,10 +174,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
-      topic.producerSettings[F](
-        schema_registry_internal,
-        settings.schemaRegistrySettings,
-        settings.producerSettings))
+      topic.producerSettings[F](schema_registry_internal, settings.serdeSettings, settings.producerSettings))
 
   def produce[K, V](
     topicName: TopicName,
@@ -218,7 +212,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       applicationId,
       settings.streamSettings,
       schema_registry_internal,
-      settings.schemaRegistrySettings,
+      settings.serdeSettings,
       topology)
 
   // --------------------------------------------------------------------------

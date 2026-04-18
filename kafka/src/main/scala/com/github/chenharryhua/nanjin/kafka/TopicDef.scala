@@ -12,34 +12,34 @@ final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], valu
   def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, key, value)
   def consumerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
-    srs: SchemaRegistrySettings,
+    srs: SerdeSettings,
     cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] = {
-    val k = key.asKey(srClient, srs.config).deserializer[F]
-    val v = value.asValue(srClient, srs.config).deserializer[F]
+    val k = key.asKey(srClient, srs.properties).deserializer[F]
+    val v = value.asValue(srClient, srs.properties).deserializer[F]
     ConsumerSettings[F, K, V](using k, v).withProperties(cs.properties)
   }
 
   def attemptConsumerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
-    srs: SchemaRegistrySettings,
+    srs: SerdeSettings,
     cs: KafkaConsumerSettings): ConsumerSettings[F, Either[Throwable, K], Either[Throwable, V]] = {
-    val k = key.asKey(srClient, srs.config).deserializer[F].map(_.attempt)
-    val v = value.asValue(srClient, srs.config).deserializer[F].map(_.attempt)
+    val k = key.asKey(srClient, srs.properties).deserializer[F].map(_.attempt)
+    val v = value.asValue(srClient, srs.properties).deserializer[F].map(_.attempt)
     ConsumerSettings(using k, v).withProperties(cs.properties)
   }
 
   def producerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
-    srs: SchemaRegistrySettings,
+    srs: SerdeSettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] = {
-    val k = key.asKey(srClient, srs.config).serializer[F]
-    val v = value.asValue(srClient, srs.config).serializer[F]
+    val k = key.asKey(srClient, srs.properties).serializer[F]
+    val v = value.asValue(srClient, srs.properties).serializer[F]
     ProducerSettings[F, K, V](using k, v).withProperties(ps.properties)
   }
 
-  def register(srClient: SchemaRegistryClient, srs: SchemaRegistrySettings): TopicSerde[K, V] = {
-    val k = key.asKey(srClient, srs.config).serde
-    val v = value.asValue(srClient, srs.config).serde
+  def register(srClient: SchemaRegistryClient, srs: SerdeSettings): TopicSerde[K, V] = {
+    val k = key.asKey(srClient, srs.properties).serde
+    val v = value.asValue(srClient, srs.properties).serde
     TopicSerde(topicName = topicName, key = KafkaSerde(k, topicName), value = KafkaSerde(v, topicName))
   }
 
