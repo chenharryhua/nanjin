@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.CommittableConsumerRecord
-import fs2.kafka.consumer.{KafkaAssignment, KafkaOffsets, KafkaTopicsV2}
+import fs2.kafka.consumer.{KafkaAssignment, KafkaOffsets, KafkaTopics}
 import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
@@ -21,7 +21,7 @@ import java.time.Instant
  */
 trait ConsumerService[F[_], K, V] {
   protected def assignByTime(
-    kc: KafkaAssignment[F] & KafkaTopicsV2[F] & KafkaOffsets[F],
+    kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
     tn: TopicName,
     time: Instant)(using Sync[F]): F[Unit] =
     for {
@@ -40,7 +40,7 @@ trait ConsumerService[F[_], K, V] {
     } yield ()
 
   protected def assignByMap(
-    kc: KafkaAssignment[F] & KafkaTopicsV2[F] & KafkaOffsets[F],
+    kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
     tn: TopicName,
     map: Map[Int, Long])(using F: Sync[F]): F[Unit] = {
     val tpm = TopicPartitionMap(map.map { case (p, o) => new TopicPartition(tn.value, p) -> o })

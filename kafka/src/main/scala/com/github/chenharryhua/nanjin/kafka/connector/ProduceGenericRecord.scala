@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.Endo
+import cats.{Endo, Parallel}
 import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
@@ -18,7 +18,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
 /*
  * Produce Generic Record
  */
-final class ProduceGenericRecord[F[_]] private[kafka] (
+final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
   srClient: SchemaRegistryClient,

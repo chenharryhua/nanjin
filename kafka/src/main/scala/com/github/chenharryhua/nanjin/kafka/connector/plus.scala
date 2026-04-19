@@ -43,8 +43,8 @@ trait ManualCommitStream[F[_], K, V] {
  */
 
 trait ProducerService[F[_], K, V] {
-  def clientR: Resource[F, KafkaProducer.Metrics[F, K, V]]
-  def clientS: Stream[F, KafkaProducer.Metrics[F, K, V]]
+  def clientR: Resource[F, KafkaProducer[F, K, V]]
+  def clientS: Stream[F, KafkaProducer[F, K, V]]
 
   def pairSink: Pipe[F, (K, V), ProducerResult[K, V]]
   def sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]]
@@ -54,5 +54,4 @@ trait ProducerService[F[_], K, V] {
   def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata]
   def produce[G[_]: Foldable](kvs: G[(K, V)]): F[ProducerResult[K, V]]
 
-  def transactional(transactionalId: String): KafkaTransactional[F, K, V]
 }

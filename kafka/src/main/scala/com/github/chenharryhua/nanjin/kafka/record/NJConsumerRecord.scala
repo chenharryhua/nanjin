@@ -4,6 +4,7 @@ import cats.Bitraverse
 import cats.data.Cont
 import cats.derived.derived
 import cats.kernel.Eq
+import cats.syntax.apply.given
 import cats.syntax.eq.given
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
@@ -151,10 +152,7 @@ object NJConsumerRecord {
   given [K, V]: Transformer[ConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: ConsumerRecord[K, V]) => {
       val (timestampType, timestamp) =
-        src.timestamp.createTime
-          .map((JavaTimestampType.CREATE_TIME.id, _))
-          .orElse(src.timestamp.logAppendTime.map((JavaTimestampType.LOG_APPEND_TIME.id, _)))
-          .orElse(src.timestamp.unknownTime.map((JavaTimestampType.NO_TIMESTAMP_TYPE.id, _)))
+        (src.timestamp.timestampType, src.timestamp.toOption).mapN((tt, ts) => (tt.id, ts))
           .getOrElse((JavaTimestampType.NO_TIMESTAMP_TYPE.id, JavaConsumerRecord.NO_TIMESTAMP))
 
       NJConsumerRecord(

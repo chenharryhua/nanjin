@@ -31,9 +31,8 @@ final private class PushGenericRecord(
               case Success(value) => value
               case Failure(ex)    => throw ex // scalafix:ok
             }
-          case other =>
-            val description = s"${other.getClass.getName} is not a Generic Record"
-            throw new Exception(description) // scalafix:ok
+          case unknown =>
+            sys.error(s"${unknown.getClass.getName} is not a Generic Record")
         }
 
       case Schema.Type.STRING =>

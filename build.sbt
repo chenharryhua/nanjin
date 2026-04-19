@@ -24,7 +24,7 @@ val kafkaV = "8.2.0-ce"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
-val fs2KafkaV = "3.9.1"
+val fs2KafkaV = "4.0.0-RC2"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
 val http4sV = "0.23.34"
@@ -303,7 +303,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(
     libraryDependencies ++= List(
-      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+      ("org.typelevel" %% "fs2-kafka"             % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
       "io.circe" %% "circe-jawn"                  % circeV,
       "io.circe" %% "circe-optics"                % "0.15.1",
       "io.circe" %% "circe-jawn"                  % circeV,

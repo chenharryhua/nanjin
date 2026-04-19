@@ -186,7 +186,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
       )
       .updateConfig(_.withAcks(Acks.Zero))
-      .transactional("trans")
       .properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))

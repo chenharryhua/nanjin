@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
+import cats.{Endo, Parallel}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,
@@ -171,7 +171,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   // Producers
   // --------------------------------------------------------------------------
 
-  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
+  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
       topic.producerSettings[F](schema_registry_internal, settings.serdeSettings, settings.producerSettings))
@@ -179,13 +179,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def produce[K, V](
     topicName: TopicName,
     k: Resource[F, KeySerializer[F, K]],
-    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F]): ProduceKafka[F, K, V] =
+    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topicName,
       ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
   def produceGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
-    using F: Async[F]): ProduceGenericRecord[F] =
+    using
+    F: Async[F],
+    ev: Parallel[F]): ProduceGenericRecord[F] =
     ProduceGenericRecord[F](
       topicName = topicName,
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),

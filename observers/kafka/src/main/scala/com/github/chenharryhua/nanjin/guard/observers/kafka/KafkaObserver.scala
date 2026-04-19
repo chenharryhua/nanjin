@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.kafka
 
-import cats.Endo
+import cats.{Endo, Parallel}
 import cats.effect.kernel.Async
 import cats.syntax.applicativeError.given
 import cats.syntax.apply.given
@@ -25,11 +25,12 @@ import java.nio.ByteBuffer
 final case class EventKey(task: String, service: String) derives Codec.AsObject
 
 object KafkaObserver {
-  def apply[F[_]: Async](ctx: KafkaContext[F]): KafkaObserver[F] =
+  def apply[F[_]: {Async, Parallel}](ctx: KafkaContext[F]): KafkaObserver[F] =
     new KafkaObserver[F](ctx, Translator.idTranslator[F])
 }
 
-final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(using F: Async[F])
+final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Translator[F, Event])(using
+  F: Async[F])
     extends UpdateTranslator[F, Event, KafkaObserver[F]] {
 
   private val name: String = "Kafka Observer"

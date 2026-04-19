@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.record
 
 import cats.data.Cont
 import cats.syntax.eq.given
+import cats.syntax.apply.given
 import fs2.kafka.*
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.into
@@ -57,10 +58,7 @@ given [K, V]: Transformer[JavaConsumerRecord[K, V], ConsumerRecord[K, V]] =
 given [K, V]: Transformer[ConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
   (src: ConsumerRecord[K, V]) => {
     val (timestampType, timestamp) =
-      src.timestamp.createTime
-        .map((JavaTimestampType.CREATE_TIME, _))
-        .orElse(src.timestamp.logAppendTime.map((JavaTimestampType.LOG_APPEND_TIME, _)))
-        .orElse(src.timestamp.unknownTime.map((JavaTimestampType.NO_TIMESTAMP_TYPE, _)))
+      (src.timestamp.timestampType, src.timestamp.toOption).mapN((_, _))
         .getOrElse((JavaTimestampType.NO_TIMESTAMP_TYPE, JavaConsumerRecord.NO_TIMESTAMP))
 
     new JavaConsumerRecord[K, V](
