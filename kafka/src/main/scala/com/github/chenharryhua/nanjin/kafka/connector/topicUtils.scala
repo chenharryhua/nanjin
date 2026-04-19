@@ -17,14 +17,14 @@ import com.github.chenharryhua.nanjin.kafka.{
   TopicPartitionMap
 }
 import fs2.Stream
-import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
+import fs2.kafka.consumer.{KafkaConsume, KafkaTopics}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.common.TopicPartition
 
 private object topicUtils {
   private def get_offset_range_by_time[F[_]: Monad](
-    client: KafkaTopicsV2[F],
+    client: KafkaTopics[F],
     topicName: TopicName,
     dtr: DateTimeRange): F[TopicPartitionMap[OffsetRange]] =
     client.partitionsFor(topicName.value).flatMap { pis =>
@@ -56,7 +56,7 @@ private object topicUtils {
     }
 
   private def get_offset_range_by_offsets[F[_]: Monad](
-    client: KafkaTopicsV2[F],
+    client: KafkaTopics[F],
     topicName: TopicName,
     pos: Map[Int, (Long, Long)]): F[TopicPartitionMap[OffsetRange]] =
     for {
@@ -83,7 +83,7 @@ private object topicUtils {
     }
 
   def get_offset_range[F[_]: Monad](
-    client: KafkaTopicsV2[F],
+    client: KafkaTopics[F],
     topicName: TopicName,
     or: Either[DateTimeRange, Map[Int, (Long, Long)]]): F[TopicPartitionMap[OffsetRange]] =
     or match {

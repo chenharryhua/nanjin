@@ -11,6 +11,7 @@ import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.into
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
 
@@ -40,12 +41,20 @@ final case class NJProducerRecord[K, V](
   def noTimestamp: NJProducerRecord[K, V] = copy(timestamp = None)
   def noHeaders: NJProducerRecord[K, V] = copy(headers = Nil)
 
+  def noKey: NJProducerRecord[K, V] = copy(key = None)
+  def noValue: NJProducerRecord[K, V] = copy(value = None)
+
   def noMeta: NJProducerRecord[K, V] = copy(partition = None, timestamp = None, headers = Nil)
 
   def toProducerRecord(using Null <:< K, Null <:< V): ProducerRecord[K, V] =
     this.into[ProducerRecord[K, V]].transform
   def toJavaProducerRecord(using Null <:< K, Null <:< V): JavaProducerRecord[K, V] =
     this.into[JavaProducerRecord[K, V]].transform
+
+  def toGenericRecord(using Encoder[K], Encoder[V], SchemaFor[K], SchemaFor[V]): GenericRecord = {
+    val schema = summon[SchemaFor[NJProducerRecord[K, V]]].schema
+    ToRecord[NJProducerRecord[K, V]](schema).to(this)
+  }
 }
 
 object NJProducerRecord {

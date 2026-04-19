@@ -14,7 +14,7 @@ package object kafka {
         .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states")
-        .withSchemaRegistryProperty("auto.register.schemas", "true")
+        .withSerdeProperty("auto.register.schemas", "true")
     )
 
   val taxi: TopicDef[Integer, trip_record] =

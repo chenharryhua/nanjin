@@ -16,7 +16,7 @@ class KafkaSettingsTest extends AnyFunSuite {
       .withProducerProperty(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "producer")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
       .withSaslJaas("jaas")
-      .withSchemaRegistryProperty("a", "b")
+      .withSerdeProperty("a", "b")
 
     assert(p.producerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "producer")
     assert(p.consumerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker-url")
@@ -25,7 +25,7 @@ class KafkaSettingsTest extends AnyFunSuite {
     assert(p.producerSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
     assert(p.consumerSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
     assert(p.streamSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
-    assert(p.schemaRegistrySettings.config("a") === "b")
+    assert(p.serdeSettings.properties("a") === "b")
 
     val b = setting.withBrokers("broker")
     assert(b.consumerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker")

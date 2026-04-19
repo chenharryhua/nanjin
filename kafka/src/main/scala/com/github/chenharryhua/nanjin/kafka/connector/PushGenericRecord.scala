@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import com.github.chenharryhua.nanjin.kafka.schema.immigrate
-import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
 import fs2.kafka.ProducerRecord
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.serializers.KafkaAvroSerializer
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serdes
 
-import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.util.{Failure, Success}
 
 final private class PushGenericRecord(
-  srs: SchemaRegistrySettings,
+  srClient: SchemaRegistryClient,
   topicName: TopicName,
   pair: AvroSchemaPair) {
   val schema: Schema = pair.consumerSchema
@@ -22,18 +22,19 @@ final private class PushGenericRecord(
   private def getEncoder(skm: Schema): AnyRef => Array[Byte] = {
     skm.getType match
       case Schema.Type.RECORD =>
-        val ser = new KafkaAvroSerializer()
-        ser.configure(srs.config.asJava, true)
+        val ser = new KafkaAvroSerializer(srClient)
         // java world
         (_: AnyRef) match {
           case null              => null
           case gr: GenericRecord =>
-            immigrate(pair.key.rawSchema(), gr) match
-              case Success(value) => ser.serialize(topic, value)
-              case Failure(ex)    => throw new Exception("unable immigrate key", ex) // scalafix:ok
-          case other =>
-            throw new Exception(s"${other.getClass.getName} is not a Generic Record") // scalafix:ok
+            immigrate(skm, gr).map(ser.serialize(topic, _)) match {
+              case Success(value) => value
+              case Failure(ex)    => throw ex // scalafix:ok
+            }
+          case unknown =>
+            sys.error(s"${unknown.getClass.getName} is not a Generic Record")
         }
+
       case Schema.Type.STRING =>
         val ser = Serdes.String().serializer()
         (_: AnyRef) match
