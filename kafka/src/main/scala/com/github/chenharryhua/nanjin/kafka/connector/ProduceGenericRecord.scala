@@ -14,6 +14,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.producer.RecordMetadata
+import com.github.chenharryhua.nanjin.kafka.SerdeSettings
 
 /*
  * Produce Generic Record
@@ -22,6 +23,7 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
   srClient: SchemaRegistryClient,
+  serdeSettings: SerdeSettings,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceGenericRecord[F]]
     with HasProperties {
@@ -32,7 +34,7 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
   override def properties: Map[String, String] = producerSettings.properties
 
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F] =
-    new ProduceGenericRecord[F](topicName, schemaPair, srClient, f(producerSettings))
+    new ProduceGenericRecord[F](topicName, schemaPair, srClient, serdeSettings, f(producerSettings))
 
   private lazy val validateSchema: F[AvroSchemaPair] =
     SchemaRegistryApi[F](srClient)
@@ -52,7 +54,7 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
     (grStream: Stream[F, Chunk[GenericRecord]]) =>
       for {
         pair <- Stream.eval(validateSchema)
-        push = new PushGenericRecord(srClient, topicName, pair)
+        push = new PushGenericRecord(srClient, serdeSettings, topicName, pair)
         producer <- KafkaProducer.stream(producerSettings)
         prs <- grStream
           .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
@@ -66,7 +68,7 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
   def produceOne(record: GenericRecord): F[RecordMetadata] =
     for {
       pair <- validateSchema
-      push = new PushGenericRecord(srClient, topicName, pair)
+      push = new PushGenericRecord(srClient, serdeSettings, topicName, pair)
       res <- KafkaProducer
         .resource(producerSettings)
         .use(_.produceOne_(push.fromGenericRecord(record)).flatten)

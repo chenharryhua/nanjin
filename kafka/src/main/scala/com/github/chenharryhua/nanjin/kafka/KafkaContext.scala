@@ -192,6 +192,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       topicName = topicName,
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
       srClient = schema_registry_internal,
+      serdeSettings = settings.serdeSettings,
       producerSettings =
         ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
           .withProperties(settings.producerSettings.properties)
