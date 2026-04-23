@@ -196,7 +196,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
-      "org.http4s" %% "http4s-scalatags"    % "0.25.2",
+      "org.http4s" %% "http4s-scalatags"    % "0.25.3",
       "org.http4s" %% "http4s-ember-client" % http4sV % Test,
       // java
       "org.apache.commons"            % "commons-collections4" % "4.5.0",
