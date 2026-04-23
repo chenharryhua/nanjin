@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import com.github.chenharryhua.nanjin.kafka.schema.immigrate
-import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SerdeSettings, TopicName}
 import fs2.kafka.ProducerRecord
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.serializers.KafkaAvroSerializer
@@ -9,20 +9,22 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serdes
 
+import scala.jdk.CollectionConverters.given
 import scala.util.{Failure, Success}
 
 final private class PushGenericRecord(
   srClient: SchemaRegistryClient,
+  serdeSettings: SerdeSettings,
   topicName: TopicName,
   pair: AvroSchemaPair) {
-  val schema: Schema = pair.consumerSchema
 
   private val topic: String = topicName.value
 
-  private def getEncoder(skm: Schema): AnyRef => Array[Byte] = {
+  private def getEncoder(skm: Schema, isKey: Boolean): AnyRef => Array[Byte] = {
     skm.getType match
       case Schema.Type.RECORD =>
         val ser = new KafkaAvroSerializer(srClient)
+        ser.configure(serdeSettings.properties.asJava, isKey)
         // java world
         (_: AnyRef) match {
           case null              => null
@@ -88,8 +90,8 @@ final private class PushGenericRecord(
     end match
   }
 
-  private val key_serialize: AnyRef => Array[Byte] = getEncoder(pair.key.rawSchema())
-  private val val_serialize: AnyRef => Array[Byte] = getEncoder(pair.value.rawSchema())
+  private val key_serialize: AnyRef => Array[Byte] = getEncoder(pair.key.rawSchema(), true)
+  private val val_serialize: AnyRef => Array[Byte] = getEncoder(pair.value.rawSchema(), false)
 
   /** @param gr
     *   a GenericRecord of NJConsumerRecord
