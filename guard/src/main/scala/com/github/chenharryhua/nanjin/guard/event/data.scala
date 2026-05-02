@@ -111,14 +111,3 @@ object Domain:
   given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
   given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
-
-// ---------------- Label ----------------
-opaque type Label = String
-object Label:
-  def apply(value: String): Label = value
-  extension (l: Label) inline def value: String = l
-
-  given Show[Label] = OpaqueLift.lift[Label, String, Show]
-  given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
-  given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
-end Label

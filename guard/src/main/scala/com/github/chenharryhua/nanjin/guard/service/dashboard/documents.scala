@@ -179,12 +179,12 @@ private object documents {
 
     val list = metricsSnapshots.reverse.map { mr =>
       val took = Attribute(mr.took).textEntry
-      val label = Attribute(mr.label).textEntry
+      val idx = Attribute(mr.index).textEntry
       val timestamp = Attribute(mr.timestamp).textEntry
       div(
         table(
-          tr(th(style := htmlColoring(mr))(label.tag), th(timestamp.tag), th(took.tag)),
-          tr(td(label.text), td(timestamp.text), td(took.text))
+          tr(th(style := htmlColoring(mr))(idx.tag), th(timestamp.tag), th(took.tag)),
+          tr(td(idx.text), td(timestamp.text), td(took.text))
         ),
         pre(new SnapshotPolyglot(mr.snapshot).toYaml)
       )

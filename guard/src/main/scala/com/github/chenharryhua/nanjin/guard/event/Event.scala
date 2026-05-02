@@ -32,9 +32,6 @@ object Event {
   final case class MetricsSnapshot(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends Event {
     override val timestamp: Timestamp = Timestamp(index.scrapeTime)
-    val label: Label = index match
-      case Index.Adhoc(_)       => Label("Report-Adhoc")
-      case Index.Periodic(tick) => Label(s"Report-${tick.index}")
   }
 
   final case class ReportedEvent(
