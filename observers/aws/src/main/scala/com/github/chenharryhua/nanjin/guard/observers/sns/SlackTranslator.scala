@@ -59,8 +59,8 @@ private object SlackTranslator extends all {
 
   private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
-    val label = Attribute(evt.label).textEntry
-    JuxtaposeSection(first = TextField(uptime), second = TextField(label))
+    val idx = Attribute(evt.index).textEntry
+    JuxtaposeSection(first = TextField(uptime), second = TextField(idx))
   }
 
   private def metrics_section(snapshot: Snapshot): KeyValueSection = {
