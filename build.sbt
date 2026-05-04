@@ -116,18 +116,15 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-http")
-  .settings(
-    libraryDependencies ++= List(
-      "org.http4s" %% "http4s-circe"        % http4sV,
-      "org.http4s" %% "http4s-client"       % http4sV,
-      "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.http4s" %% "http4s-dsl"          % http4sV  % Test,
-      "org.http4s" %% "http4s-ember-server" % http4sV  % Test,
-      "org.http4s" %% "http4s-ember-client" % http4sV  % Test,
-      "org.tpolecat" %% "natchez-log"       % natchezV % Test,
-      // java
-      "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
-    ) ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-circe"        % http4sV,
+    "org.http4s" %% "http4s-client"       % http4sV,
+    "org.http4s" %% "http4s-dsl"          % http4sV % Test,
+    "org.http4s" %% "http4s-ember-server" % http4sV % Test,
+    "org.http4s" %% "http4s-ember-client" % http4sV % Test,
+    // java
+    "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
+  ) ++ testLib)
 
 // ==========================
 // Aws
