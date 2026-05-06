@@ -4,11 +4,8 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, httpRetry, traceClient}
-import com.github.chenharryhua.nanjin.http.server.middleware.TraceServer
+import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, httpRetry}
 import io.circe.Json
-import natchez.log.Log
-import natchez.{EntryPoint, Span}
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger as MLogger
@@ -29,10 +26,9 @@ import scala.util.Random
 
 class HttpTest extends AnyFunSuite {
   implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("logger")
-  private val entryPoint: EntryPoint[IO] = Log.entryPoint[IO]("http-test")
 
-  private def service(span: Span[IO]): HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case GET -> Root / "trace" / name     => span.log("trace") >> Ok(s"Hello, $name.")
+  private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
+    case GET -> Root / "trace" / name     => Ok(s"Hello, $name.")
     case GET -> Root / "cookie"           => Ok("cookie")
     case POST -> Root / "post"            => Ok("posted")
     case GET -> Root / "timeout" / reason =>
@@ -44,7 +40,7 @@ class HttpTest extends AnyFunSuite {
     .default[IO]
     .withHost(ipv4"0.0.0.0")
     .withPort(port"8080")
-    .withHttpApp(Router("/" -> GZip(TraceServer(entryPoint)(service))).orNotFound)
+    .withHttpApp(Router("/" -> GZip(service)).orNotFound)
     .build
 
   val ember: Resource[IO, Client[IO]] =
@@ -98,7 +94,7 @@ class HttpTest extends AnyFunSuite {
   }
 
   test("6.trace") {
-    val client = entryPoint.root("root").flatMap(ep => ember.map(traceClient(ep)))
+    val client = ember
     server
       .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
       .delayBy(2.seconds)

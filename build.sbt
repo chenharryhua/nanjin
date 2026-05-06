@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.44.0"
+val awsV = "2.44.2"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -24,7 +24,7 @@ val kafkaV = "8.2.0-ce"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
-val fs2KafkaV = "4.0.0-RC2"
+val fs2KafkaV = "4.0.0"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
 val http4sV = "0.23.34"
@@ -116,18 +116,15 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-http")
-  .settings(
-    libraryDependencies ++= List(
-      "org.http4s" %% "http4s-circe"        % http4sV,
-      "org.http4s" %% "http4s-client"       % http4sV,
-      "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.http4s" %% "http4s-dsl"          % http4sV  % Test,
-      "org.http4s" %% "http4s-ember-server" % http4sV  % Test,
-      "org.http4s" %% "http4s-ember-client" % http4sV  % Test,
-      "org.tpolecat" %% "natchez-log"       % natchezV % Test,
-      // java
-      "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
-    ) ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-circe"        % http4sV,
+    "org.http4s" %% "http4s-client"       % http4sV,
+    "org.http4s" %% "http4s-dsl"          % http4sV % Test,
+    "org.http4s" %% "http4s-ember-server" % http4sV % Test,
+    "org.http4s" %% "http4s-ember-client" % http4sV % Test,
+    // java
+    "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
+  ) ++ testLib)
 
 // ==========================
 // Aws
@@ -199,10 +196,8 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-scalatags"    % "0.25.3",
       "org.http4s" %% "http4s-ember-client" % http4sV % Test,
       // java
-      "org.apache.commons"            % "commons-collections4" % "4.5.0",
-      "io.dropwizard.metrics"         % "metrics-core"         % metricsV,
-      "com.github.ben-manes.caffeine" % "caffeine"             % caffeineV,
-      "ch.qos.logback"                % "logback-classic"      % logbackV % Test
+      "io.dropwizard.metrics" % "metrics-core"    % metricsV,
+      "ch.qos.logback"        % "logback-classic" % logbackV % Test
     ) ++ testLib
   )
   .settings {
@@ -353,19 +348,19 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"               % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
       // java
-      "software.amazon.awssdk" % "bundle"         % awsV,
-      "org.apache.parquet"     % "parquet-common" % parquetV,
-      "org.apache.parquet"     % "parquet-hadoop" % parquetV,
-      "org.apache.parquet"     % "parquet-avro"   % parquetV,
-      "org.apache.avro"        % "avro"           % avroV,
-      "org.tukaani"            % "xz"             % "1.12",
-      "at.yawk.lz4"            % "lz4-java"       % "1.11.0" // drop-in replacement of org.lz4:lz4-java
+      "org.apache.parquet" % "parquet-common" % parquetV,
+      "org.apache.parquet" % "parquet-hadoop" % parquetV,
+      "org.apache.parquet" % "parquet-avro"   % parquetV,
+      "org.apache.avro"    % "avro"           % avroV,
+      "org.tukaani"        % "xz"             % "1.12",
+      "at.yawk.lz4"        % "lz4-java"       % "1.11.0" // drop-in replacement of org.lz4:lz4-java
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(
     dependencyOverrides ++= List(
       "io.airlift"        % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
       "org.eclipse.jetty" % "jetty-server"      % "12.1.8", // snyk by hadoop-common
+      "org.bouncycastle"  % "bcprov-jdk18on"    % "1.84", // snyk by hadoop-common
       "io.netty"          % "netty-codec-http"  % "4.2.12.Final", // snyk by hadoop-common
       "io.netty"          % "netty-codec-http2" % "4.2.12.Final", // snyk by hadoop-client
       "io.netty"          % "netty-codec-smtp"  % "4.2.12.Final" // snyk by hadoop-client
