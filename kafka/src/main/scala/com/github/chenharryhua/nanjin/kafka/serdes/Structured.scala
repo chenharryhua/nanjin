@@ -85,7 +85,8 @@ object Structured:
           new Serializer[Json]:
             private val ser: Serializer[String] = Serdes.String().serializer()
             override def serialize(topic: String, data: Json): Array[Byte] =
-              ser.serialize(topic, data.noSpaces)
+              if (data eq null) null
+              else ser.serialize(topic, data.noSpaces)
 
         override val deserializer: Deserializer[Json] =
           new Deserializer[Json]:
