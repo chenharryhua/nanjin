@@ -1,26 +1,24 @@
 package com.github.chenharryhua.nanjin.guard.observers.kafka
 
-import cats.{Endo, Parallel}
 import cats.effect.kernel.Async
 import cats.syntax.applicativeError.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
+import cats.{Endo, Parallel}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
-import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
+import com.github.chenharryhua.nanjin.kafka.serdes.Structured
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import io.circe.syntax.EncoderOps
 import io.circe.{Codec, Json}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
-import java.nio.ByteBuffer
 
 final case class EventKey(task: String, service: String) derives Codec.AsObject
 
@@ -45,7 +43,7 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
               topicName.value,
               EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value).asJson,
               evt.asJson)))
-    val topic = TopicDef(topicName, Primitive[ByteBuffer].become[Json], Primitive[ByteBuffer].become[Json])
+    val topic = TopicDef(topicName, Structured[Json], Structured[Json])
     (ss: Stream[F, Event]) =>
       for {
         client <- ctx.produce(topic).clientS

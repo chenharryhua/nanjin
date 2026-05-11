@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.serdes
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.protobuf.DynamicMessage
+import io.circe.{Json, Printer}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.serializers.json.{KafkaJsonSchemaDeserializer, KafkaJsonSchemaSerializer}
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
@@ -75,4 +76,22 @@ object Structured:
         override val deserializer: Deserializer[DynamicMessage] =
           new KafkaProtobufDeserializer[DynamicMessage](srClient)
 
+  end given
+
+  given Structured[Json] = new Structured[Json]:
+    override protected def registerWith(srClient: SchemaRegistryClient): Serde[Json] =
+      new Serde[Json]:
+        override val serializer: Serializer[Json] =
+          (_: String, data: Json) =>
+            if data eq null then null
+            else Printer.noSpaces.printToByteBuffer(data).array()
+
+        override val deserializer: Deserializer[Json] =
+          (_: String, data: Array[Byte]) =>
+            if data eq null then null
+            else
+              io.circe.jawn.parseByteArray(data) match
+                case Right(value) => value
+                case Left(ex)     =>
+                  throw new SerializationException(s"Invalid: ${new String(data)}", ex) // scalafix:ok
   end given
