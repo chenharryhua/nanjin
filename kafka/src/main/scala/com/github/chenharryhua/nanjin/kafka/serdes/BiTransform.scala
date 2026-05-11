@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.schema.KafkaJsonSchema
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
-import io.circe.{Json, Printer}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
 import io.scalaland.chimney.Iso as ChimneyIso
 import monocle.Iso as MonocleIso
@@ -12,7 +12,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
-import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 sealed trait BiTransform[A, B]:
@@ -46,41 +45,16 @@ object BiTransform:
         JsonSchemaUtils.envelope(schema, globalObjectMapper.valueToTree[JsonNode](b))
   end given
 
-  /*
-   * Circe Json
-   */
+  given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =
+    new BiTransform[Json, B]:
+      private val enc: JsonEncoder[B] = JsonEncoder[B]
 
-  given BiTransform[ByteBuffer, Json] =
-    new BiTransform[ByteBuffer, Json]:
-      override def to(a: ByteBuffer): Json =
-        io.circe.jawn.parseByteBuffer(a) match
+      override def to(a: Json): B =
+        a.as[B] match
           case Left(ex)     => throw ex // scalafix:ok
           case Right(value) => value
 
-      override def from(b: Json): ByteBuffer =
-        Printer.noSpaces.printToByteBuffer(b)
-  end given
-
-  given BiTransform[Array[Byte], Json] =
-    new BiTransform[Array[Byte], Json]:
-      override def to(a: Array[Byte]): Json =
-        io.circe.jawn.parseByteArray(a) match
-          case Left(ex)     => throw ex // scalafix:ok
-          case Right(value) => value
-
-      override def from(b: Json): Array[Byte] =
-        Printer.noSpaces.printToByteBuffer(b).array()
-  end given
-
-  given BiTransform[String, Json] =
-    new BiTransform[String, Json]:
-      override def to(a: String): Json =
-        io.circe.jawn.parse(a) match
-          case Left(ex)     => throw ex // scalafix:ok
-          case Right(value) => value
-
-      override def from(b: Json): String =
-        Printer.noSpaces.print(b)
+      override def from(b: B): Json = enc(b)
   end given
 
   /*

@@ -39,14 +39,13 @@ class TopicSyntaxTest extends AnyFunSuite {
     Primitive[java.lang.Double].become[Option[Double]]
     Primitive[java.lang.Float].become[Option[Float]]
     Primitive[java.lang.Boolean].become[Option[Boolean]]
-    Primitive[String].become[Json]
-    Primitive[Array[Byte]].become[Json]
   }
 
   test("schema-based") {
     Structured[JsonNode].option.become[Option[Foo]].orNull
     Structured[GenericRecord].become[Foo]
     Structured[DynamicMessage]
+    Structured[Json].become[Foo]
   }
 
   test("nj consumer record basic") {
