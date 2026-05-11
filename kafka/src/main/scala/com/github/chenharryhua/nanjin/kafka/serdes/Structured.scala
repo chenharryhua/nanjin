@@ -22,7 +22,7 @@ object Structured:
       new Serde[GenericRecord] {
         override val serializer: Serializer[GenericRecord] =
           new Serializer[GenericRecord]:
-            private val ser = new KafkaAvroSerializer(srClient)
+            private val ser: KafkaAvroSerializer = new KafkaAvroSerializer(srClient)
 
             override def serialize(topic: String, data: GenericRecord): Array[Byte] =
               ser.serialize(topic, data)
@@ -38,7 +38,7 @@ object Structured:
 
         override val deserializer: Deserializer[GenericRecord] =
           new Deserializer[GenericRecord]:
-            private val deSer = new KafkaAvroDeserializer(srClient)
+            private val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(srClient)
 
             override def deserialize(topic: String, data: Array[Byte]): GenericRecord =
               deSer.deserialize(topic, data) match
@@ -81,23 +81,23 @@ object Structured:
   given Structured[Json] = new Structured[Json]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[Json] =
       new Serde[Json]:
-        override val serializer: Serializer[Json] = new Serializer[Json] {
-          private val ser: Serializer[String] = Serdes.String().serializer()
-          override def serialize(topic: String, data: Json): Array[Byte] =
-            ser.serialize(topic, data.noSpaces)
-        }
+        override val serializer: Serializer[Json] =
+          new Serializer[Json]:
+            private val ser: Serializer[String] = Serdes.String().serializer()
+            override def serialize(topic: String, data: Json): Array[Byte] =
+              ser.serialize(topic, data.noSpaces)
 
-        override val deserializer: Deserializer[Json] = new Deserializer[Json] {
-          private val deSer: Deserializer[String] = Serdes.String().deserializer()
-          override def deserialize(topic: String, data: Array[Byte]): Json = {
-            val str: String = deSer.deserialize(topic, data)
-            if str eq null then null
-            else
-              io.circe.jawn.parse(str) match {
-                case Right(value) => value
-                case Left(ex)     =>
-                  throw new SerializationException(s"Invalid: $str", ex) // scalafix:ok
-              }
-          }
-        }
+        override val deserializer: Deserializer[Json] =
+          new Deserializer[Json]:
+            private val deSer: Deserializer[String] = Serdes.String().deserializer()
+            override def deserialize(topic: String, data: Array[Byte]): Json = {
+              val str: String = deSer.deserialize(topic, data)
+              if str eq null then null
+              else
+                io.circe.jawn.parse(str) match {
+                  case Right(value) => value
+                  case Left(ex)     =>
+                    throw new SerializationException(s"Invalid: $str", ex) // scalafix:ok
+                }
+            }
   end given
