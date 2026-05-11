@@ -358,12 +358,17 @@ lazy val pipes = (project in file("pipes"))
   )
   .settings(
     dependencyOverrides ++= List(
-      "io.airlift"        % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
-      "org.eclipse.jetty" % "jetty-server"      % "12.1.9", // snyk by hadoop-common
-      "org.bouncycastle"  % "bcprov-jdk18on"    % "1.84", // snyk by hadoop-common
-      "io.netty"          % "netty-codec-http"  % "4.2.13.Final", // snyk by hadoop-common
-      "io.netty"          % "netty-codec-http2" % "4.2.13.Final", // snyk by hadoop-client
-      "io.netty"          % "netty-codec-smtp"  % "4.2.13.Final" // snyk by hadoop-client
+      "io.airlift"        % "aircompressor"       % "2.0.3", // snyk by parquet-hadoop
+      "org.eclipse.jetty" % "jetty-server"        % "12.1.9", // snyk by hadoop-common
+      "org.bouncycastle"  % "bcprov-jdk18on"      % "1.84", // snyk by hadoop-common
+      "io.netty"          % "netty-codec"         % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-handler-proxy" % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-dns"     % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-redis"   % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-mqtt"    % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-http"    % "4.2.13.Final", // snyk by hadoop-common
+      "io.netty"          % "netty-codec-http2"   % "4.2.13.Final", // snyk by hadoop-client
+      "io.netty"          % "netty-codec-smtp"    % "4.2.13.Final" // snyk by hadoop-client
     ))
 
 // ==========================
