@@ -36,10 +36,10 @@ val logbackV = "1.5.32"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
-val parquetV = "1.17.0"
+val parquetV = "1.17.1"
 val postgresV = "42.7.11"
 val skunkV = "1.0.0"
-val slf4jV = "2.0.17"
+val slf4jV = "2.0.18"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
