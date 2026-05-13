@@ -45,9 +45,8 @@ object Structured:
                 case null              => null // null first as Kafka semantics (null = tombstone)
                 case gr: GenericRecord => gr
                 case unknown           =>
-                  throw new SerializationException(
-                    s"${unknown.getClass.getName} is not a Generic Record"
-                  ) // scalafix:ok
+                  val str = s"$topic: ${unknown.getClass.getName} is not a Generic Record"
+                  throw new SerializationException(str) // scalafix:ok
 
             override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
               deSer.configure(configs, isKey)
@@ -90,15 +89,13 @@ object Structured:
 
         override val deserializer: Deserializer[Json] =
           new Deserializer[Json]:
-            private val deSer: Deserializer[String] = Serdes.String().deserializer()
-            override def deserialize(topic: String, data: Array[Byte]): Json = {
-              val str: String = deSer.deserialize(topic, data)
-              if str eq null then null
+            override def deserialize(topic: String, data: Array[Byte]): Json =
+              if data eq null then null
               else
-                io.circe.jawn.parse(str) match {
+                io.circe.jawn.parseByteArray(data) match {
                   case Right(value) => value
                   case Left(ex)     =>
-                    throw new SerializationException(s"Invalid: $str", ex) // scalafix:ok
+                    val str = s"$topic: ${new String(data)}"
+                    throw new SerializationException(str, ex) // scalafix:ok
                 }
-            }
   end given

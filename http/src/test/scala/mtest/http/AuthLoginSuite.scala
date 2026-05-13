@@ -21,22 +21,24 @@ final class AuthLoginSuite extends CatsEffectSuite {
     expectedGrantType: String,
     accessToken: String = "token-123"
   ): Client[IO] = {
-    val app = HttpApp[IO] { case req @ POST -> Root / "token" =>
-      req.as[UrlForm].flatMap { form =>
-        assertEquals(form.getFirst("grant_type"), Some(expectedGrantType))
+    val app = HttpApp[IO] {
+      case req @ POST -> Root / "token" =>
+        req.as[UrlForm].flatMap { form =>
+          assertEquals(form.getFirst("grant_type"), Some(expectedGrantType))
 
-        Ok(
-          s"""
-             |{
-             |  "access_token": "$accessToken",
-             |  "token_type": "Bearer",
-             |  "expires_in": 3600,
-             |  "id_token": "id",
-             |  "refresh_token": "refresh_token"
-             |}
-             |""".stripMargin
-        ).map(_.withContentType(`Content-Type`(MediaType.application.json)))
-      }
+          Ok(
+            s"""
+               |{
+               |  "access_token": "$accessToken",
+               |  "token_type": "Bearer",
+               |  "expires_in": 3600,
+               |  "id_token": "id",
+               |  "refresh_token": "refresh_token"
+               |}
+               |""".stripMargin
+          ).map(_.withContentType(`Content-Type`(MediaType.application.json)))
+        }
+      case _ => InternalServerError()
     }
 
     Client.fromHttpApp(app)
@@ -119,16 +121,18 @@ final class AuthLoginSuite extends CatsEffectSuite {
   test("login reuses token within its lifetime") {
     val ref = Ref.unsafe[IO, Int](0)
 
-    val app = HttpApp[IO] { case POST -> Root / "token" =>
-      ref.updateAndGet(_ + 1) *> Ok(
-        """
-          |{
-          |  "access_token": "cached-token",
-          |  "token_type": "Bearer",
-          |  "expires_in": 3600
-          |}
-          |""".stripMargin
-      )
+    val app = HttpApp[IO] {
+      case POST -> Root / "token" =>
+        ref.updateAndGet(_ + 1) *> Ok(
+          """
+            |{
+            |  "access_token": "cached-token",
+            |  "token_type": "Bearer",
+            |  "expires_in": 3600
+            |}
+            |""".stripMargin
+        )
+      case _ => InternalServerError()
     }
 
     val authClient =
