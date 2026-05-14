@@ -9,7 +9,7 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
     extends KafkaRecordSerde(key, value)
 
 final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
-  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, key, value)
+  def withTopicName(tn: TopicName): TopicDef[K, V] = this.copy(topicName = tn)
   def consumerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
     srs: SerdeSettings,
@@ -25,7 +25,7 @@ final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], valu
     cs: KafkaConsumerSettings): ConsumerSettings[F, Either[Throwable, K], Either[Throwable, V]] = {
     val k = key.asKey(srClient, srs.properties).deserializer[F].map(_.attempt)
     val v = value.asValue(srClient, srs.properties).deserializer[F].map(_.attempt)
-    ConsumerSettings(using k, v).withProperties(cs.properties)
+    ConsumerSettings[F, Either[Throwable, K], Either[Throwable, V]](using k, v).withProperties(cs.properties)
   }
 
   def producerSettings[F[_]: Sync](

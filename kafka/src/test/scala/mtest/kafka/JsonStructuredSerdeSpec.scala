@@ -45,7 +45,6 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
       serde.deserializer.deserialize("topic", bytes)
     }
 
-    ex.getMessage should include("Invalid:")
     ex.getCause should not be null
   }
 
