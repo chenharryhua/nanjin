@@ -33,10 +33,10 @@ object TopicPartitionMap:
       m.get(new TopicPartition(topic, partition))
 
     def mapValues[W](f: V => W): TopicPartitionMap[W] =
-      TreeMap.from(m.map { case (k, v) => k -> f(v) })
+      m.view.mapValues(f).to(TreeMap)
 
     def map[W](f: (TopicPartition, V) => W): TopicPartitionMap[W] =
-      TreeMap.from(m.map { case (k, v) => k -> f(k, v) })
+      m.iterator.map { case (k, v) => k -> f(k, v) }.to(TreeMap)
 
     def intersectCombine[U, W](other: TopicPartitionMap[U])(fn: (V, U) => W): TopicPartitionMap[W] =
       val res = m.keySet.intersect(other.keySet).toList.flatMap { tp =>
@@ -51,7 +51,7 @@ object TopicPartitionMap:
       })
 
     def flatten[W](using ev: V <:< Option[W]): TopicPartitionMap[W] =
-      TreeMap.from(m.flatMap { case (k, v) => ev(v).map(k -> _) })
+      m.iterator.flatMap { case (k, v) => ev(v).map(k -> _) }.to(TreeMap)
 
     def topicPartitions: TopicPartitionList =
       TopicPartitionList(keySet.toList)
@@ -59,7 +59,7 @@ object TopicPartitionMap:
   given [V: Encoder]: Encoder[TopicPartitionMap[V]] =
     (a: TopicPartitionMap[V]) =>
       Encoder.encodeList[Json].apply(
-        a.map { case (tp, v) =>
+        a.iterator.map { case (tp, v) =>
           Json.obj(
             "topic" -> Json.fromString(tp.topic()),
             "partition" -> Json.fromInt(tp.partition()),
@@ -99,7 +99,7 @@ object TopicPartitionList:
 
   given Codec[TopicPartitionList] = new Codec[TopicPartitionList] {
     override def apply(a: TopicPartitionList): Json =
-      Encoder.encodeList[TopicPartition].apply(a.sortBy(_.partition()))
+      Encoder.encodeList[TopicPartition].apply(a.sortBy(tp => (tp.topic(), tp.partition())))
     override def apply(c: HCursor): Decoder.Result[TopicPartitionList] =
       Decoder.decodeList[TopicPartition].apply(c).map(TopicPartitionList(_))
   }

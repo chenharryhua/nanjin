@@ -24,7 +24,7 @@ object ChartFactory {
           scales = literal(
             x = literal(
               `type` = "time",
-              time = literal(unit = "minute", tooltipFormat = "HH:mm"),
+              time = literal(unit = "minute", tooltipFormat = "HH:mm:ss"),
               title = literal(display = true, text = "Time"),
               adapters = literal(date = literal(zone = zoneId))
             ),

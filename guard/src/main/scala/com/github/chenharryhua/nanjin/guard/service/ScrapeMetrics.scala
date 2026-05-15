@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Sync
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricElement, MetricID, Snapshot}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
@@ -12,12 +12,12 @@ import scala.jdk.CollectionConverters.given
 enum ScrapeMode:
   case Cheap, Full
 
-final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends AnyVal {
+final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   /*
    *Counters
    */
-  private def counters: List[MetricElement.Counter] =
-    metricRegistry.getCounters.asScala.iterator.flatMap { case (name, counter) =>
+  private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
+    sm.asScala.iterator.flatMap { case (name, counter) =>
       decode[MetricID](name) match {
         case Left(_)    => None
         case Right(mid) =>
@@ -31,8 +31,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   /*
    * meters
    */
-  private def meters: List[MetricElement.Meter] =
-    metricRegistry.getMeters.asScala.iterator.flatMap { case (name, meter) =>
+  private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
+    sm.asScala.iterator.flatMap { case (name, meter) =>
       decode[MetricID](name) match {
         case Left(_)                                                 => None
         case Right(mid @ MetricID(_, _, Category.Meter(_, squants))) =>
@@ -55,8 +55,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   /*
    * Histograms
    */
-  private def histograms: List[MetricElement.Histogram] =
-    metricRegistry.getHistograms.asScala.iterator.flatMap { case (name, histogram) =>
+  private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
+    sm.asScala.iterator.flatMap { case (name, histogram) =>
       decode[MetricID](name) match {
         case Left(_)                                                     => None
         case Right(mid @ MetricID(_, _, Category.Histogram(_, squants))) =>
@@ -86,8 +86,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   /*
    * Timers
    */
-  private def timers: List[MetricElement.Timer] =
-    metricRegistry.getTimers.asScala.iterator.flatMap { case (name, timer) =>
+  private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
+    sm.asScala.iterator.flatMap { case (name, timer) =>
       decode[MetricID](name) match {
         case Left(_)    => None
         case Right(mid) =>
@@ -121,8 +121,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   /*
    * Gauges
    */
-  private def gauges: List[MetricElement.Gauge] =
-    metricRegistry.getGauges.asScala.iterator.flatMap { case (name, gauge) =>
+  private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
+    sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
         case Left(_)    => None
         case Right(mid) =>
@@ -140,38 +140,43 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) extends An
   def snapshot[F[_]](mode: ScrapeMode)(using F: Sync[F]): F[Snapshot] =
     mode match {
       case ScrapeMode.Cheap =>
-        F.delay(
+        F.delay {
+          val jMeter = metricRegistry.getMeters
+          val jTimer = metricRegistry.getTimers
+          val jCounter = metricRegistry.getCounters
+          val jHistogram = metricRegistry.getHistograms
           Snapshot(
-            counters = counters,
-            meters = meters,
-            timers = timers,
-            histograms = histograms,
+            counters = interpretCounters(jCounter),
+            meters = interpretMeters(jMeter),
+            timers = interpretTimers(jTimer),
+            histograms = interpretHistograms(jHistogram),
             gauges = Nil
-          ))
+          )
+        }
       case ScrapeMode.Full => // gauge may run blocking actions
-        F.blocking(
+        F.blocking {
+          val jMeter = metricRegistry.getMeters
+          val jTimer = metricRegistry.getTimers
+          val jCounter = metricRegistry.getCounters
+          val jHistogram = metricRegistry.getHistograms
+          val jGauge = metricRegistry.getGauges
           Snapshot(
-            counters = counters,
-            meters = meters,
-            timers = timers,
-            histograms = histograms,
-            gauges = gauges
-          ))
+            counters = interpretCounters(jCounter),
+            meters = interpretMeters(jMeter),
+            timers = interpretTimers(jTimer),
+            histograms = interpretHistograms(jHistogram),
+            gauges = interpretGauges(jGauge)
+          )
+        }
     }
 
   // Counts from Meter and Timer metrics only
   def meteredCounts: Map[MetricID, Long] = {
-    val mc: Map[MetricID, Long] =
-      metricRegistry.getMeters.asScala
-        .flatMap { case (mid, meter) =>
-          decode[MetricID](mid).toOption.map(_ -> meter.getCount)
-        }.toMap
+    val meters: java.util.SortedMap[String, Meter] = metricRegistry.getMeters
+    val timers: java.util.SortedMap[String, Timer] = metricRegistry.getTimers
 
-    val tc: Map[MetricID, Long] =
-      metricRegistry.getTimers.asScala
-        .flatMap { case (mid, timer) =>
-          decode[MetricID](mid).toOption.map(_ -> timer.getCount)
-        }.toMap
-    mc ++ tc
+    (meters.asScala ++ timers.asScala).flatMap { case (mid, meter) =>
+      decode[MetricID](mid).toOption.map(_ -> meter.getCount)
+    }.toMap
   }
 }

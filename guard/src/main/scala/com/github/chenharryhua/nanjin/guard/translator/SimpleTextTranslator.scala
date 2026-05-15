@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
 
 object SimpleTextTranslator {
   import Event.*
@@ -31,7 +31,7 @@ object SimpleTextTranslator {
 
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"index:${evt.tick.index}"
-    val act = Attribute(Took(evt.tick.active)).labelledText
+    val act = Attribute(Active(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
 
     s"""|
