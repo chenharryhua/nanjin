@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.44.8"
+val awsV = "2.44.12"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -348,7 +348,7 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"               % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
       // java
-      "io.netty"           % "netty-all"      % "4.2.13.Final",
+      "io.netty"           % "netty-all"      % "4.2.14.Final",
       "org.apache.parquet" % "parquet-common" % parquetV,
       "org.apache.parquet" % "parquet-hadoop" % parquetV,
       "org.apache.parquet" % "parquet-avro"   % parquetV,
