@@ -38,7 +38,7 @@ object BiTransform:
 
   given [B: ClassTag]: BiTransform[JsonNode, B] =
     new BiTransform[JsonNode, B]:
-      private val schema: JsonSchema = summon[KafkaJsonSchema[B]].schema
+      private val schema: JsonSchema = KafkaJsonSchema[B].schema
 
       override def to(a: JsonNode): B = globalObjectMapper.convertValue[B](a)
       override def from(b: B): JsonNode =
