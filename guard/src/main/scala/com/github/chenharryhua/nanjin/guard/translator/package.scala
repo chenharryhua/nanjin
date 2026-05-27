@@ -27,10 +27,10 @@ package object translator {
     evt match {
       case ss: Event.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: Event.ServiceStop      => "Stop Service"
-      case _: Event.ServicePanic     => "Service Panic"
-      case _: Event.ReportedEvent    => "Reported Event"
-      case ms: Event.MetricsSnapshot => "Metrics Report"
+      case _: Event.ServiceStop     => "Stop Service"
+      case _: Event.ServicePanic    => "Service Panic"
+      case _: Event.ReportedEvent   => "Reported Event"
+      case _: Event.MetricsSnapshot => "Metrics Report"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
