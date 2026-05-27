@@ -358,7 +358,7 @@ lazy val pipes = (project in file("pipes"))
     ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
-    "org.apache.commons" % "commons-configuration2" % "2.15.0", // snky by hadoop-common
+    "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-common
     "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
     "org.eclipse.jetty"  % "jetty-server"           % "12.1.9", // snyk by hadoop-common
     "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-common
