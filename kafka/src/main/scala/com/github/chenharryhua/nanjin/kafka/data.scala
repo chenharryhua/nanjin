@@ -105,4 +105,6 @@ object LagBehind {
     LagBehind(current.value, end.value, end - current)
 }
 
+// Holds optional schema registry IDs for Kafka message keys and values.
+// 'key' is the schema ID for the message key, 'value' is the schema ID for the message value.
 final case class RegisteredSchemaID(key: Option[Int], value: Option[Int])
