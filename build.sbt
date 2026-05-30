@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.44.14"
+val awsV = "2.45.1"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -29,7 +29,7 @@ val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
 val http4sV = "0.23.34"
 val ironV = "3.3.0"
-val jacksonV = "2.21.3"
+val jacksonV = "2.21.4"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.5.33"
@@ -245,11 +245,7 @@ lazy val observer_kafka = (project in file("observers/kafka"))
   .dependsOn(kafka)
   .settings(commonSettings *)
   .settings(name := "nj-observer-kafka")
-  .settings(
-    libraryDependencies ++= testLib
-  ).settings(dependencyOverrides ++= List(
-    "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.2" // snyk by kafka-avro-serializer
-  ))
+  .settings(libraryDependencies ++= testLib)
 
 lazy val observer_database = (project in file("observers/database"))
   .dependsOn(guard)
@@ -286,11 +282,6 @@ lazy val database = (project in file("database"))
 // ==========================
 // Kafka
 // ==========================
-val jacksonLib = List(
-  "com.fasterxml.jackson.core" % "jackson-core",
-  "com.fasterxml.jackson.core" % "jackson-databind",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala"
-).map(_ % jacksonV)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
@@ -304,6 +295,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-jawn"                  % circeV,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
       // java
       "org.apache.avro"  % "avro"                         % avroV,
       "io.confluent"     % "kafka-protobuf-serializer"    % confluentV,
@@ -312,27 +304,15 @@ lazy val kafka = (project in file("kafka"))
       "io.confluent"     % "kafka-schema-registry-client" % confluentV,
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-    ) ++ jacksonLib ++ testLib)
-  .settings(dependencyOverrides ++= List(
-    "org.apache.httpcomponents.core5" % "httpcore5-h2" % "5.4.2" // snyk by kafka-avro-serializer
-  ))
+      "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
+      "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.2", // snyk by kafka-avro-serializer
+      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.0" // snyk by kafka-protobuf-provider
+    ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
 // Pipes
 // ==========================
-val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core",
-  "org.apache.hadoop" % "hadoop-aws",
-  "org.apache.hadoop" % "hadoop-auth",
-  "org.apache.hadoop" % "hadoop-annotations",
-  "org.apache.hadoop" % "hadoop-common",
-  "org.apache.hadoop" % "hadoop-client",
-  "org.apache.hadoop" % "hadoop-client-runtime",
-  "org.apache.hadoop" % "hadoop-hdfs",
-  "org.apache.hadoop" % "hadoop-hdfs-client"
-).map(_ % hadoopV)
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(common)
@@ -340,29 +320,30 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
-      "co.fs2" %% "fs2-io"                        % fs2V,
-      "io.github.kantan-scala" %% "kantan.csv"    % "0.11.0",
-      "com.indoorvivants" %% "scala-uri"          % "4.2.0",
-      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-      "io.circe" %% "circe-jawn"                  % circeV,
-      "org.typelevel" %% "jawn-fs2"               % "2.5.0" % Test,
-      "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
+      "co.fs2" %% "fs2-io"                                     % fs2V,
+      "io.github.kantan-scala" %% "kantan.csv"                 % "0.11.0",
+      "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
+      "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
+      "io.circe" %% "circe-jawn"                               % circeV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      "org.typelevel" %% "jawn-fs2"                            % "2.5.0" % Test,
+      "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
-      "io.netty"           % "netty-all"      % "4.2.14.Final",
-      "org.apache.parquet" % "parquet-common" % parquetV,
-      "org.apache.parquet" % "parquet-hadoop" % parquetV,
-      "org.apache.parquet" % "parquet-avro"   % parquetV,
-      "org.apache.avro"    % "avro"           % avroV,
-      "org.tukaani"        % "xz"             % "1.12",
-      "at.yawk.lz4"        % "lz4-java"       % "1.11.0" // drop-in replacement of org.lz4:lz4-java
-    ) ++ jacksonLib ++ hadoopLib ++ testLib
+      "io.netty"           % "netty-all"              % "4.2.14.Final",
+      "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
+      "org.apache.parquet" % "parquet-common"         % parquetV,
+      "org.apache.parquet" % "parquet-hadoop"         % parquetV,
+      "org.apache.parquet" % "parquet-avro"           % parquetV,
+      "org.apache.avro"    % "avro"                   % avroV,
+      "org.tukaani"        % "xz"                     % "1.12",
+      "at.yawk.lz4"        % "lz4-java"               % "1.11.0", // drop-in replacement of org.lz4:lz4-java
+      "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
+      "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % "12.1.9", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % "12.1.9", // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
+    ) ++ testLib
   )
-  .settings(dependencyOverrides ++= List(
-    "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-common
-    "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-    "org.eclipse.jetty"  % "jetty-server"           % "12.1.9", // snyk by hadoop-common
-    "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-common
-  ))
 
 // ==========================
 // Example
