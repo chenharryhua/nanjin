@@ -330,7 +330,7 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"                            % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
-      "io.netty"           % "netty-all"              % "4.2.14.Final",
+      "io.netty"           % "netty-all"              % "4.2.15.Final",
       "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
       "org.apache.parquet" % "parquet-common"         % parquetV,
       "org.apache.parquet" % "parquet-hadoop"         % parquetV,
