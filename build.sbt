@@ -340,8 +340,8 @@ lazy val pipes = (project in file("pipes"))
       "at.yawk.lz4"        % "lz4-java"               % "1.11.0", // drop-in replacement of org.lz4:lz4-java
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
-      "org.eclipse.jetty"  % "jetty-server"           % "12.1.9", // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-http"             % "12.1.9", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % "12.1.10", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % "12.1.10", // snyk by hadoop-client
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
     ) ++ testLib
   )
