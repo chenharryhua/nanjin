@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.46.0"
+val awsV = "2.46.1"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -329,7 +329,6 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"                            % "2.5.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
-      "io.netty"           % "netty-all"              % "4.2.14.Final",
       "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
       "org.apache.parquet" % "parquet-common"         % parquetV,
       "org.apache.parquet" % "parquet-hadoop"         % parquetV,
@@ -338,9 +337,10 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"        % "xz"                     % "1.12",
       "at.yawk.lz4"        % "lz4-java"               % "1.11.0", // drop-in replacement of org.lz4:lz4-java
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
+      "io.netty"           % "netty-all"              % "4.2.14.Final", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
-      "org.eclipse.jetty"  % "jetty-server"           % "12.1.9", // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-http"             % "12.1.9", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % "12.1.10", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % "12.1.10", // snyk by hadoop-client
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
     ) ++ testLib
   )
