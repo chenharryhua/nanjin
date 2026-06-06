@@ -69,6 +69,20 @@ class HadoopTest extends AnyFunSuite {
     assert(!after)
   }
 
+  test("empty folders") {
+    val emptyFolder = path / "empty"
+    val nestedEmptyFolder = path / "nested" / "sub"
+    val nestedParent = path / "nested" / "parent"
+    File(emptyFolder.toString()).createDirectories()
+    File(nestedEmptyFolder.toString()).createDirectories()
+    File(nestedParent.toString()).createDirectories()
+
+    val empties = hdp.emptyFolders(path).unsafeRunSync().map(_.toString)
+    assert(empties.exists(_.endsWith("/empty")))
+    assert(empties.exists(_.endsWith("/sub")))
+    assert(empties.exists(_.endsWith("/parent")))
+  }
+
   test("toHadoopPath") {
     val p1 = Url.parse("abc/efg")
     val p2 = p1 / "hij" / "kml"

@@ -83,6 +83,32 @@ final class Hadoop[F[_]](config: Configuration) {
       lb.toList.map(p => Uri(p.toUri).toUrl)
     }
 
+  def emptyFolders(path: Url)(using F: Sync[F]): F[List[Url]] = F.blocking {
+    val hp: Path = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
+
+    val result = ListBuffer.empty[Path]
+    val stack = mutable.Stack(hp)
+
+    while (stack.nonEmpty) { // scalafix:ok
+      val current = stack.pop()
+      val status = fs.getFileStatus(current)
+
+      if (status.isDirectory) {
+        val children = fs.listStatus(current)
+        if (children.isEmpty) {
+          result += current
+        } else {
+          children.foreach { child =>
+            if (child.isDirectory)
+              stack.push(child.getPath)
+          }
+        }
+      }
+    }
+    result.toList.map(p => Uri(p.toUri).toUrl)
+  }
+
   /** List files directly under a path, sorted by modification time.
     *
     * If the path is a file, it is returned as a single-element list.
