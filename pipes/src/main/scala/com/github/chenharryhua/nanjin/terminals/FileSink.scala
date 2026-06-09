@@ -148,11 +148,8 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
   override def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
     (ss: Stream[F, Seq[String]]) =>
       Stream
-        .resource(
-          HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(headerWithCrlf(csvConfiguration))))
-        .flatMap { w =>
-          ss.map(csvRow(csvConfiguration)).chunks.evalMap(c => w.write(c).as(c.size))
-        }
+        .resource(HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+        .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   override def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int] =

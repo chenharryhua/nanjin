@@ -4,14 +4,10 @@ import cats.Endo
 import cats.data.Reader
 import cats.syntax.apply.given
 import cats.syntax.eq.given
-import fs2.Chunk
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
 import io.circe.{Codec, HCursor, Json}
 import io.lemonlabs.uri.{Uri, Url}
-import kantan.csv.CsvConfiguration
-import kantan.csv.CsvConfiguration.Header
-import kantan.csv.engine.WriterEngine
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -22,7 +18,6 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 
-import java.io.StringWriter
 import java.net.URI
 import java.time.LocalDate
 import scala.annotation.tailrec
@@ -34,19 +29,6 @@ package object terminals {
     override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
     override def apply(a: Url): Json = a.toJavaURI.asJson
   }
-
-  def csvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
-    val sw = new StringWriter()
-    WriterEngine.internalCsvWriterEngine.writerFor(sw, csvConfiguration).write(row).close()
-    sw.toString
-  }
-
-  def headerWithCrlf(csvConfiguration: CsvConfiguration): Chunk[String] =
-    csvConfiguration.header match {
-      case Header.None             => Chunk.empty
-      case Header.Implicit         => Chunk.singleton("no header was explicitly provided\r\n") // csv use CRLF
-      case Header.Explicit(header) => Chunk.singleton(csvRow(csvConfiguration)(header))
-    }
 
   def toHadoopPath(url: Url): Path =
     if (url.schemeOption.exists(_ === "s3")) {
