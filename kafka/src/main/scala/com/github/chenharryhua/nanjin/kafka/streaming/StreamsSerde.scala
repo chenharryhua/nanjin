@@ -2,36 +2,55 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 
 import com.github.chenharryhua.nanjin.kafka.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
-import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.kstream.*
-import org.apache.kafka.streams.processor.StateStore
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.streams.kstream.{
+  Consumed,
+  Grouped,
+  Joined,
+  Materialized,
+  Produced,
+  Repartitioned,
+  StreamJoined
+}
+import org.apache.kafka.streams.processor.StateStore
 
 final class StreamsSerde private[kafka] (srClient: SchemaRegistryClient, serdeSettings: SerdeSettings) {
-  private def asKey[K: Unregistered]: Serde[K] =
-    summon[Unregistered[K]].asKey(srClient, serdeSettings.properties).serde
-  private def asValue[V: Unregistered]: Serde[V] =
-    summon[Unregistered[V]].asValue(srClient, serdeSettings.properties).serde
+  private val properties: Map[String, String] = serdeSettings.properties
 
-  def consumed[K: Unregistered, V: Unregistered]: Consumed[K, V] =
-    Consumed.`with`[K, V](asKey[K], asValue[V])
+  private def asKey[K](key: Unregistered[K]): Serde[K] =
+    key.asKey(srClient, properties).serde
+  private def asValue[V](value: Unregistered[V]): Serde[V] =
+    value.asValue(srClient, properties).serde
 
-  def produced[K: Unregistered, V: Unregistered]: Produced[K, V] =
-    Produced.`with`[K, V](asKey[K], asValue[V])
+  /*
+   * Streams Serde
+   */
 
-  def joined[K: Unregistered, V: Unregistered, VO: Unregistered]: Joined[K, V, VO] =
-    Joined.`with`(asKey[K], asValue[V], asValue[VO])
+  def consumed[K, V](key: Unregistered[K], value: Unregistered[V]): Consumed[K, V] =
+    Consumed.`with`(asKey(key), asValue(value))
 
-  def grouped[K: Unregistered, V: Unregistered]: Grouped[K, V] =
-    Grouped.`with`(asKey[K], asValue[V])
+  def produced[K, V](key: Unregistered[K], value: Unregistered[V]): Produced[K, V] =
+    Produced.`with`(asKey(key), asValue(value))
 
-  def repartitioned[K: Unregistered, V: Unregistered]: Repartitioned[K, V] =
-    Repartitioned.`with`(asKey[K], asValue[V])
+  def joined[K, VL, VR](key: Unregistered[K], vl: Unregistered[VL], vr: Unregistered[VR]): Joined[K, VL, VR] =
+    Joined.`with`(asKey(key), asValue(vl), asValue(vr))
 
-  def streamJoined[K: Unregistered, V: Unregistered, VO: Unregistered]: StreamJoined[K, V, VO] =
-    StreamJoined.`with`(asKey[K], asValue[V], asValue[VO])
+  def streamJoined[K, V1, V2](
+    key: Unregistered[K],
+    v1: Unregistered[V1],
+    v2: Unregistered[V2]): StreamJoined[K, V1, V2] =
+    StreamJoined.`with`(asKey(key), asValue(v1), asValue(v2))
 
-  def materialized[K: Unregistered, V: Unregistered, S <: StateStore]: Materialized[K, V, S] =
-    Materialized.`with`[K, V, S](asKey[K], asValue[V])
+  def grouped[K, V](key: Unregistered[K], value: Unregistered[V]): Grouped[K, V] =
+    Grouped.`with`(asKey(key), asValue(value))
+
+  def repartitioned[K, V](key: Unregistered[K], value: Unregistered[V]): Repartitioned[K, V] =
+    Repartitioned.`with`(asKey(key), asValue(value))
+
+  def materialized[K, V, S <: StateStore](
+    key: Unregistered[K],
+    value: Unregistered[V]): Materialized[K, V, S] =
+    Materialized.`with`(asKey(key), asValue(value))
 
 }
