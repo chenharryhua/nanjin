@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import fs2.Chunk
 import io.circe.{Json, Printer}
 import io.lemonlabs.uri.Url
+import kantan.csv.CsvConfiguration.Header
+import kantan.csv.{CsvConfiguration, CsvWriter}
+import kantan.csv.engine.WriterEngine.internalCsvWriterEngine
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
@@ -168,17 +171,25 @@ private object HadoopWriter {
           }
       })
 
-  def csvStringR[F[_]](configuration: Configuration, url: Url)(using
-    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR[F](configuration, url).map(writer =>
-      new HadoopWriter[F, String] {
-        override def write(cs: Chunk[String]): F[Unit] =
-          // already has new line separator
+  def csvR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
+    F: Sync[F]): Resource[F, HadoopWriter[F, Seq[String]]] = {
+    val header: Chunk[Seq[String]] = csvConfiguration.header match {
+      case Header.None     => Chunk.empty
+      case Header.Implicit =>
+        throw new IllegalArgumentException("no header was explicitly provided") // scalafix:ok
+      case Header.Explicit(header) => Chunk.singleton(header)
+    }
+    outputStreamWriterR[F](configuration, url).map { osw =>
+      val writer: CsvWriter[Seq[String]] = internalCsvWriterEngine.writerFor(osw, csvConfiguration)
+      new HadoopWriter[F, Seq[String]] {
+        override def write(css: Chunk[Seq[String]]): F[Unit] =
           F.blocking {
-            cs.foreach(s => writer.write(s))
-            writer.flush()
+            css.foreach(writer.write(_): Unit)
+            osw.flush()
           }
-      })
+      }
+    }.evalTap(_.write(header))
+  }
 
   def circeR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Json]] =

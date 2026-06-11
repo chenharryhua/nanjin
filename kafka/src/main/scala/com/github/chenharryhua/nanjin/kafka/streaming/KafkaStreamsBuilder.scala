@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
+import cats.Show
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.flatMap.given
@@ -11,18 +12,21 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, Topology}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
 private object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
 
-final case class StateUpdate(newState: State, oldState: State)
+final case class StateUpdate(newState: State, oldState: State) {
+  override def toString: String = s"StateUpdate(${oldState.name()} ==> ${newState.name()})"
+}
 
 object StateUpdate {
+  given Show[StateUpdate] = Show.fromToString
 
   given Encoder[StateUpdate] = (a: StateUpdate) =>
     Json.obj(

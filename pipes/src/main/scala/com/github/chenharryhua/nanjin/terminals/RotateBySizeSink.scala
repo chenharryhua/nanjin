@@ -173,13 +173,10 @@ final private class RotateBySizeSink[F[_]](
 
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
-    val get_writer: GetWriter[String] =
-      Reader(url =>
-        HadoopWriter
-          .csvStringR[F](configuration, url)
-          .evalTap(_.write(headerWithCrlf(csvConfiguration))))
+    val get_writer: GetWriter[Seq[String]] =
+      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
 
-    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer)
+    (ss: Stream[F, Seq[String]]) => persist(ss, get_writer)
   }
 
   // text

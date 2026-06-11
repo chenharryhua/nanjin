@@ -168,11 +168,10 @@ final private class RotateByPolicySink[F[_]: Async](
 
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
-    val get_writer: GetWriter[String] =
-      Reader(url =>
-        HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(headerWithCrlf(csvConfiguration))))
+    val get_writer: GetWriter[Seq[String]] =
+      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
 
-    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)).chunks, get_writer).stream
+    (ss: Stream[F, Seq[String]]) => persist(ss.chunks, get_writer).stream
   }
 
   // text

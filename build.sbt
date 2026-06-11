@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.21.3-SNAPSHOT"
-ThisBuild / scalaVersion := "3.8.3"
+ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.46.3"
+val awsV = "2.46.7"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -304,6 +304,7 @@ lazy val kafka = (project in file("kafka"))
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
+      "io.opentelemetry" % "opentelemetry-api"            % "1.63.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.2", // snyk by kafka-avro-serializer
       "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.0", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
