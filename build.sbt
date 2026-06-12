@@ -322,7 +322,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(
     libraryDependencies ++= List(
       "co.fs2" %% "fs2-io"                                     % fs2V,
-      "io.github.kantan-scala" %% "kantan.csv"                 % "0.11.0",
+      "io.github.kantan-scala" %% "kantan.csv"                 % "0.12.0",
       "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
