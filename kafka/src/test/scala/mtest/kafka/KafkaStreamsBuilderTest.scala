@@ -52,9 +52,13 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   private val serdeSettings = SerdeSettings(Map.empty)
   private val srClient = new FakeSchemaRegistryClient
 
-  private val builder = KafkaStreamsBuilder[IO](applicationId, streamSettings, srClient, serdeSettings, { (sb, _) =>
-    sb.stream("in", Consumed.`with`(Serdes.String(), Serdes.String())).to("out")
-  })
+  private val builder = KafkaStreamsBuilder[IO](
+    applicationId,
+    streamSettings,
+    srClient,
+    serdeSettings,
+    (sb, _) => sb.stream("in", Consumed.`with`(Serdes.String(), Serdes.String())).to("out")
+  )
 
   test("should include application id in properties") {
     builder.properties("application.id") shouldBe applicationId
@@ -85,10 +89,16 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
 
   test("topology should evaluate the top closure lazily and build a Kafka topology") {
     var executed = false
-    val lazyBuilder = KafkaStreamsBuilder[IO]("app2", KafkaStreamSettings(Map.empty), srClient, serdeSettings, { (sb, _) =>
-      executed = true
-      sb.stream("in", Consumed.`with`(Serdes.String(), Serdes.String())).to("out")
-    })
+    val lazyBuilder = KafkaStreamsBuilder[IO](
+      "app2",
+      KafkaStreamSettings(Map.empty),
+      srClient,
+      serdeSettings,
+      { (sb, _) =>
+        executed = true
+        sb.stream("in", Consumed.`with`(Serdes.String(), Serdes.String())).to("out")
+      }
+    )
 
     executed shouldBe false
     val topology = lazyBuilder.topology
@@ -124,9 +134,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         }
         _ <- latch.await
         updates <- bus.stream.take(1).compile.toList
-      } yield {
-        updates shouldBe List(StateUpdate(State.RUNNING, State.CREATED))
-      }
+      } yield updates shouldBe List(StateUpdate(State.RUNNING, State.CREATED))
     }.unsafeRunSync()
   }
 
@@ -142,11 +150,9 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
             .invoke(stateChange, State.ERROR, State.RUNNING)
         }
         result <- stop.get
-      } yield {
-        result match {
-          case Left(err) => err.getMessage shouldBe "Kafka Streams were stopped abnormally"
-          case Right(_)  => fail("expected KafkaStreamsAbnormallyStopped")
-        }
+      } yield result match {
+        case Left(err) => err.getMessage shouldBe "Kafka Streams were stopped abnormally"
+        case Right(_)  => fail("expected KafkaStreamsAbnormallyStopped")
       }
     }.unsafeRunSync()
   }

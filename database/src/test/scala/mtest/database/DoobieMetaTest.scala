@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.database.*
-import doobie.ConnectionIO
+import org.typelevel.doobie.ConnectionIO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
