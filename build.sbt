@@ -272,7 +272,7 @@ lazy val database = (project in file("database"))
       "org.typelevel" %% "doobie-free"   % doobieV,
 
       // java
-      "com.zaxxer"     % "HikariCP"        % "7.0.2",
+      "com.zaxxer"     % "HikariCP"        % "7.1.0",
       "org.postgresql" % "postgresql"      % postgresV % Test,
       "ch.qos.logback" % "logback-classic" % logbackV  % Test
     ) ++ testLib
