@@ -4,9 +4,9 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.applicativeError.given
 import cats.syntax.functor.given
 import com.zaxxer.hikari.HikariConfig
-import doobie.hikari.HikariTransactor
-import doobie.syntax.string.toSqlInterpolator
-import doobie.util.log.LogHandler
+import org.typelevel.doobie.hikari.HikariTransactor
+import org.typelevel.doobie.syntax.string.toSqlInterpolator
+import org.typelevel.doobie.util.log.LogHandler
 import fs2.Stream
 
 /** `https://tpolecat.github.io/doobie/`

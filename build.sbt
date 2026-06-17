@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.46.7"
+val awsV = "2.46.10"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -22,7 +22,7 @@ val confluentV = "8.2.1"
 val kafkaV = "8.2.1-ce"
 val cron4sV = "0.8.2"
 val docV = "0.1.4"
-val doobieV = "1.0.0-RC12"
+val doobieV = "1.0.0-RC13"
 val drosteV = "0.10.0"
 val fs2KafkaV = "4.0.0"
 val fs2V = "3.13.0"
@@ -267,9 +267,9 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "doobie-core"   % doobieV,
-      "org.tpolecat" %% "doobie-hikari" % doobieV,
-      "org.tpolecat" %% "doobie-free"   % doobieV,
+      "org.typelevel" %% "doobie-core"   % doobieV,
+      "org.typelevel" %% "doobie-hikari" % doobieV,
+      "org.typelevel" %% "doobie-free"   % doobieV,
 
       // java
       "com.zaxxer"     % "HikariCP"        % "7.0.2",
@@ -322,7 +322,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(
     libraryDependencies ++= List(
       "co.fs2" %% "fs2-io"                                     % fs2V,
-      "io.github.kantan-scala" %% "kantan.csv"                 % "0.11.0",
+      "io.github.kantan-scala" %% "kantan.csv"                 % "0.12.0",
       "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
