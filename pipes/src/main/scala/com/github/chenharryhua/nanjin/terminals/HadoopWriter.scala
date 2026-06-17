@@ -174,9 +174,8 @@ private object HadoopWriter {
   def csvR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Seq[String]]] = {
     val header: Chunk[Seq[String]] = csvConfiguration.header match {
-      case Header.None     => Chunk.empty
-      case Header.Implicit =>
-        throw new IllegalArgumentException("no header was explicitly provided") // scalafix:ok
+      case Header.None             => Chunk.empty
+      case Header.Implicit         => Chunk.singleton(List("implicit header"))
       case Header.Explicit(header) => Chunk.singleton(header)
     }
     outputStreamWriterR[F](configuration, url).map { osw =>

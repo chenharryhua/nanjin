@@ -71,6 +71,11 @@ class NJKantanTest extends AnyFunSuite {
     fs2(fs2Root / "header-explicit", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
+  test("uncompressed - with-implicit-header") {
+    val cfg = CsvConfiguration.rfc.withHeader.quoteAll
+    fs2(fs2Root / "header-implicit", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
   test("uncompressed - without-header") {
     val cfg = CsvConfiguration.rfc.withHeader(false)
     fs2(fs2Root / "no-header", KantanFile(_.Uncompressed), cfg, tigerSet)
