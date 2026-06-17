@@ -7,7 +7,7 @@ addSbtPlugin("com.github.sbt" % "sbt-git"    % "2.1.0")
 
 addSbtPlugin("org.scoverage"    % "sbt-scoverage" % "2.4.4")
 addSbtPlugin("org.typelevel"    % "sbt-tpolecat"  % "0.5.6")
-addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.6.4")
+addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.7.0")
 addSbtPlugin("com.orrsella"     % "sbt-stats"     % "1.0.7")
 addSbtPlugin("com.eed3si9n"     % "sbt-buildinfo" % "0.13.1")
 
