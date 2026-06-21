@@ -102,7 +102,7 @@ lazy val common = (project in file("common"))
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
 
-      "org.scala-js" % "scalajs-library_2.13" % "1.21.0" % Provided, // doc by cron
+      "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
 // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ testLib
