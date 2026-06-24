@@ -306,7 +306,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
       "io.opentelemetry" % "opentelemetry-api"            % "1.63.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.2", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.0", // snyk by kafka-protobuf-provider
+      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.1", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
