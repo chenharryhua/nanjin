@@ -340,7 +340,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % "12.1.10", // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % "12.1.10", // snyk by hadoop-client
-      //"org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
     ) ++ testLib
   )
 
