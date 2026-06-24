@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.46.15"
+val awsV = "2.46.17"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -31,7 +31,7 @@ val http4sV = "0.23.34"
 val jacksonV = "2.22.0"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
-val logbackV = "1.5.34"
+val logbackV = "1.5.35"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -306,7 +306,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
       "io.opentelemetry" % "opentelemetry-api"            % "1.63.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.2", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.0", // snyk by kafka-protobuf-provider
+      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.1", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
@@ -331,8 +331,6 @@ lazy val pipes = (project in file("pipes"))
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
       "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
-      "org.apache.parquet" % "parquet-common"         % parquetV,
-      "org.apache.parquet" % "parquet-hadoop"         % parquetV,
       "org.apache.parquet" % "parquet-avro"           % parquetV,
       "org.apache.avro"    % "avro"                   % avroV,
       "org.tukaani"        % "xz"                     % "1.12",
@@ -342,7 +340,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % "12.1.10", // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % "12.1.10", // snyk by hadoop-client
-      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
+      //"org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
     ) ++ testLib
   )
 
