@@ -327,7 +327,7 @@ lazy val pipes = (project in file("pipes"))
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-      "org.typelevel" %% "jawn-fs2"                            % "2.5.0" % Test,
+      "org.typelevel" %% "jawn-fs2"                            % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
       "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
