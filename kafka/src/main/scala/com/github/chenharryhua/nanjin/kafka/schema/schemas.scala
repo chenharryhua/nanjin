@@ -18,7 +18,8 @@ object KafkaJsonSchema:
 
   given [A: ClassTag]: KafkaJsonSchema[A] = new KafkaJsonSchema {
     override def schema: JsonSchema = new JsonSchema(
-      new JsonSchemaGenerator(globalObjectMapper).generateJsonSchema(summon[ClassTag[A]].runtimeClass)
+      new JsonSchemaGenerator(globalObjectMapper)
+        .generateJsonSchema(summon[ClassTag[A]].runtimeClass)
     )
   }
 end KafkaJsonSchema

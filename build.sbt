@@ -13,11 +13,11 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.46.15"
+val awsV = "2.46.17"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
-val circeV = "0.14.15"
+val circeV = "0.14.16"
 val confluentV = "8.3.0"
 val kafkaV = "8.3.0-ce"
 val cron4sV = "0.8.2"
@@ -31,7 +31,7 @@ val http4sV = "0.23.34"
 val jacksonV = "2.22.0"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
-val logbackV = "1.5.34"
+val logbackV = "1.5.37"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -305,8 +305,8 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
       "io.opentelemetry" % "opentelemetry-api"            % "1.63.0", // snyk by kafka-client
-      "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.2", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.0", // snyk by kafka-protobuf-provider
+      "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
+      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.1", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
@@ -327,12 +327,10 @@ lazy val pipes = (project in file("pipes"))
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-      "org.typelevel" %% "jawn-fs2"                            % "2.5.0" % Test,
+      "org.typelevel" %% "jawn-fs2"                            % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
       "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
-      "org.apache.parquet" % "parquet-common"         % parquetV,
-      "org.apache.parquet" % "parquet-hadoop"         % parquetV,
       "org.apache.parquet" % "parquet-avro"           % parquetV,
       "org.apache.avro"    % "avro"                   % avroV,
       "org.tukaani"        % "xz"                     % "1.12",

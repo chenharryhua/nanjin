@@ -3,7 +3,23 @@ package com.github.chenharryhua.nanjin.kafka.schema
 import io.circe.optics.all.*
 import io.circe.{jawn, Json}
 import monocle.function.Plated
-import org.apache.avro.{Schema, SchemaFormatter}
+import org.apache.avro.{Schema, SchemaCompatibility, SchemaFormatter}
+
+import scala.jdk.CollectionConverters.ListHasAsScala
+
+def backwardCompatibility(a: Schema, b: Schema): List[SchemaCompatibility.Incompatibility] =
+  SchemaCompatibility.checkReaderWriterCompatibility(a, b).getResult.getIncompatibilities.asScala.toList
+
+def forwardCompatibility(a: Schema, b: Schema): List[SchemaCompatibility.Incompatibility] =
+  backwardCompatibility(b, a)
+
+private def update(schema: Schema, f: Json => Json): Schema =
+  jawn
+    .parse(SchemaFormatter.format("json/pretty", schema))
+    .toOption
+    .map(f)
+    .map(js => (new Schema.Parser).parse(js.noSpaces))
+    .getOrElse(schema)
 
 /** remove all default fields in the schema
   * @param schema
@@ -19,12 +35,7 @@ def removeDefaultField(schema: Schema): Schema = {
     }
   }
 
-  jawn
-    .parse(SchemaFormatter.format("json/pretty", schema))
-    .toOption
-    .map(remove)
-    .map(js => (new Schema.Parser).parse(js.noSpaces))
-    .getOrElse(schema)
+  update(schema, remove)
 }
 
 /** remove namespace field from the schema
@@ -42,12 +53,7 @@ def removeNamespace(schema: Schema): Schema = {
     }
   }
 
-  jawn
-    .parse(SchemaFormatter.format("json/pretty", schema))
-    .toOption
-    .map(remove)
-    .map(js => (new Schema.Parser).parse(js.noSpaces))
-    .getOrElse(schema)
+  update(schema, remove)
 }
 
 /** remove doc field from the schema
@@ -65,12 +71,7 @@ def removeDocField(schema: Schema): Schema = {
     }
   }
 
-  jawn
-    .parse(SchemaFormatter.format("json/pretty", schema))
-    .toOption
-    .map(remove)
-    .map(js => (new Schema.Parser).parse(js.noSpaces))
-    .getOrElse(schema)
+  update(schema, remove)
 }
 
 /** replace all namespace in the schema with the provided one
@@ -93,10 +94,5 @@ def replaceNamespace(schema: Schema, ns: String): Schema = {
     }
   }
 
-  jawn
-    .parse(SchemaFormatter.format("json/pretty", schema))
-    .toOption
-    .map(replace)
-    .map(js => (new Schema.Parser).parse(js.noSpaces))
-    .getOrElse(schema)
+  update(schema, replace)
 }
