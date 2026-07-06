@@ -334,7 +334,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet" % "parquet-avro"           % parquetV,
       "org.apache.avro"    % "avro"                   % avroV,
       "org.tukaani"        % "xz"                     % "1.12",
-      "at.yawk.lz4"        % "lz4-java"               % "1.11.0", // drop-in replacement of org.lz4:lz4-java
+      "at.yawk.lz4"        % "lz4-java"               % "1.11.1", // drop-in replacement of org.lz4:lz4-java
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
       "io.netty"           % "netty-all"              % "4.2.15.Final", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
