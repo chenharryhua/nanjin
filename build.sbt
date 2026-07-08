@@ -27,8 +27,8 @@ val drosteV = "0.10.0"
 val fs2KafkaV = "4.0.0"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
-val http4sV = "0.23.34"
-val jacksonV = "2.22.0"
+val jacksonV = "2.22.1"
+val http4sV = "0.23.36"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.5.37"
@@ -36,7 +36,7 @@ val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
 val parquetV = "1.17.1"
-val postgresV = "42.7.12"
+val postgresV = "42.7.13"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.18"
 
@@ -334,12 +334,12 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet" % "parquet-avro"           % parquetV,
       "org.apache.avro"    % "avro"                   % avroV,
       "org.tukaani"        % "xz"                     % "1.12",
-      "at.yawk.lz4"        % "lz4-java"               % "1.11.0", // drop-in replacement of org.lz4:lz4-java
+      "at.yawk.lz4"        % "lz4-java"               % "1.11.1", // drop-in replacement of org.lz4:lz4-java
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.15.Final", // snky by hadoop-client
+      "io.netty"           % "netty-all"              % "4.2.16.Final", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
-      "org.eclipse.jetty"  % "jetty-server"           % "12.1.10", // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-http"             % "12.1.10", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % "12.1.11", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % "12.1.11", // snyk by hadoop-client
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.84" // snyk by hadoop-client
     ) ++ testLib
   )
