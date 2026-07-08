@@ -36,7 +36,7 @@ val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
 val parquetV = "1.17.1"
-val postgresV = "42.7.12"
+val postgresV = "42.7.13"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.18"
 
