@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.47.2"
+val awsV = "2.47.5"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.10.0"
@@ -31,7 +31,7 @@ val jacksonV = "2.22.1"
 val http4sV = "0.23.36"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
-val logbackV = "1.5.37"
+val logbackV = "1.5.38"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -304,7 +304,7 @@ lazy val kafka = (project in file("kafka"))
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
       "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
-      "io.opentelemetry" % "opentelemetry-api"            % "1.63.0", // snyk by kafka-client
+      "io.opentelemetry" % "opentelemetry-api"            % "1.64.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.5", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
