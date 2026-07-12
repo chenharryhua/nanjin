@@ -32,14 +32,13 @@ private object HadoopWriter {
   def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
-      .fromAutoCloseable(
-        F.blocking {
-          val path: Path = toHadoopPath(url)
-          val dfw: DataFileWriter[GenericRecord] =
-            new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
-          val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
-          dfw.create(schema, os)
-        })
+      .fromAutoCloseable(F.blocking {
+        val path: Path = toHadoopPath(url)
+        val dfw: DataFileWriter[GenericRecord] =
+          new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
+        val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
+        dfw.create(schema, os)
+      })
       .map { (dfw: DataFileWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
           override def write(cgr: Chunk[GenericRecord]): F[Unit] =
