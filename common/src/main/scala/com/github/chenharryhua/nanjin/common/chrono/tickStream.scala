@@ -6,10 +6,12 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import fs2.{Pull, Stream}
+import monocle.Monocle.focus
 
 import java.time.{Duration, ZoneId}
 import scala.concurrent.duration.DurationLong
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+
 object tickStream {
 
   /** Convert a TickStatus into a stream of Tick. For each status:
@@ -17,7 +19,7 @@ object tickStream {
     *   - Sleep for the tick’s snooze duration
     *   - Emit the tick
     */
-  def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
+  private def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, PolicyTick[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
         _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
@@ -36,12 +38,13 @@ object tickStream {
   /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
     * continues according to the policy.
     *
-    * Index start from zero
+    * Index start from one
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
     Stream
       .eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy)))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
+      .map(_.focus(_.index).modify(_ + 1))
 
   /** Stream ticks according to a policy in an
     *
