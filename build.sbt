@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.47.5"
+val awsV = "2.48.0"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -337,6 +337,7 @@ lazy val pipes = (project in file("pipes"))
       "at.yawk.lz4"        % "lz4-java"               % "1.11.1", // drop-in replacement of org.lz4:lz4-java
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
       "io.netty"           % "netty-all"              % "4.2.16.Final", // snky by hadoop-client
+      "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % "12.1.11", // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % "12.1.11", // snyk by hadoop-client

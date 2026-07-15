@@ -4,7 +4,7 @@ import cats.effect.MonadCancel
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.{MonadError, Semigroup}
+import cats.{MonadThrow, Semigroup}
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.StackTrace
@@ -64,7 +64,7 @@ import io.circe.Encoder
   * val log: Log[F] = agent.logger |+| agent.herald
   * }}}
   */
-abstract class Log[F[_]](using F: MonadError[F, Throwable]) {
+abstract class Log[F[_]](using F: MonadThrow[F]) {
   /*
    * Log SPI
    */

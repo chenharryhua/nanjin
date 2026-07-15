@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import cats.{Endo, MonadThrow}
 import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
 import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
@@ -13,7 +14,6 @@ import cats.syntax.functor.given
 import cats.syntax.monadError.given
 import cats.syntax.show.given
 import cats.syntax.traverse.given
-import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.batch.BatchKind
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
@@ -90,7 +90,7 @@ object Batch {
   ///
 
   private def handle_outcome[F[_], A](job: BatchJob, jobHook: JobHook[F, A], updatePanel: UpdatePanel[F])(
-    outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(using F: MonadError[F, Throwable]): F[Unit] =
+    outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(using F: MonadThrow[F]): F[Unit] =
     outcome.fold(
       canceled = jobHook.canceled(job),
       // Outcome.Errored should be impossible because job effects are wrapped in attempt
