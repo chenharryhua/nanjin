@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.Monad
+import cats.MonadThrow
 import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.{Random, SecureRandom}
 import cats.syntax.applicative.given
@@ -13,7 +13,9 @@ import java.time.{Instant, ZoneId}
 /** PolicyTick wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
   * according to the policy.
   */
-final class PolicyTick[F[_]: {Random, Monad}] private (val tick: Tick, decisions: LazyList[TickStepper[F]]) {
+final class PolicyTick[F[_]: {Random, MonadThrow}] private (
+  val tick: Tick,
+  decisions: LazyList[TickStepper[F]]) {
 
   def renewPolicy(policy: Policy): PolicyTick[F] =
     new PolicyTick(tick, EvalPolicy(policy.policy))
@@ -37,7 +39,7 @@ final class PolicyTick[F[_]: {Random, Monad}] private (val tick: Tick, decisions
 }
 
 object PolicyTick {
-  def zeroth[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
+  def zeroth[F[_]: {Sync, MonadThrow}](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
       given dummy: SecureRandom[F] = sr
       Tick.zeroth[F](zoneId).map(new PolicyTick(_, EvalPolicy(policy.policy)))

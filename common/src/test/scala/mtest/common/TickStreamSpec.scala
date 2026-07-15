@@ -16,10 +16,10 @@ class TickStreamSpec extends AnyFunSuite {
   private def takeTicks[F[_]: Temporal](stream: Stream[F, Tick], n: Long): F[List[Tick]] =
     stream.take(n).compile.toList
 
-  test("1.tickImmediate emits zeroth tick immediately") {
+  test("1.tickImmediate emits first tick immediately") {
     val ticks = takeTicks(tickStream.tickImmediate[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
-    assert(ticks.head.index == 0)
+    assert(ticks.head.index == 1)
     assert(ticks.sliding(2).forall {
       case Seq(a, b) => a.conclude.isBefore(b.conclude) || a.conclude.equals(b.conclude)
       case _         => true

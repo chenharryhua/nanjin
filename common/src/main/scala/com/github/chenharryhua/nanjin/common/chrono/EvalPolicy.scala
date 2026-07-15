@@ -7,7 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.order.given
 import cats.syntax.show.showInterpolator
-import cats.{Monad, Show}
+import cats.{MonadThrow, Show}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
 import higherkindness.droste.data.Fix
@@ -29,7 +29,7 @@ private object EvalPolicy {
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
 
-  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
+  private def algebra[F[_]: MonadThrow](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
     Algebra[PolicyF, LazyList[TickStepper[F]]] {
 
       case Empty() => LazyList.empty
@@ -38,8 +38,9 @@ private object EvalPolicy {
         val seed: TickStepper[F] = TickStepper { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
             case Some(value) => tick.nextTick(now, value.toInstant).pure[F]
-            case None        => // should not happen
-              sys.error(show"$cronExpr returned None at $now. This should never happen.")
+            case None        =>
+              val message = show"$cronExpr returned None at $now. This should never happen."
+              MonadThrow[F].raiseError(new IllegalStateException(message))
           }
         }
         LazyList.continually(seed)
@@ -100,7 +101,7 @@ private object EvalPolicy {
         }
     }
 
-  def apply[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
+  def apply[F[_]: {Random, MonadThrow}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
     scheme.cata(algebra(Random[F])).apply(policy)
 
 }

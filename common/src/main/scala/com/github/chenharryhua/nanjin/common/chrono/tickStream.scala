@@ -6,18 +6,25 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import fs2.{Pull, Stream}
+import monocle.Monocle.focus
 
 import java.time.{Duration, ZoneId}
 import scala.concurrent.duration.DurationLong
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+
 object tickStream {
+
+  private def initPolicyTick[F[_]: Async](
+    zoneId: ZoneId,
+    f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
+    Stream.eval(PolicyTick.zeroth[F](zoneId, f(Policy)))
 
   /** Convert a TickStatus into a stream of Tick. For each status:
     *   - Compute the next tick based on the current time
     *   - Sleep for the tick’s snooze duration
     *   - Emit the tick
     */
-  def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
+  private def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, PolicyTick[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
         _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
@@ -31,17 +38,17 @@ object tickStream {
     * Index start from one
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
-    Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap(fromTickStatus[F])
+    initPolicyTick(zoneId, f).flatMap(fromTickStatus[F])
 
   /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
     * continues according to the policy.
     *
-    * Index start from zero
+    * Index start from one
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
-    Stream
-      .eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy)))
+    initPolicyTick(zoneId, f)
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
+      .map(_.focus(_.index).modify(_ + 1))
 
   /** Stream ticks according to a policy in an
     *
@@ -52,7 +59,7 @@ object tickStream {
     * Index start from one
     */
   def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
-    Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap { initStatus =>
+    initPolicyTick(zoneId, f).flatMap { initStatus =>
       val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
         Pull.loop[F, Tick, PolicyTick[F]] { ts =>
           Pull.eval(F.realTimeInstant.flatMap(ts.next)).flatMap {
