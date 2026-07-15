@@ -16,7 +16,7 @@ val avro4sV = "5.0.15"
 val awsV = "2.47.5"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
-val chimneyV = "1.10.0"
+val chimneyV = "1.11.0"
 val circeV = "0.14.16"
 val confluentV = "8.3.0"
 val kafkaV = "8.3.0-ce"
@@ -307,7 +307,7 @@ lazy val kafka = (project in file("kafka"))
       "io.opentelemetry" % "opentelemetry-api"            % "1.64.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.5", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.0" // snyk by wire-runtime-jvm
+      "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
