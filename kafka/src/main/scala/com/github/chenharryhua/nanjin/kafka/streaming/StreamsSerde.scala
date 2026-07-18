@@ -4,16 +4,7 @@ import com.github.chenharryhua.nanjin.kafka.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.kstream.{
-  Consumed,
-  Grouped,
-  Joined,
-  Materialized,
-  Produced,
-  Repartitioned,
-  StreamJoined
-}
-import org.apache.kafka.streams.processor.StateStore
+import org.apache.kafka.streams.kstream.{Consumed, Grouped, Joined, Produced, Repartitioned, StreamJoined}
 
 final class StreamsSerde private[kafka] (srClient: SchemaRegistryClient, serdeSettings: SerdeSettings) {
   private val properties: Map[String, String] = serdeSettings.properties
@@ -47,10 +38,4 @@ final class StreamsSerde private[kafka] (srClient: SchemaRegistryClient, serdeSe
 
   def repartitioned[K, V](key: Unregistered[K], value: Unregistered[V]): Repartitioned[K, V] =
     Repartitioned.`with`(asKey(key), asValue(value))
-
-  def materialized[K, V, S <: StateStore](
-    key: Unregistered[K],
-    value: Unregistered[V]): Materialized[K, V, S] =
-    Materialized.`with`(asKey(key), asValue(value))
-
 }

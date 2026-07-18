@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import com.github.chenharryhua.nanjin.kafka.TopicSerde
+import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.StoreQueryParameters
+import org.apache.kafka.streams.kstream.Materialized
 import org.apache.kafka.streams.state.*
 
 import java.time.Duration
@@ -16,6 +18,9 @@ final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
     Stores.timestampedKeyValueStoreBuilder(supplier, topic.key.serde, topic.value.serde)
+
+  def materialized: Materialized[K, V, KeyValueStore[Bytes, Array[Byte]]] =
+    Materialized.as(supplier).withKeySerde(topic.key.serde).withValueSerde(topic.value.serde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
@@ -26,6 +31,9 @@ final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
     Stores.timestampedWindowStoreBuilder(supplier, topic.key.serde, topic.value.serde)
+
+  def materialized: Materialized[K, V, WindowStore[Bytes, Array[Byte]]] =
+    Materialized.as(supplier).withKeySerde(topic.key.serde).withValueSerde(topic.value.serde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
@@ -33,6 +41,9 @@ final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   topic: TopicSerde[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
     Stores.sessionStoreBuilder(supplier, topic.key.serde, topic.value.serde)
+
+  def materialized: Materialized[K, V, SessionStore[Bytes, Array[Byte]]] =
+    Materialized.as(supplier).withKeySerde(topic.key.serde).withValueSerde(topic.value.serde)
 }
 
 final class StateStores[K, V] private (topic: TopicSerde[K, V]) {
