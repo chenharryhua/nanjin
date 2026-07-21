@@ -1,25 +1,35 @@
 package com.github.chenharryhua.nanjin.kafka.connector
+import cats.implicits.catsSyntaxEither
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.circe.syntax.given
+import io.circe.{Encoder, Json}
 import io.scalaland.chimney.dsl.transformInto
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.io.DecoderFactory
+import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serdes
 
 import java.nio.ByteBuffer
-import scala.jdk.CollectionConverters.SeqHasAsJava
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
 import scala.jdk.OptionConverters.RichOptional
-import scala.util.control.NonFatal
+import scala.util.Try
 
-final case class PullError(metaInfo: MetaInfo, throwable: Throwable)
+final case class PullError(isKey: Boolean, metaInfo: MetaInfo, error: SerializationException)
+object PullError {
+  given Encoder[PullError] = new Encoder[PullError] {
+    override def apply(a: PullError): Json =
+      Json.obj((if a.isKey then "key.error" else "value.error") -> a.metaInfo.asJson)
+  }
+}
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
-  private val topic: String = "place.holder"
+  private val topic: String = "unused"
 
   private def getDecoder(skm: Schema): Array[Byte] => Any =
     skm.getType match {
@@ -64,8 +74,13 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
 
   private val headerSchema = SchemaFor[NJHeader].schema
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullError, Record] =
-    try {
-      val headers: Array[Record] = ccr.headers().toArray.map { h =>
+    for {
+      key <- Try(key_decode(ccr.key())).toEither.
+        leftMap(ex => PullError(true, MetaInfo(ccr), new SerializationException(ex)))
+      value <- Try(val_decode(ccr.value())).toEither
+        .leftMap(ex => PullError(false, MetaInfo(ccr), new SerializationException(ex)))
+    } yield {
+      val headers: Iterator[Record] = ccr.headers().iterator().asScala.map { h =>
         val header = new Record(headerSchema)
         header.put("key", h.key())
         header.put("value", ByteBuffer.wrap(h.value()))
@@ -79,13 +94,11 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       record.put("timestampType", ccr.timestampType().id)
       record.put("serializedKeySize", ccr.serializedKeySize())
       record.put("serializedValueSize", ccr.serializedValueSize())
-      record.put("key", key_decode(ccr.key))
-      record.put("value", val_decode(ccr.value))
-      record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
+      record.put("key", key)
+      record.put("value", value)
+      record.put("leaderEpoch", ccr.leaderEpoch().toScala.map(_.intValue()).orNull)
       record.put("headers", headers.toSeq.asJava)
-      Right(record)
-    } catch {
-      case NonFatal(ex) => Left(PullError(MetaInfo(ccr), ex))
+      record
     }
 
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullError, Record] =

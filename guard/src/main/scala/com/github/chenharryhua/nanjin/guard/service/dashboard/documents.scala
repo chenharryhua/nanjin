@@ -15,13 +15,13 @@ import com.github.chenharryhua.nanjin.guard.event.{
 import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute, SnapshotPolyglot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.localtimeInstances
 import scalatags.Text
 import scalatags.Text.all.*
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZonedDateTime}
-
 private object documents {
   private case class Present(value: ZonedDateTime) {
     val text: String = value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
@@ -180,7 +180,7 @@ private object documents {
     val list = metricsSnapshots.reverse.map { mr =>
       val took = Attribute(mr.took).textEntry
       val idx = Attribute(mr.index).textEntry
-      val timestamp = Attribute(mr.timestamp).textEntry
+      val timestamp = Attribute(mr.timestamp).map(_.value.toLocalDateTime.show).textEntry
       div(
         table(
           tr(th(style := htmlColoring(mr))(idx.tag), th(timestamp.tag), th(took.tag)),

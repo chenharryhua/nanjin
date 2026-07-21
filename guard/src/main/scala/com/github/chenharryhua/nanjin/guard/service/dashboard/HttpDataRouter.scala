@@ -60,7 +60,7 @@ final private class HttpDataRouter[F[_]](
       val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
       Ok(json)
 
-    case GET -> Root / "service" / "health_check" =>
+    case GET -> Root / "service" / hc if Set("health_check", "healthCheck")(hc) =>
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory
