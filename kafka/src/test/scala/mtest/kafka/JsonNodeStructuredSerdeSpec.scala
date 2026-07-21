@@ -2,7 +2,6 @@ package mtest.kafka
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.serdes.Structured
-import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serde
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
