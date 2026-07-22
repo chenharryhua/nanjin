@@ -28,16 +28,16 @@ class HttpServerTest extends AnyFunSuite {
       .withLogFormat(_.Slf4j_Json_OneLine))
 
   test("1.stop service") {
-    val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/service/stop")
+    val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/stop")
     val client = EmberClientBuilder
       .default[IO]
       .build
       .use { c =>
         c.expect[String]("http://localhost:9999/metrics/report") >>
           c.expect[String]("http://localhost:9999/metrics/history") >>
-          c.expect[String]("http://localhost:9999/service/jvm") >>
-          c.expect[String]("http://localhost:9999/service/params") >>
-          c.expect[String]("http://localhost:9999/service/health_check") >>
+          c.expect[String]("http://localhost:9999/metrics/jvm") >>
+          c.expect[String]("http://localhost:9999/params") >>
+          c.expect[String]("http://localhost:9999/health") >>
           c.expect[String]("http://localhost:9999/panics") >>
           c.expect[String]("http://localhost:9999/errors") >>
           c.expect[String]("http://localhost:9999/alarm/level") >>
@@ -71,7 +71,7 @@ class HttpServerTest extends AnyFunSuite {
   }
 
   test("3.panic history") {
-    val stop = Request[IO](method = POST, uri = uri"http://localhost:9997/service/stop")
+    val stop = Request[IO](method = POST, uri = uri"http://localhost:9997/stop")
     val client = EmberClientBuilder
       .default[IO]
       .build
