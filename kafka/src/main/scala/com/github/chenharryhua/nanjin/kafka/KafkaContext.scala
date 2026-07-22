@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.kafka.admins.{
   SnapshotConsumer
 }
 import com.github.chenharryhua.nanjin.kafka.connector.*
-import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Registered, Unregistered}
+import com.github.chenharryhua.nanjin.kafka.serdes.{Registered, Unregistered}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.avro.{AvroSchema, AvroSchemaProvider}
@@ -155,8 +155,10 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   /** Create a raw byte consumer
     */
   def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] = {
-    val topicDef = TopicDef(topicName, Primitive[Array[Byte]], Primitive[Array[Byte]])
-    consume(topicDef)
+    consume(
+      topicName,
+      Resource.pure[F, KeyDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]),
+      Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]))
   }
 
   def consumeGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
@@ -229,29 +231,27 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
+  private def snapshotConsumer(topicName: TopicName, groupId: Option[GroupId])(using
+    F: Async[F]): Resource[F, SnapshotConsumer[F]] = {
+    val baseSettings = PureConsumerSettings
+      .withProperties(settings.consumerSettings.properties)
+      .withAutoOffsetReset(AutoOffsetReset.None)
+      .withEnableAutoCommit(false)
+
+    val consumerSettings = groupId.fold(baseSettings)(gid => baseSettings.withGroupId(gid.value))
+    SnapshotConsumer(topicName, consumerSettings)
+  }
+
   def admin(topicName: TopicName, groupId: GroupId)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
-      consumer <- SnapshotConsumer(
-        topicName,
-        PureConsumerSettings
-          .withProperties(settings.consumerSettings.properties)
-          .withAutoOffsetReset(AutoOffsetReset.None)
-          .withEnableAutoCommit(false)
-          .withGroupId(groupId.value)
-      )
+      consumer <- snapshotConsumer(topicName, Some(groupId))
     } yield AdminTopicGroup(admin, consumer, topicName, groupId)
 
   def admin(topicName: TopicName)(using F: Async[F]): Resource[F, AdminTopic[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
-      consumer <- SnapshotConsumer(
-        topicName,
-        PureConsumerSettings
-          .withProperties(settings.consumerSettings.properties)
-          .withAutoOffsetReset(AutoOffsetReset.None)
-          .withEnableAutoCommit(false)
-      )
+      consumer <- snapshotConsumer(topicName, None)
     } yield AdminTopic(admin, consumer, topicName)
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
