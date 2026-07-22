@@ -33,7 +33,7 @@ final private class HttpDataRouter[F[_]](
   val router: HttpRoutes[F] = HttpRoutes.of[F] {
 
     /*
-     * Panics and Errors
+     * Top Level
      */
     case GET -> Root / "panics" =>
       val json = for {
@@ -49,18 +49,13 @@ final private class HttpDataRouter[F[_]](
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
 
-    /*
-     * Service
-     */
-
-    case GET -> Root / "service" / "params" =>
+    case GET -> Root / "params" =>
       Ok(interpretServiceParams(serviceParams))
 
-    case GET -> Root / "service" / "jvm" =>
-      val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
-      Ok(json)
+    case POST -> Root / "stop" =>
+      Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
 
-    case GET -> Root / "service" / hc if Set("health_check", "healthCheck")(hc) =>
+    case GET -> Root / hc if Set("health_check", "healthCheck", "health", "healthz")(hc) =>
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory
@@ -72,12 +67,13 @@ final private class HttpDataRouter[F[_]](
         case Right(value) => Ok(value)
       }
 
-    case POST -> Root / "service" / "stop" =>
-      Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
-
     /*
      * Metrics
      */
+
+    case GET -> Root / "metrics" / "jvm" =>
+      val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
+      Ok(json)
 
     case GET -> Root / "metrics" / "report" =>
       val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report"))

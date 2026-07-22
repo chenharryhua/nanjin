@@ -1,11 +1,11 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.std.{CountDownLatch, Dispatcher}
+import cats.effect.kernel.Deferred
+import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateUpdate}
-import fs2.concurrent.Channel
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateTransition}
 import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
@@ -19,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 import java.util
 import java.util.Optional
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   private class FakeSchemaRegistryClient extends SchemaRegistryClient {
@@ -108,42 +108,43 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   }
 
   private def newStateChange(
+    testBuilder: KafkaStreamsBuilder[IO],
     dispatcher: Dispatcher[IO],
-    latch: CountDownLatch[IO],
-    stop: cats.effect.Deferred[IO, Either[Throwable, Unit]],
-    bus: Option[Channel[IO, StateUpdate]]): Any = {
-    val clazz = builder.getClass.getDeclaredClasses
-      .find(_.getSimpleName.contains("StateChange"))
-      .getOrElse(sys.error("StateChange class not found"))
+    startup: Deferred[IO, Unit],
+    stop: Deferred[IO, Either[Throwable, Unit]]): Any = {
+    val clazz = testBuilder.getClass.getDeclaredClasses
+      .find(_.getSimpleName.contains("StateTransition"))
+      .getOrElse(sys.error("StateTransition class not found"))
     val ctor = clazz.getDeclaredConstructors.head
     ctor.setAccessible(true)
-    ctor.newInstance(builder, dispatcher, latch, stop, bus)
+    ctor.newInstance(testBuilder, dispatcher, startup, stop)
   }
 
-  test("StateChange should release a latch and emit a bus update on RUNNING") {
+  test("StateChange should release a latch and invoke the transition callback on RUNNING") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
-        latch <- CountDownLatch[IO](1)
+        startup <- IO.deferred[Unit]
         stop <- IO.deferred[Either[Throwable, Unit]]
-        bus <- Channel.unbounded[IO, StateUpdate]
-        stateChange = newStateChange(dispatcher, latch, stop, Some(bus))
+        transition <- IO.deferred[StateTransition]
+        testBuilder = builder.onStateTransition(st => transition.complete(st) >> IO.unit)
+        stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
         _ <- IO {
           stateChange.getClass
             .getMethod("onChange", classOf[State], classOf[State])
             .invoke(stateChange, State.RUNNING, State.CREATED)
         }
-        _ <- latch.await
-        updates <- bus.stream.take(1).compile.toList
-      } yield updates shouldBe List(StateUpdate(State.RUNNING, State.CREATED))
+        _ <- startup.get
+        received <- transition.get
+      } yield received shouldBe StateTransition(applicationId, State.CREATED, State.RUNNING)
     }.unsafeRunSync()
   }
 
   test("StateChange should complete stop with error on ERROR") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
-        latch <- CountDownLatch[IO](1)
+        startup <- IO.deferred[Unit]
         stop <- IO.deferred[Either[Throwable, Unit]]
-        stateChange = newStateChange(dispatcher, latch, stop, None)
+        stateChange = newStateChange(builder, dispatcher, startup, stop)
         _ <- IO {
           stateChange.getClass
             .getMethod("onChange", classOf[State], classOf[State])
@@ -155,5 +156,65 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         case Right(_)  => fail("expected KafkaStreamsAbnormallyStopped")
       }
     }.unsafeRunSync()
+  }
+
+  test("StateChange should complete stop without error on NOT_RUNNING") {
+    Dispatcher.sequential[IO].use { dispatcher =>
+      for {
+        startup <- IO.deferred[Unit]
+        stop <- IO.deferred[Either[Throwable, Unit]]
+        stateChange = newStateChange(builder, dispatcher, startup, stop)
+        _ <- IO {
+          stateChange.getClass
+            .getMethod("onChange", classOf[State], classOf[State])
+            .invoke(stateChange, State.NOT_RUNNING, State.RUNNING)
+        }
+        result <- stop.get
+      } yield result shouldBe Right(())
+    }.unsafeRunSync()
+  }
+
+  test("onStateTransition should invoke the configured callback") {
+    Dispatcher.sequential[IO].use { dispatcher =>
+      for {
+        startup <- IO.deferred[Unit]
+        stop <- IO.deferred[Either[Throwable, Unit]]
+        transition <- IO.deferred[StateTransition]
+        testBuilder = builder.onStateTransition(st => transition.complete(st) >> IO.unit)
+        stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
+        _ <- IO {
+          stateChange.getClass
+            .getMethod("onChange", classOf[State], classOf[State])
+            .invoke(stateChange, State.RUNNING, State.CREATED)
+        }
+        received <- transition.get.timeoutTo(
+          1.second,
+          IO.raiseError(new AssertionError("transition callback was not invoked")))
+      } yield received.newState shouldBe State.RUNNING
+    }.unsafeRunSync()
+  }
+
+  test("kafkaStreams should fail when startup does not complete before the timeout") {
+    val failingBuilder = builder
+      .withProperty("bootstrap.servers", "localhost:9092")
+      .withStartUpTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
+
+    val result = failingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
+
+    result.isLeft shouldBe true
+  }
+
+  test("kafkaStreams should fail when the topology builder throws") {
+    val throwingBuilder = KafkaStreamsBuilder[IO](
+      applicationId,
+      streamSettings.withProperty("bootstrap.servers", "localhost:9092"),
+      srClient,
+      serdeSettings,
+      (_, _) => throw new IllegalStateException("topology failed")
+    )
+
+    val result = throwingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
+
+    result.isLeft shouldBe true
   }
 }

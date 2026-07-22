@@ -24,7 +24,7 @@ class JsonNodeStructuredSerdeSpec extends AnyFunSuite with Matchers {
     }
 
     // depending on underlying implementation this may be a SerializationException or another exception
-    ex shouldBe a [Exception]
+    ex shouldBe a[Exception]
   }
 
 }

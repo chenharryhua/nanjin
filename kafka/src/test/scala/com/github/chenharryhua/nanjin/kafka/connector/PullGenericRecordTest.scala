@@ -63,7 +63,7 @@ class PullGenericRecordTest extends AnyFunSuite {
   test("record schema decode error produces PullError with isKey true") {
     // key is RECORD type: decoder expects Confluent wire format and will drop first 5 bytes
     val keyRecordSchema = new Schema.Parser().parse(Key.schema)
-   // keyRecordSchema.setFields(java.util.Arrays.asList())
+    // keyRecordSchema.setFields(java.util.Arrays.asList())
 
     val valSchema = Schema.create(Schema.Type.STRING)
     val pair = AvroSchemaPair(AvroSchema(keyRecordSchema), AvroSchema(valSchema))

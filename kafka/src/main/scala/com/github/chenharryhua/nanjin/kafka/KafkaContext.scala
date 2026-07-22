@@ -40,46 +40,6 @@ import scala.util.Try
 final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] {
 
-  /** Returns a new KafkaContext with updated settings. */
-  override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
-    new KafkaContext[F](f(settings))
-
-  // --------------------------------------------------------------------------
-  // State Stores and Serdes
-  // --------------------------------------------------------------------------
-
-  /** Create state stores for the given topic.
-    *
-    * @param topic
-    *   Topic with schema information
-    * @tparam K
-    *   Key type
-    * @tparam V
-    *   Value type
-    * @return
-    *   StateStores instance
-    */
-  def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
-    StateStores[K, V](topic.register(schema_registry_internal, settings.serdeSettings))
-
-  /** Returns the registered Serde pair for a topic.
-    *
-    * @param topic
-    *   Topic to register Serde for
-    * @tparam K
-    *   Key type
-    * @tparam V
-    *   Value type
-    */
-  def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
-    topic.register(schema_registry_internal, settings.serdeSettings)
-
-  def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
-    rs.asKey(schema_registry_internal, settings.serdeSettings.properties)
-
-  def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
-    rs.asValue(schema_registry_internal, settings.serdeSettings.properties)
-
   // --------------------------------------------------------------------------
   // Schema Registry
   // --------------------------------------------------------------------------
@@ -103,6 +63,46 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       List(new AvroSchemaProvider, new JsonSchemaProvider, new ProtobufSchemaProvider).asJava,
       Map.empty.asJava)
   }
+
+  /** Returns a new KafkaContext with updated settings. */
+  override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
+    new KafkaContext[F](f(settings))
+
+  // --------------------------------------------------------------------------
+  // State Stores and Serdes
+  // --------------------------------------------------------------------------
+
+  /** Returns the registered Serde pair for a topic.
+    *
+    * @param topic
+    *   Topic to register Serde for
+    * @tparam K
+    *   Key type
+    * @tparam V
+    *   Value type
+    */
+  def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
+    topic.register(schema_registry_internal, settings.serdeSettings)
+
+  /** Create state stores for the given topic.
+    *
+    * @param topic
+    *   Topic with schema information
+    * @tparam K
+    *   Key type
+    * @tparam V
+    *   Value type
+    * @return
+    *   StateStores instance
+    */
+  def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
+    StateStores[K, V](serde(topic))
+
+  def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
+    rs.asKey(schema_registry_internal, settings.serdeSettings.properties)
+
+  def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
+    rs.asValue(schema_registry_internal, settings.serdeSettings.properties)
 
   /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
     *
