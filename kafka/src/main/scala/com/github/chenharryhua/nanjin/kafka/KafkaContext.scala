@@ -64,6 +64,18 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       Map.empty.asJava)
   }
 
+  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
+    *
+    * @throws java.lang.IllegalStateException
+    *   if the URL config is absent
+    */
+  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
+    SchemaRegistryApi[F](schema_registry_internal)
+
+  // --------------------------------------------------------------------------
+  // Configure
+  // --------------------------------------------------------------------------
+
   /** Returns a new KafkaContext with updated settings. */
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
@@ -103,14 +115,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
     rs.asValue(schema_registry_internal, settings.serdeSettings.properties)
-
-  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
-    *
-    * @throws java.lang.IllegalStateException
-    *   if the URL config is absent
-    */
-  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
-    SchemaRegistryApi[F](schema_registry_internal)
 
   // --------------------------------------------------------------------------
   // Consumers

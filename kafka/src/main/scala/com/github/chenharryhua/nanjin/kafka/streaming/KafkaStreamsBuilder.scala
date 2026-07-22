@@ -100,7 +100,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     } yield kafkaStreams
   }
 
-  lazy val runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never
+  lazy val runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never[F]
 
   private def copy(
     streamSettings: KafkaStreamSettings = this.streamSettings,
