@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.schema
 
 import io.circe.optics.all.*
-import io.circe.{jawn, Json}
+import io.circe.{jawn, ACursor, Json}
 import monocle.function.Plated
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaFormatter}
 
@@ -21,22 +21,25 @@ private def update(schema: Schema, f: Json => Json): Schema =
     .map(js => (new Schema.Parser).parse(js.noSpaces))
     .getOrElse(schema)
 
+private def rewriteSchema(schema: Schema, field: String)(f: ACursor => Option[ACursor]): Schema = {
+  val rewrite: Json => Json = Plated.transform[Json] { js =>
+    js.asObject match {
+      case Some(value) => f(value.toJson.hcursor.downField(field)).flatMap(_.top).getOrElse(js)
+      case None        => js
+    }
+  }
+
+  update(schema, rewrite)
+}
+
 /** remove all default fields in the schema
   * @param schema
   *   input schema
   * @return
   *   schema without default fields
   */
-def removeDefaultField(schema: Schema): Schema = {
-  val remove: Json => Json = Plated.transform[Json] { js =>
-    js.asObject match {
-      case Some(value) => value.toJson.hcursor.downField("default").delete.top.getOrElse(js)
-      case None        => js
-    }
-  }
-
-  update(schema, remove)
-}
+def removeDefaultField(schema: Schema): Schema =
+  rewriteSchema(schema, "default")(cursor => Some(cursor.delete))
 
 /** remove namespace field from the schema
   *
@@ -45,16 +48,8 @@ def removeDefaultField(schema: Schema): Schema = {
   * @return
   *   schema without namespace
   */
-def removeNamespace(schema: Schema): Schema = {
-  val remove: Json => Json = Plated.transform[Json] { js =>
-    js.asObject match {
-      case Some(value) => value.toJson.hcursor.downField("namespace").delete.top.getOrElse(js)
-      case None        => js
-    }
-  }
-
-  update(schema, remove)
-}
+def removeNamespace(schema: Schema): Schema =
+  rewriteSchema(schema, "namespace")(cursor => Some(cursor.delete))
 
 /** remove doc field from the schema
   *
@@ -63,16 +58,8 @@ def removeNamespace(schema: Schema): Schema = {
   * @return
   *   schema without doc
   */
-def removeDocField(schema: Schema): Schema = {
-  val remove: Json => Json = Plated.transform[Json] { js =>
-    js.asObject match {
-      case Some(value) => value.toJson.hcursor.downField("doc").delete.top.getOrElse(js)
-      case None        => js
-    }
-  }
-
-  update(schema, remove)
-}
+def removeDocField(schema: Schema): Schema =
+  rewriteSchema(schema, "doc")(cursor => Some(cursor.delete))
 
 /** replace all namespace in the schema with the provided one
   * @param schema
@@ -85,14 +72,5 @@ def removeDocField(schema: Schema): Schema = {
   *
   * children namespace removed so that the whole schema use the same namespace
   */
-def replaceNamespace(schema: Schema, ns: String): Schema = {
-  val replace: Json => Json = Plated.transform[Json] { js =>
-    js.asObject match {
-      case Some(value) =>
-        value.toJson.hcursor.downField("namespace").withFocus(_.mapString(_ => ns)).top.getOrElse(js)
-      case None => js
-    }
-  }
-
-  update(schema, replace)
-}
+def replaceNamespace(schema: Schema, ns: String): Schema =
+  rewriteSchema(schema, "namespace")(cursor => Some(cursor.withFocus(_.mapString(_ => ns))))

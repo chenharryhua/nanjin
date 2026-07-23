@@ -154,12 +154,12 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   /** Create a raw byte consumer
     */
-  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] = {
+  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] =
     consume(
       topicName,
       Resource.pure[F, KeyDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]),
-      Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]))
-  }
+      Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]])
+    )
 
   def consumeGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
     using F: Async[F]): ConsumeGenericRecord[F] =
