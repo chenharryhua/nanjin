@@ -2,6 +2,7 @@ package mtest.common
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Temporal}
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import cron4s.Cron
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -45,6 +46,17 @@ class TickStreamSpec extends AnyFunSuite {
     val expectedMinDuration = ticks.dropRight(1).map(_.snooze.toScala).foldLeft(0.seconds)(_ + _)
     assert(elapsed.toScala >= expectedMinDuration)
     assert(JDuration.between(start, ticks.head.local(_.acquires).toLocalTime).toScala < 1.second)
+  }
+
+  test("4.tickScheduled fails on impossible cron schedule") {
+    assertThrows[IllegalStateException] {
+      tickStream
+        .tickScheduled[IO](zoneId, _.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
+        .take(1)
+        .compile
+        .drain
+        .unsafeRunSync()
+    }
   }
 
 }

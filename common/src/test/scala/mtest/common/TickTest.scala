@@ -76,4 +76,23 @@ class TickTest extends AnyFunSuite with Matchers {
     decoded.acquires shouldEqual t.acquires
     decoded.conclude shouldEqual t.conclude
   }
+
+  test("8.Tick JSON round-trip preserves local times across DST overlap") {
+    val zone = ZoneId.of("Europe/Berlin")
+    val t = Tick(
+      sequenceId = uuid,
+      launchTime = Instant.parse("2026-10-25T00:20:00Z"),
+      zoneId = zone,
+      index = 7L,
+      commence = Instant.parse("2026-10-25T00:30:00Z"),
+      acquires = Instant.parse("2026-10-25T01:00:00Z"),
+      conclude = Instant.parse("2026-10-25T01:30:00Z")
+    )
+
+    val decoded = decode[Tick](t.asJson.noSpaces).toOption.get
+    decoded.local(_.launchTime) shouldEqual t.local(_.launchTime)
+    decoded.local(_.commence) shouldEqual t.local(_.commence)
+    decoded.local(_.acquires) shouldEqual t.local(_.acquires)
+    decoded.local(_.conclude) shouldEqual t.local(_.conclude)
+  }
 }

@@ -190,6 +190,27 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
   }
 
+  test("8.1.decode error on ambiguous policy payload") {
+    val conflict = """
+      {
+        "empty": true,
+        "fixedRate": "PT1S"
+      }
+      """
+    assert(decode[Policy](conflict).toOption.isEmpty)
+  }
+
+  test("8.2.decode error when no top-level policy variant exists") {
+    val noVariant = """
+      {
+        "policy": {
+          "empty": true
+        }
+      }
+      """
+    assert(decode[Policy](noVariant).toOption.isEmpty)
+  }
+
   test("9.except") {
     val policy = Policy.crontab(_.hourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
     println(policy.show)

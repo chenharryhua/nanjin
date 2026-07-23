@@ -67,8 +67,7 @@ class GaugeTest extends AnyFunSuite {
     val snapshots = service.eventStream { agent =>
       val setup = for {
         ref <- Resource.eval(cats.effect.Ref[IO].of(0))
-        _ <- agent.facilitate("counter")(
-          _.gauge("counter", _.register(ref.modify(i => (i + 1, i + 1)))))
+        _ <- agent.facilitate("counter")(_.gauge("counter", _.register(ref.modify(i => (i + 1, i + 1)))))
       } yield ()
 
       setup.surround(agent.adhoc.report >> agent.adhoc.report)
