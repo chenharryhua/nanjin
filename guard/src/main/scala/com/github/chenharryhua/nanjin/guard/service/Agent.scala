@@ -54,10 +54,21 @@ sealed trait Agent[F[_]] {
 
   val adhoc: AdhocMetrics[F]
 
-  /*
-   * circuit breaker
-   */
-  def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
+  /** Create a circuit breaker.
+    *
+    * `maxFailures` is the number of consecutive failures required to transition the breaker from closed to
+    * open.
+    *
+    * For example, a value of `3` opens the breaker after the third consecutive failure while in the closed
+    * state.
+    *
+    * Must be greater than `0`.
+    *
+    * `policy` defines the scheduling cadence used to transition the breaker from open to half-open. For
+    * long-lived breakers, the policy should be non-terminating so periodic probe attempts can continue
+    * indefinitely.
+    */
+  def circuitBreaker(maxFailures: Int, policy: Policy.type => Policy): Resource[F, CircuitBreaker[F]]
 
   /*
    * retry
@@ -110,8 +121,10 @@ final private class GeneralAgent[F[_]: Async](
   override def batch(label: String): Batch[F] =
     new Batch[F](metricsHub(label), uuidGenerator)
 
-  override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
-    CircuitBreaker[F](zoneId, f)
+  override def circuitBreaker(
+    maxFailures: Int,
+    policy: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
+    CircuitBreaker[F](zoneId, maxFailures, policy)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))

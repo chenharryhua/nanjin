@@ -3,7 +3,6 @@ package mtest.common
 import cats.effect.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
-import cron4s.Cron
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -24,12 +23,13 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
   ): Resource[IO, CircuitBreaker[IO]] =
     CircuitBreaker[IO](
       zoneId,
-      _.withMaxFailures(maxFailures).withPolicy(_ => policy)
+      maxFailures,
+      _ => policy
     )
 
   private def isRejected(ex: Throwable): Boolean = ex match {
-    case e: CircuitBreaker.RejectedException =>
-      e.getMessage.startsWith("CircuitBreaker rejected in state=") && (e.state != null)
+    case CircuitBreaker.RejectedException =>
+      ex.getMessage == "CircuitBreaker rejected"
     case _ => false
   }
 
@@ -156,17 +156,11 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
     "rejects non-positive maxFailures at configuration time" in {
       assertThrows[IllegalArgumentException] {
-        CircuitBreaker[IO](
-          zoneId,
-          _.withMaxFailures(0)
-        ).use(_ => IO.unit).unsafeRunSync()
+        breaker(0, Policy.fixedDelay(10.seconds)).use(_ => IO.unit).unsafeRunSync()
       }
 
       assertThrows[IllegalArgumentException] {
-        CircuitBreaker[IO](
-          zoneId,
-          _.withMaxFailures(-1)
-        ).use(_ => IO.unit).unsafeRunSync()
+        breaker(-1, Policy.fixedDelay(10.seconds)).use(_ => IO.unit).unsafeRunSync()
       }
     }
 
@@ -201,7 +195,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
         } yield r shouldBe Right(())
       }.unsafeRunSync()
 
-    "creates a fresh rejection throwable each time" in
+    "reuses singleton rejection throwable" in
       breaker(1, Policy.fixedDelay(10.seconds)).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(new RuntimeException("fail")))
@@ -213,46 +207,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           val e2 = r2.swap.toOption.get
           isRejected(e1) shouldBe true
           isRejected(e2) shouldBe true
-          (e1 eq e2) shouldBe false
-        }
-      }.unsafeRunSync()
-
-    "becomes broken when tick stream has terminated and breaker needs scheduler progress" in
-      breaker(1, Policy.empty).use { cb =>
-        for {
-          _ <- cb.attempt(IO.raiseError(new RuntimeException("fail")))
-          _ <- IO.sleep(50.millis)
-          r <- cb.attempt(IO.unit)
-        } yield r.swap.toOption.get.getMessage shouldBe "CircuitBreaker is broken"
-      }.unsafeRunSync()
-
-    "becomes broken when scheduler fails" in
-      CircuitBreaker[IO](
-        zoneId,
-        _.withPolicy(_.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
-      ).use { cb =>
-        for {
-          _ <- IO.sleep(50.millis)
-          r <- cb.attempt(IO.unit)
-        } yield {
-          val ex = r.swap.toOption.get
-          ex.getMessage shouldBe "CircuitBreaker is broken"
-        }
-      }.unsafeRunSync()
-
-    "keeps Broken as terminal state" in
-      breaker(1, Policy.empty).use { cb =>
-        for {
-          _ <- IO.sleep(50.millis)
-          s1 <- cb.getState
-          _ <- cb.attempt(IO.unit)
-          s2 <- cb.getState
-          _ <- cb.attempt(IO.raiseError(new RuntimeException("boom")))
-          s3 <- cb.getState
-        } yield {
-          s1 shouldBe CircuitBreaker.State.Broken
-          s2 shouldBe s1
-          s3 shouldBe s1
+          (e1 eq e2) shouldBe true
         }
       }.unsafeRunSync()
 

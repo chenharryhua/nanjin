@@ -100,7 +100,7 @@ class Performance extends AnyFunSuite {
     var i: Int = 0
     service
       .eventStream(
-        _.circuitBreaker(identity).use { cb =>
+        _.circuitBreaker(maxFailures = 5, policy = _.empty).use { cb =>
           cb.protect(IO(i += 1)).foreverM
         }
       )
