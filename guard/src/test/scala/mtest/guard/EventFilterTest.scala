@@ -69,7 +69,7 @@ class EventFilterTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("3.sampling - local time") {
+  test("4.sampling - local time") {
     val run: Stream[IO, Event] = service
       .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
       .eventStream(_ => IO.sleep(7.seconds))

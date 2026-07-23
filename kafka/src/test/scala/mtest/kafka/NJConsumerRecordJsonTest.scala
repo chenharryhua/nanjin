@@ -21,7 +21,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     value = Some("v")
   )
 
-  test("toJsonNode: basic fields") {
+  test("1.toJsonNode: basic fields") {
     val node: JsonNode =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
@@ -34,7 +34,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("timestamp").asLong() == 123456789L)
   }
 
-  test("1.toJsonNode: key/value mapping") {
+  test("2.toJsonNode: key/value mapping") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k.toUpperCase),
@@ -45,7 +45,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("value").asText() == "v".reverse)
   }
 
-  test("2.toJsonNode: None key/value becomes null") {
+  test("3.toJsonNode: None key/value becomes null") {
     val record = base.copy(key = None, value = None)
 
     val node =
@@ -55,7 +55,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("value").isNull)
   }
 
-  test("3.toJsonNode: partial mapping") {
+  test("4.toJsonNode: partial mapping") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
@@ -66,7 +66,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(node.get("value").asText() == "v")
   }
 
-  test("4.toJsonNode: headers serialized") {
+  test("5.toJsonNode: headers serialized") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
@@ -80,7 +80,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(h.get("key").asText() == "h1")
   }
 
-  test("5.toJsonNode: leaderEpoch optional") {
+  test("6.toJsonNode: leaderEpoch optional") {
     val node =
       base.toJsonNode(
         k => globalObjectMapper.valueToTree(k),
@@ -99,7 +99,7 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     assert(noEpoch.get("leaderEpoch").isNull)
   }
 
-  test("codec derives") {
+  test("7.codec derives") {
     summon[Encoder[NJConsumerRecord[Json, Json]]]
     summon[Decoder[NJConsumerRecord[Json, Json]]]
     summon[Decoder[ZonedConsumerRecord[Json, Int]]]

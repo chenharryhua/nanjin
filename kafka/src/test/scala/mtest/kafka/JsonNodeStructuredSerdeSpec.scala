@@ -10,15 +10,15 @@ class JsonNodeStructuredSerdeSpec extends AnyFunSuite with Matchers {
 
   val serde: Serde[JsonNode] = ctx.asValue(Structured[JsonNode]).serde
 
-  test("serializer should return null for null input") {
+  test("1.serializer should return null for null input") {
     serde.serializer.serialize("topic", null) shouldBe null
   }
 
-  test("deserializer should return null for null input") {
+  test("2.deserializer should return null for null input") {
     serde.deserializer.deserialize("topic", null) shouldBe null
   }
 
-  test("deserializer should throw SerializationException for corrupted input bytes") {
+  test("3.deserializer should throw SerializationException for corrupted input bytes") {
     val ex = intercept[Exception] {
       serde.deserializer.deserialize("topic", Array[Byte](1, 2, 3))
     }

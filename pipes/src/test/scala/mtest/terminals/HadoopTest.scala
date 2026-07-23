@@ -25,11 +25,11 @@ class HadoopTest extends AnyFunSuite {
   File(p3.toString()).createFileIfNotExists(createParents = true)
   File(p4.toString()).createFileIfNotExists(createParents = true)
 
-  test("ymd") {
+  test("1.ymd") {
     assert(hdp.earliestYmd(path).unsafeRunSync().get.toString().takeRight(25) === "Year=2023/Month=08/Day=28")
     assert(hdp.latestYmd(path).unsafeRunSync().get.toString().takeRight(25) === "Year=2023/Month=08/Day=30")
   }
-  test("ymdh") {
+  test("2.ymdh") {
     assert(
       hdp
         .earliestYmdh(path)
@@ -45,18 +45,18 @@ class HadoopTest extends AnyFunSuite {
         .toString()
         .takeRight(33) === "Year=2023/Month=08/Day=30/Hour=01")
   }
-  test("exist") {
+  test("3.exist") {
     assert(hdp.isExist(p1).unsafeRunSync())
     assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) == 4)
   }
 
-  test("file in") {
+  test("4.file in") {
     val files = hdp.filesIn(p1).unsafeRunSync()
     assert(files.size === 1)
     assert(files.head.toString().takeRight(5) === "a.txt")
   }
 
-  test("delete") {
+  test("5.delete") {
     val delAction = for {
       before <- hdp.isExist(p1)
       del <- hdp.delete(p1)
@@ -69,7 +69,7 @@ class HadoopTest extends AnyFunSuite {
     assert(!after)
   }
 
-  test("empty folders") {
+  test("6.empty folders") {
     val emptyFolder = path / "empty"
     val nestedEmptyFolder = path / "nested" / "sub"
     val nestedParent = path / "nested" / "parent"
@@ -83,7 +83,7 @@ class HadoopTest extends AnyFunSuite {
     assert(empties.exists(_.endsWith("/parent")))
   }
 
-  test("toHadoopPath") {
+  test("7.toHadoopPath") {
     val p1 = Url.parse("abc/efg")
     val p2 = p1 / "hij" / "kml"
     assert(toHadoopPath(p2).toString == "abc/efg/hij/kml")
@@ -103,7 +103,7 @@ class HadoopTest extends AnyFunSuite {
     assert(toHadoopPath(p9).toString == "abc/efg")
   }
 
-  test("extract date") {
+  test("8.extract date") {
     val date = LocalDate.of(2025, 8, 10)
     val p1 = path / ymd(date)
     val p2 = path / ymd(date) / "abc" / "xyz.dat"
@@ -111,22 +111,22 @@ class HadoopTest extends AnyFunSuite {
     assert(extractDate(p2).get == date)
   }
 
-  test("extract date - should be a valid date") {
+  test("9.extract date - should be a valid date") {
     val p1 = path / "Year=2025" / "Month=01" / "Day=35"
     assert(extractDate(p1).isEmpty)
   }
 
-  test("extract date - Month should be two digital") {
+  test("10.extract date - Month should be two digital") {
     val p1 = path / "Year=2025" / "Month=1" / "Day=30"
     assert(extractDate(p1).isEmpty)
   }
 
-  test("extract date - year month day should be consecutive") {
+  test("11.extract date - year month day should be consecutive") {
     val p1 = path / "Year=2025" / "ooo" / "Month=01" / "Day=30"
     assert(extractDate(p1).isEmpty)
   }
 
-  test("retention status") {
+  test("12.retention status") {
     import io.circe.syntax.EncoderOps
     import cats.syntax.show.given
     val frs = FolderRetentionStatus(path, Retained)

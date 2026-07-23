@@ -42,7 +42,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("4.performance meter") {
+  test("3.performance meter") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("meter")(_.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM)))
@@ -55,7 +55,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("5.performance histogram") {
+  test("4.performance histogram") {
     var i: Int = 0
     service
       .eventStream(
@@ -70,7 +70,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("6.performance timer") {
+  test("5.performance timer") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsedNano(1000).map(_ => i += 1).foreverM)))
@@ -83,7 +83,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("7.performance timer - timing") {
+  test("6.performance timer - timing") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("timer")(_.timer("timer").use(_.timing(IO(1000)).map(_ => i += 1).foreverM)))
@@ -96,7 +96,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("8.performance circuit breaker") {
+  test("7.performance circuit breaker") {
     var i: Int = 0
     service
       .eventStream(
@@ -113,7 +113,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("9.performance herald") {
+  test("8.performance herald") {
     val (fd, i) = service
       .eventStreamS(agent => fs2.Stream.repeatEval(agent.herald.info("hello")).take(3_000_000))
       .compile

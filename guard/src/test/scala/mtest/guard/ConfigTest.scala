@@ -15,7 +15,7 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.withMetricsReport(_.crontab(_.hourly)))
       .updateConfig(_.withTaskName("conf"))
 
-  test("tick") {
+  test("1.tick") {
     TaskGuard[IO]("tick")
       .service("tick")
       .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).limited(5)).debug())

@@ -22,7 +22,19 @@ class BatchParallelTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("parallel")
 
-  test("1.good") {
+  test("1.invalid parallelism should fail fast") {
+    val se = service.eventStream { agent =>
+      agent
+        .batch("invalid.parallelism")
+        .parallel(0)("a" -> IO(1))
+        .quasiBatch(JobHook.noop)
+        .use_
+    }.compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
+
+  test("2.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
     val se = service.eventStreamR { agent =>
       agent.batch("good job").parallel(jobs*).quasiBatch(JobHook(agent.logger).standard)
@@ -30,7 +42,7 @@ class BatchParallelTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("2.exception - quasi") {
+  test("3.exception - quasi") {
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -51,7 +63,7 @@ class BatchParallelTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("3.exception - value") {
+  test("4.exception - value") {
     var errorJob: BatchJob = null
     var canceledJob: BatchJob = null
     var succJob: BatchJob = null
@@ -80,7 +92,7 @@ class BatchParallelTest extends AnyFunSuite {
     assert(errorJob.index == 3)
   }
 
-  test("4.predicate - quasi") {
+  test("5.predicate - quasi") {
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(3.seconds), "c" -> IO(3).delayBy(2.seconds))
     val se = service.eventStream { agent =>
@@ -102,7 +114,7 @@ class BatchParallelTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("5.predicate - value") {
+  test("6.predicate - value") {
     var canceledJob: BatchJob = null
     var completedJob: List[JobResultState] = Nil
     val tracer = JobHook

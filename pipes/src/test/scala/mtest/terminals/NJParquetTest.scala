@@ -41,26 +41,26 @@ class NJParquetTest extends AnyFunSuite {
 
   val fs2Root: Url = Url.parse("./data/test/terminals/parquet/panda")
 
-  test("parquet snappy") {
+  test("1.parquet snappy") {
     fs2(fs2Root, ParquetFile(_.Snappy), pandaSet)
   }
-  test("parquet gzip") {
+  test("2.parquet gzip") {
     fs2(fs2Root, ParquetFile(_.Gzip), pandaSet)
   }
 
-  test("uncompressed parquet") {
+  test("3.uncompressed parquet") {
     fs2(fs2Root, ParquetFile(_.Uncompressed), pandaSet)
   }
 
-  test("LZ4 parquet") {
+  test("4.LZ4 parquet") {
     fs2(fs2Root, ParquetFile(_.Lz4), pandaSet)
   }
 
-  test("LZ4_RAW parquet") {
+  test("5.LZ4_RAW parquet") {
     fs2(fs2Root, ParquetFile(_.Lz4_Raw), pandaSet)
   }
 
-  test("Zstandard parquet - 1") {
+  test("6.Zstandard parquet - 1") {
     fs2(fs2Root, ParquetFile(_.Zstandard(_.Seven)), pandaSet)
   }
 
@@ -72,12 +72,12 @@ class NJParquetTest extends AnyFunSuite {
     fs2(fs2Root, ParquetFile(_.Brotli), pandaSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").parquet(100)
     hdp.sink("./does/not/exist").parquet
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -102,7 +102,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = ParquetFile(_.Snappy)
@@ -127,7 +127,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("best") {
+  test("10.best") {
     val path = fs2Root / "rotation" / "tick"
     val res1 = hdp.latestYmd(path).unsafeRunSync()
     val res2 = hdp.latestYmdh(path).unsafeRunSync()
@@ -141,7 +141,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(res3.exists(_.toString().takeRight(8).take(6) === "Month="))
   }
 
-  test("stream concat") {
+  test("11.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.parquet"
 
@@ -151,7 +151,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(size == 3000)
   }
 
-  test("stream concat - 2") {
+  test("12.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink =

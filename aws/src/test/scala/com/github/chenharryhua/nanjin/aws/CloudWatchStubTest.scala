@@ -25,7 +25,7 @@ class CloudWatchStubTest extends CatsEffectSuite {
         Sync[F].delay(dummyClient.putMetricData(request))
     }
 
-  test("CloudWatch.putMetricData should return a response") {
+  test("1.CloudWatch.putMetricData should return a response") {
     val cw = stubCloudWatch[IO]
     val request = PutMetricDataRequest.builder().namespace("test").build()
     cw.putMetricData(request).map { resp =>
@@ -33,7 +33,7 @@ class CloudWatchStubTest extends CatsEffectSuite {
     }
   }
 
-  test("CloudWatch.putMetricData using builder function") {
+  test("2.CloudWatch.putMetricData using builder function") {
     val cw = stubCloudWatch[IO]
     val requestBuilder = (b: PutMetricDataRequest.Builder) => b.namespace("builderTest")
     cw.putMetricData(requestBuilder).map { resp =>

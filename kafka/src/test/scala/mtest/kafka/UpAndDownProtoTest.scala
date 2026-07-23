@@ -22,7 +22,7 @@ class UpAndDownProtoTest extends AnyFunSuite {
   private val proto: TopicDef[Integer, ProtoConsumerRecord] =
     TopicDef(topic, Primitive[Integer], Structured[DynamicMessage].become[ProtoConsumerRecord])
 
-  test("proto - schema register") {
+  test("1.proto - schema register") {
     val schema = summon[KafkaProtobufSchema[ProtoConsumerRecord]].schema
     println(schema)
     ctx.schemaRegistry
@@ -31,15 +31,15 @@ class UpAndDownProtoTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("proto - produce") {
+  test("2.proto - produce") {
     ctx.produce(proto).produceOne(1, ProtoConsumerRecord("abc")).debug().unsafeRunSync()
   }
 
-  test("proto - consume") {
+  test("3.proto - consume") {
     ctx.consume(proto).subscribe.take(1).debug().compile.drain.unsafeRunSync()
   }
 
-  test("get schema") {
+  test("4.get schema") {
     ctx.schemaRegistry.fetchOptionalJsonSchema(proto.topicName).debug().unsafeRunSync()
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()

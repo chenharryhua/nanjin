@@ -57,7 +57,7 @@ class ParameterStoreTest extends AnyFunSuite {
         fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
 
-  test("fetch returns the correct parameter") {
+  test("1.fetch returns the correct parameter") {
     val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
     val path = ParameterStorePath("foo", isSecure = false)
 
@@ -65,14 +65,14 @@ class ParameterStoreTest extends AnyFunSuite {
     assert(result.value == "bar")
   }
 
-  test("fetch throws NoSuchElementException for missing parameter") {
+  test("2.fetch throws NoSuchElementException for missing parameter") {
     val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
     val path = ParameterStorePath("missing", isSecure = false)
 
     assertThrows[NoSuchElementException](store.fetch(path).unsafeRunSync())
   }
 
-  test("base64 decodes parameter value") {
+  test("3.base64 decodes parameter value") {
     val encoded = java.util.Base64.getEncoder.encodeToString("hello".getBytes)
     val store = createStore(Map("baz" -> encoded)).unsafeRunSync()
     val path = ParameterStorePath("baz", isSecure = false)
@@ -81,7 +81,7 @@ class ParameterStoreTest extends AnyFunSuite {
     assert(new String(result) == "hello")
   }
 
-  test("fetch with GetParametersRequest returns correct value") {
+  test("4.fetch with GetParametersRequest returns correct value") {
     val store = createStore(Map("key" -> "value")).unsafeRunSync()
     val request = GetParametersRequest.builder().names("key").build()
     val result = store.fetch(request).unsafeRunSync()

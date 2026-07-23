@@ -175,7 +175,7 @@ class BatchTest extends AnyFunSuite {
     (j1 >> j2).unsafeRunSync()
   }
 
-  test("8. monotonic") {
+  test("8.monotonic") {
     val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
     assert(diff.toNanos > 0)
     val res = for {
@@ -187,16 +187,16 @@ class BatchTest extends AnyFunSuite {
     println(res.unsafeRunSync())
   }
 
-  test("9. guarantee") {
+  test("9.guarantee") {
     assertThrows[Exception](IO(1).guarantee(IO.raiseError(new Exception())).unsafeRunSync())
   }
 
-  test("10. bracket") {
+  test("10.bracket") {
     assertThrows[Exception](
       IO.bracketFull(_ => IO(1))(IO.println)((_, _) => IO.raiseError(new Exception())).unsafeRunSync())
   }
 
-  test("11. monadic") {
+  test("11.monadic") {
     service.eventStream { agent =>
       agent.batch("monadic").monadic { job =>
         job("a", IO.println(1))
@@ -211,7 +211,7 @@ class BatchTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("12. monadic for comprehension") {
+  test("12.monadic for comprehension") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -272,7 +272,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("14. monadic one") {
+  test("14.monadic one") {
     service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -282,7 +282,7 @@ class BatchTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("15. monadic many") {
+  test("15.monadic many") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -334,7 +334,7 @@ class BatchTest extends AnyFunSuite {
     "5" -> IO(5).delayBy(0.1.second)
   )
 
-  test("17. sorted parallel") {
+  test("16.sorted parallel") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).batchValue(JobHook.noop).use {
         case BatchResultValue(br, rst) =>
@@ -361,7 +361,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("18. sorted sequential") {
+  test("17.sorted sequential") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).batchValue(JobHook.noop).use {
         case BatchResultValue(br, rst) =>
@@ -388,14 +388,14 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("19. mode codec") {
+  test("18.mode codec") {
     val seq = """ "sequential" """
     val par = """ "parallel-03" """
     assert(decode[BatchMode](seq).isRight)
     assert(decode[BatchMode](par).isRight)
   }
 
-  test("20. empty sequential") {
+  test("19.empty sequential") {
     val se = service
       .eventStreamR(_.batch("b").sequential[Int]().batchValue(JobHook.noop))
       .compile
@@ -404,7 +404,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("21. empty parallel") {
+  test("20.empty parallel") {
     val se = service
       .eventStreamR(_.batch("b").parallel[Int](1)().batchValue(JobHook.noop))
       .compile
@@ -413,7 +413,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("22. monadic flatMap limits") {
+  test("21.monadic flatMap limits") {
     val se = service.eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
         List.fill(10_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)

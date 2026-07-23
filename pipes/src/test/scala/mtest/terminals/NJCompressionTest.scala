@@ -5,7 +5,7 @@ import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 class NJCompressionTest extends AnyFunSuite {
-  test("json") {
+  test("1.json") {
     val c1: CirceCompression = Compression.Uncompressed
     val c2: Compression = Compression.Snappy
     val c3: JacksonCompression = Compression.Bzip2
@@ -34,7 +34,7 @@ class NJCompressionTest extends AnyFunSuite {
     assert(c10.productPrefix === "Zstandard")
     assert(c7.productPrefix == "Lzo")
   }
-  test("filename") {
+  test("2.filename") {
     assert(Compression.Snappy.fileName(FileFormat.Avro) === "snappy.data.avro")
     assert(Compression.Snappy.fileName(FileFormat.Circe) === "circe.json.snappy")
   }

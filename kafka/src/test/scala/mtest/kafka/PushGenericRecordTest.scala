@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class PushGenericRecordTest extends AnyFunSuite {
   private val topicName: TopicName = TopicName("push.generic.record.test")
-  test("schema") {
+  test("1.schema") {
     val nj = NJProducerRecord[Foo, Int](topicName, Foo(1, "a"), 1)
 
     val delete = ctx.schemaRegistry.delete(topicName) >>

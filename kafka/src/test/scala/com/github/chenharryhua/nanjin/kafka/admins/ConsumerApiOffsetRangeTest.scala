@@ -65,7 +65,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   val client: ConsumeKafka[IO, Integer, Integer] = ctx.consume(topic)
 
-  test("start and end are both in range") {
+  test("1.start and end are both in range") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -78,7 +78,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(tpm === expect.flatten)
   }
 
-  test("start > end") {
+  test("2.start > end") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -89,7 +89,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(res.isEmpty)
   }
 
-  test("when end is exactly match") {
+  test("3.when end is exactly match") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> OffsetRange(Offset(0), Offset(2))))
 
@@ -100,7 +100,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(tpm === expect.flatten)
   }
 
-  test("start is equal to beginning and end is equal to ending") {
+  test("4.start is equal to beginning and end is equal to ending") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -113,7 +113,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(tpm === expect.flatten)
   }
 
-  test("start is equal to beginning and end is after ending") {
+  test("5.start is equal to beginning and end is after ending") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -127,7 +127,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("start after beginning and end after ending") {
+  test("6.start after beginning and end after ending") {
     val expect =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -141,7 +141,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("start before beginning and end before ending") {
+  test("7.start before beginning and end before ending") {
     val expect =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -155,7 +155,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("both start and end are before beginning") {
+  test("8.both start and end are before beginning") {
     val expect =
       TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -167,7 +167,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("both start and end are after ending") {
+  test("9.both start and end are after ending") {
     val expect =
       TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -178,7 +178,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(res.isEmpty)
   }
 
-  test("when there is no data in the range") {
+  test("10.when there is no data in the range") {
     val expect =
       TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -190,7 +190,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("same range") {
+  test("11.same range") {
     val r = DateTimeRange(darwinTime)
     val res = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
     val r2 = Map(0 -> (-1000L, 1000000000L), 100 -> (0L, 9999L))
@@ -198,7 +198,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(res == res2)
   }
 
-  test("time range is infinite") {
+  test("12.time range is infinite") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
@@ -211,29 +211,29 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
-  test("kafka offset range") {
+  test("13.kafka offset range") {
     assert(OffsetRange(Offset(100), Offset(99)).isEmpty)
     val r = OffsetRange(Offset(1), Offset(99)).get
     assert(r.distance == 98)
   }
 
-  test("numOfRecordsSince") {
+  test("14.numOfRecordsSince") {
     val r = transientConsumer.use(_.numOfRecordsSince(Instant.ofEpochMilli(100))).unsafeRunSync()
     val v = r.flatten
     assert(v.nonEmpty)
   }
 
-  test("partitionsFor") {
+  test("15.partitionsFor") {
     val r = transientConsumer.use(_.partitionsFor).unsafeRunSync()
     assert(r.value.nonEmpty)
   }
 
-  test("retrieveRecordsForTimes") {
+  test("16.retrieveRecordsForTimes") {
     val r = transientConsumer.use(_.retrieveRecordsForTimes(Instant.ofEpochMilli(100))).unsafeRunSync()
     assert(r.nonEmpty)
   }
 
-  test("commitSync") {
+  test("17.commitSync") {
     transientConsumer
       .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
       .unsafeRunSync()

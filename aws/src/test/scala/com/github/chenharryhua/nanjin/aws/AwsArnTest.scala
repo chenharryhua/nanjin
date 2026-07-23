@@ -8,45 +8,45 @@ import io.circe.{Decoder, Encoder}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
-  test("iam") {
+  test("1.iam") {
     val iam: IamArn = IamArn("arn:aws:iam::123456789012:role/ab-c")
     println(iam.asJson)
     println(iam.show)
   }
 
-  test("sns") {
+  test("2.sns") {
     val sns: SnsArn = SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz")
     println(sns.asJson)
     println(sns.show)
   }
 
-  test("kms") {
+  test("3.kms") {
     val kms: KmsArn = KmsArn("arn:aws:kms:ap-southeast-2:123456789012:key/1111-2222-3333-13d5b006fbbb")
     println(kms.asJson)
     println(kms.show)
 
   }
 
-  test("sqs url") {
+  test("4.sqs url") {
     val fifo = SqsUrl.Fifo("https://github.com/abc.fifo")
     val std = SqsUrl.Standard("https://github.com/abc")
     println(fifo.asJson)
     println(std.show)
   }
 
-  test("address") {
+  test("5.address") {
     val address = Email("who@gmail.com")
     println(address.asJson)
     println(address.show)
   }
 
-  test("chunk.size") {
+  test("6.chunk.size") {
     val ck: ChunkSize = ChunkSize(100)
     println(ck.asJson)
     println(ck.show)
   }
 
-  test("email content") {
+  test("7.email content") {
     summon[Encoder[EmailContent]]
     summon[Decoder[EmailContent]]
   }

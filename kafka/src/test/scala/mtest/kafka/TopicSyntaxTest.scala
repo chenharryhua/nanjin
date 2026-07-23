@@ -12,27 +12,27 @@ import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class TopicSyntaxTest extends AnyFunSuite {
-  test("topic name") {
+  test("1.topic name") {
     val tn: TopicName = "abc.unsafe"
     val tn2 = TopicName("abc.checked")
     println((tn, tn2))
   }
 
-  test("consume") {
+  test("2.consume") {
     val k = ctx.asKey(Primitive[Integer]).deserializer[IO].map(_.attempt)
     val v = ctx.asValue(Primitive[Integer]).deserializer[IO].map(_.option)
 
     println((k, v))
   }
 
-  test("producer") {
+  test("3.producer") {
     val k = ctx.asKey(Primitive[Integer].emap(identity)(identity)).serializer[IO]
     val v = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
 
     println((k, v))
   }
 
-  test("scala primitive") {
+  test("4.scala primitive") {
     Primitive[java.lang.Integer].become[Option[Int]]
     Primitive[java.lang.Long].become[Option[Long]]
     Primitive[java.lang.Short].become[Option[Short]]
@@ -41,20 +41,20 @@ class TopicSyntaxTest extends AnyFunSuite {
     Primitive[java.lang.Boolean].become[Option[Boolean]]
   }
 
-  test("schema-based") {
+  test("5.schema-based") {
     Structured[JsonNode].option.become[Option[Foo]].orNull
     Structured[GenericRecord].become[Foo]
     Structured[DynamicMessage]
     Structured[Json].become[Foo]
   }
 
-  test("nj consumer record basic") {
+  test("6.nj consumer record basic") {
     summon[SchemaFor[NJConsumerRecord[Int, Int]]]
     summon[Decoder[NJConsumerRecord[Int, Int]]]
     summon[Encoder[NJConsumerRecord[Int, Int]]]
   }
 
-  test("nj consumer record foo") {
+  test("7.nj consumer record foo") {
     val s = summon[SchemaFor[NJConsumerRecord[Int, Foo]]]
     summon[Decoder[NJConsumerRecord[Int, Foo]]]
     summon[Encoder[NJConsumerRecord[Int, Foo]]]

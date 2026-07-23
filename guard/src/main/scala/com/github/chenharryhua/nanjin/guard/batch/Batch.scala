@@ -528,6 +528,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
 
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] =
+    require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     new Batch.Parallel[F, A](
       predicate = Reader(_ => true),
       metrics = metrics,

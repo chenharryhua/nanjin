@@ -39,36 +39,36 @@ class NJAvroTest extends AnyFunSuite {
 
   val fs2Root: Url = Url.parse("./data/test/terminals/avro/panda")
 
-  test("snappy avro") {
+  test("1.snappy avro") {
     fs2(fs2Root, AvroFile(_.Snappy), pandaSet)
   }
 
-  test("deflate 6 avro") {
+  test("2.deflate 6 avro") {
     fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(_.Six)), pandaSet)
   }
 
-  test("uncompressed avro") {
+  test("3.uncompressed avro") {
     fs2(fs2Root, AvroFile(_.Uncompressed), pandaSet)
   }
 
-  test("xz 1 avro") {
+  test("4.xz 1 avro") {
     fs2(fs2Root, AvroFile(_.Xz(_.One)), pandaSet)
   }
 
-  test("bzip2 avro") {
+  test("5.bzip2 avro") {
     fs2(fs2Root, AvroFile(_.Bzip2), pandaSet)
   }
 
-  test("zstandard avro") {
+  test("6.zstandard avro") {
     fs2(fs2Root, AvroFile(_.Zstandard(_.One)), pandaSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").avro(100)
     hdp.sink("./does/not/exist").avro(_.Uncompressed)
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -93,7 +93,7 @@ class NJAvroTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = AvroFile(_.Uncompressed)
@@ -117,7 +117,7 @@ class NJAvroTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("stream concat") {
+  test("10.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.avro"
 
@@ -127,7 +127,7 @@ class NJAvroTest extends AnyFunSuite {
     assert(size == 3000)
   }
 
-  test("stream concat - 2") {
+  test("11.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>

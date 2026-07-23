@@ -141,7 +141,7 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(sorted(2).job.index == 3)
   }
 
-  test("5. filter") {
+  test("5.filter") {
     var completedJob: List[JobResultState] = Nil
     val tracer =
       JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })

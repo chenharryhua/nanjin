@@ -13,7 +13,7 @@ class PeriodParserTest extends AnyFunSuite {
   val p5m: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P5M"))
   val p7y5m3d: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P7Y5M3D"))
 
-  test("should return valid period") {
+  test("1.should return valid period") {
     assert(period("7years") == p7y)
     assert(period("5 month") == p5m)
 
@@ -24,18 +24,18 @@ class PeriodParserTest extends AnyFunSuite {
     assert(period("7 year 5 month3 days") == p7y5m3d)
   }
 
-  test("should return invalid when failed") {
+  test("2.should return invalid when failed") {
     assert(period("7 month 5 month 3 days").isInvalid)
     assert(period("7 month 5 year 3 days").isInvalid)
   }
 
-  test("s's") {
+  test("3.s's") {
     assert(period("5 months") == p5m)
     assert(period("5 month") == p5m)
     assert(period("5 monthss").isInvalid)
   }
 
-  test("should calculate the start date and respect leap year") {
+  test("4.should calculate the start date and respect leap year") {
     val today = LocalDate.of(2012, 10, 26)
 
     val p = period("2 years").toEither.toOption.get

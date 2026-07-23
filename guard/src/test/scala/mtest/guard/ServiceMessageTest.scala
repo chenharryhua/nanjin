@@ -44,7 +44,7 @@ class ServiceMessageTest extends AnyFunSuite {
       log.good("Okay") >>
       log.debug("debug")
 
-  test("1. info json space2") {
+  test("1.info json space2") {
     service
       .updateConfig(_.withLogFormat(_.Slf4j_Json_MultiLine))
       .eventStream(info)
@@ -53,7 +53,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("2. info json space2") {
+  test("2.info json space2") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(info)
@@ -62,7 +62,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("3. warn json space2") {
+  test("3.warn json space2") {
     service
       .updateConfig(_.withLogFormat(_.Slf4j_Json_MultiLine))
       .eventStream(warn)
@@ -71,7 +71,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("4. warn json no spaces") {
+  test("4.warn json no spaces") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(warn)
@@ -80,13 +80,13 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("5. warn console plain text") {
+  test("5.warn console plain text") {
     service.updateConfig(_.withLogFormat(_.Console_PlainText))
       .eventStream(warn)
       .compile.drain.unsafeRunSync()
   }
 
-  test("6. mix") {
+  test("6.mix") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
       .eventStream(mix)

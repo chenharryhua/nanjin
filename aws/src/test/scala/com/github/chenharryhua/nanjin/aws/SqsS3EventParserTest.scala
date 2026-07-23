@@ -49,7 +49,7 @@ class SqsS3EventParserTest extends AnyFunSuite {
 }
 """
 
-  test("should be able to parse sqs S3 event") {
+  test("1.should be able to parse sqs S3 event") {
     val s3 = sqsS3Parser(
       SqsMessage(
         ReceiveMessageRequest.builder().build(),
@@ -63,7 +63,7 @@ class SqsS3EventParserTest extends AnyFunSuite {
     assert(s3.size == 1024)
   }
 
-  test("nulls") {
+  test("2.nulls") {
     println(SqsMessage(null, null, 0, 0, 0).asJson.noSpaces)
     println(SqsMessage(null, Message.builder().build(), 0, 0, 0).asJson.noSpaces)
     println(SqsMessage(ReceiveMessageRequest.builder().build(), null, 0, 0, 0).asJson.noSpaces)

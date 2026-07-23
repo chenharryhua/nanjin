@@ -10,11 +10,11 @@ class DynamicMessageStructuredSpec extends AnyFunSuite with Matchers {
 
   val serde: Serde[DynamicMessage] = ctx.asValue(Structured[DynamicMessage]).serde
 
-  test("serializer should return null for null input") {
+  test("1.serializer should return null for null input") {
     serde.serializer.serialize("topic", null) shouldBe null
   }
 
-  test("deserializer should return null for null input") {
+  test("2.deserializer should return null for null input") {
     serde.deserializer.deserialize("topic", null) shouldBe null
   }
 

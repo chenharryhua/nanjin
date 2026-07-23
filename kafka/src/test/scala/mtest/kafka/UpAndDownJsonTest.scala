@@ -25,7 +25,7 @@ class UpAndDownJsonTest extends AnyFunSuite {
   private val json: TopicDef[Integer, UpAndDown] =
     TopicDef(topic, Primitive[Integer], Structured[JsonNode].become[UpAndDown])
 
-  test("json - schema register") {
+  test("1.json - schema register") {
     val schema = summon[KafkaJsonSchema[UpAndDown]].schema
     println(schema)
     ctx.schemaRegistry
@@ -34,15 +34,15 @@ class UpAndDownJsonTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("json - produce") {
+  test("2.json - produce") {
     ctx.produce(json).produceOne(1, UpAndDown(3, "abc")).debug().unsafeRunSync()
   }
 
-  test("json - consume") {
+  test("3.json - consume") {
     ctx.consume(json).subscribe.take(1).debug().timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
-  test("get schema") {
+  test("4.get schema") {
     ctx.schemaRegistry.fetchOptionalJsonSchema(json.topicName).debug().unsafeRunSync()
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()

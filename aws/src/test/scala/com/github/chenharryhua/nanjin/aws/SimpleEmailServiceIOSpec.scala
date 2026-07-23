@@ -37,7 +37,7 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
   private val service: SimpleEmailService[IO] =
     SimpleEmailService.fromClient(new FakeSesClient())
 
-  test("send SendEmailRequest returns fake messageId") {
+  test("1.send SendEmailRequest returns fake messageId") {
     val req = SendEmailRequest
       .builder()
       .source("from@example.com")
@@ -55,7 +55,7 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
     assert(resp.messageId().startsWith("fake-"))
   }
 
-  test("send SendRawEmailRequest returns fake messageId") {
+  test("2.send SendRawEmailRequest returns fake messageId") {
     val req = SendRawEmailRequest
       .builder()
       .rawMessage(RawMessage.builder().data(SdkBytes.fromByteArray("data".getBytes)).build())
@@ -65,7 +65,7 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
     assert(resp.messageId().startsWith("raw-fake-"))
   }
 
-  test("send EmailContent returns SendEmailResponse with fake messageId") {
+  test("3.send EmailContent returns SendEmailResponse with fake messageId") {
     val content = EmailContent(
       from = Email("from@example.com"),
       to = NonEmptyList.one(Email("to@example.com")),
@@ -79,7 +79,7 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
     assert(resp.messageId().startsWith("fake-"))
   }
 
-  test("send builder function returns SendEmailResponse with fake messageId") {
+  test("4.send builder function returns SendEmailResponse with fake messageId") {
     val resp = service.send(_.source("from@example.com")).unsafeRunSync()
     assert(resp.messageId().startsWith("fake-"))
   }

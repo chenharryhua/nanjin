@@ -19,14 +19,14 @@ import java.time.Instant
 
 class KafkaTypesSuite extends CatsEffectSuite {
 
-  test("GroupId codec") {
+  test("1.GroupId codec") {
     val gid = GroupId("my-group")
     val json = gid.asJson.noSpaces
     assertEquals(json, "\"my-group\"")
     assertEquals(decode[GroupId](json), Right(gid))
   }
 
-  test("Offset arithmetic and asLast") {
+  test("2.Offset arithmetic and asLast") {
     val o1 = Offset(10)
     val o2 = Offset(3)
     assertEquals(o1 - o2, 7L)
@@ -34,13 +34,13 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(Offset(5).asLast.value, 4L)
   }
 
-  test("Partition arithmetic") {
+  test("3.Partition arithmetic") {
     val p1 = Partition(7)
     val p2 = Partition(2)
     assertEquals(p1 - p2, 5)
   }
 
-  test("OffsetRange creation and distance") {
+  test("4.OffsetRange creation and distance") {
     val rOpt = OffsetRange(Offset(5), Offset(10))
     assert(rOpt.isDefined)
     val r = rOpt.get
@@ -51,7 +51,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assert(empty.isEmpty)
   }
 
-  test("OffsetRange PartialOrder") {
+  test("5.OffsetRange PartialOrder") {
     val r1 = OffsetRange(Offset(2), Offset(5)).get
     val r2 = OffsetRange(Offset(1), Offset(6)).get
     val r3 = OffsetRange(Offset(2), Offset(5)).get
@@ -62,14 +62,14 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assert(PartialOrder[OffsetRange].partialCompare(r1, r4).isNaN)
   }
 
-  test("LagBehind calculation") {
+  test("6.LagBehind calculation") {
     val lag = LagBehind(Offset(3), Offset(10))
     assertEquals(lag.lag, 7L)
     assertEquals(lag.current, 3L)
     assertEquals(lag.end, 10L)
   }
 
-  test("ListOfTopicPartitions utilities") {
+  test("7.ListOfTopicPartitions utilities") {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t2", 1)
     val ltp = TopicPartitionList(List(tp1, tp2))
@@ -80,7 +80,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(javaList.size(), 2)
   }
 
-  test("TopicPartitionMap basic operations") {
+  test("8.TopicPartitionMap basic operations") {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t1", 1)
     val tpMap = TopicPartitionMap(Map(tp1 -> Offset(5), tp2 -> Offset(10)))
@@ -91,7 +91,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(tpMap.topicPartitions.value.size, 2)
   }
 
-  test("TopicPartitionMap mapValues and map") {
+  test("9.TopicPartitionMap mapValues and map") {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t1", 1)
     val tpMap = TopicPartitionMap(Map(tp1 -> Offset(5), tp2 -> Offset(10)))
@@ -101,7 +101,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(summed.get(tp2), Some(11L))
   }
 
-  test("TopicPartitionMap intersectCombine and leftCombine") {
+  test("10.TopicPartitionMap intersectCombine and leftCombine") {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t1", 1)
     val tp3 = new TopicPartition("t2", 0)
@@ -118,7 +118,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(left.get(tp2), Some(None))
   }
 
-  test("TopicPartitionMap flatten") {
+  test("11.TopicPartitionMap flatten") {
     val tp1 = new TopicPartition("t1", 0)
     val tp2 = new TopicPartition("t1", 1)
     val mapOpt = TopicPartitionMap(Map(tp1 -> Some(5), tp2 -> None))
@@ -127,7 +127,7 @@ class KafkaTypesSuite extends CatsEffectSuite {
     assertEquals(flat.get(tp1), Some(5))
   }
 
-  test("Circe encoding/decoding TopicPartitionMap") {
+  test("12.Circe encoding/decoding TopicPartitionMap") {
     val tp1 = new TopicPartition("t1", 0)
     val tpMap = TopicPartitionMap(Map(tp1 -> Offset(42)))
     val json = tpMap.asJson.noSpaces

@@ -9,7 +9,7 @@ import scala.concurrent.duration.*
 
 class RetrySpec extends CatsEffectSuite {
 
-  test("Retry: effect succeeds after failures") {
+  test("1.Retry: effect succeeds after failures") {
     val zoneId = ZoneId.systemDefault()
     val maxAttempts = 3
     val state = mutable.ListBuffer.empty[String]
@@ -33,7 +33,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("Retry: fails after exhausting policy, only last failure propagated") {
+  test("2.Retry: fails after exhausting policy, only last failure propagated") {
     val zoneId = ZoneId.systemDefault()
     val maxAttempts = 2
     var counter = 0
@@ -55,7 +55,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("Retry: decision can stop retry early") {
+  test("3.Retry: decision can stop retry early") {
     val zoneId = ZoneId.systemDefault()
     var counter = 0
     val riskyOp: IO[String] = IO {

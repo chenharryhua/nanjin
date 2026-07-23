@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class KafkaObserverTest extends AnyFunSuite {
   private val topic = TopicName("observer")
   private val ctx = KafkaContext[IO](KafkaSettings.local)
-  test("observer") {
+  test("1.observer") {
     TaskGuard[IO]("observer")
       .service("observer")
       .eventStream(_ => IO(()))

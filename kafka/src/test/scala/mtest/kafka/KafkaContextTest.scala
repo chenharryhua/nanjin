@@ -25,7 +25,7 @@ class KafkaContextTest extends AnyFunSuite with Matchers {
     )
   )
 
-  test("consumeBytes does not require schema registry configuration") {
+  test("1.consumeBytes does not require schema registry configuration") {
     noException shouldBe thrownBy(ctx.consumeBytes(TopicName("raw-bytes")))
   }
 }

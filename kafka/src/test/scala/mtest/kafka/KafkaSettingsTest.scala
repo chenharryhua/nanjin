@@ -11,7 +11,7 @@ class KafkaSettingsTest extends AnyFunSuite {
   val setting: KafkaSettings = KafkaSettings("broker-url", "schema-registry-url")
     .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-  test("should allow independently change properties") {
+  test("1.should allow independently change properties") {
     val p = setting
       .withProducerProperty(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "producer")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)

@@ -11,7 +11,7 @@ class SingleFlightSuite extends CatsEffectSuite {
 
   implicit val runtime: IORuntime = IORuntime.global
 
-  test("SingleFlight deduplicates concurrent calls") {
+  test("1.SingleFlight deduplicates concurrent calls") {
     val prom = for {
       sf <- SingleFlight[IO, Int]
       counter <- Ref.of[IO, Int](0)
@@ -30,7 +30,7 @@ class SingleFlightSuite extends CatsEffectSuite {
     prom.unsafeRunSync()
   }
 
-  test("SingleFlight propagates errors to all followers") {
+  test("2.SingleFlight propagates errors to all followers") {
     val prom = for {
       sf <- SingleFlight.apply[IO, Int]
 
@@ -44,7 +44,7 @@ class SingleFlightSuite extends CatsEffectSuite {
     prom.unsafeRunSync()
   }
 
-  test("SingleFlight allows new calls after completion") {
+  test("3.SingleFlight allows new calls after completion") {
     val prom = for {
       sf <- SingleFlight.apply[IO, Int]
       counter <- Ref.of[IO, Int](0)

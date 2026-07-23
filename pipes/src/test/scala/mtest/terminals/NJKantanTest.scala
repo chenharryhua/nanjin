@@ -61,55 +61,55 @@ class NJKantanTest extends AnyFunSuite {
 
   val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")
 
-  test("uncompressed - with-header-modify") {
+  test("1.uncompressed - with-header-modify") {
     val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(_ + "_tiger"))
     fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
-  test("uncompressed - with-header") {
+  test("2.uncompressed - with-header") {
     val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.header).withCellSeparator('&')
     fs2(fs2Root / "header-explicit", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
-  test("uncompressed - with-implicit-header") {
+  test("3.uncompressed - with-implicit-header") {
     val cfg = CsvConfiguration.rfc.withHeader.quoteAll
     fs2(fs2Root / "header-implicit", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
-  test("uncompressed - without-header") {
+  test("4.uncompressed - without-header") {
     val cfg = CsvConfiguration.rfc.withHeader(false)
     fs2(fs2Root / "no-header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
-  test("gzip") {
+  test("5.gzip") {
     val cfg = CsvConfiguration.rfc
     fs2(fs2Root, KantanFile(_.Gzip), cfg, tigerSet)
   }
-  test("snappy") {
+  test("6.snappy") {
     val cfg = CsvConfiguration.rfc
     fs2(fs2Root, KantanFile(_.Snappy), cfg, tigerSet)
   }
-  test("bzip2") {
+  test("7.bzip2") {
     val cfg = CsvConfiguration.rfc.withCellSeparator('?')
     fs2(fs2Root, KantanFile(_.Bzip2), cfg, tigerSet)
   }
-  test("lz4") {
+  test("8.lz4") {
     val cfg = CsvConfiguration.rfc.withQuotePolicy(CsvConfiguration.QuotePolicy.WhenNeeded)
     fs2(fs2Root, KantanFile(_.Lz4), cfg, tigerSet)
   }
 
-  test("deflate") {
+  test("9.deflate") {
     val cfg = CsvConfiguration.rfc.withQuote('*')
     fs2(fs2Root, KantanFile(_.Deflate(_.Six)), cfg, tigerSet)
   }
 
-  test("laziness") {
+  test("10.laziness") {
     hdp.source("./does/not/exist").kantan(100, CsvConfiguration.rfc)
     hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
   }
 
   val policy: Policy = Policy.fixedDelay(1.second)
-  test("rotation - with-header - tick") {
+  test("11.rotation - with-header - tick") {
     val path = fs2Root / "rotation" / "header" / "tick"
     val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
@@ -141,7 +141,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == herd_number)
   }
 
-  test("rotation - with-header - size") {
+  test("12.rotation - with-header - size") {
     val path = fs2Root / "rotation" / "header" / "index"
     hdp.delete(path).unsafeRunSync()
     val file = KantanFile(_.Uncompressed)
@@ -173,7 +173,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == herd_number)
   }
 
-  test("rotation - empty(with header)") {
+  test("13.rotation - empty(with header)") {
     val path = fs2Root / "rotation" / "header" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
@@ -190,7 +190,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.size == 1))
   }
 
-  test("rotation - no header - policy") {
+  test("14.rotation - no header - policy") {
     val path = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
     val file = KantanFile(_.Uncompressed)
@@ -213,7 +213,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == number)
   }
 
-  test("rotation - no header - size") {
+  test("15.rotation - no header - size") {
     val path = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
     val file = KantanFile(_.Uncompressed)
@@ -235,7 +235,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == number)
   }
 
-  test("rotation - empty(no header)") {
+  test("16.rotation - empty(no header)") {
     val path = fs2Root / "rotation" / "no-header" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
@@ -249,7 +249,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 
-  test("stream concat") {
+  test("17.stream concat") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(encode)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 

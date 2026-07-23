@@ -13,7 +13,7 @@ class JacksonAvroPipeTest extends AnyFunSuite {
   val schema: Schema = AvroSchema[Tiger]
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
 
-  test("json-avro identity") {
+  test("1.json-avro identity") {
     assert(
       data
         .map(encoder.to)

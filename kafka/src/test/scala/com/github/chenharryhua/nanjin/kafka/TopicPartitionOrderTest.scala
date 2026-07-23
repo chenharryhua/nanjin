@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 final case class Abc(a: Int, b: String, c: Long)
 
 class TopicPartitionOrderTest extends AnyFunSuite {
-  test("order") {
+  test("1.order") {
     val tp0 = new TopicPartition("a", 0)
     val tp1 = new TopicPartition("a", 1)
     val tp2 = new TopicPartition("b", 0)
@@ -22,7 +22,7 @@ class TopicPartitionOrderTest extends AnyFunSuite {
     assert(tp3 > tp2)
   }
 
-  test("json") {
+  test("2.json") {
     val prim = TopicPartitionMap[Int](
       Map(
         new TopicPartition("a", 1) -> 1,
@@ -40,17 +40,17 @@ class TopicPartitionOrderTest extends AnyFunSuite {
     assert(decode[TopicPartitionMap[Abc]](abc.asJson.spaces2).toOption.get == abc)
   }
 
-  test("topic partition json") {
+  test("3.topic partition json") {
     val tp = new TopicPartition("a", 1)
     assert(decode[TopicPartition](tp.asJson.spaces2).toOption.get == tp)
   }
 
-  test("partition") {
+  test("4.partition") {
     val partition = Partition(1)
     assert(decode[Partition](partition.asJson.noSpaces).toOption.get == partition)
   }
 
-  test("group id") {
+  test("5.group id") {
     val gid = GroupId("abc")
     assert(decode[GroupId](gid.asJson.noSpaces).toOption.get == gid)
   }

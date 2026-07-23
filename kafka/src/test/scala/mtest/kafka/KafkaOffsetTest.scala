@@ -39,19 +39,19 @@ class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
 
 class KafkaOffsetBuildTest extends AnyFunSuite {
 
-  test("partition") {
+  test("1.partition") {
     val p1 = Partition(1)
     val p2 = Partition(2)
     assert(p2 - p1 == 1)
   }
 
-  test("KafkaTopicPartition empty") {
+  test("2.KafkaTopicPartition empty") {
     val ktp = TopicPartitionMap.empty[Int]
     assert(ktp.isEmpty)
     assert(!ktp.nonEmpty)
   }
 
-  test("KafkaTopicPartition") {
+  test("3.KafkaTopicPartition") {
     val ktp: TopicPartitionMap[Option[OffsetAndTimestamp]] =
       TopicPartitionMap[Option[OffsetAndTimestamp]](
         Map(
@@ -72,7 +72,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assert(ktp.mapValues(_.map(Offset(_))).flatten.treeMap.values.toList.map(_.value).toSet == Set(0, 1))
   }
 
-  test("intersect combine") {
+  test("4.intersect combine") {
     val k1 = TopicPartitionMap[Int](
       Map(
         new TopicPartition("topic", 0) -> 0,
@@ -89,7 +89,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assert(res.get(new TopicPartition("topic", 0)).contains(0))
   }
 
-  test("left combine") {
+  test("5.left combine") {
     val k1 = TopicPartitionMap[Int](
       Map(
         new TopicPartition("topic", 0) -> 0,
@@ -107,7 +107,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assert(res(new TopicPartition("topic", 2)).isEmpty)
   }
 
-  test("empty offset") {
+  test("6.empty offset") {
     assert(TopicPartitionMap.emptyOffset.treeMap.isEmpty)
   }
 }

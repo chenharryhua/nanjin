@@ -58,24 +58,24 @@ class NJBytesTest extends AnyFunSuite {
   }
   val fs2Root: Url = Url.parse("./data/test/terminals/bytes/fs2")
 
-  test("uncompressed") {
+  test("1.uncompressed") {
     fs2(fs2Root / "tiger.json", TestData.tigerSet)
   }
 
-  test("gzip") {
+  test("2.gzip") {
     fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
   }
-  test("snappy") {
+  test("3.snappy") {
     fs2(fs2Root / "tiger.json.snappy", TestData.tigerSet)
   }
-  test("bzip2") {
+  test("4.bzip2") {
     fs2(fs2Root / "tiger.json.bz2", TestData.tigerSet)
   }
-  test("lz4") {
+  test("5.lz4") {
     fs2(fs2Root / "tiger.json.lz4", TestData.tigerSet)
   }
 
-  test("deflate") {
+  test("6.deflate") {
     fs2(fs2Root / "tiger.json.deflate", TestData.tigerSet)
   }
 
@@ -83,12 +83,12 @@ class NJBytesTest extends AnyFunSuite {
     fs2(fs2Root / "tiger.json.zst", TestData.tigerSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").bytes(1.mb)
     hdp.sink("./does/not/exist").bytes
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -107,7 +107,7 @@ class NJBytesTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
