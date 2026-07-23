@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class PostgresTest extends AnyFunSuite {
 
-  test("postgres") {
+  test("1.postgres") {
 
 //    val session: Resource[IO, Session[IO]] =
 //      Session.single[IO](

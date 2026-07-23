@@ -6,13 +6,13 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJFileFormatTest extends AnyFunSuite {
-  test("no dup") {
+  test("1.no dup") {
     val all: List[FileFormat] =
       List(Unknown, Jackson, Circe, Text, Kantan, Parquet, Avro, BinaryAvro, JavaObject, ProtoBuf)
     assert(all.map(_.suffix).distinct.size === all.size)
   }
 
-  test("json") {
+  test("2.json") {
     val f1: FileFormat = FileFormat.Unknown
     val f2: FileFormat = FileFormat.Jackson
     val f3: FileFormat = FileFormat.Circe

@@ -17,7 +17,7 @@ class AdminApiTest extends AnyFunSuite {
   private val topic = topicDef
   private val mirror = topicDef.withTopicName("admin.mirror")
 
-  test("newTopic") {
+  test("1.newTopic") {
     val run = ctx.admin(topic.topicName).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
@@ -29,7 +29,7 @@ class AdminApiTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
 
-  test("mirrorTo") {
+  test("2.mirrorTo") {
     val admin = ctx.admin(topic.topicName)
     val madmin = ctx.admin(mirror.topicName)
     val run = for {
@@ -55,7 +55,7 @@ class AdminApiTest extends AnyFunSuite {
 //    gp.unsafeRunSync()
 //  }
 
-  test("KafkaOffset") {
+  test("3.KafkaOffset") {
     val end: TopicPartitionMap[Option[Offset]] = TopicPartitionMap[Option[Offset]](
       Map(
         new TopicPartition("t", 0) -> Some(Offset(100)),

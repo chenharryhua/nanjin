@@ -70,7 +70,7 @@ class HttpServerTest extends AnyFunSuite {
     assert(res.last.asInstanceOf[ServiceStop].cause === Maintenance)
   }
 
-  test("3.panic history") {
+  test("2.panic history") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9997/stop")
     val client = EmberClientBuilder
       .default[IO]

@@ -60,19 +60,19 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     (sb, _) => sb.stream("in", Consumed.`with`(Serdes.String(), Serdes.String())).to("out")
   )
 
-  test("should include application id in properties") {
+  test("1.should include application id in properties") {
     builder.properties("application.id") shouldBe applicationId
     builder.properties("foo") shouldBe "bar"
   }
 
-  test("withProperty should produce an updated builder without mutating the original") {
+  test("2.withProperty should produce an updated builder without mutating the original") {
     val updated = builder.withProperty("foo", "baz")
 
     updated.properties("foo") shouldBe "baz"
     builder.properties("foo") shouldBe "bar"
   }
 
-  test("withProperties should merge multiple properties immutably") {
+  test("3.withProperties should merge multiple properties immutably") {
     val updated = builder.withProperties(Map("k1" -> "v1", "k2" -> "v2"))
 
     updated.properties("k1") shouldBe "v1"
@@ -81,13 +81,13 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     builder.properties.contains("k2") shouldBe false
   }
 
-  test("withStartUpTimeout should return a distinct builder instance") {
+  test("4.withStartUpTimeout should return a distinct builder instance") {
     val updated = builder.withStartUpTimeout(FiniteDuration(1234, TimeUnit.MILLISECONDS))
 
     assert(updated.ne(builder))
   }
 
-  test("topology should evaluate the top closure lazily and build a Kafka topology") {
+  test("5.topology should evaluate the top closure lazily and build a Kafka topology") {
     var executed = false
     val lazyBuilder = KafkaStreamsBuilder[IO](
       "app2",
@@ -120,7 +120,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     ctor.newInstance(testBuilder, dispatcher, startup, stop)
   }
 
-  test("StateChange should release a latch and invoke the transition callback on RUNNING") {
+  test("6.StateChange should release a latch and invoke the transition callback on RUNNING") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
@@ -139,7 +139,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("StateChange should complete stop with error on ERROR") {
+  test("7.StateChange should complete stop with error on ERROR") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
@@ -158,7 +158,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("StateChange should complete stop without error on NOT_RUNNING") {
+  test("8.StateChange should complete stop without error on NOT_RUNNING") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
@@ -174,7 +174,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("onStateTransition should invoke the configured callback") {
+  test("9.onStateTransition should invoke the configured callback") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
@@ -194,7 +194,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("kafkaStreams should fail when startup does not complete before the timeout") {
+  test("10.kafkaStreams should fail when startup does not complete before the timeout") {
     val failingBuilder = builder
       .withProperty("bootstrap.servers", "localhost:9092")
       .withStartUpTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
@@ -204,7 +204,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     result.isLeft shouldBe true
   }
 
-  test("kafkaStreams should fail when the topology builder throws") {
+  test("11.kafkaStreams should fail when the topology builder throws") {
     val throwingBuilder = KafkaStreamsBuilder[IO](
       applicationId,
       streamSettings.withProperty("bootstrap.servers", "localhost:9092"),

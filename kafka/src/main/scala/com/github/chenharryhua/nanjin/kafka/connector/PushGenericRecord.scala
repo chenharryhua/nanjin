@@ -18,6 +18,12 @@ final private class PushGenericRecord(
   topicName: TopicName,
   pair: AvroSchemaPair) {
 
+  private def typeError(expected: String, actual: AnyRef): Nothing =
+    throw new IllegalArgumentException(s"${actual.getClass.getName} is not $expected") // scalafix:ok
+
+  private def unsupportedSchema(skm: Schema): Nothing =
+    throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
+
   private val topic: String = topicName.value
 
   private def getEncoder(skm: Schema, isKey: Boolean): AnyRef => Array[Byte] = {
@@ -34,7 +40,7 @@ final private class PushGenericRecord(
               case Failure(ex)    => throw ex // scalafix:ok
             }
           case unknown =>
-            sys.error(s"${unknown.getClass.getName} is not a Generic Record")
+            typeError("a Generic Record", unknown)
         }
 
       case Schema.Type.STRING =>
@@ -42,51 +48,51 @@ final private class PushGenericRecord(
         (_: AnyRef) match
           case null         => null
           case data: String => ser.serialize(topic, data)
-          case unknown      => sys.error(s"${unknown.getClass.getName} not a String")
+          case unknown      => typeError("a String", unknown)
 
       case Schema.Type.BYTES =>
         val ser = Serdes.ByteArray().serializer()
         (_: AnyRef) match
           case null              => null
           case data: Array[Byte] => ser.serialize(topic, data)
-          case unknown           => sys.error(s"${unknown.getClass.getName} not an Array[Byte]")
+          case unknown           => typeError("an Array[Byte]", unknown)
 
       case Schema.Type.INT =>
         val ser = Serdes.Integer().serializer()
         (_: AnyRef) match
           case null                    => null
           case data: java.lang.Integer => ser.serialize(topic, data)
-          case unknown                 => sys.error(s"${unknown.getClass.getName} not a java.lang.Integer")
+          case unknown                 => typeError("a java.lang.Integer", unknown)
 
       case Schema.Type.LONG =>
         val ser = Serdes.Long().serializer()
         (_: AnyRef) match
           case null                 => null
           case data: java.lang.Long => ser.serialize(topic, data)
-          case unknown              => sys.error(s"${unknown.getClass.getName} not a java.lang.Long")
+          case unknown              => typeError("a java.lang.Long", unknown)
 
       case Schema.Type.FLOAT =>
         val ser = Serdes.Float().serializer()
         (_: AnyRef) match
           case null                  => null
           case data: java.lang.Float => ser.serialize(topic, data)
-          case unknown               => sys.error(s"${unknown.getClass.getName} not a java.lang.Float")
+          case unknown               => typeError("a java.lang.Float", unknown)
 
       case Schema.Type.DOUBLE =>
         val ser = Serdes.Double().serializer()
         (_: AnyRef) match
           case null                   => null
           case data: java.lang.Double => ser.serialize(topic, data)
-          case unknown                => sys.error(s"${unknown.getClass.getName} is not a java.lang.Double")
+          case unknown                => typeError("a java.lang.Double", unknown)
 
       case Schema.Type.BOOLEAN =>
         val ser = Serdes.Boolean().serializer()
         (_: AnyRef) match
           case null                    => null
           case data: java.lang.Boolean => ser.serialize(topic, data)
-          case unknown                 => sys.error(s"${unknown.getClass.getName} is not a java.lang.Boolean")
+          case unknown                 => typeError("a java.lang.Boolean", unknown)
 
-      case us => sys.error(s"unsupported schema: ${us.toString}")
+      case _ => unsupportedSchema(skm)
     end match
   }
 

@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class PullGenericRecordTest extends AnyFunSuite {
   private val topic = "pull.generic.record.test"
 
-  test("primitive decoding: STRING key and INT value") {
+  test("1.primitive decoding: STRING key and INT value") {
     val keySchema = Schema.create(Schema.Type.STRING)
     val valSchema = Schema.create(Schema.Type.INT)
     val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valSchema))
@@ -44,7 +44,7 @@ class PullGenericRecordTest extends AnyFunSuite {
     assert(bb.array().sameElements(Array(1.toByte, 2.toByte)))
   }
 
-  test("null key and null value are preserved") {
+  test("2.null key and null value are preserved") {
     val keySchema = Schema.create(Schema.Type.STRING)
     val valSchema = Schema.create(Schema.Type.STRING)
     val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valSchema))
@@ -60,7 +60,7 @@ class PullGenericRecordTest extends AnyFunSuite {
     assert(record.get("value") == null)
   }
 
-  test("record schema decode error produces PullError with isKey true") {
+  test("3.record schema decode error produces PullError with isKey true") {
     // key is RECORD type: decoder expects Confluent wire format and will drop first 5 bytes
     val keyRecordSchema = new Schema.Parser().parse(Key.schema)
     // keyRecordSchema.setFields(java.util.Arrays.asList())

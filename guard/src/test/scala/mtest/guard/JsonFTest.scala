@@ -6,7 +6,7 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 class JsonFTest extends AnyFunSuite {
-  test("json obj") {
+  test("1.json obj") {
     val json =
       Json.obj(
         "str" -> Json.fromString("str"),
@@ -20,32 +20,32 @@ class JsonFTest extends AnyFunSuite {
     JsonView.yml("name", json).foreach(println)
   }
 
-  test("string") {
+  test("2.string") {
     val json = "string".asJson
     assert(JsonView.yml("name", json).head == "name: string")
   }
 
-  test("number") {
+  test("3.number") {
     val json = Json.fromLong(1)
     assert(JsonView.yml("name", json).head == "name: 1")
   }
 
-  test("boolean") {
+  test("4.boolean") {
     val json = Json.fromBoolean(true)
     assert(JsonView.yml("name", json).head == "name: true")
   }
 
-  test("array") {
+  test("5.array") {
     val json = List(true, true, false).asJson
     assert(JsonView.yml("name", json).head == "name: [true, true, false]")
   }
 
-  test("array - json") {
+  test("6.array - json") {
     val json = List(true.asJson, Json.Null, false.asJson).asJson
     assert(JsonView.yml("name", json).head == "name: [true, null, false]")
   }
 
-  test("two layers") {
+  test("7.two layers") {
     val json = Json.obj(
       "top" ->
         Json.obj(

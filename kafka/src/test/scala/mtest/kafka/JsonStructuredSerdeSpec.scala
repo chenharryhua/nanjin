@@ -12,7 +12,7 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
 
   val serde: Serde[Json] = ctx.asValue(Structured[Json]).serde
 
-  test("serializer should serialize Json to UTF-8 bytes") {
+  test("1.serializer should serialize Json to UTF-8 bytes") {
     val json = parse("""{"name":"test","value":123}""").toOption.get
 
     val bytes = serde.serializer.serialize("topic", json)
@@ -20,11 +20,11 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
     new String(bytes, "UTF-8") shouldBe """{"name":"test","value":123}"""
   }
 
-  test("serializer should return null for null input") {
+  test("2.serializer should return null for null input") {
     serde.serializer.serialize("topic", null) shouldBe null
   }
 
-  test("deserializer should deserialize valid JSON bytes") {
+  test("3.deserializer should deserialize valid JSON bytes") {
     val jsonString = """{"name":"test","value":123}"""
     val bytes = jsonString.getBytes("UTF-8")
 
@@ -33,11 +33,11 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
     result shouldBe parse(jsonString).toOption.get
   }
 
-  test("deserializer should return null for null input") {
+  test("4.deserializer should return null for null input") {
     serde.deserializer.deserialize("topic", null) shouldBe null
   }
 
-  test("deserializer should throw SerializationException for invalid JSON") {
+  test("5.deserializer should throw SerializationException for invalid JSON") {
     val invalidJson = """{"name":"test","value":}"""
     val bytes = invalidJson.getBytes("UTF-8")
 
@@ -48,13 +48,13 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
     ex.getCause should not be null
   }
 
-  test("serializer should correctly serialize Json.Null") {
+  test("6.serializer should correctly serialize Json.Null") {
     val bytes = serde.serializer.serialize("topic", Json.Null)
 
     new String(bytes, "UTF-8") shouldBe "null"
   }
 
-  test("deserializer should correctly deserialize JSON null") {
+  test("7.deserializer should correctly deserialize JSON null") {
     val bytes = "null".getBytes("UTF-8")
 
     val result = serde.deserializer.deserialize("topic", bytes)

@@ -15,7 +15,7 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
   val postgres: Postgres =
     Postgres("unknown", "unknown", "localhost", 5432, "postgres")
 
-  test("setter") {
+  test("1.setter") {
     val username = "postgres"
     val password = "postgres"
     val nj = DBConfig(postgres)

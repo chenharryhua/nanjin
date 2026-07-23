@@ -73,7 +73,7 @@ class SalesforceIotTest extends AnyFunSuite {
       .map(httpRetry(sydneyTime, _.fixedDelay(3.second)))
       .map(Retry(RetryPolicy(dr => Some(dr.seconds))))
 
-  test("salesforce.iot") {
+  test("1.salesforce.iot") {
     (server *> client).use(_.expect[String]("data")).unsafeRunSync()
   }
 }

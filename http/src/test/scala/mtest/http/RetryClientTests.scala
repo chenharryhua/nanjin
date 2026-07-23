@@ -33,7 +33,7 @@ class RetryClientTests extends CatsEffectSuite {
 
   // -------------------- Tests --------------------
 
-  test("Successful request without retries") {
+  test("1.Successful request without retries") {
     val resp = Response[IO](Status.Ok)
     val client = okClient(resp)
     val retryClient = httpRetry[IO](zoneId, _.fixedRate(1.second).limited(3))(client)
@@ -45,7 +45,7 @@ class RetryClientTests extends CatsEffectSuite {
     } yield assertEquals(r.status, Status.Ok)
   }
 
-  test("Retry on failure and eventually succeed") {
+  test("2.Retry on failure and eventually succeed") {
     val counter = Ref.unsafe[IO, Int](0)
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 2, resp)
@@ -61,7 +61,7 @@ class RetryClientTests extends CatsEffectSuite {
     }
   }
 
-  test("Reckless retry retries on every exception") {
+  test("3.Reckless retry retries on every exception") {
     val counter = Ref.unsafe[IO, Int](0)
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 3, resp)
@@ -77,7 +77,7 @@ class RetryClientTests extends CatsEffectSuite {
     }
   }
 
-  test("Exhausting policy stops retries with failure") {
+  test("4.Exhausting policy stops retries with failure") {
     val counter = Ref.unsafe[IO, Int](0)
     val client = failingClient(counter, failTimes = 5, Response[IO](Status.Ok))
     val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(3))(client)

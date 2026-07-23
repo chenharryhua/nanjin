@@ -74,7 +74,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     fs2(fs2Root, JacksonFile(_.Deflate(_.Nine)), pandaSet)
   }
 
-  test("8.rotation - policy") {
+  test("7.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -98,7 +98,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("9.rotation - size") {
+  test("8.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = JacksonFile(_.Uncompressed)

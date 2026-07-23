@@ -15,7 +15,7 @@ class TickTest extends AnyFunSuite with Matchers {
   val now: Instant = Instant.parse("2026-02-14T00:00:00Z")
   val uuid: UUID = UUID.randomUUID()
 
-  test("Tick zeroth should initialize correctly") {
+  test("1.Tick zeroth should initialize correctly") {
     val tick = Tick.zeroth(uuid, zoneId, now)
     tick.sequenceId shouldEqual uuid
     tick.launchTime shouldEqual now
@@ -25,7 +25,7 @@ class TickTest extends AnyFunSuite with Matchers {
     tick.index shouldEqual 0L
   }
 
-  test("Tick nextTick should increment index and update times") {
+  test("2.Tick nextTick should increment index and update times") {
     val t1 = Tick.zeroth(uuid, zoneId, now)
     val wakeup = now.plusSeconds(5)
     val t2 = t1.nextTick(now, wakeup)
@@ -36,14 +36,14 @@ class TickTest extends AnyFunSuite with Matchers {
     t2.conclude shouldEqual wakeup
   }
 
-  test("Tick window and active durations should be correct") {
+  test("3.Tick window and active durations should be correct") {
     val t = Tick.zeroth(uuid, zoneId, now).withConclude(now.plusSeconds(10))
     t.active shouldEqual Duration.between(t.commence, t.acquires)
     t.snooze shouldEqual Duration.between(t.acquires, t.conclude)
     t.window shouldEqual Duration.between(t.commence, t.conclude)
   }
 
-  test("Tick isWithinOpenClosed and isWithinClosedOpen") {
+  test("4.Tick isWithinOpenClosed and isWithinClosedOpen") {
     val t = Tick.zeroth(uuid, zoneId, now).withConclude(now.plusSeconds(10))
 
     t.isWithinOpenClosed(now) shouldEqual false
@@ -52,20 +52,20 @@ class TickTest extends AnyFunSuite with Matchers {
     t.isWithinClosedOpen(t.conclude) shouldEqual false
   }
 
-  test("Tick withSnoozeStretch updates conclude") {
+  test("5.Tick withSnoozeStretch updates conclude") {
     val t = Tick.zeroth(uuid, zoneId, now)
     val stretched = t.withSnoozeStretch(Duration.ofSeconds(5))
     stretched.conclude shouldEqual t.conclude.plusSeconds(5)
   }
 
-  test("Tick toString uses show interpolator") {
+  test("6.Tick toString uses show interpolator") {
     val t = Tick.zeroth(uuid, zoneId, now)
     val s = t.toString
     s.contains("id=") shouldEqual true
     s.contains("idx=000") shouldEqual true
   }
 
-  test("Tick JSON encoding and decoding") {
+  test("7.Tick JSON encoding and decoding") {
     val t = Tick.zeroth(uuid, zoneId, now).withConclude(now.plusSeconds(10))
     val json = t.asJson.noSpaces
     val decoded = decode[Tick](json).toOption.get
@@ -75,5 +75,24 @@ class TickTest extends AnyFunSuite with Matchers {
     decoded.commence shouldEqual t.commence
     decoded.acquires shouldEqual t.acquires
     decoded.conclude shouldEqual t.conclude
+  }
+
+  test("8.Tick JSON round-trip preserves local times across DST overlap") {
+    val zone = ZoneId.of("Europe/Berlin")
+    val t = Tick(
+      sequenceId = uuid,
+      launchTime = Instant.parse("2026-10-25T00:20:00Z"),
+      zoneId = zone,
+      index = 7L,
+      commence = Instant.parse("2026-10-25T00:30:00Z"),
+      acquires = Instant.parse("2026-10-25T01:00:00Z"),
+      conclude = Instant.parse("2026-10-25T01:30:00Z")
+    )
+
+    val decoded = decode[Tick](t.asJson.noSpaces).toOption.get
+    decoded.local(_.launchTime) shouldEqual t.local(_.launchTime)
+    decoded.local(_.commence) shouldEqual t.local(_.commence)
+    decoded.local(_.acquires) shouldEqual t.local(_.acquires)
+    decoded.local(_.conclude) shouldEqual t.local(_.conclude)
   }
 }

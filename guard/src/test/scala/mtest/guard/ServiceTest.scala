@@ -58,7 +58,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.isInstanceOf[ServiceStop])
   }
 
-  test("4.policy start over") {
+  test("3.policy start over") {
 
     val p1 = Policy.fixedDelay(1.seconds).limited(1)
     val p2 = Policy.fixedDelay(2.seconds).limited(1)
@@ -105,7 +105,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("5.policy threshold start over") {
+  test("4.policy threshold start over") {
 
     val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
@@ -143,7 +143,7 @@ class ServiceTest extends AnyFunSuite {
     assert(c.snooze == 1.second.toJava)
   }
 
-  test("6.service config") {
+  test("5.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(_.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
@@ -155,7 +155,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("7.throw exception in construction") {
+  test("6.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
       .updateConfig(_.withRestartPolicy(1.hour, _.empty))
@@ -172,7 +172,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[StopReason.ByException].stackTrace.value.nonEmpty)
   }
 
-  test("8. closure - io") {
+  test("7.closure - io") {
     val List(a, b) = guard
       .service("closure")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
@@ -187,7 +187,7 @@ class ServiceTest extends AnyFunSuite {
     assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
-  test("9. closure - stream") {
+  test("8.closure - stream") {
     val List(a, b) = guard
       .service("closure")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
@@ -205,7 +205,7 @@ class ServiceTest extends AnyFunSuite {
     assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
-  test("10.exception throw by java") {
+  test("9.exception throw by java") {
     val res = guard
       .service("ex")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
@@ -224,7 +224,7 @@ class ServiceTest extends AnyFunSuite {
     assert(res(3).asInstanceOf[ServiceStop].cause.isInstanceOf[StopReason.ByException])
   }
 
-  test("11. exception thrown elsewhere") {
+  test("10.exception thrown elsewhere") {
     val res = guard
       .service("ex")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
@@ -243,7 +243,7 @@ class ServiceTest extends AnyFunSuite {
     assert(res(1).asInstanceOf[ServiceStop].cause == StopReason.Successfully)
   }
 
-  test("12. by exception") {
+  test("11.by exception") {
     val List(a, b, c, d) =
       guard
         .service("cancel")
@@ -258,14 +258,14 @@ class ServiceTest extends AnyFunSuite {
     assert(d.asInstanceOf[ServiceStop].cause.exitCode == 3)
   }
 
-  test("13. by cancellation - internal") {
+  test("12.by cancellation - internal") {
     val List(a, b) =
       guard.service("cancel").eventStream(_ => IO.println("a") <* IO.canceled).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[ServiceStop].cause == StopReason.ByCancellation)
   }
 
-  test("14. by cancellation - external") {
+  test("13.by cancellation - external") {
     val res: List[Event] =
       guard
         .service("cancel")

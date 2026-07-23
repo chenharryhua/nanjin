@@ -110,7 +110,7 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.squants.dimensionName == Information.name)
   }
 
-  test("6.histogram timer") {
+  test("7.histogram timer") {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Milliseconds)))
@@ -124,7 +124,7 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.squants.dimensionName == Time.name)
   }
 
-  test("6.histogram percent") {
+  test("8.histogram percent") {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Percent)))
@@ -138,7 +138,7 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.squants.dimensionName == Dimensionless.name)
   }
 
-  test("7.histogram disable") {
+  test("9.histogram disable") {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.enable(false).withUnit(Bytes)))
@@ -149,7 +149,7 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieveHistogram(mr.snapshot.histograms).isEmpty)
   }
 
-  test("8.timer") {
+  test("10.timer") {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
@@ -161,7 +161,7 @@ class MetricsTest extends AnyFunSuite {
     assert(timer.calls == 1)
   }
 
-  test("9.timer disable") {
+  test("11.timer disable") {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))))
@@ -171,7 +171,7 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieveTimer(mr.snapshot.timers).isEmpty)
   }
 
-  test("10.empty") {
+  test("12.empty") {
     val mr = service
       .eventStream(_.adhoc.report)
       .map(checkJson)
@@ -182,7 +182,7 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.isEmpty)
   }
 
-  test("11.conflict name") {
+  test("13.conflict name") {
     val mr = service
       .eventStream(agent =>
         agent.facilitate("same.name") { mtx =>
@@ -203,7 +203,7 @@ class MetricsTest extends AnyFunSuite {
     assert(counts.values.toList.map(_.value).contains(2L))
   }
 
-  test("12.measured.retry - give up") {
+  test("14.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withDecision(tv => IO(tv.map(_ => true))))
@@ -212,7 +212,7 @@ class MetricsTest extends AnyFunSuite {
     assert(sm.isEmpty)
   }
 
-  test("13.measured.retry - unworthy retry") {
+  test("15.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
@@ -223,7 +223,7 @@ class MetricsTest extends AnyFunSuite {
     assert(sm.size == 1)
   }
 
-  test("14. MetricName") {
+  test("16.MetricName") {
     val m1 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
     val m2 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
     val m3 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 2}""").toOption.get
@@ -236,7 +236,7 @@ class MetricsTest extends AnyFunSuite {
     assert(m1 =!= m3)
   }
 
-  test("15. meter + counter") {
+  test("17.meter + counter") {
     val List(report) = service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {

@@ -16,7 +16,7 @@ class DBConfigSuite extends CatsEffectSuite {
 
   // Dummy Postgres credentials for testing
 
-  test("DBConfig.apply(Postgres) creates valid HikariConfig") {
+  test("1.DBConfig.apply(Postgres) creates valid HikariConfig") {
     val dbConfig = DBConfig(testDb)
       .set(_.setMaximumPoolSize(5)) // test set DSL
       .set(_.setConnectionTimeout(5000))
@@ -30,7 +30,7 @@ class DBConfigSuite extends CatsEffectSuite {
     assertEquals(hikari.getConnectionTimeout, 5000L)
   }
 
-  test("DBConfig.transactorR creates HikariTransactor") {
+  test("2.DBConfig.transactorR creates HikariTransactor") {
     val dbConfig = DBConfig(testDb)
     dbConfig.transactorR[IO](None).use { xa =>
       IO {
@@ -39,7 +39,7 @@ class DBConfigSuite extends CatsEffectSuite {
     }
   }
 
-  test("DBConfig.testConnection returns false on invalid DB") {
+  test("3.DBConfig.testConnection returns false on invalid DB") {
     val invalidDb =
       Postgres(
         "unknown",

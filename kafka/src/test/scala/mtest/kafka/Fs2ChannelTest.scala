@@ -72,12 +72,12 @@ object Fs2ChannelTestData {
 class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
 
-  test("register") {
+  test("1.register") {
     val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
     ctx.schemaRegistry.register(avroTopic.topicName, value = v).flatMap(IO.println).unsafeRunSync()
   }
 
-  test("1.should be able to consume avro topic") {
+  test("2.should be able to consume avro topic") {
     val ret =
       ctx
         .produce(avroTopic)
@@ -98,13 +98,13 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ctx.ungroup("g1").unsafeRunSync() == List(avroTopic.topicName))
   }
 
-  test("2.record format") {
+  test("3.record format") {
     val ret =
       ctx.consume(avroTopic).subscribe.take(1).map(_.record).timeout(3.seconds).compile.toList.unsafeRunSync()
     assert(ret.size == 1)
   }
 
-  test("3.serde") {
+  test("4.serde") {
     val serde = ctx.serde(avroTopic)
     ctx
       .consumeBytes(avroTopic.topicName)
@@ -259,7 +259,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(res.unsafeRunSync())
   }
 
-  test("14. generic record without schema registry") {
+  test("14.generic record without schema registry") {
     val ret =
       ctx
         .consumeGenericRecord(avroTopic.topicName)
@@ -275,7 +275,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
   }
 
-  test("15. attempt consume") {
+  test("15.attempt consume") {
     val ret = ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record).debug()
       .timeout(3.seconds).compile.toList.unsafeRunSync()
     assert(ret.size == 1)

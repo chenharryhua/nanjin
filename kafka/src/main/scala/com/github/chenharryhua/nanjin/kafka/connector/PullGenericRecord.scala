@@ -31,6 +31,9 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = "unused"
 
+  private def unsupportedSchema(skm: Schema): Nothing =
+    throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
+
   private def getDecoder(skm: Schema): Array[Byte] => Any =
     skm.getType match {
       case Schema.Type.RECORD =>
@@ -66,7 +69,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       case Schema.Type.NULL =>
         val deSer = Serdes.Void().deserializer()
         (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case us => sys.error(s"unsupported schema: ${us.toString}")
+      case _ => unsupportedSchema(skm)
     }
 
   private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())

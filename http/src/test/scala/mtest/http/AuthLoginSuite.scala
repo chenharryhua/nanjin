@@ -60,7 +60,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Client Credentials                                                          */
   /* -------------------------------------------------------------------------- */
 
-  test("clientCredentials login injects Authorization header") {
+  test("1.clientCredentials login injects Authorization header") {
     val authClient = Resource
       .pure[IO, Client[IO]](
         tokenServer(expectedGrantType = "client_credentials")
@@ -88,7 +88,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Authorization Code                                                          */
   /* -------------------------------------------------------------------------- */
 
-  test("authorizationCode login injects Authorization header") {
+  test("2.authorizationCode login injects Authorization header") {
     val authClient = Resource
       .pure[IO, Client[IO]](
         tokenServer(expectedGrantType = "authorization_code")
@@ -118,7 +118,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Sanity: token is reused within lifetime                                     */
   /* -------------------------------------------------------------------------- */
 
-  test("login reuses token within its lifetime") {
+  test("3.login reuses token within its lifetime") {
     val ref = Ref.unsafe[IO, Int](0)
 
     val app = HttpApp[IO] {

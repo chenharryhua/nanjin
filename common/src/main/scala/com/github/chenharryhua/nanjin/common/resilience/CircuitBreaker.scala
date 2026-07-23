@@ -4,7 +4,9 @@ import cats.Endo
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.effect.syntax.spawn.given
 import cats.syntax.applicativeError.given
+import cats.syntax.eq.given
 import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.Stream
 import io.circe.{Encoder, Json}
@@ -22,80 +24,217 @@ object CircuitBreaker {
   enum State:
     case Closed(failures: Int)
     case HalfOpen
-    case HalfOpenRunning
-    case Open(rejects: Int)
+    case Open
+    case Broken
   end State
 
   object State:
     given Encoder[State] =
       case State.Closed(failures) =>
         Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
-      case State.HalfOpen | State.HalfOpenRunning =>
+      case State.HalfOpen =>
         Json.obj("state" -> Json.fromString("Half-Open"))
-      case State.Open(rejects) =>
-        Json.obj("state" -> Json.fromString("Open"), "rejects" -> Json.fromInt(rejects))
+      case State.Open =>
+        Json.obj("state" -> Json.fromString("Open"))
+      case State.Broken =>
+        Json.obj("state" -> Json.fromString("Broken"))
   end State
 
-  case object RejectedException extends Exception("CircuitBreaker Rejected Exception") with NoStackTrace {
+  final class RejectedException private[CircuitBreaker] (val state: State)
+      extends Exception(s"CircuitBreaker rejected in state=$state") with NoStackTrace {
     override def fillInStackTrace(): Throwable = this
+  }
+
+  private case object BrokenException extends Exception("CircuitBreaker is broken") with NoStackTrace {
+    override def fillInStackTrace(): Throwable = this
+  }
+
+  private def rejectedException(state: State): Throwable = new RejectedException(state)
+
+  private[resilience] def rejectionForState(state: State): Throwable = state match {
+    case State.Broken => BrokenException
+    case other        => rejectedException(other)
   }
 
   final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(using F: Async[F]) {
 
-    private val initClosed: State = State.Closed(0)
-    private val initOpen: State = State.Open(0)
+    private enum InternalState:
+      case Closed(failures: Int)
+      case HalfOpen
+      case HalfOpenRunning
+      case Open
+      case Broken
 
+    private case class MachineState(state: InternalState, version: Long)
+
+    private val initClosed: InternalState.Closed = InternalState.Closed(0)
+    private val initOpen: InternalState.Open.type = InternalState.Open
+
+    private def toPublicState(state: InternalState): State = state match {
+      case InternalState.Closed(failures) => State.Closed(failures)
+      case InternalState.HalfOpen         => State.HalfOpen
+      case InternalState.HalfOpenRunning  => State.HalfOpen
+      case InternalState.Open             => State.Open
+      case InternalState.Broken           => State.Broken
+    }
+
+    private def transitionBroken(ms: MachineState): MachineState =
+      transitionTo(ms, InternalState.Broken)
+
+    private def transitionTo(ms: MachineState, next: InternalState): MachineState =
+      next match {
+        case InternalState.Broken =>
+          ms.state match {
+            case InternalState.Broken => ms // Broken is terminal.
+            case _                    => MachineState(next, ms.version + 1)
+          }
+        case _ =>
+          (ms.state, next) match {
+            case (InternalState.Closed(l), InternalState.Closed(r)) if l === r  => ms
+            case (InternalState.HalfOpen, InternalState.HalfOpen)               => ms
+            case (InternalState.HalfOpenRunning, InternalState.HalfOpenRunning) => ms
+            case (InternalState.Open, InternalState.Open)                       => ms
+            case _ => MachineState(next, ms.version + 1)
+          }
+      }
+
+    /** Scheduler lifecycle is strict: if tick stream finishes or fails, breaker is terminally broken.
+      *
+      *   - Success: scheduler stopped, breaker becomes Broken
+      *   - Error: scheduler failed, breaker becomes Broken
+      *   - Cancel: resource release, no state transition
+      */
     val stateMachine: Resource[F, CircuitBreaker[F]] = for {
-      state <- Resource.eval(F.ref[State](initClosed))
+      state <- Resource.eval(F.ref[MachineState](MachineState(initClosed, 0L)))
       _ <- ticks.evalMap { _ =>
-        state.update {
-          case State.Open(_) => State.HalfOpen
-          case other         => other
+        state.update { ms =>
+          ms.state match {
+            case InternalState.Open => transitionTo(ms, InternalState.HalfOpen)
+            case _                  => ms
+          }
         }
+      }.onFinalizeCase {
+        case Resource.ExitCase.Succeeded  => state.update(ms => transitionBroken(ms))
+        case Resource.ExitCase.Errored(_) => state.update(ms => transitionBroken(ms))
+        case Resource.ExitCase.Canceled   => F.unit
       }.compile.drain.background
     } yield new CircuitBreaker[F] {
 
-      override val getState: F[State] = state.get
+      override val getState: F[State] = state.get.map(ms => toPublicState(ms.state))
+
+      private def rejectionError[A](ms: MachineState): F[A] = ms.state match {
+        case InternalState.Broken => F.raiseError(BrokenException)
+        case other                => F.raiseError(rejectionForState(toPublicState(other)))
+      }
+
+      private val ensureNotBroken: F[Unit] =
+        state.get.flatMap {
+          case ms @ MachineState(InternalState.Broken, _) => rejectionError(ms)
+          case _                                          => F.pure(())
+        }
 
       override def protect[A](fa: F[A]): F[A] = {
 
+        enum AdmittedFrom:
+          case Closed(failuresAtAdmission: Int, versionAtAdmission: Long)
+          case HalfOpen(versionAtAdmission: Long)
+
         enum Decision:
-          case Run, Reject
+          case Run(from: AdmittedFrom)
+          case Reject
+
+        enum Result:
+          case Success
+          case Failure
+          case Canceled
 
         val admit: F[Decision] =
           state.modify {
-            case State.Open(rejects)      => State.Open(rejects + 1) -> Decision.Reject
-            case State.HalfOpen           => State.HalfOpenRunning -> Decision.Run
-            case State.HalfOpenRunning    => State.HalfOpenRunning -> Decision.Reject
-            case closed @ State.Closed(_) => closed -> Decision.Run
+            case ms @ MachineState(InternalState.Open, _) =>
+              ms -> Decision.Reject
+            case ms @ MachineState(InternalState.HalfOpen, _) =>
+              val next = transitionTo(ms, InternalState.HalfOpenRunning)
+              next -> Decision.Run(AdmittedFrom.HalfOpen(next.version))
+            case ms @ MachineState(InternalState.HalfOpenRunning, _) =>
+              ms -> Decision.Reject
+            case ms @ MachineState(InternalState.Closed(failures), version) =>
+              ms -> Decision.Run(AdmittedFrom.Closed(failures, version))
+            case ms @ MachineState(InternalState.Broken, _) =>
+              ms -> Decision.Reject
+          }
+
+        def updateIfCurrent(versionAtAdmission: Long)(evolve: MachineState => MachineState): F[Unit] =
+          state.update { ms =>
+            if (ms.version === versionAtAdmission) evolve(ms) else ms
+          }
+
+        def evolve(from: AdmittedFrom, result: Result)(ms: MachineState): MachineState =
+          ms.state match {
+            case InternalState.Broken => ms
+
+            case InternalState.HalfOpenRunning =>
+              from match {
+                case AdmittedFrom.HalfOpen(_) =>
+                  result match {
+                    case Result.Success  => transitionTo(ms, initClosed)
+                    case Result.Failure  => transitionTo(ms, initOpen)
+                    case Result.Canceled => transitionTo(ms, InternalState.HalfOpen)
+                  }
+                case AdmittedFrom.Closed(_, _) => ms
+              }
+
+            case InternalState.HalfOpen => ms
+
+            case InternalState.Open => ms
+
+            case InternalState.Closed(failures) =>
+              from match {
+                case AdmittedFrom.HalfOpen(_)                    => ms
+                case AdmittedFrom.Closed(failuresAtAdmission, _) =>
+                  result match {
+                    // Guard against stale success/failure: only modify count when admission count still matches.
+                    case Result.Success if failures === failuresAtAdmission =>
+                      transitionTo(ms, initClosed)
+                    case Result.Failure if failures === failuresAtAdmission =>
+                      if (failures + 1 <= maxFailures) transitionTo(ms, InternalState.Closed(failures + 1))
+                      else transitionTo(ms, initOpen)
+                    case _ => ms
+                  }
+              }
           }
 
         admit.flatMap {
-          case Decision.Reject => F.raiseError(RejectedException)
+          case Decision.Reject =>
+            state.get.flatMap(rejectionError)
 
-          case Decision.Run =>
-            F.guaranteeCase(fa) {
+          case Decision.Run(from) =>
+            // Avoid starting work when the breaker has already become terminal.
+            ensureNotBroken >> F.guaranteeCase(fa) {
               case Outcome.Succeeded(_) =>
-                state.update {
-                  case State.HalfOpenRunning => initClosed
-                  case State.HalfOpen        => initClosed
-                  case State.Closed(_)       => initClosed
-                  case open @ State.Open(_)  => open
+                from match {
+                  case AdmittedFrom.HalfOpen(versionAtAdmission) =>
+                    updateIfCurrent(versionAtAdmission)(evolve(from, Result.Success))
+
+                  case AdmittedFrom.Closed(failuresAtAdmission, versionAtAdmission) =>
+                    updateIfCurrent(versionAtAdmission)(evolve(from, Result.Success))
                 }
 
               case Outcome.Errored(_) =>
-                state.update {
-                  case State.HalfOpenRunning  => initOpen
-                  case State.HalfOpen         => initOpen
-                  case State.Closed(failures) =>
-                    if (failures + 1 < maxFailures) State.Closed(failures + 1) else initOpen
-                  case open @ State.Open(_) => open
+                from match {
+                  case AdmittedFrom.HalfOpen(versionAtAdmission) =>
+                    updateIfCurrent(versionAtAdmission)(evolve(from, Result.Failure))
+
+                  case AdmittedFrom.Closed(failuresAtAdmission, versionAtAdmission) =>
+                    updateIfCurrent(versionAtAdmission)(evolve(from, Result.Failure))
                 }
 
               case Outcome.Canceled() =>
-                state.update {
-                  case State.HalfOpenRunning => initOpen
-                  case other                 => other
+                from match {
+                  case AdmittedFrom.HalfOpen(versionAtAdmission) =>
+                    updateIfCurrent(versionAtAdmission)(evolve(from, Result.Canceled))
+
+                  case AdmittedFrom.Closed(_, _) =>
+                    F.unit
                 }
             }
         }
@@ -107,9 +246,16 @@ object CircuitBreaker {
   }
 
   final class Builder private[CircuitBreaker] (maxFailures: Int, policy: Policy.type => Policy) {
+    require(maxFailures > 0, s"maxFailures should be greater than 0, but got $maxFailures")
+
     def withMaxFailures(maxFailures: Int): Builder =
       new Builder(maxFailures, policy)
 
+    /** Configure scheduler policy used for Open -> HalfOpen progression.
+      *
+      * Under strict scheduler semantics, policy should be non-terminating for long-lived breakers.
+      * Finite/terminating policies will eventually transition the breaker to Broken.
+      */
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(maxFailures, f)
 

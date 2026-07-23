@@ -45,36 +45,36 @@ class NJCirceTest extends AnyFunSuite {
 
   val fs2Root: Url = Url.parse("./data/test/terminals/circe/tiger")
 
-  test("uncompressed") {
+  test("1.uncompressed") {
     fs2(fs2Root, CirceFile(_.Uncompressed), TestData.tigerSet)
   }
 
-  test("gzip") {
+  test("2.gzip") {
     fs2(fs2Root, CirceFile(_.Gzip), TestData.tigerSet)
   }
 
-  test("snappy") {
+  test("3.snappy") {
     fs2(fs2Root, CirceFile(_.Snappy), TestData.tigerSet)
   }
 
-  test("bzip2") {
+  test("4.bzip2") {
     fs2(fs2Root, CirceFile(_.Bzip2), TestData.tigerSet)
   }
 
-  test("lz4") {
+  test("5.lz4") {
     fs2(fs2Root, CirceFile(_.Lz4), TestData.tigerSet)
   }
 
-  test("deflate - 1") {
+  test("6.deflate - 1") {
     fs2(fs2Root, CirceFile(_.Deflate(_.Four)), TestData.tigerSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").circe(10)
     hdp.sink("./does/not/exist").circe
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -119,7 +119,7 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = CirceFile(Uncompressed)
@@ -166,7 +166,7 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("rotation - empty") {
+  test("10.rotation - empty") {
     val path = fs2Root / "rotation" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
@@ -183,7 +183,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 
-  test("stream concat") {
+  test("11.stream concat") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.asJson)
     val path: Url = fs2Root / "concat" / "circe.json"
 
@@ -193,7 +193,7 @@ class NJCirceTest extends AnyFunSuite {
     assert(size == 15000)
   }
 
-  test("stream concat - 2") {
+  test("12.stream concat - 2") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
@@ -203,7 +203,7 @@ class NJCirceTest extends AnyFunSuite {
       (s ++ s ++ s).through(sink.circe).compile.drain).unsafeRunSync()
   }
 
-  test("emit in each time frame even if no data") {
+  test("13.emit in each time frame even if no data") {
     val path: Url = fs2Root / "empty"
     val sink =
       hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / t.index.toString)

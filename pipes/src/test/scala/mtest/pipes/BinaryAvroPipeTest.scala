@@ -18,7 +18,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
   val hdp: Hadoop[IO] = Hadoop[IO](new Configuration)
   val root: Url = Url("./data/test/pipes/bin_avro/")
-  test("binary-json identity") {
+  test("1.binary-json identity") {
 
     assert(
       data
@@ -48,7 +48,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
 //        .unsafeRunSync() === tigers)
 //  }
 
-  test("write/read identity") {
+  test("2.write/read identity") {
     val path = root / "bin-avro.avro"
     hdp.delete(path).unsafeRunSync()
     val write =

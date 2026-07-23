@@ -6,6 +6,7 @@ import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
+import cron4s.Cron
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -18,7 +19,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
-        cb <- agent.circuitBreaker(_.withMaxFailures(3))
+        cb <- agent.circuitBreaker(_.withMaxFailures(3).withPolicy(_.fixedDelay(1.seconds)))
         _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
       } yield cb
 
@@ -36,12 +37,13 @@ class CircuitBreakerTest extends AnyFunSuite {
     val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
-        cb <- agent.circuitBreaker(_.withMaxFailures(3))
+        cb <- agent.circuitBreaker(_.withMaxFailures(3).withPolicy(_.fixedDelay(1.seconds)))
         _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
       } yield cb
 
       circuitBreaker.use { cb =>
         cb.attempt(bad) >> agent.adhoc.report >>
+          cb.attempt(bad) >> agent.adhoc.report >>
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.protect(good).guarantee(agent.adhoc.report.void).void
@@ -53,7 +55,7 @@ class CircuitBreakerTest extends AnyFunSuite {
         .stackTrace
         .value
         .head
-        .contains(CircuitBreaker.RejectedException.productPrefix))
+        .contains(classOf[CircuitBreaker.RejectedException].getSimpleName))
   }
 
   test("3.race") {
@@ -63,7 +65,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val io2 = IO.println("start io-2") *> IO.sleep(1.seconds) *> IO { j = 1 } *> IO.println("end io-2")
 
     val ss = service
-      .eventStream(_.circuitBreaker(identity).use { cb =>
+      .eventStream(_.circuitBreaker(_.withPolicy(_.fixedDelay(1.seconds))).use { cb =>
         IO.race(cb.protect(io1), cb.protect(io2)) >> IO.sleep(4.seconds)
       })
       .mapFilter(Event.serviceStop.getOption)
@@ -90,7 +92,7 @@ class CircuitBreakerTest extends AnyFunSuite {
 
   test("5.reset state") {
     val ss = service
-      .eventStream(_.circuitBreaker(_.withMaxFailures(0).withPolicy(_.fixedRate(1.seconds))).use { cb =>
+      .eventStream(_.circuitBreaker(_.withMaxFailures(1).withPolicy(_.fixedRate(1.seconds))).use { cb =>
         cb.protect(IO.raiseError(new Exception())).attempt >>
           IO.sleep(2.seconds) >>
           cb.protect(IO(1)).void
@@ -100,5 +102,27 @@ class CircuitBreakerTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     assert(ss.cause.exitCode == 0)
+  }
+
+  test("6.scheduler failure is terminal broken") {
+    val ss = service
+      .eventStream(_.circuitBreaker(_.withPolicy(_.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))).use { cb =>
+        // The cron expression has no valid next execution time, so scheduler transitions breaker to Broken.
+        IO.sleep(50.millis) >>
+          cb.attempt(IO.unit).flatMap {
+            case Left(ex) if ex.getMessage == "CircuitBreaker is broken" => IO.raiseError(ex)
+            case Left(other)                                               =>
+              IO.raiseError(
+                new RuntimeException(s"expected BrokenException, got ${other.getClass.getName}", other))
+            case Right(_) =>
+              IO.raiseError(new RuntimeException("expected BrokenException but call succeeded"))
+          }
+      })
+      .mapFilter(Event.serviceStop.getOption)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+
+    assert(ss.cause.isInstanceOf[StopReason.ByException])
   }
 }

@@ -60,6 +60,20 @@ private object CodecPolicy {
     hc.downField(field).as[HCursor]
 
   private val decoderCoalgebra: Coalgebra[PolicyF, HCursor] = {
+    val variantKeys: Set[String] = Set(
+      EMPTY,
+      CRONTAB,
+      JITTER,
+      FIXED_DELAY,
+      FIXED_RATE,
+      LIMITED,
+      FOLLOWED_BY,
+      MEET,
+      EXCEPT,
+      OFFSET,
+      REPEAT
+    )
+
     def empty(hc: HCursor): Result[Empty[HCursor]] =
       readField[Json](hc, EMPTY).map(_ => Empty[HCursor]())
 
@@ -113,22 +127,43 @@ private object CodecPolicy {
       (plc, ost).mapN(Offset[HCursor])
     }
 
+    def decodeVariant(hc: HCursor): Result[PolicyF[HCursor]] = {
+      val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variantKeys)
+      present.toList match {
+        case key :: Nil =>
+          key match {
+            case EMPTY       => empty(hc)
+            case CRONTAB     => crontab(hc)
+            case JITTER      => jitter(hc)
+            case FIXED_DELAY => fixedDelay(hc)
+            case FIXED_RATE  => fixedRate(hc)
+            case LIMITED     => limited(hc)
+            case FOLLOWED_BY => followedBy(hc)
+            case MEET        => meet(hc)
+            case EXCEPT      => except(hc)
+            case OFFSET      => offset(hc)
+            case REPEAT      => repeat(hc)
+            case other       =>
+              Left(DecodingFailure(s"Unsupported policy variant key: $other", hc.history))
+          }
+        case Nil =>
+          Left(
+            DecodingFailure(
+              s"No policy variant key found. Expected one of: ${variantKeys.toList.sorted.mkString(",")}",
+              hc.history))
+        case many =>
+          Left(
+            DecodingFailure(
+              s"Ambiguous policy payload; found multiple variant keys: ${many.sorted.mkString(",")}",
+              hc.history))
+      }
+    }
+
     Coalgebra[PolicyF, HCursor] { hc =>
-      empty(hc)
-        .orElse(crontab(hc))
-        .orElse(jitter(hc))
-        .orElse(fixedDelay(hc))
-        .orElse(fixedRate(hc))
-        .orElse(limited(hc))
-        .orElse(followedBy(hc))
-        .orElse(meet(hc))
-        .orElse(except(hc))
-        .orElse(offset(hc))
-        .orElse(repeat(hc))
-        .fold(
-          err => throw err, // scalafix:ok
-          identity
-        )
+      decodeVariant(hc).fold(
+        err => throw err, // scalafix:ok
+        identity
+      )
     }
   }
 

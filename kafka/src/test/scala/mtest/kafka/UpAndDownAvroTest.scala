@@ -18,7 +18,7 @@ class UpAndDownAvroTest extends AnyFunSuite {
   private val avro: TopicDef[Integer, UpAndDown] =
     TopicDef(topic, Primitive[Integer], Structured[GenericRecord].become[UpAndDown])
 
-  test("avro - schema register") {
+  test("1.avro - schema register") {
     val schema = summon[KafkaAvroSchema[UpAndDown]].schema
     println(schema)
     ctx.schemaRegistry
@@ -27,11 +27,11 @@ class UpAndDownAvroTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("avro - produce") {
+  test("2.avro - produce") {
     ctx.produce(avro).produceOne(1, UpAndDown(1, "a")).flatMap(IO.println).unsafeRunSync()
   }
 
-  test("avro - consume") {
+  test("3.avro - consume") {
     ctx.consume(avro).subscribe.take(1).debug().timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 

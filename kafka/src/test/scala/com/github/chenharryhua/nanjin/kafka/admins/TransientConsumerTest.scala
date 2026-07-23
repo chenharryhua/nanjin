@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.kafka.PureConsumerSettings
 
 class TransientConsumerTest extends AnyFunSuite {
   private val pcs = PureConsumerSettings
-  test("offsetRangeFor - 1") {
+  test("1.offsetRangeFor - 1") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 10)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, Map.empty)
@@ -28,7 +28,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res.treeMap.forall(_._2.forall(_.distance == 10)))
   }
 
-  test("offsetRangeFor - 2") {
+  test("2.offsetRangeFor - 2") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] = Map(
@@ -42,7 +42,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res.treeMap.forall(_._2.forall(_.distance == 10)))
   }
 
-  test("offsetRangeFor - 3") {
+  test("3.offsetRangeFor - 3") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] =
@@ -60,7 +60,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res.treeMap.forall(_._2.exists(_.distance == 5)))
   }
 
-  test("offsetRangeFor - 4") {
+  test("4.offsetRangeFor - 4") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] = Map(tp0 -> null, tp1 -> null, tp2 -> null)
@@ -75,7 +75,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res.treeMap.forall(_._2.exists(_.distance == 10)))
   }
 
-  test("offsetRangeFor - 5") {
+  test("5.offsetRangeFor - 5") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> null, tp1 -> null, tp2 -> null)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] =
@@ -94,7 +94,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res.treeMap.forall(_._2.exists(_.distance == 5)))
   }
 
-  test("offset for time") {
+  test("6.offset for time") {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] =
@@ -111,7 +111,7 @@ class TransientConsumerTest extends AnyFunSuite {
     assert(res == expected)
   }
 
-  test("coverage") {
+  test("7.coverage") {
     val begin: Map[TopicPartition, java.lang.Long] = Map.empty
     val end: Map[TopicPartition, java.lang.Long] = Map.empty
     val forTime: Map[TopicPartition, OffsetAndTimestamp] = Map.empty

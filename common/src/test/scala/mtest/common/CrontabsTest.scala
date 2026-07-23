@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.LocalDateTime
 
 class CrontabsTest extends AnyFunSuite {
-  test("validate crontabs") {
+  test("1.validate crontabs") {
     val now = LocalDateTime.now()
     assert(crontabs.everySecond.next(now).nonEmpty)
     assert(crontabs.secondly.next(now).nonEmpty)
@@ -51,7 +51,7 @@ class CrontabsTest extends AnyFunSuite {
 
     assert(crontabs.businessHour.next(now).nonEmpty)
   }
-  test("yearly") {
+  test("2.yearly") {
     assert(crontabs.yearly.january.next(LocalDateTime.now).get.toString.drop(5) == "01-01T00:00")
     assert(crontabs.yearly.february.next(LocalDateTime.now).get.toString.drop(5) == "02-01T00:00")
     assert(crontabs.yearly.march.next(LocalDateTime.now).get.toString.drop(5) == "03-01T00:00")

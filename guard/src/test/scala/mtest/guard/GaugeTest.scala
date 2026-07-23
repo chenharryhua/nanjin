@@ -63,6 +63,23 @@ class GaugeTest extends AnyFunSuite {
     assert(idle.values.nonEmpty)
   }
 
+  test("5.no policy gauge should recompute on each scrape") {
+    val snapshots = service.eventStream { agent =>
+      val setup = for {
+        ref <- Resource.eval(cats.effect.Ref[IO].of(0))
+        _ <- agent.facilitate("counter")(_.gauge("counter", _.register(ref.modify(i => (i + 1, i + 1)))))
+      } yield ()
+
+      setup.surround(agent.adhoc.report >> agent.adhoc.report)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(2).compile.toList.unsafeRunSync()
+
+    assert(snapshots.size == 2)
+    val first = retrieveGauge[Int](snapshots.head.snapshot.gauges).values.head
+    val second = retrieveGauge[Int](snapshots(1).snapshot.gauges).values.head
+    assert(first == 1)
+    assert(second == 2)
+  }
+
   test("6.gauge timeout") {
     val mr = service.eventStream { agent =>
       agent.facilitate("timeout.gauge")(
@@ -112,7 +129,28 @@ class GaugeTest extends AnyFunSuite {
     }.debug().compile.drain.unsafeRunSync()
   }
 
-  test("transactional gauge") {
+  test("9.policy gauge should return cached value between refresh ticks") {
+    val snapshots = service.eventStream { agent =>
+      val setup = for {
+        ref <- Resource.eval(cats.effect.Ref[IO].of(0))
+        _ <- agent.facilitate("cached-counter")(
+          _.gauge(
+            "counter",
+            _.withPolicy(_.fixedDelay(24.hours))
+              .register(ref.modify(i => (i + 1, i + 1)))))
+      } yield ()
+
+      setup.surround(agent.adhoc.report >> agent.adhoc.report)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(2).compile.toList.unsafeRunSync()
+
+    assert(snapshots.size == 2)
+    val first = retrieveGauge[Int](snapshots.head.snapshot.gauges).values.head
+    val second = retrieveGauge[Int](snapshots(1).snapshot.gauges).values.head
+    assert(first == 1)
+    assert(second == 1)
+  }
+
+  test("10.transactional gauge") {
     service.eventStream { agent =>
       val mtx =
         agent.facilitate("transactional") { fac =>

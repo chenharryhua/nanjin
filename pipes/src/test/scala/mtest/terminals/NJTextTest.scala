@@ -48,36 +48,36 @@ class NJTextTest extends AnyFunSuite {
 
   val fs2Root: Url = Url.parse("./data/test/terminals/text/tiger")
 
-  test("uncompressed") {
+  test("1.uncompressed") {
     fs2(fs2Root, TextFile(_.Uncompressed), TestData.tigerSet)
   }
 
-  test("gzip") {
+  test("2.gzip") {
     fs2(fs2Root, TextFile(_.Gzip), TestData.tigerSet)
   }
 
-  test("snappy") {
+  test("3.snappy") {
     fs2(fs2Root, TextFile(_.Snappy), TestData.tigerSet)
   }
 
-  test("bzip2") {
+  test("4.bzip2") {
     fs2(fs2Root, TextFile(_.Bzip2), TestData.tigerSet)
   }
 
-  test("lz4") {
+  test("5.lz4") {
     fs2(fs2Root, TextFile(_.Lz4), TestData.tigerSet)
   }
 
-  test("deflate - 1") {
+  test("6.deflate - 1") {
     fs2(fs2Root, TextFile(_.Deflate(_.Eight)), TestData.tigerSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").text(2)
     hdp.sink("./does/not/exist").text
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -105,7 +105,7 @@ class NJTextTest extends AnyFunSuite {
 
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10002L
     hdp.delete(path).unsafeRunSync()
@@ -132,7 +132,7 @@ class NJTextTest extends AnyFunSuite {
 
   }
 
-  test("rotation - empty") {
+  test("10.rotation - empty") {
     val path = fs2Root / "rotation" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
@@ -146,7 +146,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 
-  test("stream concat") {
+  test("11.stream concat") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 

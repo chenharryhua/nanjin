@@ -93,7 +93,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
   private val schema =
     new Schema.Parser().parse(schemaJson)
 
-  test("removeDefaultField removes all default attributes recursively") {
+  test("1.removeDefaultField removes all default attributes recursively") {
     val updated = removeDefaultField(schema)
 
     val text = pretty(updated)
@@ -103,7 +103,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     parseable(updated)
   }
 
-  test("removeNamespace removes all namespace attributes recursively") {
+  test("2.removeNamespace removes all namespace attributes recursively") {
     val updated = removeNamespace(schema)
 
     val text = pretty(updated)
@@ -113,7 +113,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     parseable(updated)
   }
 
-  test("removeDocField removes all doc attributes recursively") {
+  test("3.removeDocField removes all doc attributes recursively") {
     val updated = removeDocField(schema)
 
     val text = pretty(updated)
@@ -123,7 +123,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     parseable(updated)
   }
 
-  test("replaceNamespace replaces all namespaces recursively") {
+  test("4.replaceNamespace replaces all namespaces recursively") {
     val updated = replaceNamespace(schema, "new.ns")
 
     updated.getNamespace shouldBe "new.ns"
@@ -146,14 +146,14 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     parseable(updated)
   }
 
-  test("replaceNamespace is idempotent") {
+  test("5.replaceNamespace is idempotent") {
     val once = replaceNamespace(schema, "new.ns")
     val twice = replaceNamespace(once, "new.ns")
 
     pretty(twice) shouldBe pretty(once)
   }
 
-  test("combined transformations produce a valid schema") {
+  test("6.combined transformations produce a valid schema") {
     val transformed =
       replaceNamespace(
         removeDocField(
@@ -171,7 +171,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     text should include("\"namespace\" : \"new.ns\"")
   }
 
-  test("removeDefaultField on schema without defaults is a no-op") {
+  test("7.removeDefaultField on schema without defaults is a no-op") {
     val simple =
       new Schema.Parser().parse(
         """
@@ -191,19 +191,19 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     pretty(removeDefaultField(simple)) shouldBe pretty(simple)
   }
 
-  test("removeNamespace on primitive schema is a no-op") {
+  test("8.removeNamespace on primitive schema is a no-op") {
     val primitive = Schema.create(Schema.Type.STRING)
 
     removeNamespace(primitive) shouldBe primitive
   }
 
-  test("removeDocField on primitive schema is a no-op") {
+  test("9.removeDocField on primitive schema is a no-op") {
     val primitive = Schema.create(Schema.Type.INT)
 
     removeDocField(primitive) shouldBe primitive
   }
 
-  test("replaceNamespace on schema without namespace does not fail") {
+  test("10.replaceNamespace on schema without namespace does not fail") {
     val simple =
       new Schema.Parser().parse(
         """

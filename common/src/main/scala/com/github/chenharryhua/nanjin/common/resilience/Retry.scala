@@ -4,6 +4,7 @@ import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
+import cats.syntax.applicativeError.given
 import cats.syntax.either.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
@@ -49,11 +50,15 @@ object Retry {
           status.advance.flatMap {
             case None     => F.raiseError(ex) // run out of policy
             case Some(ts) => // respect user's decision
-              decide(TickedValue(ts.tick, ex)).flatMap { tv =>
-                if (tv.value)
-                  F.sleep(tv.tick.snooze.toScala.max(0.seconds)).as(ts.withTick(tv.tick).asLeft[A])
-                else
+              decide(TickedValue(ts.tick, ex)).attempt.flatMap {
+                case Left(decisionEx) =>
+                  ex.addSuppressed(decisionEx)
                   F.raiseError(ex)
+                case Right(tv) =>
+                  if (tv.value)
+                    F.sleep(tv.tick.snooze.toScala.max(0.seconds)).as(ts.withTick(tv.tick).asLeft[A])
+                  else
+                    F.raiseError(ex)
               }
           }
         }

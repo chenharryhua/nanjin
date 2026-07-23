@@ -45,7 +45,7 @@ class MeteredCountsSuite extends AnyFunSuite {
   // basic accessors
   // ----------------------------
 
-  test("counts returns underlying map") {
+  test("1.counts returns underlying map") {
     val m = mc(1, a -> 10, b -> 20)
 
     assert(m.counts == Map(a -> 10, b -> 20))
@@ -55,7 +55,7 @@ class MeteredCountsSuite extends AnyFunSuite {
   // delta semantics
   // ----------------------------
 
-  test("delta - basic subtraction") {
+  test("2.delta - basic subtraction") {
     val prev = mc(1, a -> 10, b -> 20)
     val curr = mc(2, a -> 15, b -> 25)
 
@@ -68,7 +68,7 @@ class MeteredCountsSuite extends AnyFunSuite {
       ))
   }
 
-  test("delta - new key uses full value") {
+  test("3.delta - new key uses full value") {
     val prev = mc(1, a -> 10)
     val curr = mc(2, a -> 15, b -> 7)
 
@@ -81,7 +81,7 @@ class MeteredCountsSuite extends AnyFunSuite {
       ))
   }
 
-  test("delta - missing key dropped") {
+  test("4.delta - missing key dropped") {
     val prev = mc(1, a -> 10, b -> 20)
     val curr = mc(2, a -> 15)
 
@@ -93,7 +93,7 @@ class MeteredCountsSuite extends AnyFunSuite {
       ))
   }
 
-  test("delta - negative values allowed") {
+  test("5.delta - negative values allowed") {
     val prev = mc(1, a -> 10)
     val curr = mc(2, a -> 7)
 
@@ -106,7 +106,7 @@ class MeteredCountsSuite extends AnyFunSuite {
   // multi-key stability
   // ----------------------------
 
-  test("delta - multiple metrics stable") {
+  test("6.delta - multiple metrics stable") {
     val prev = mc(1, a -> 100, b -> 200, c -> 300)
     val curr = mc(2, a -> 110, b -> 190, c -> 350)
 
@@ -119,7 +119,7 @@ class MeteredCountsSuite extends AnyFunSuite {
         c -> 50
       ))
   }
-  test("delta - both empty") {
+  test("7.delta - both empty") {
     val prev = mc(1)
     val curr = mc(2)
 
@@ -128,7 +128,7 @@ class MeteredCountsSuite extends AnyFunSuite {
     assert(result.counts.isEmpty)
   }
 
-  test("delta - previous empty") {
+  test("8.delta - previous empty") {
     val prev = mc(1)
     val curr = mc(2, a -> 10, b -> 20)
 
@@ -141,7 +141,7 @@ class MeteredCountsSuite extends AnyFunSuite {
       ))
   }
 
-  test("delta - current empty drops everything") {
+  test("9.delta - current empty drops everything") {
     val prev = mc(1, a -> 10, b -> 20)
     val curr = mc(2)
 

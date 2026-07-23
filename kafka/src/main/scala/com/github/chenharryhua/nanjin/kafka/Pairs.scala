@@ -33,6 +33,9 @@ private def backwardCompatible[S <: ParsedSchema](as: Option[S], bs: Option[S]):
     case _                  => true // treat missing as compatible
   }
 
+private def missingSchema(message: String): Nothing =
+  throw new IllegalStateException(message) // scalafix:ok
+
 final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema])
     extends SchemaCompatibility[OptionalJsonSchemaPair] {
   override def isBackwardCompatible(broker: OptionalJsonSchemaPair): Boolean =
@@ -46,9 +49,9 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
     OptionalJsonSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toSchemaPair: JsonSchemaPair = (key, value) match {
-    case (None, None)       => sys.error("both key and value schema are absent")
-    case (None, Some(_))    => sys.error("key schema is absent")
-    case (Some(_), None)    => sys.error("value schema is absent")
+    case (None, None)       => missingSchema("both key and value schema are absent")
+    case (None, Some(_))    => missingSchema("key schema is absent")
+    case (Some(_), None)    => missingSchema("value schema is absent")
     case (Some(k), Some(v)) => JsonSchemaPair(k, v)
   }
 }
@@ -67,9 +70,9 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
     OptionalProtobufSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toSchemaPair: ProtobufSchemaPair = (key, value) match {
-    case (None, None)       => sys.error("both key and value schema are absent")
-    case (None, Some(_))    => sys.error("key schema is absent")
-    case (Some(_), None)    => sys.error("value schema is absent")
+    case (None, None)       => missingSchema("both key and value schema are absent")
+    case (None, Some(_))    => missingSchema("key schema is absent")
+    case (Some(_), None)    => missingSchema("value schema is absent")
     case (Some(k), Some(v)) => ProtobufSchemaPair(k, v)
   }
 }
@@ -88,9 +91,9 @@ final private[kafka] case class OptionalAvroSchemaPair(key: Option[AvroSchema], 
     OptionalAvroSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toSchemaPair: AvroSchemaPair = (key, value) match {
-    case (None, None)       => sys.error("both key and value schema are absent")
-    case (None, Some(_))    => sys.error("key schema is absent")
-    case (Some(_), None)    => sys.error("value schema is absent")
+    case (None, None)       => missingSchema("both key and value schema are absent")
+    case (None, Some(_))    => missingSchema("key schema is absent")
+    case (Some(_), None)    => missingSchema("value schema is absent")
     case (Some(k), Some(v)) => AvroSchemaPair(k, v)
   }
 }

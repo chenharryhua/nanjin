@@ -14,7 +14,7 @@ import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 class PolicyBaseTest extends AnyFunSuite {
 
-  test("equality") {
+  test("1.equality") {
     assert(Policy.crontab(_.every5Minutes).eqv(Policy.crontab(_.every5Minutes)))
     assert(
       Policy.crontab(crontabs.hourly).jitter(1.second)
@@ -27,13 +27,13 @@ class PolicyBaseTest extends AnyFunSuite {
 
   }
 
-  test("fibonacci") {
+  test("2.fibonacci") {
     assert(fibonacci.take(10).toList == List(1, 1, 2, 3, 5, 8, 13, 21, 34, 55))
     assert(exponential.take(10).toList == List(1, 2, 4, 8, 16, 32, 64, 128, 256, 512))
     assert(primes.take(10).toList == List(2, 3, 5, 7, 11, 13, 17, 19, 23, 29))
   }
 
-  test("fixed delay") {
+  test("3.fixed delay") {
     val policy = Policy.fixedDelay(1.second, 0.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -62,7 +62,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(List(a1, a2, a3, a4, a5).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
-  test("fixed rate") {
+  test("4.fixed rate") {
     val policy = Policy.fixedRate(1.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -91,7 +91,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(List(a1, a2, a3, a4, a5).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
-  test("fixed delays") {
+  test("5.fixed delays") {
     val policy = Policy.fixedDelay(1.second, 2.seconds, 3.seconds)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -117,7 +117,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(List(a1, a2, a3, a4, a5, a6, a7).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
-  test("cron") {
+  test("6.cron") {
     val policy = Policy.crontab(_.hourly)
     println(policy.show)
     println(policy.asJson)
@@ -140,7 +140,7 @@ class PolicyBaseTest extends AnyFunSuite {
 
   }
 
-  test("giveUp") {
+  test("7.giveUp") {
     val policy = Policy.empty
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -150,7 +150,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(ts.isEmpty)
   }
 
-  test("weekly") {
+  test("8.weekly") {
     val sunday = tickStream.testPolicy[IO](_.crontab(_.weekly.sunday))
       .take(1).compile.lastOrError.unsafeRunSync().zoned(_.conclude)
     assert(DayOfWeek.from(sunday) == DayOfWeek.SUNDAY)
@@ -181,7 +181,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(DayOfWeek.from(saturday) == DayOfWeek.SATURDAY)
   }
 
-  test("yearly") {
+  test("9.yearly") {
     val january = tickStream.testPolicy[IO](_.crontab(_.yearly.january))
       .take(1).compile.lastOrError.unsafeRunSync().zoned(_.conclude)
     assert(Month.from(january) == Month.JANUARY)

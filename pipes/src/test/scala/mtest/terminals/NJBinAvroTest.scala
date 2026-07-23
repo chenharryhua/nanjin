@@ -41,36 +41,36 @@ class NJBinAvroTest extends AnyFunSuite {
 
   val fs2Root: Url = "data/test/terminals/bin_avro/panda"
 
-  test("uncompressed") {
+  test("1.uncompressed") {
     fs2(fs2Root, BinAvroFile(_.Uncompressed), pandaSet)
   }
 
-  test("gzip") {
+  test("2.gzip") {
     fs2(fs2Root, BinAvroFile(_.Gzip), pandaSet)
   }
 
-  test("snappy") {
+  test("3.snappy") {
     fs2(fs2Root, BinAvroFile(_.Snappy), pandaSet)
   }
 
-  test("bzip2") {
+  test("4.bzip2") {
     fs2(fs2Root, BinAvroFile(_.Bzip2), pandaSet)
   }
 
-  test("lz4") {
+  test("5.lz4") {
     fs2(fs2Root, BinAvroFile(_.Lz4), pandaSet)
   }
 
-  test("deflate - 1") {
+  test("6.deflate - 1") {
     fs2(fs2Root, BinAvroFile(_.Deflate(_.Two)), pandaSet)
   }
 
-  test("laziness") {
+  test("7.laziness") {
     hdp.source("./does/not/exist").binAvro(10, pandaSchema)
     hdp.sink("./does/not/exist").binAvro
   }
 
-  test("rotation - policy") {
+  test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -95,7 +95,7 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("rotation - size") {
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = BinAvroFile(_.Uncompressed)
@@ -121,7 +121,7 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("stream concat") {
+  test("10.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "bin.avro"
 
@@ -132,7 +132,7 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(size == 3000)
   }
 
-  test("stream concat - 2") {
+  test("11.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>

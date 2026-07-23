@@ -134,7 +134,7 @@ class RetryTest extends AnyFunSuite {
     assert(retrieveCounter(ss.snapshot.counters).head._2.value == 1)
   }
 
-  test("10. conditional retry") {
+  test("9.conditional retry") {
     var i = 0
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
@@ -148,7 +148,7 @@ class RetryTest extends AnyFunSuite {
     assert(ss.cause.exitCode == 3)
   }
 
-  test("11. conditional retry") {
+  test("10.conditional retry") {
     var i = 0
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
