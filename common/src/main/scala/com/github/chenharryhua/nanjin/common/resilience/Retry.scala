@@ -10,9 +10,8 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, TickedValue}
+import io.circe.Json
 import io.circe.syntax.given
-import io.circe.{Encoder, Json}
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -47,39 +46,6 @@ trait Retry[F[_]] {
 object Retry {
   opaque type Attempt = TickedValue[Throwable]
 
-  final private case class Outcome private (cause: Throwable, retry: Boolean)
-  private object Outcome:
-    def apply(retry: Boolean)(cause: Throwable): Outcome =
-      Outcome(cause, retry)
-
-  opaque type Decision = TickedValue[Outcome]
-  object Decision:
-    given Encoder[Decision] =
-      Encoder.instance { decision =>
-        val cause = ExceptionUtils.getMessage(decision.value.cause).asJson
-        val failed_at = decision.tick.local(_.acquires).asJson
-        val attempts = decision.tick.index.asJson
-        val zone_id = decision.tick.zoneId.asJson
-        if (decision.value.retry)
-          Json.obj(
-            "retry" -> true.asJson,
-            "cause" -> cause,
-            "failed_at" -> failed_at,
-            "wakeup_at" -> decision.tick.local(_.conclude).asJson,
-            "snooze" -> DurationFormatter.defaultFormatter.format(decision.tick.snooze).asJson,
-            "attempts" -> attempts,
-            "zone_id" -> zone_id
-          )
-        else
-          Json.obj(
-            "retry" -> false.asJson,
-            "cause" -> cause,
-            "failed_at" -> failed_at,
-            "attempts" -> attempts,
-            "zone_id" -> zone_id
-          )
-      }
-
   extension (ra: Attempt)
     // observations
     def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
@@ -89,8 +55,47 @@ object Retry {
     // transitions
     def followPolicy: Decision = ra.map(Outcome(true))
     def giveUp: Decision = ra.map(Outcome(false))
+
+    /** retryAfter overrides the wake-up time of the next retry attempt while preserving the remaining retry
+      * policy.
+      */
     def retryAfter(delay: FiniteDuration): Decision =
       ra.withConclude(ra.tick.acquires.plus(delay.toJava)).map(Outcome(true))
+  end extension
+
+  final private case class Outcome private (cause: Throwable, retry: Boolean)
+  private object Outcome:
+    def apply(retry: Boolean)(cause: Throwable): Outcome =
+      Outcome(cause, retry)
+  end Outcome
+
+  opaque type Decision = TickedValue[Outcome]
+  object Decision:
+    extension (rd: Decision)
+      def cause: Throwable = rd.value.cause
+      def toJson: Json = {
+        val failed_at = rd.tick.local(_.acquires).asJson
+        val attempts = rd.tick.index.asJson
+        val zone_id = rd.tick.zoneId.asJson
+        if (rd.value.retry)
+          Json.obj(
+            "retry" -> true.asJson,
+            "failed_at" -> failed_at,
+            "wakeup_at" -> rd.tick.local(_.conclude).asJson,
+            "snooze" -> DurationFormatter.defaultFormatter.format(rd.tick.snooze).asJson,
+            "attempts" -> attempts,
+            "zone_id" -> zone_id
+          )
+        else
+          Json.obj(
+            "retry" -> false.asJson,
+            "failed_at" -> failed_at,
+            "attempts" -> attempts,
+            "zone_id" -> zone_id
+          )
+      }
+    end extension
+  end Decision
 
   final private class Impl[F[_]](seed: PolicyTick[F])(using F: Temporal[F]) {
 
@@ -98,15 +103,16 @@ object Retry {
       F.tailRecM[PolicyTick[F], A](seed) { status =>
         F.handleErrorWith(fa.map[Either[PolicyTick[F], A]](Right(_))) { ex =>
           status.advance.flatMap {
-            case None     => F.raiseError(ex) // run out of policy
-            case Some(ts) => // respect user's decision
-              decide(TickedValue(ts.tick, ex)).attempt.flatMap {
+            case None       => F.raiseError(ex) // run out of policy
+            case Some(next) => // respect user's decision
+              decide(TickedValue(next.tick, ex)).attempt.flatMap {
                 case Left(decisionEx) =>
                   ex.addSuppressed(decisionEx)
                   F.raiseError(ex)
-                case Right(tv) =>
-                  if (tv.value.retry)
-                    F.sleep(tv.tick.snooze.toScala.max(0.seconds)).as(ts.withTick(tv.tick).asLeft[A])
+                case Right(decision) =>
+                  if (decision.value.retry)
+                    F.sleep(decision.tick.snooze.toScala.max(0.seconds))
+                      .as(next.withTick(decision.tick).asLeft[A])
                   else
                     F.raiseError(ex)
               }
