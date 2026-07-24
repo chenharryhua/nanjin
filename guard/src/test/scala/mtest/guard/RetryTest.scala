@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
@@ -32,7 +33,7 @@ class RetryTest extends AnyFunSuite {
     service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).limited(3)).withDecision { tv =>
         i += 1
-        IO.println(tv).as(tv.map(_ => true))
+        IO.println(tv).as(tv.followPolicy)
       })
 
       retry.use(_(action))
@@ -59,7 +60,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) >> IO.raiseError[Int](new Exception("unworthy retry"))
     val res = service.eventStream { agent =>
       val retry =
-        agent.retry(_.withPolicy(_.fixedDelay(100.seconds)).withDecision(tv => IO(tv.map(_ => false))))
+        agent.retry(_.withPolicy(_.fixedDelay(100.seconds)).withDecision(tv => IO(tv.giveUp)))
       retry.use(_(action)).void
     }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(res.cause.exitCode == 3)
@@ -139,7 +140,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
-        IO(tv.map(_ => tv.tick.index < 2))
+        IO(if (tv.retries < 2) tv.followPolicy else tv.giveUp)
       })
       retry.use(_(action))
     }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
@@ -153,13 +154,13 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
-        val decision = (tv.value, tv.tick.index) match {
+        val decision = (tv.cause, tv.retries) match {
           case (_: Exception, 1) => true
           case (_: Exception, 2) => true
           case (_: Exception, 3) => true
           case (_, _)            => false
         }
-        IO(tv.map(_ => decision))
+        IO(if (decision) tv.followPolicy else tv.giveUp)
       })
       retry.use(_(action))
     }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()

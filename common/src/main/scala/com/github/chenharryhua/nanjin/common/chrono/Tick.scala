@@ -110,6 +110,11 @@ final case class Tick(
       conclude = conclude
     )
 
+  /** Compact human-readable representation.
+    *
+    * This representation is intended for quick inspection in console output and log lines. For structured
+    * logging and production observability, use the JSON encoder instead.
+    */
   override def toString: String = {
     val cld = local(_.conclude).show.take(24).padTo(24, ' ')
     val acq = local(_.acquires).show.take(24).padTo(24, ' ')
@@ -120,7 +125,7 @@ final case class Tick(
 }
 
 object Tick {
-  def zeroth(uuid: UUID, zoneId: ZoneId, now: Instant): Tick =
+  def seed(uuid: UUID, zoneId: ZoneId, now: Instant): Tick =
     Tick(
       sequenceId = uuid,
       launchTime = now,
@@ -131,11 +136,11 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]](zoneId: ZoneId)(using F: Sync[F]): F[Tick] =
+  def seed[F[_]](zoneId: ZoneId)(using F: Sync[F]): F[Tick] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
       UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
         F.realTimeInstant.map { now =>
-          zeroth(uuid, zoneId, now)
+          seed(uuid, zoneId, now)
         }
       }
     }

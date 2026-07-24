@@ -217,8 +217,8 @@ object CircuitBreaker {
   def apply[F[_]: Async](
     zoneId: ZoneId,
     maxFailures: Int,
-    policy: Policy.type => Policy): Resource[F, CircuitBreaker[F]] = {
+    f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] = {
     require(maxFailures > 0, s"maxFailures should be greater than 0, but got $maxFailures")
-    new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, policy)).stateMachine
+    new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, f)).stateMachine
   }
 }

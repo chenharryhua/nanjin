@@ -6,7 +6,7 @@ import fs2.Stream
 
 /** adhoc metrics report and reset
   */
-trait AdhocMetrics[F[_]]:
+trait AdhocReport[F[_]]:
 
   /** report current metrics
     */
@@ -18,4 +18,4 @@ trait AdhocMetrics[F[_]]:
 
   def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts]
 
-end AdhocMetrics
+end AdhocReport

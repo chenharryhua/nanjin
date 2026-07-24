@@ -4,6 +4,7 @@ import cats.effect.IO
 import munit.CatsEffectSuite
 import cats.effect.kernel.Ref
 import com.github.chenharryhua.nanjin.common.resilience.Retry
+import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import java.time.ZoneId
 import scala.collection.mutable
 import scala.concurrent.duration.*
@@ -68,7 +69,7 @@ class RetrySpec extends CatsEffectSuite {
       zoneId,
       _.withDecision { tv =>
         // Stop retrying after first failure
-        IO.pure(tv.map(_ => false))
+        IO.pure(tv.giveUp)
       })
 
     retryIO.flatMap { retry =>
@@ -110,7 +111,7 @@ class RetrySpec extends CatsEffectSuite {
       retry <- Retry[IO](
         zoneId,
         _.withPolicy(_.fixedDelay(20.millis).limited(3)).withDecision { tv =>
-          decisionCalls.update(_ + 1).as(tv.map(_ => true))
+          decisionCalls.update(_ + 1).as(tv.followPolicy)
         })
       result <- retry(IO.pure("ok"))
       calls <- decisionCalls.get
@@ -131,7 +132,7 @@ class RetrySpec extends CatsEffectSuite {
       retry <- Retry[IO](
         zoneId,
         _.withPolicy(_.fixedDelay(10.millis).limited(3)).withDecision { tv =>
-          observed.update(_ :+ tv.tick.index).as(tv.map(_ => true))
+          observed.update(_ :+ tv.retries).as(tv.followPolicy)
         })
       _ <- retry(
         counter.updateAndGet(_ + 1).flatMap { n =>
@@ -162,5 +163,91 @@ class RetrySpec extends CatsEffectSuite {
         case Right(_) => fail("Expected failure")
       }
     }
+  }
+
+  test("8.Retry: decision retryAfter can override policy delay") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      invokedAt <- Ref.of[IO, List[Long]](Nil)
+      attempts <- Ref.of[IO, Int](0)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(2.seconds).limited(2)).withDecision { tv =>
+          IO.pure(tv.retryAfter(20.millis))
+        })
+      result <- retry {
+        IO(System.nanoTime()).flatMap { ts =>
+          invokedAt.update(_ :+ ts) >>
+            attempts.updateAndGet(_ + 1).flatMap { n =>
+              if (n == 1) IO.raiseError[String](new RuntimeException("boom"))
+              else IO.pure("ok")
+            }
+        }
+      }
+      history <- invokedAt.get
+      List(first, second) = history
+      elapsed = (second - first).nanos
+    } yield {
+      assertEquals(result, "ok")
+      assert(elapsed < 500.millis, s"retryAfter should override 2s policy delay, observed $elapsed")
+    }
+
+    prom
+  }
+
+  test("9.Retry: decision can observe attempt cause retries and snooze") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedCause <- Ref.of[IO, String]("")
+      observedRetries <- Ref.of[IO, Long](-1L)
+      observedSnooze <- Ref.of[IO, FiniteDuration](Duration.Zero)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(25.millis).limited(3)).withDecision { tv =>
+          observedCause.set(tv.cause.getMessage) >>
+            observedRetries.set(tv.retries) >>
+            observedSnooze.set(tv.snooze) >>
+            IO.pure(tv.giveUp)
+        }
+      )
+      ex <- retry(IO.raiseError[String](new RuntimeException("bad-1"))).attempt.map(_.swap.toOption.get)
+      cause <- observedCause.get
+      retries <- observedRetries.get
+      snooze <- observedSnooze.get
+    } yield {
+      assertEquals(ex.getMessage, "bad-1")
+      assertEquals(cause, "bad-1")
+      assertEquals(retries, 1L)
+      assertEquals(snooze, 25.millis)
+    }
+
+    prom
+  }
+
+  test("10.Retry: decision can observe failedAt") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedFailedAt <- Ref.of[IO, Option[java.time.Instant]](None)
+      start <- IO.realTimeInstant
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(20.millis).limited(2)).withDecision { tv =>
+          observedFailedAt.set(Some(tv.failedAt.toInstant)) >> IO.pure(tv.giveUp)
+        }
+      )
+      _ <- retry(IO.raiseError[String](new RuntimeException("failed-at"))).attempt
+      end <- IO.realTimeInstant
+      failedAt <- observedFailedAt.get
+    } yield {
+      assert(failedAt.nonEmpty)
+      val ts = failedAt.get
+      assert(!ts.isBefore(start), s"failedAt should be >= start, got $ts < $start")
+      assert(!ts.isAfter(end), s"failedAt should be <= end, got $ts > $end")
+    }
+
+    prom
   }
 }

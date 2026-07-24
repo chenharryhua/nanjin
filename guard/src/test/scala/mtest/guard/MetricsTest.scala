@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
+import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
@@ -206,7 +207,7 @@ class MetricsTest extends AnyFunSuite {
   test("14.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent
-        .retry(_.withDecision(tv => IO(tv.map(_ => true))))
+        .retry(_.withDecision(tv => IO(tv.followPolicy)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
     assert(sm.isEmpty)
@@ -216,7 +217,7 @@ class MetricsTest extends AnyFunSuite {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
-          agent.herald.warn(tv.tick, tv.value).as(tv.map(_ => false))))
+          agent.herald.warn(tv).as(tv.giveUp)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
