@@ -20,7 +20,7 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, To
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
 
-private object KafkaStreamsAbnormallyStopped extends RuntimeException("Kafka Streams were stopped abnormally")
+case object KafkaStreamsAbnormallyStopped extends RuntimeException("Kafka Streams were stopped abnormally")
 
 final case class StateTransition(applicationId: String, oldState: State, newState: State) {
   override def toString: String =

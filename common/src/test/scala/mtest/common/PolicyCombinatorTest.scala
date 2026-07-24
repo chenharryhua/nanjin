@@ -211,6 +211,10 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](noVariant).toOption.isEmpty)
   }
 
+  test("8.3.decode error when empty policy payload is not strict true") {
+    assert(decode[Policy]("""{ "empty": false }""").toOption.isEmpty)
+  }
+
   test("9.except") {
     val policy = Policy.crontab(_.hourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
     println(policy.show)

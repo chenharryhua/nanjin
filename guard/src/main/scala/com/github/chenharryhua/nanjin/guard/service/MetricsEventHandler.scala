@@ -21,7 +21,7 @@ final private class MetricsEventHandler[F[_]] private (
   channel: Channel[F, Event],
   logSink: LogSink[F]
 )(using F: Async[F])
-    extends AdhocMetrics[F] {
+    extends AdhocReport[F] {
   val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
 
   private def build_full_snapshot(index: Index): F[MetricsSnapshot] =

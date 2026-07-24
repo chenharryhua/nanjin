@@ -23,6 +23,5 @@ class SyntaxTest extends AnyFunSuite {
 
   test("4.tick") {
     service.eventStreamS(_.tickScheduled(_.empty))
-    service.eventStreamS(_.tickImmediate(_.empty))
   }
 }

@@ -39,10 +39,10 @@ final class PolicyTick[F[_]: {Random, MonadThrow}] private (
 }
 
 object PolicyTick {
-  def zeroth[F[_]: {Sync, MonadThrow}](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
+  def seed[F[_]: {Sync, MonadThrow}](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
       given dummy: SecureRandom[F] = sr
-      Tick.zeroth[F](zoneId).map(new PolicyTick(_, EvalPolicy(policy.policy)))
+      Tick.seed[F](zoneId).map(new PolicyTick(_, EvalPolicy(policy.policy)))
     }
 
   def apply[F[_]: Sync](tick: Tick): F[PolicyTick[F]] =
