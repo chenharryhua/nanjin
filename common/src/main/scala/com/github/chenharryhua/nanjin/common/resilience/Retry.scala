@@ -58,7 +58,7 @@ object Retry {
       Encoder.instance { decision =>
         val cause = ExceptionUtils.getMessage(decision.value.cause).asJson
         val failed_at = decision.tick.local(_.acquires).asJson
-        val retries = decision.tick.index.asJson
+        val attempts = decision.tick.index.asJson
         val zone_id = decision.tick.zoneId.asJson
         if (decision.value.retry)
           Json.obj(
@@ -67,7 +67,7 @@ object Retry {
             "failed_at" -> failed_at,
             "wakeup_at" -> decision.tick.local(_.conclude).asJson,
             "snooze" -> DurationFormatter.defaultFormatter.format(decision.tick.snooze).asJson,
-            "attempts" -> retries,
+            "attempts" -> attempts,
             "zone_id" -> zone_id
           )
         else
@@ -75,7 +75,7 @@ object Retry {
             "retry" -> false.asJson,
             "cause" -> cause,
             "failed_at" -> failed_at,
-            "attempts" -> retries,
+            "attempts" -> attempts,
             "zone_id" -> zone_id
           )
       }

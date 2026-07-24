@@ -140,7 +140,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
-        IO(if (tv.retries < 2) tv.followPolicy else tv.giveUp)
+        IO(if (tv.attempts < 2) tv.followPolicy else tv.giveUp)
       })
       retry.use(_(action))
     }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
@@ -154,7 +154,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
-        val decision = (tv.cause, tv.retries) match {
+        val decision = (tv.cause, tv.attempts) match {
           case (_: Exception, 1) => true
           case (_: Exception, 2) => true
           case (_: Exception, 3) => true
