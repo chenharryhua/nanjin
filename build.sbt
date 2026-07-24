@@ -31,7 +31,7 @@ val jacksonV = "2.22.1"
 val http4sV = "0.23.36"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
-val logbackV = "1.5.38"
+val logbackV = "1.6.0"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -388,4 +388,3 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
-
