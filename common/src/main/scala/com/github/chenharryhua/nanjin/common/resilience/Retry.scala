@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
+import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
@@ -74,7 +75,7 @@ object Retry {
   object Decision:
     extension (rd: Decision)
       def cause: Throwable = rd.value.cause
-      def toJson: Json = {
+      def asJson: Json = {
         val failed_at = rd.tick.local(_.acquires).asJson
         val attempts = rd.tick.index.asJson
         val zone_id = rd.tick.zoneId.asJson
@@ -98,15 +99,17 @@ object Retry {
     end extension
   end Decision
 
-  final private class Impl[F[_]](seed: PolicyTick[F])(using F: Temporal[F]) {
+  final private class Impl[F[_]](
+    seed: PolicyTick[F],
+    decide: Kleisli[F, TickedValue[Throwable], TickedValue[Outcome]])(using F: Temporal[F]) {
 
-    def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Outcome]]): F[A] =
+    def retryLoop[A](fa: F[A]): F[A] =
       F.tailRecM[PolicyTick[F], A](seed) { status =>
         F.handleErrorWith(fa.map[Either[PolicyTick[F], A]](Right(_))) { ex =>
           status.advance.flatMap {
             case None       => F.raiseError(ex) // run out of policy
             case Some(next) => // respect user's decision
-              decide(TickedValue(next.tick, ex)).attempt.flatMap {
+              decide.run(TickedValue(next.tick, ex)).attempt.flatMap {
                 case Left(decisionEx) =>
                   ex.addSuppressed(decisionEx)
                   F.raiseError(ex)
@@ -122,7 +125,7 @@ object Retry {
       }
   }
 
-  final class Builder[F[_]] private[Retry] (policy: Policy, decide: Attempt => F[Decision]) {
+  final class Builder[F[_]] private[Retry] (policy: Policy, decide: Kleisli[F, Attempt, Decision]) {
 
     /** Replaces the decision function used to control retry behavior on failure.
       *
@@ -133,23 +136,22 @@ object Retry {
       *   - `giveUp` to terminate retrying
       */
     def withDecision(f: Attempt => F[Decision]): Builder[F] =
-      new Builder[F](policy, f)
+      new Builder[F](policy, Kleisli(f))
 
     def withPolicy(f: Policy.type => Policy): Builder[F] =
       new Builder[F](f(Policy), decide)
 
     private[Retry] def build(zoneId: ZoneId)(using F: Async[F]): F[Retry[F]] =
       PolicyTick.seed[F](zoneId, policy).map { seed =>
-        val impl = new Impl[F](seed)
+        val impl = new Impl[F](seed, decide)
         new Retry[F] {
-          override def apply[A](fa: F[A]): F[A] =
-            impl.retryLoop(fa, decide)
+          override def apply[A](fa: F[A]): F[A] = impl.retryLoop(fa)
         }
       }
   }
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] = {
     import Attempt.followPolicy
-    f(new Builder[F](Policy.empty, _.followPolicy.pure[F])).build(zoneId)
+    f(new Builder[F](Policy.empty, Kleisli(_.followPolicy.pure[F]))).build(zoneId)
   }
 }

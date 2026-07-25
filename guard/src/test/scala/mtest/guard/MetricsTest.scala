@@ -217,7 +217,7 @@ class MetricsTest extends AnyFunSuite {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
-          IO(tv.giveUp).flatTap(d => agent.herald.warn(d.toJson, d.cause))))
+          IO(tv.giveUp).flatTap(d => agent.herald.warn(d.asJson, d.cause))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
