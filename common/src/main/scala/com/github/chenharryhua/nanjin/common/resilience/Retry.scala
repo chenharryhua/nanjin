@@ -45,23 +45,24 @@ trait Retry[F[_]] {
 
 object Retry {
   opaque type Attempt = TickedValue[Throwable]
+  object Attempt:
+    extension (ra: Attempt)
+      // observations
+      def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
+      def cause: Throwable = ra.value
+      def attempts: Long = ra.tick.index
+      def snooze: FiniteDuration = ra.tick.snooze.toScala
+      // transitions
+      def followPolicy: Decision = ra.map(Outcome(true))
+      def giveUp: Decision = ra.map(Outcome(false))
 
-  extension (ra: Attempt)
-    // observations
-    def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
-    def cause: Throwable = ra.value
-    def attempts: Long = ra.tick.index
-    def snooze: FiniteDuration = ra.tick.snooze.toScala
-    // transitions
-    def followPolicy: Decision = ra.map(Outcome(true))
-    def giveUp: Decision = ra.map(Outcome(false))
-
-    /** retryAfter overrides the wake-up time of the next retry attempt while preserving the remaining retry
-      * policy.
-      */
-    def retryAfter(delay: FiniteDuration): Decision =
-      ra.withConclude(ra.tick.acquires.plus(delay.toJava)).map(Outcome(true))
-  end extension
+      /** retryAfter overrides the wake-up time of the next retry attempt while preserving the remaining retry
+        * policy.
+        */
+      def retryAfter(delay: FiniteDuration): Decision =
+        ra.withConclude(ra.tick.acquires.plus(delay.toJava)).map(Outcome(true))
+    end extension
+  end Attempt
 
   final private case class Outcome private (cause: Throwable, retry: Boolean)
   private object Outcome:
@@ -147,6 +148,8 @@ object Retry {
       }
   }
 
-  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] =
+  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] = {
+    import Attempt.followPolicy
     f(new Builder[F](Policy.empty, _.followPolicy.pure[F])).build(zoneId)
+  }
 }
