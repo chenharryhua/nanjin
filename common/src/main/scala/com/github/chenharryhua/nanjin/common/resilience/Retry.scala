@@ -75,7 +75,7 @@ object Retry {
   object Decision:
     extension (rd: Decision)
       def cause: Throwable = rd.value.cause
-      def asJson: Json = {
+      def toJson: Json = {
         val failed_at = rd.tick.local(_.acquires).asJson
         val attempts = rd.tick.index.asJson
         val zone_id = rd.tick.zoneId.asJson
