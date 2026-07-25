@@ -102,7 +102,7 @@ object JobHook {
           if (jrv.resultState.done) log.good(Json.obj("done" -> json))
           else log.warn(Json.obj("fail" -> json))
         },
-        errored = (jre: JobResultError) => log.error(jre.resultState, jre.error),
+        errored = (jre: JobResultError) => log.error(jre.resultState, jre.cause),
         canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
         kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
       )

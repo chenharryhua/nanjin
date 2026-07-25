@@ -19,7 +19,7 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
-final case class PullError(isKey: Boolean, metaInfo: MetaInfo, error: SerializationException) {
+final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: SerializationException) {
   def toJson: Json =
     Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
 }

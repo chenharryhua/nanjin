@@ -83,7 +83,7 @@ object RotateFile {
       )
 }
 
-final case class RotateWriteException(create: CreateRotateFile, url: Url, offset: Long, throwable: Throwable)
+final case class RotateWriteException(create: CreateRotateFile, url: Url, offset: Long, cause: Throwable)
     extends Exception(
       show"fail writing $url offset=$offset, index=${create.index}, create=${create.time}",
-      throwable)
+      cause)
