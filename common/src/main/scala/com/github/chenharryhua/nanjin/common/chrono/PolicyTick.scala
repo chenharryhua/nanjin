@@ -15,16 +15,16 @@ import java.time.{Instant, ZoneId}
   */
 final class PolicyTick[F[_]: {Random, MonadThrow}] private (
   val tick: Tick,
-  decisions: LazyList[TickStepper[F]]) {
+  steppers: LazyList[TickStepper[F]]) {
 
   def renewPolicy(policy: Policy): PolicyTick[F] =
     new PolicyTick(tick, EvalPolicy(policy.policy))
 
   def withTick(tick: Tick): PolicyTick[F] =
-    new PolicyTick(tick, decisions)
+    new PolicyTick(tick, steppers)
 
   def next(now: Instant): F[Option[PolicyTick[F]]] =
-    decisions match {
+    steppers match {
       case head #:: tail =>
         if (now.isBefore(tick.conclude)) { // pretend it concludes on time
           head.step(tick, tick.conclude).map(tk => Some(new PolicyTick(tk, tail)))
@@ -39,15 +39,8 @@ final class PolicyTick[F[_]: {Random, MonadThrow}] private (
 }
 
 object PolicyTick {
-  def seed[F[_]: {Sync, MonadThrow}](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
-      given dummy: SecureRandom[F] = sr
+  def seed[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
+    SecureRandom.of[F].flatMap { implicit sr =>
       Tick.seed[F](zoneId).map(new PolicyTick(_, EvalPolicy(policy.policy)))
-    }
-
-  def apply[F[_]: Sync](tick: Tick): F[PolicyTick[F]] =
-    SecureRandom.javaSecuritySecureRandom[F].map { sr =>
-      given dummy: SecureRandom[F] = sr
-      new PolicyTick[F](tick, LazyList.empty)
     }
 }
