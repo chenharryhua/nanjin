@@ -230,6 +230,31 @@ class PolicyBaseTest extends AnyFunSuite {
     val december = tickStream.testPolicy[IO](_.crontab(_.yearly.december))
       .take(1).compile.lastOrError.unsafeRunSync().zoned(_.conclude)
     assert(Month.from(december) == Month.DECEMBER)
+  }
 
+  test("10.invalid policy arguments") {
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedDelay(0.second, 0.second)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedDelay((-1).second, 1.second)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedRate(0.second)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedRate((-1).second)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      Policy.empty.jitter(1.second, 1.second)
+    }
+
+    assertThrows[IllegalArgumentException] {
+      Policy.empty.jitter((-1).second, 1.second)
+    }
   }
 }

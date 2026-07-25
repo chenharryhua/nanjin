@@ -146,7 +146,7 @@ object SimpleQueueService {
           }
         }
 
-      Stream.eval(PolicyTick.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
+      Stream.eval(PolicyTick.seed[F](zoneId, policy)).flatMap(seed => receiving(seed, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

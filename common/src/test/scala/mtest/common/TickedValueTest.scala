@@ -13,7 +13,7 @@ import cats.Functor
 class TickedValueTest extends AnyFunSuite with Matchers {
 
   test("1.TickedValue map preserves tick") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 10)
     val mapped = tv.map(_ * 2)
 
@@ -22,7 +22,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   }
 
   test("2.TickedValue withSnoozeStretch updates tick") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, "x")
     val updated = tv.withSnoozeStretch(Duration.ofSeconds(5))
 
@@ -30,7 +30,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   }
 
   test("3.TickedValue withConclude updates tick") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, "x")
     val newConclude = tick.conclude.plusSeconds(100)
     val updated = tv.withConclude(newConclude)
@@ -39,7 +39,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   }
 
   test("4.TickedValue resolveTime produces TimeStamped") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 42)
     val ts = tv.resolveTime(t => FiniteDuration(t.active.toMillis, scala.concurrent.duration.MILLISECONDS))
 
@@ -47,7 +47,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   }
 
   test("5.TickedValue JSON encoding and decoding") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 123)
     val json = tv.asJson.noSpaces
     val decoded = decode[TickedValue[Int]](json).toOption.get
@@ -57,7 +57,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
   }
 
   test("6.TickedValue Functor instance map works") {
-    val tick = Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 10)
     val mapped = Functor[TickedValue].map(tv)(_ + 5)
     mapped.value shouldEqual 15

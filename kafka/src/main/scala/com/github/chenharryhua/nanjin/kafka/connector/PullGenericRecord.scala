@@ -4,8 +4,8 @@ import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.circe.Json
 import io.circe.syntax.given
-import io.circe.{Encoder, Json}
 import io.scalaland.chimney.dsl.transformInto
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
@@ -19,12 +19,9 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
-final case class PullError(isKey: Boolean, metaInfo: MetaInfo, error: SerializationException)
-object PullError {
-  given Encoder[PullError] = new Encoder[PullError] {
-    override def apply(a: PullError): Json =
-      Json.obj((if a.isKey then "key.error" else "value.error") -> a.metaInfo.asJson)
-  }
+final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: SerializationException) {
+  def toJson: Json =
+    Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
 }
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {

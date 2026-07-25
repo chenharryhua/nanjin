@@ -17,17 +17,7 @@ class TickStreamSpec extends AnyFunSuite {
   private def takeTicks[F[_]: Temporal](stream: Stream[F, Tick], n: Long): F[List[Tick]] =
     stream.take(n).compile.toList
 
-  test("1.tickImmediate emits first tick immediately") {
-    val ticks = takeTicks(tickStream.tickImmediate[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
-    assert(ticks.nonEmpty)
-    assert(ticks.head.index == 1)
-    assert(ticks.sliding(2).forall {
-      case Seq(a, b) => a.conclude.isBefore(b.conclude) || a.conclude.equals(b.conclude)
-      case _         => true
-    })
-  }
-
-  test("2.tickScheduled emits first tick after snooze") {
+  test("1.tickScheduled emits first tick after snooze") {
     val ticks = takeTicks(tickStream.tickScheduled[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 1)
@@ -37,7 +27,7 @@ class TickStreamSpec extends AnyFunSuite {
     })
   }
 
-  test("3.tickFuture emits first tick immediately and sleeps afterward") {
+  test("2.tickFuture emits first tick immediately and sleeps afterward") {
     val start = LocalTime.now()
     val ticks = takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds)), 3).unsafeRunSync()
     val elapsed = JDuration.between(start, LocalTime.now())
@@ -48,7 +38,7 @@ class TickStreamSpec extends AnyFunSuite {
     assert(JDuration.between(start, ticks.head.local(_.acquires).toLocalTime).toScala < 1.second)
   }
 
-  test("4.tickScheduled fails on impossible cron schedule") {
+  test("3.tickScheduled fails on impossible cron schedule") {
     assertThrows[IllegalStateException] {
       tickStream
         .tickScheduled[IO](zoneId, _.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
@@ -57,6 +47,14 @@ class TickStreamSpec extends AnyFunSuite {
         .drain
         .unsafeRunSync()
     }
+  }
+
+  test("4.empty policy produces no ticks") {
+    val scheduled = takeTicks(tickStream.tickScheduled[IO](zoneId, _.empty), 1).unsafeRunSync()
+    val future = takeTicks(tickStream.tickFuture[IO](zoneId, _.empty), 1).unsafeRunSync()
+
+    assert(scheduled.isEmpty)
+    assert(future.isEmpty)
   }
 
 }

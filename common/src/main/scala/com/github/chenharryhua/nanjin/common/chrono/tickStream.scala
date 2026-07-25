@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.effect.kernel.{Async, Sync, Temporal}
+import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Random
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import fs2.{Pull, Stream}
-import monocle.Monocle.focus
 
 import java.time.{Duration, ZoneId}
 import scala.concurrent.duration.DurationLong
@@ -14,55 +13,35 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object tickStream {
 
-  private def initPolicyTick[F[_]: Async](
+  private def seedPolicyTick[F[_]: Async](
     zoneId: ZoneId,
     f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
-    Stream.eval(PolicyTick.zeroth[F](zoneId, f(Policy)))
-
-  /** Convert a TickStatus into a stream of Tick. For each status:
-    *   - Compute the next tick based on the current time
-    *   - Sleep for the tick’s snooze duration
-    *   - Emit the tick
-    */
-  private def fromTickStatus[F[_]](zeroth: PolicyTick[F])(using F: Temporal[F]): Stream[F, Tick] =
-    Stream.unfoldEval[F, PolicyTick[F], Tick](zeroth) { status =>
-      F.realTimeInstant.flatMap(status.next).flatMap {
-        _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
-      }
-    }
+    Stream.eval(PolicyTick.seed[F](zoneId, f(Policy)))
 
   /** Stream ticks according to a policy in a **“sleep first, then emit”** pattern.
     *
-    * Stream ticks in a **strict schedule** pattern.
-    *
-    * Index start from one
+    * The stream follows a strict schedule: each tick is emitted after waiting for the current tick's snooze
+    * duration.
     */
-  def tickScheduled[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
-    initPolicyTick(zoneId, f).flatMap(fromTickStatus[F])
+  def tickScheduled[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
+    seedPolicyTick(zoneId, f).flatMap { seed =>
+      Stream.unfoldEval[F, PolicyTick[F], Tick](seed) { policyTick =>
+        F.realTimeInstant.flatMap(policyTick.next).flatMap {
+          _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
+        }
+      }
+    }
 
-  /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
-    * continues according to the policy.
+  /** Stream ticks according to a policy in an **“emit first, then sleep to next”** pattern.
     *
-    * Index start from one
-    */
-  def tickImmediate[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
-    initPolicyTick(zoneId, f)
-      .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
-      .map(_.focus(_.index).modify(_ + 1))
-
-  /** Stream ticks according to a policy in an
-    *
-    * **“emit first, then sleep to next”** pattern.
-    *
-    * Stream ticks in an **“at-least schedule”** manner according to the given `Policy`.
-    *
-    * Index start from one
+    * This is an at-least schedule: if downstream work overruns the requested cadence, the stream emits the
+    * next tick as soon as it can and then sleeps only for the remaining gap.
     */
   def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
-    initPolicyTick(zoneId, f).flatMap { initStatus =>
+    seedPolicyTick(zoneId, f).flatMap { seed =>
       val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
-        Pull.loop[F, Tick, PolicyTick[F]] { ts =>
-          Pull.eval(F.realTimeInstant.flatMap(ts.next)).flatMap {
+        Pull.loop[F, Tick, PolicyTick[F]] { policyTick =>
+          Pull.eval(F.realTimeInstant.flatMap(policyTick.next)).flatMap {
             _.traverse { ns =>
               Pull.output1(ns.tick) >> // downstream process the tick
                 Pull.eval(F.realTimeInstant).flatMap { ts =>
@@ -76,20 +55,23 @@ object tickStream {
           }
         }
 
-      loop(initStatus).stream
+      loop(seed).stream
     }
 
-  /** for test Policy only
+  /** Public helper for observing policy progression without sleeping the wall clock.
+    *
+    * A small random jitter is applied when querying the next tick, making it useful for tests, demos, and
+    * debugging timing behavior.
     */
   def testPolicy[F[_]: Sync](f: Policy.type => Policy): Stream[F, Tick] =
     for {
-      init <- Stream.eval(PolicyTick.zeroth(ZoneId.systemDefault(), f(Policy)))
+      seed <- Stream.eval(PolicyTick.seed(ZoneId.systemDefault(), f(Policy)))
       rng <- Stream.eval(Random.scalaUtilRandom[F])
-      tick <- Stream.unfoldEval(init) { ts =>
+      tick <- Stream.unfoldEval(seed) { policyTick =>
         rng
           .betweenLong(0L, 5L)
           .map(_.milliseconds.toJava)
-          .flatMap(jitter => ts.next(ts.tick.conclude.plus(jitter)))
+          .flatMap(jitter => policyTick.next(policyTick.tick.conclude.plus(jitter)))
           .map(_.map(s => (s.tick, s)))
       }
     } yield tick

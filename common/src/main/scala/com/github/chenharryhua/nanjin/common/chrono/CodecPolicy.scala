@@ -75,7 +75,10 @@ private object CodecPolicy {
     )
 
     def empty(hc: HCursor): Result[Empty[HCursor]] =
-      readField[Json](hc, EMPTY).map(_ => Empty[HCursor]())
+      readField[Boolean](hc, EMPTY).flatMap {
+        case true  => Right(Empty[HCursor]())
+        case false => Left(DecodingFailure(s"$EMPTY must be true", hc.history))
+      }
 
     def crontab(hc: HCursor): Result[Crontab[HCursor]] =
       readField[CronExpr](hc, CRONTAB).map(Crontab[HCursor])

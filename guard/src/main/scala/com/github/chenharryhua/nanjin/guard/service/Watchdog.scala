@@ -46,7 +46,7 @@ private object Watchdog:
         }
       }
 
-    Stream.eval(PolicyTick.zeroth[F](handler.serviceParams.zoneId, rp.policy))
+    Stream.eval(PolicyTick.seed[F](handler.serviceParams.zoneId, rp.policy))
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>

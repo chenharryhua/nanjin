@@ -29,7 +29,7 @@ object MetricFixtures {
 object MeteredTestUtils {
 
   def tick(ms: Long): Tick =
-    Tick.zeroth(UUID.randomUUID(), ZoneId.of("UTC"), Instant.ofEpochMilli(ms))
+    Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.ofEpochMilli(ms))
 
   def mc(t: Long, values: (MetricID, Long)*): MeteredCounts =
     MeteredCounts(

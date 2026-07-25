@@ -103,7 +103,7 @@ final private class RotateBySizeSink[F[_]](
 
   private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, RotateFile] = {
     val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], CreateRotateFile)] =
-      Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
+      Resource.eval(Tick.seed[F](zoneId)).flatMap { tick =>
         val crf = CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.commence))
         NonEmptyHotswap(getWriter(pathBuilder(crf))).map((_, crf))
       }

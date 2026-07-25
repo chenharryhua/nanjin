@@ -80,7 +80,7 @@ object JobResultState:
 final case class JobResultValue[A](resultState: JobResultState, value: A):
   def map[B](f: A => B): JobResultValue[B] = copy(value = f(value))
 
-final case class JobResultError(resultState: JobResultState, error: Throwable)
+final case class JobResultError(resultState: JobResultState, cause: Throwable)
 
 final case class BatchResultState(
   label: MetricLabel,

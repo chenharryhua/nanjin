@@ -33,7 +33,6 @@ sealed trait Agent[F[_]] {
    * ticks
    */
   def tickScheduled(f: Policy.type => Policy): Stream[F, Tick]
-  def tickImmediate(f: Policy.type => Policy): Stream[F, Tick]
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
   /*
@@ -52,12 +51,23 @@ sealed trait Agent[F[_]] {
 
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
 
-  val adhoc: AdhocMetrics[F]
+  val adhoc: AdhocReport[F]
 
-  /*
-   * circuit breaker
-   */
-  def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
+  /** Create a circuit breaker.
+    *
+    * `maxFailures` is the number of consecutive failures required to transition the breaker from closed to
+    * open.
+    *
+    * For example, a value of `3` opens the breaker after the third consecutive failure while in the closed
+    * state.
+    *
+    * Must be greater than `0`.
+    *
+    * `policy` defines the scheduling cadence used to transition the breaker from open to half-open. For
+    * long-lived breakers, the policy should be non-terminating so periodic probe attempts can continue
+    * indefinitely.
+    */
+  def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]]
 
   /*
    * retry
@@ -93,9 +103,6 @@ final private class GeneralAgent[F[_]: Async](
   override def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickFuture[F](zoneId, f)
 
-  override def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
-    tickStream.tickImmediate[F](zoneId, f)
-
   override def metricsHub(label: String): MetricsHub[F] = {
     val metricLabel = MetricLabel(label, reportedEventHandler.domain)
     MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId)
@@ -110,13 +117,13 @@ final private class GeneralAgent[F[_]: Async](
   override def batch(label: String): Batch[F] =
     new Batch[F](metricsHub(label), uuidGenerator)
 
-  override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
-    CircuitBreaker[F](zoneId, f)
+  override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
+    CircuitBreaker[F](zoneId, maxFailures, f)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override val adhoc: AdhocMetrics[F] = metricsEventHandler
+  override val adhoc: AdhocReport[F] = metricsEventHandler
 
   override val herald: Log[F] = reportedEventHandler.herald
 

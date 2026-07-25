@@ -86,7 +86,7 @@ object httpRetry {
 
     Client[F] { (req: Request[F]) =>
       NonEmptyHotswap(client.run(req).attempt).flatMap { hotswap =>
-        Resource.eval(PolicyTick.zeroth[F](zoneId, policy).flatMap(ts =>
+        Resource.eval(PolicyTick.seed[F](zoneId, policy).flatMap(ts =>
           retryLoop(RetryAttempt[F](req, ts, hotswap, None))))
       }
     }
