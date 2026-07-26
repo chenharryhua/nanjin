@@ -26,7 +26,7 @@ final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Serializat
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
-  private val topic: String = "unused"
+  private val topic: String = ""
 
   private def unsupportedSchema(skm: Schema): Nothing =
     throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok

@@ -1,10 +1,10 @@
 package mtest.common
 
 import cats.effect.IO
-import munit.CatsEffectSuite
 import cats.effect.kernel.Ref
 import com.github.chenharryhua.nanjin.common.resilience.Retry
-import com.github.chenharryhua.nanjin.common.resilience.Retry.*
+import munit.CatsEffectSuite
+
 import java.time.ZoneId
 import scala.collection.mutable
 import scala.concurrent.duration.*
