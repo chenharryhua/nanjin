@@ -51,7 +51,7 @@ object Retry {
       // observations
       def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
       def cause: Throwable = ra.value
-      def attempts: Long = ra.tick.index
+      def ordinal: Long = ra.tick.index
       def snooze: FiniteDuration = ra.tick.snooze.toScala
 
       // transitions
@@ -68,9 +68,11 @@ object Retry {
 
   opaque type Decision = TickedValue[Boolean]
   object Decision:
+    extension (ra: Decision) def accepted: Boolean = ra.value
+
     given Encoder[Decision] = Encoder.instance { rd =>
       val failed_at = rd.tick.local(_.acquires).asJson
-      val attempts = rd.tick.index.asJson
+      val ordinal = rd.tick.index.asJson
       val zone_id = rd.tick.zoneId.asJson
       if (rd.value)
         Json.obj(
@@ -78,14 +80,14 @@ object Retry {
           "failed_at" -> failed_at,
           "wakeup_at" -> rd.tick.local(_.conclude).asJson,
           "snooze" -> DurationFormatter.defaultFormatter.format(rd.tick.snooze).asJson,
-          "attempts" -> attempts,
+          "ordinal" -> ordinal,
           "zone_id" -> zone_id
         )
       else
         Json.obj(
           "retry" -> false.asJson,
           "failed_at" -> failed_at,
-          "attempts" -> attempts,
+          "ordinal" -> ordinal,
           "zone_id" -> zone_id
         )
     }
