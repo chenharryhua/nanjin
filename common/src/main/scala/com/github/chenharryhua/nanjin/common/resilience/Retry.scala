@@ -11,8 +11,8 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, TickedValue}
-import io.circe.Json
 import io.circe.syntax.given
+import io.circe.{Encoder, Json}
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -53,55 +53,47 @@ object Retry {
       def cause: Throwable = ra.value
       def attempts: Long = ra.tick.index
       def snooze: FiniteDuration = ra.tick.snooze.toScala
+
       // transitions
-      def followPolicy: Decision = ra.map(Outcome(true))
-      def giveUp: Decision = ra.map(Outcome(false))
+      def followPolicy: Decision = ra.as(true)
+      def giveUp: Decision = ra.as(false)
 
       /** retryAfter overrides the wake-up time of the next retry attempt while preserving the remaining retry
         * policy.
         */
       def retryAfter(delay: FiniteDuration): Decision =
-        ra.withConclude(ra.tick.acquires.plus(delay.toJava)).map(Outcome(true))
+        ra.withConclude(ra.tick.acquires.plus(delay.toJava)).as(true)
     end extension
   end Attempt
 
-  final private case class Outcome private (cause: Throwable, retry: Boolean)
-  private object Outcome:
-    def apply(retry: Boolean)(cause: Throwable): Outcome =
-      Outcome(cause, retry)
-  end Outcome
-
-  opaque type Decision = TickedValue[Outcome]
+  opaque type Decision = TickedValue[Boolean]
   object Decision:
-    extension (rd: Decision)
-      def cause: Throwable = rd.value.cause
-      def toJson: Json = {
-        val failed_at = rd.tick.local(_.acquires).asJson
-        val attempts = rd.tick.index.asJson
-        val zone_id = rd.tick.zoneId.asJson
-        if (rd.value.retry)
-          Json.obj(
-            "retry" -> true.asJson,
-            "failed_at" -> failed_at,
-            "wakeup_at" -> rd.tick.local(_.conclude).asJson,
-            "snooze" -> DurationFormatter.defaultFormatter.format(rd.tick.snooze).asJson,
-            "attempts" -> attempts,
-            "zone_id" -> zone_id
-          )
-        else
-          Json.obj(
-            "retry" -> false.asJson,
-            "failed_at" -> failed_at,
-            "attempts" -> attempts,
-            "zone_id" -> zone_id
-          )
-      }
-    end extension
+    given Encoder[Decision] = Encoder.instance { rd =>
+      val failed_at = rd.tick.local(_.acquires).asJson
+      val attempts = rd.tick.index.asJson
+      val zone_id = rd.tick.zoneId.asJson
+      if (rd.value)
+        Json.obj(
+          "retry" -> true.asJson,
+          "failed_at" -> failed_at,
+          "wakeup_at" -> rd.tick.local(_.conclude).asJson,
+          "snooze" -> DurationFormatter.defaultFormatter.format(rd.tick.snooze).asJson,
+          "attempts" -> attempts,
+          "zone_id" -> zone_id
+        )
+      else
+        Json.obj(
+          "retry" -> false.asJson,
+          "failed_at" -> failed_at,
+          "attempts" -> attempts,
+          "zone_id" -> zone_id
+        )
+    }
   end Decision
 
   final private class Impl[F[_]](
     seed: PolicyTick[F],
-    decide: Kleisli[F, TickedValue[Throwable], TickedValue[Outcome]])(using F: Temporal[F]) {
+    decide: Kleisli[F, TickedValue[Throwable], TickedValue[Boolean]])(using F: Temporal[F]) {
 
     def retryLoop[A](fa: F[A]): F[A] =
       F.tailRecM[PolicyTick[F], A](seed) { status =>
@@ -114,7 +106,7 @@ object Retry {
                   ex.addSuppressed(decisionEx)
                   F.raiseError(ex)
                 case Right(decision) =>
-                  if (decision.value.retry)
+                  if (decision.value)
                     F.sleep(decision.tick.snooze.toScala.max(0.seconds))
                       .as(next.withTick(decision.tick).asLeft[A])
                   else
