@@ -23,6 +23,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.Monocle.focus
 
+import java.time.Duration
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -44,10 +45,10 @@ object Batch {
       }
   }
 
-  private def toJson(results: List[JobResultState]): Json =
+  private def toJson(results: List[JobState]): Json =
     if (results.isEmpty) Json.Null
     else {
-      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (jrs: JobResultState) =>
+      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (jrs: JobState) =>
         val took: String = defaultFormatter.format(jrs.took)
         val result: String = if (jrs.done) took else s"$took (failed)"
         jrs.job.displayName -> result.asJson
@@ -55,11 +56,11 @@ object Batch {
       Json.obj(pairs*)
     }
 
-  private type UpdatePanel[F[_]] = Kleisli[F, JobResultState, Unit]
+  private type UpdatePanel[F[_]] = Kleisli[F, JobState, Unit]
 
   final private case class BatchMetrics[F[_]](updatePanel: UpdatePanel[F], activeGauge: ActiveGauge[F])
 
-  final private case class SingleJobOutcome[A](jrs: JobResultState, eoa: Either[Throwable, A]) {
+  final private case class SingleJobOutcome[A](jrs: JobState, eoa: Either[Throwable, A]) {
     def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
@@ -70,10 +71,10 @@ object Batch {
       percentile <- mtx
         .percentile(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
-      progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
+      progress <- Resource.eval(F.ref[List[JobState]](Nil))
       _ <- mtx.gauge("completed jobs", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
-      Kleisli { (jrs: JobResultState) =>
+      Kleisli { (jrs: JobState) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(jrs)))
       },
       active)
@@ -81,15 +82,15 @@ object Batch {
   private def createPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
-      progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
+      progress <- Resource.eval(F.ref[List[JobState]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
-      Kleisli((jrs: JobResultState) => F.uncancelable(_ => progress.update(_.appended(jrs)))),
+      Kleisli((jrs: JobState) => F.uncancelable(_ => progress.update(_.appended(jrs)))),
       active)
 
   ///
 
-  private def handle_outcome[F[_], A](job: BatchJob, jobHook: JobHook[F, A], updatePanel: UpdatePanel[F])(
+  private def handleOutcome[F[_], A](job: BatchJob, jobHook: JobHook[F, A], updatePanel: UpdatePanel[F])(
     outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(using F: MonadThrow[F]): F[Unit] =
     outcome.fold(
       canceled = jobHook.canceled(job),
@@ -97,9 +98,7 @@ object Batch {
       errored = ex => F.raiseError(shouldNeverHappenException(ex)),
       completed = _.flatMap { case SingleJobOutcome(jrs, eoa) =>
         updatePanel.run(jrs) *>
-          eoa.fold(
-            ex => jobHook.errored(JobResultError(jrs, ex)),
-            a => jobHook.completed(JobResultValue(jrs, a)))
+          eoa.fold(ex => jobHook.errored(JobError(jrs, ex)), a => jobHook.completed(JobValue(jrs, a)))
       }
     )
 
@@ -114,17 +113,17 @@ object Batch {
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
       BatchJob(jni.name, jni.index, metricLabel, mode, kind, batchId)
 
-    def batch_value(jni: JobNameIndex[F, A]): F[JobResultValue[A]] = {
+    def batchValueInternal(jni: JobNameIndex[F, A]): F[JobValue[A]] = {
       val job: BatchJob = batchJob(jni, BatchKind.Value)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-          val jrs = JobResultState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
+          val jrs = JobState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
           SingleJobOutcome(jrs, eoa)
-        }.guaranteeCase(handle_outcome(job, jobHook, batchPanel.updatePanel))
+        }.guaranteeCase(handleOutcome(job, jobHook, batchPanel.updatePanel))
           .map { case SingleJobOutcome(jrs, eoa) =>
             eoa.flatMap { a =>
               if (jrs.done)
-                Right(JobResultValue(jrs, a))
+                Right(JobValue(jrs, a))
               else
                 Left(PostConditionUnsatisfied(job))
             }
@@ -132,13 +131,13 @@ object Batch {
           .rethrow
     }
 
-    def batch_quasi(jni: JobNameIndex[F, A]): F[JobResultState] = {
+    def batchQuasiInternal(jni: JobNameIndex[F, A]): F[JobState] = {
       val job: BatchJob = batchJob(jni, BatchKind.Quasi)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-          val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
+          val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
           SingleJobOutcome(jrs, eoa)
-        }.guaranteeCase(handle_outcome(job, jobHook, batchPanel.updatePanel)).map(_.jrs)
+        }.guaranteeCase(handleOutcome(job, jobHook, batchPanel.updatePanel)).map(_.jrs)
     }
   }
 
@@ -166,12 +165,12 @@ object Batch {
       *
       * otherwise fail
       */
-    def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchResultState]
+    def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchState]
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure, and fail prediction will cause `PostConditionUnsatisfied` exception
       */
-    def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchResultValue[List[A]]]
+    def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]]
   }
 
   /*
@@ -186,41 +185,50 @@ object Batch {
       extends Runner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchResultState] = {
+    override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchState] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobState])] =
         jobs
           .parTraverseN(parallelism) {
-            RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batch_quasi
+            RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchQuasiInternal
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
         createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jrs: List[JobResultState]) =>
-            BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
+          case (fd: FiniteDuration, jobs: List[JobState]) =>
+            BatchState(
+              label = metrics.metricLabel,
+              spent = fd.toJava,
+              mode = mode,
+              kind = BatchKind.Quasi,
+              batchId = batchId,
+              jobs = jobs)
         }
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchResultValue[List[A]]] = {
+    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batch_value
+            RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchValueInternal
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
-            val sorted: List[JobResultValue[A]] = jrv.sortBy(_.resultState.job.index)
-            val brs: BatchResultState =
-              BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, sorted.map(_.resultState))
-            BatchResultValue(brs, sorted.map(_.value))
+          case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
+            BatchValue(
+              label = metrics.metricLabel,
+              spent = fd.toJava,
+              mode = mode,
+              kind = BatchKind.Value,
+              batchId = batchId,
+              jobs = jobs)
         }
       }
     }
@@ -250,30 +258,51 @@ object Batch {
 
     override protected val mode: BatchMode = BatchMode.Sequential
 
-    override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchResultState] = {
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultState]] =
+    override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, BatchState] = {
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobState]] =
         jobs.traverse {
-          RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batch_quasi
+          RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchQuasiInternal
         }.guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
         createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
           .evalMap(bp => exec(bp, batchId))
-          .map(sequential_batch_result_state(metrics.metricLabel, mode, batchId))
+          .map(jobs =>
+            BatchState(
+              label = metrics.metricLabel,
+              spent = jobs.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
+              mode = mode,
+              kind = BatchKind.Quasi,
+              batchId = batchId,
+              jobs = jobs
+            ))
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchResultValue[List[A]]] = {
+    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultValue[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobValue[A]]] =
         jobs
           .traverse(
-            RunBatchJob(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batch_value)
-          .guarantee(batchPanel.activeGauge.deactivate)
+            RunBatchJob(
+              mode = mode,
+              jobHook = jobHook,
+              metricLabel = metrics.metricLabel,
+              batchId = batchId,
+              batchPanel = batchPanel,
+              predicate = predicate
+            ).batchValueInternal
+          ).guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          sequential_batch_result_value(metrics.metricLabel, mode, batchId)
+        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
+          BatchValue(
+            label = metrics.metricLabel,
+            spent = jobs.map(_.state.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            mode = mode,
+            kind = BatchKind.Value,
+            batchId = batchId,
+            jobs = jobs)
         }
       }
     }
@@ -289,13 +318,15 @@ object Batch {
    * Monadic
    */
 
-  final private case class JobState[A](eoa: Either[Throwable, A], history: NonEmptyList[JobResultState]) {
-    def update[B](ex: Throwable): JobState[B] = copy(eoa = Left(ex))
+  final private case class MonadicExecutionState[A](
+    eoa: Either[Throwable, A],
+    history: NonEmptyList[JobState]) {
+    def update[B](ex: Throwable): MonadicExecutionState[B] = copy(eoa = Left(ex))
     // reversed order
-    def prependHistory[B](js: JobState[B]): JobState[B] =
-      JobState[B](js.eoa, js.history ::: history)
+    def prependHistory[B](js: MonadicExecutionState[B]): MonadicExecutionState[B] =
+      MonadicExecutionState[B](js.eoa, js.history ::: history)
 
-    def map[B](f: A => B): JobState[B] = copy(eoa = eoa.map(f))
+    def map[B](f: A => B): MonadicExecutionState[B] = copy(eoa = eoa.map(f))
   }
 
   final private case class Callbacks[F[_]](
@@ -309,19 +340,19 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Monadic
 
-    private def handle_outcome[A](
+    private def handleOutcome[A](
       job: BatchJob,
       jobHook: JobHook[F, Json],
       updatePanel: UpdatePanel[F],
-      translate: (A, JobResultState) => Json)(
+      translate: (A, JobState) => Json)(
       outcome: Outcome[Resource[F, *], Throwable, SingleJobOutcome[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
           rfa.evalMap { case SingleJobOutcome(jrs, eoa) =>
             updatePanel.run(jrs) *>
               eoa.fold(
-                ex => jobHook.errored(JobResultError(jrs, ex)),
-                a => jobHook.completed(JobResultValue(jrs, translate(a, jrs))))
+                ex => jobHook.errored(JobError(jrs, ex)),
+                a => jobHook.completed(JobValue(jrs, translate(a, jrs))))
           }
         // Outcome.Errored should be impossible because job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
@@ -337,7 +368,7 @@ object Batch {
       * @param rfa
       *   the job
       */
-    private def vincible_[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[A] =
+    private def fallibleJob[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[A] =
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
           StateT { (index: Int) =>
@@ -355,12 +386,12 @@ object Batch {
               .attempt
               .timed
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
                 SingleJobOutcome(jrs, eoa)
               }
-              .guaranteeCase(handle_outcome(job, jobHook, updatePanel, handler.translate))
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, handler.translate))
               .map { case SingleJobOutcome(jrs, eoa) =>
-                (index + 1, JobState(eoa = eoa, history = NonEmptyList.one(jrs)))
+                (index + 1, MonadicExecutionState(eoa = eoa, history = NonEmptyList.one(jrs)))
               }
           }
         },
@@ -376,7 +407,7 @@ object Batch {
       * @return
       *   true if no exception occurs and evaluated to true, otherwise false
       */
-    private def invincible_[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[Boolean] =
+    private def failSafeJob[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[Boolean] =
       new Monadic[Boolean](
         kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
           StateT { (index: Int) =>
@@ -394,12 +425,12 @@ object Batch {
               .attempt
               .timed
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
                 SingleJobOutcome(jrs, eoa)
               }
-              .guaranteeCase(handle_outcome(job, jobHook, updatePanel, handler.translate))
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, handler.translate))
               .map { case SingleJobOutcome(jrs, _) =>
-                (index + 1, JobState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
+                (index + 1, MonadicExecutionState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
               }
           }
         },
@@ -412,7 +443,7 @@ object Batch {
       */
 
     def customise[A](name: String, rfa: Resource[F, A])(handler: JobHandler[A]): Monadic[A] =
-      vincible_[A](name, rfa, handler)
+      fallibleJob[A](name, rfa, handler)
 
     def customise[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[A] =
       customise[A](name, Resource.eval(fa))(handler)
@@ -420,7 +451,7 @@ object Batch {
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       customise[A](name, rfa)(new JobHandler[A] {
         override def predicate(a: A): Boolean = true
-        override def translate(a: A, jrs: JobResultState): Json = a.asJson
+        override def translate(a: A, jrs: JobState): Json = a.asJson
       })
 
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
@@ -436,7 +467,7 @@ object Batch {
       */
 
     def failSafe[A](name: String, rfa: Resource[F, A])(handler: JobHandler[A]): Monadic[Boolean] =
-      invincible_[A](name, rfa, handler)
+      failSafeJob[A](name, rfa, handler)
 
     def failSafe[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[Boolean] =
       failSafe[A](name, Resource.eval(fa))(handler)
@@ -446,7 +477,7 @@ object Batch {
 
     /* Monadic job execution type:
      *
-     * `Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[T]]`
+     * `Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[T]]`
      *
      * The type separates distinct responsibilities:
      *
@@ -462,7 +493,7 @@ object Batch {
      *      - Supports effectful computations with automatic cleanup and timing.
      */
     final class Monadic[T] private[Batch] (
-      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[T]],
+      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[T]],
       renameJob: Option[Endo[String]],
       uuidGenerator: F[UUID]
     ) {
@@ -470,11 +501,12 @@ object Batch {
         new Monadic[T](kleisli, renameJob = Some(f), uuidGenerator)
 
       def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
-          kleisli.tapWithF { (callbacks: Callbacks[F], jobState: JobState[T]) =>
+        val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[B]] =
+          kleisli.tapWithF { (callbacks: Callbacks[F], jobState: MonadicExecutionState[T]) =>
             jobState.eoa match {
               case Left(ex) =>
-                StateT(idx => Resource.pure[F, JobState[B]](jobState.update[B](ex)).map((idx, _)))
+                StateT(idx =>
+                  Resource.pure[F, MonadicExecutionState[B]](jobState.update[B](ex)).map((idx, _)))
               case Right(a) => f(a).kleisli.run(callbacks).map(jobState.prependHistory[B])
             }
           }
@@ -485,32 +517,38 @@ object Batch {
 
       def withFilter(f: T => Boolean): Monadic[T] =
         new Monadic[T](
-          kleisli = kleisli.map { case unchange @ JobState(eoa, history) =>
+          kleisli = kleisli.map { case unchange @ MonadicExecutionState(eoa, history) =>
             eoa match {
               case Left(_)      => unchange
               case Right(value) =>
                 if (f(value))
                   unchange
                 else
-                  JobState[T](Left(PostConditionUnsatisfied(history.head.job)), history)
+                  MonadicExecutionState[T](Left(PostConditionUnsatisfied(history.head.job)), history)
             }
           },
           renameJob = renameJob,
           uuidGenerator = uuidGenerator
         )
 
-      def batchValue(jobHook: JobHook[F, Json]): Resource[F, BatchResultValue[T]] =
+      def batchValue(jobHook: JobHook[F, Json]): Resource[F, MonadicValue[T]] =
         Resource.eval(uuidGenerator).flatMap { batchId =>
           createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
             kleisli
               .run(Callbacks[F](updatePanel, jobHook, renameJob, batchId))
               .run(1)
               .guarantee(Resource.eval(activeGauge.deactivate))
-          }.map { case (_, JobState(eoa, history)) =>
+          }.map { case (_, MonadicExecutionState(eoa, history)) =>
             eoa.map { a =>
-              val brs: BatchResultState =
-                sequential_batch_result_state(metrics.metricLabel, mode, batchId)(history.reverse.toList)
-              BatchResultValue(brs, a)
+              val bs = BatchState(
+                label = metrics.metricLabel,
+                spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
+                mode = mode,
+                kind = BatchKind.Value,
+                batchId = batchId,
+                jobs = history.toList
+              )
+              MonadicValue(bs, a)
             }
           }.rethrow
         }

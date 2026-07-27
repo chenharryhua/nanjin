@@ -6,8 +6,8 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
   JobHandler,
   JobHook,
-  JobResultState,
-  JobResultValue,
+  JobState,
+  JobValue,
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
@@ -41,10 +41,10 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("2.exception") {
-    var completedJob: JobResultState = null
-    var errorJob: JobResultState = null
-    val tracer = JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState }).onError(jo =>
-      IO { errorJob = jo.resultState })
+    var completedJob: JobState = null
+    var errorJob: JobState = null
+    val tracer = JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.state }).onError(jo =>
+      IO { errorJob = jo.state })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -69,11 +69,11 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("3.invincible - exception") {
-    var completedJob: List[JobResultState] = Nil
-    var errorJob: JobResultState = null
+    var completedJob: List[JobState] = Nil
+    var errorJob: JobState = null
     val tracer = JobHook.noop[IO, Json]
-      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
-      .onError(jo => IO { errorJob = jo.resultState })
+      .onComplete(jo => IO { completedJob = jo.state :: completedJob })
+      .onError(jo => IO { errorJob = jo.state })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -82,11 +82,11 @@ class BatchMonadicTest extends AnyFunSuite {
             a <- job("a", IO(1))
             _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+              override def translate(a: Int, jrs: JobState): Json = a.asJson
             })
             c <- job.customise("c", IO(3))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+              override def translate(a: Int, jrs: JobState): Json = a.asJson
             })
           } yield a + c
         }
@@ -108,9 +108,9 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("4.invincible - false") {
-    var completedJob: List[JobResultState] = Nil
+    var completedJob: List[JobState] = Nil
     val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.state :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -119,7 +119,7 @@ class BatchMonadicTest extends AnyFunSuite {
             a <- job("a", IO(1))
             _ <- job.failSafe("b", IO(10))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = false
-              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+              override def translate(a: Int, jrs: JobState): Json = a.asJson
             }.withPredicate(_ > 15).contramap(identity))
             c <- job("c", IO(3))
           } yield a + c
@@ -142,9 +142,9 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("5.filter") {
-    var completedJob: List[JobResultState] = Nil
+    var completedJob: List[JobState] = Nil
     val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo.state :: completedJob })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -173,7 +173,7 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("6.cancel") {
-    var completedJob: List[JobResultValue[Json]] = Nil
+    var completedJob: List[JobValue[Json]] = Nil
     var canceledJob: BatchJob = null
     val tracer = JobHook
       .noop[IO, Json]

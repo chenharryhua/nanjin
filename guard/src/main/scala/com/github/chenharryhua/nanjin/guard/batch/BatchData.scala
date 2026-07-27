@@ -69,55 +69,91 @@ object BatchJob {
       )
 }
 
-final case class JobResultState(job: BatchJob, took: Duration, done: Boolean):
+final case class JobState(job: BatchJob, took: Duration, done: Boolean):
   val fail: Boolean = !done
 
-object JobResultState:
-  given Encoder[JobResultState] =
-    (a: JobResultState) =>
+object JobState:
+  given Encoder[JobState] =
+    (a: JobState) =>
       Json.obj("took" -> Json.fromString(defaultFormatter.format(a.took))).deepMerge(a.job.asJson)
 
-final case class JobResultValue[A](resultState: JobResultState, value: A):
-  def map[B](f: A => B): JobResultValue[B] = copy(value = f(value))
+final case class JobValue[A](state: JobState, value: A):
+  def map[B](f: A => B): JobValue[B] = copy(value = f(value))
 
-final case class JobResultError(resultState: JobResultState, cause: Throwable)
+final case class JobError(state: JobState, cause: Throwable)
 
-final case class BatchResultState(
+final case class BatchState(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
+  kind: BatchKind,
   batchId: UUID,
-  jobs: List[JobResultState])
-object BatchResultState {
-  given Encoder[BatchResultState] = { (br: BatchResultState) =>
+  jobs: List[JobState])
+object BatchState {
+  given Encoder[BatchState] = { (br: BatchState) =>
     val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
       "batch" -> Json.fromString(br.label.label),
       "batch_id" -> br.batchId.asJson,
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
+      "kind" -> Json.fromString(br.kind.show),
       "spent" -> Json.fromString(defaultFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
-      "results" -> br.jobs
-        .map(jr =>
+      "results" -> br.jobs.sortBy(_.job.index)
+        .map(js =>
           Json.obj(
-            show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
-            "kind" -> Json.fromString(jr.job.kind.show),
-            "took" -> Json.fromString(defaultFormatter.format(jr.took)),
-            "done" -> Json.fromBoolean(jr.done)
+            show"job-${js.job.index}" -> Json.fromString(js.job.name),
+            "took" -> Json.fromString(defaultFormatter.format(js.took)),
+            "done" -> Json.fromBoolean(js.done)
           ))
         .asJson
     )
   }
 }
 
-final case class BatchResultValue[A](resultState: BatchResultState, value: A):
-  def map[B](f: A => B): BatchResultValue[B] = copy(value = f(value))
+final case class BatchValue[A](
+  label: MetricLabel,
+  spent: Duration,
+  mode: BatchMode,
+  kind: BatchKind,
+  batchId: UUID,
+  jobs: List[JobValue[A]]) {
+  def state: BatchState =
+    BatchState(
+      label = label,
+      spent = spent,
+      mode = mode,
+      kind = kind,
+      batchId = batchId,
+      jobs = jobs.map(_.state))
+}
 
-object BatchResultValue:
-  given [A: Encoder] => Encoder[BatchResultValue[A]] =
-    (a: BatchResultValue[A]) => Json.obj("batch" -> a.resultState.asJson, "value" -> a.value.asJson)
+object BatchValue:
+  given [A: Encoder] => Encoder[BatchValue[A]] =
+    (bv: BatchValue[A]) =>
+      Json.obj(
+        "batch" -> Json.fromString(bv.label.label),
+        "batch_id" -> bv.batchId.asJson,
+        "domain" -> Json.fromString(bv.label.domain.value),
+        "mode" -> Json.fromString(bv.mode.show),
+        "kind" -> Json.fromString(bv.kind.show),
+        "spent" -> Json.fromString(defaultFormatter.format(bv.spent)),
+        "results" -> bv.jobs.sortBy(_.state.job.index)
+          .map(jv =>
+            Json.obj(
+              show"job-${jv.state.job.index}" -> Json.fromString(jv.state.job.name),
+              "took" -> Json.fromString(defaultFormatter.format(jv.state.took)),
+              "value" -> jv.value.asJson
+            ))
+          .asJson
+      )
+
+final case class MonadicValue[A](state: BatchState, value: A)
+object MonadicValue:
+  given [A: Encoder] => Encoder[MonadicValue[A]] =
+    (a: MonadicValue[A]) => Json.obj("value" -> a.value.asJson).deepMerge(a.state.asJson)
 
 final case class PostConditionUnsatisfied(job: BatchJob)
     extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
