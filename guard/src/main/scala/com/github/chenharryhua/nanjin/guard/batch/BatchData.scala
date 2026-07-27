@@ -86,7 +86,6 @@ final case class BatchState(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
-  kind: BatchKind,
   batchId: UUID,
   jobs: List[JobState])
 object BatchState {
@@ -97,7 +96,6 @@ object BatchState {
       "batch_id" -> br.batchId.asJson,
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
-      "kind" -> Json.fromString(br.kind.show),
       "spent" -> Json.fromString(defaultFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
@@ -106,6 +104,7 @@ object BatchState {
           Json.obj(
             show"job-${js.job.index}" -> Json.fromString(js.job.name),
             "took" -> Json.fromString(defaultFormatter.format(js.took)),
+            "kind" -> Json.fromString(js.job.kind.show),
             "done" -> Json.fromBoolean(js.done)
           ))
         .asJson
@@ -117,7 +116,6 @@ final case class BatchValue[A](
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
-  kind: BatchKind,
   batchId: UUID,
   jobs: List[JobValue[A]]) {
   def state: BatchState =
@@ -125,7 +123,6 @@ final case class BatchValue[A](
       label = label,
       spent = spent,
       mode = mode,
-      kind = kind,
       batchId = batchId,
       jobs = jobs.map(_.state))
 }
@@ -138,13 +135,13 @@ object BatchValue:
         "batch_id" -> bv.batchId.asJson,
         "domain" -> Json.fromString(bv.label.domain.value),
         "mode" -> Json.fromString(bv.mode.show),
-        "kind" -> Json.fromString(bv.kind.show),
         "spent" -> Json.fromString(defaultFormatter.format(bv.spent)),
         "results" -> bv.jobs.sortBy(_.state.job.index)
           .map(jv =>
             Json.obj(
               show"job-${jv.state.job.index}" -> Json.fromString(jv.state.job.name),
               "took" -> Json.fromString(defaultFormatter.format(jv.state.took)),
+              "kind" -> Json.fromString(jv.state.job.kind.show),
               "value" -> jv.value.asJson
             ))
           .asJson

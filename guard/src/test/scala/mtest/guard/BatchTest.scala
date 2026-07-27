@@ -337,7 +337,7 @@ class BatchTest extends AnyFunSuite {
   test("16.sorted parallel") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).batchValue(JobHook.noop).use {
-        case BatchValue(_, _, _, _, _, rt) =>
+        case BatchValue(_, _, _, _, rt) =>
           val jobs = rt.sortBy(_.state.job.index)
           IO {
             assert(jobs.head.value == 1)
@@ -365,7 +365,7 @@ class BatchTest extends AnyFunSuite {
   test("17.sorted sequential") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).batchValue(JobHook.noop).use {
-        case BatchValue(_, _, _, _, _, rt) =>
+        case BatchValue(_, _, _, _, rt) =>
           val jobs = rt.sortBy(_.state.job.index)
           IO {
             assert(jobs.head.value == 1)

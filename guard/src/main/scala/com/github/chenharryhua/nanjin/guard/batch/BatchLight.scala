@@ -7,8 +7,6 @@ import cats.effect.syntax.clock.given
 import cats.implicits.{catsSyntaxMonadErrorRethrow, toFlatMapOps, toFunctorOps, toTraverseOps}
 import cats.syntax.applicativeError.given
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import io.circe.Encoder
-import io.circe.syntax.EncoderOps
 import monocle.Monocle.focus
 
 import java.time.Duration
@@ -33,7 +31,7 @@ object BatchLight {
 
     private val mode: BatchMode = BatchMode.Monadic
 
-    private def fallibleJob[A](name: String, fa: F[A], handler: JobHandler[A]): Monadic[F, A] =
+    def apply[A](name: String, fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
         metricLabel = metricLabel,
         run = renameJob =>
@@ -48,7 +46,7 @@ object BatchLight {
                 batchId = batchId)
 
               fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+                val jrs = JobState(job, fd.toJava, eoa.isRight)
                 (index + 1, MonadicExecutionState(eoa = eoa, history = NonEmptyList.one(jrs)))
               }
             },
@@ -56,7 +54,7 @@ object BatchLight {
         uuidGenerator = uuidGenerator
       )
 
-    private def failSafeJob[A](name: String, fa: F[A], handler: JobHandler[A]): Monadic[F, Boolean] =
+    def failSafe(name: String, fa: F[Boolean]): Monadic[F, Boolean] =
       new Monadic[F, Boolean](
         metricLabel = metricLabel,
         run = renameJob =>
@@ -70,8 +68,8 @@ object BatchLight {
                 kind = BatchKind.Quasi,
                 batchId = batchId)
 
-              fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+              fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, identity))
                 (index + 1, MonadicExecutionState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
               }
             },
@@ -79,20 +77,11 @@ object BatchLight {
         uuidGenerator = uuidGenerator
       )
 
-    def customise[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[F, A] =
-      fallibleJob[A](name, fa, handler)
+    def apply[A](tuple: (String, F[A])): Monadic[F, A] =
+      apply(tuple._1, tuple._2)
 
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[F, A] =
-      customise[A](name, fa)(new JobHandler[A] {
-        override def predicate(a: A): Boolean = true
-        override def translate(a: A, jrs: JobState): io.circe.Json = a.asJson
-      })
-
-    def failSafe[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[F, Boolean] =
-      failSafeJob[A](name, fa, handler)
-
-    def failSafe[A](tuple: (String, F[A]))(handler: JobHandler[A]): Monadic[F, Boolean] =
-      failSafe[A](tuple._1, tuple._2)(handler)
+    def failSafe(tuple: (String, F[Boolean])): Monadic[F, Boolean] =
+      failSafe(tuple._1, tuple._2)
   }
 
   final class Monadic[F[_], T] private[BatchLight] (
@@ -123,10 +112,10 @@ object BatchLight {
 
     def map[B](f: T => B): Monadic[F, B] =
       new Monadic[F, B](
-        metricLabel,
-        rename => batchId => run(rename)(batchId).map(_.map(f)),
-        renameJob,
-        uuidGenerator)
+        metricLabel = metricLabel,
+        run = rename => batchId => run(rename)(batchId).map(_.map(f)),
+        renameJob = renameJob,
+        uuidGenerator = uuidGenerator)
 
     def withFilter(f: T => Boolean): Monadic[F, T] =
       new Monadic[F, T](
@@ -155,7 +144,6 @@ object BatchLight {
                 label = metricLabel,
                 spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
                 mode = BatchMode.Monadic,
-                kind = BatchKind.Value,
                 batchId = batchId,
                 jobs = history.toList
               )
@@ -192,13 +180,7 @@ object BatchLight {
               JobState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
             }
         }).map { case (fd: FiniteDuration, jobs: List[JobState]) =>
-          BatchState(
-            label = metricLabel,
-            spent = fd.toJava,
-            mode = mode,
-            kind = BatchKind.Quasi,
-            batchId = batchId,
-            jobs = jobs)
+          BatchState(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
@@ -219,13 +201,7 @@ object BatchLight {
               }
               .rethrow
         }).map { case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-          BatchValue(
-            label = metricLabel,
-            spent = fd.toJava,
-            mode = mode,
-            kind = BatchKind.Value,
-            batchId = batchId,
-            jobs = jobs)
+          BatchValue(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
@@ -262,7 +238,6 @@ object BatchLight {
             label = metricLabel,
             spent = jobs.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
-            kind = BatchKind.Quasi,
             batchId = batchId,
             jobs = jobs
           ))
@@ -288,7 +263,6 @@ object BatchLight {
             label = metricLabel,
             spent = jobs.map(_.state.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
-            kind = BatchKind.Value,
             batchId = batchId,
             jobs = jobs)
         }

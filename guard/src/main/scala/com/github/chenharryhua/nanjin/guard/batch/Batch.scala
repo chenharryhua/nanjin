@@ -202,7 +202,6 @@ object Batch {
               label = metrics.metricLabel,
               spent = fd.toJava,
               mode = mode,
-              kind = BatchKind.Quasi,
               batchId = batchId,
               jobs = jobs)
         }
@@ -226,7 +225,6 @@ object Batch {
               label = metrics.metricLabel,
               spent = fd.toJava,
               mode = mode,
-              kind = BatchKind.Value,
               batchId = batchId,
               jobs = jobs)
         }
@@ -272,7 +270,6 @@ object Batch {
               label = metrics.metricLabel,
               spent = jobs.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
               mode = mode,
-              kind = BatchKind.Quasi,
               batchId = batchId,
               jobs = jobs
             ))
@@ -300,7 +297,6 @@ object Batch {
             label = metrics.metricLabel,
             spent = jobs.map(_.state.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
-            kind = BatchKind.Value,
             batchId = batchId,
             jobs = jobs)
         }
@@ -544,7 +540,6 @@ object Batch {
                 label = metrics.metricLabel,
                 spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
                 mode = mode,
-                kind = BatchKind.Value,
                 batchId = batchId,
                 jobs = history.toList
               )
