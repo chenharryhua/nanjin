@@ -21,8 +21,8 @@ import io.circe.{Encoder, Json}
 sealed trait JobHook[F[_], A]:
   private[batch] def kickoff: BatchJob => F[Unit]
   private[batch] def canceled: BatchJob => F[Unit]
-  private[batch] def completed: JobResultValue[A] => F[Unit]
-  private[batch] def errored: JobResultError => F[Unit]
+  private[batch] def completed: JobValue[A] => F[Unit]
+  private[batch] def errored: JobError => F[Unit]
 
 object JobHook {
 
@@ -38,8 +38,8 @@ object JobHook {
     * composable way to handle job events.
     */
   sealed protected trait Subscriber[F[_], A]:
-    def onComplete(f: JobResultValue[A] => F[Unit]): Subscriber[F, A]
-    def onError(f: JobResultError => F[Unit]): Subscriber[F, A]
+    def onComplete(f: JobValue[A] => F[Unit]): Subscriber[F, A]
+    def onError(f: JobError => F[Unit]): Subscriber[F, A]
     def onCancel(f: BatchJob => F[Unit]): Subscriber[F, A]
     def onKickoff(f: BatchJob => F[Unit]): Subscriber[F, A]
 
@@ -47,27 +47,27 @@ object JobHook {
     * contramap for type transformations.
     */
   final class Bridge[F[_], A] private[JobHook] (
-    private[batch] val completed: JobResultValue[A] => F[Unit],
-    private[batch] val errored: JobResultError => F[Unit],
+    private[batch] val completed: JobValue[A] => F[Unit],
+    private[batch] val errored: JobError => F[Unit],
     private[batch] val canceled: BatchJob => F[Unit],
     private[batch] val kickoff: BatchJob => F[Unit]
   ) extends JobHook[F, A] with Subscriber[F, A] {
 
     private def copy(
-      completed: JobResultValue[A] => F[Unit] = this.completed,
-      errored: JobResultError => F[Unit] = this.errored,
+      completed: JobValue[A] => F[Unit] = this.completed,
+      errored: JobError => F[Unit] = this.errored,
       canceled: BatchJob => F[Unit] = this.canceled,
       kickoff: BatchJob => F[Unit] = this.kickoff): Bridge[F, A] =
       new Bridge[F, A](completed, errored, canceled, kickoff)
 
-    override def onComplete(f: JobResultValue[A] => F[Unit]): Bridge[F, A] = copy(completed = f)
-    override def onError(f: JobResultError => F[Unit]): Bridge[F, A] = copy(errored = f)
+    override def onComplete(f: JobValue[A] => F[Unit]): Bridge[F, A] = copy(completed = f)
+    override def onError(f: JobError => F[Unit]): Bridge[F, A] = copy(errored = f)
     override def onCancel(f: BatchJob => F[Unit]): Bridge[F, A] = copy(canceled = f)
     override def onKickoff(f: BatchJob => F[Unit]): Bridge[F, A] = copy(kickoff = f)
 
     def contramap[B](f: B => A): Bridge[F, B] =
       new Bridge[F, B](
-        completed = (jrv: JobResultValue[B]) => this.completed(jrv.map(f)),
+        completed = (jrv: JobValue[B]) => this.completed(jrv.map(f)),
         errored = this.errored,
         canceled = this.canceled,
         kickoff = this.kickoff
@@ -94,15 +94,15 @@ object JobHook {
 
   final class ByLogger[F[_]](log: Log[F]) {
 
-    def universal[A](f: (A, JobResultState) => Json): Bridge[F, A] =
+    def universal[A](f: (A, JobState) => Json): Bridge[F, A] =
       new Bridge[F, A](
-        completed = { (jrv: JobResultValue[A]) =>
+        completed = { (jrv: JobValue[A]) =>
           val json: Json =
-            Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
-          if (jrv.resultState.done) log.good(Json.obj("done" -> json))
+            Json.obj("outcome" -> f(jrv.value, jrv.state)).deepMerge(jrv.state.asJson)
+          if (jrv.state.done) log.good(Json.obj("done" -> json))
           else log.warn(Json.obj("fail" -> json))
         },
-        errored = (jre: JobResultError) => log.error(jre.resultState, jre.cause),
+        errored = (jre: JobError) => log.error(jre.state, jre.cause),
         canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
         kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
       )

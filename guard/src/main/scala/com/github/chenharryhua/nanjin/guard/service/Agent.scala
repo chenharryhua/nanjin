@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.Batch
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricLabel}
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricsHub, MetricsHubS}
@@ -28,6 +28,7 @@ sealed trait Agent[F[_]] {
    * batch
    */
   def batch(label: String): Batch[F]
+  def batchLight(label: String): BatchLight[F]
 
   /*
    * ticks
@@ -116,6 +117,11 @@ final private class GeneralAgent[F[_]: Async](
 
   override def batch(label: String): Batch[F] =
     new Batch[F](metricsHub(label), uuidGenerator)
+
+  override def batchLight(label: String): BatchLight[F] = {
+    val metricLabel = MetricLabel(label, reportedEventHandler.domain)
+    new BatchLight[F](metricLabel, uuidGenerator)
+  }
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, maxFailures, f)

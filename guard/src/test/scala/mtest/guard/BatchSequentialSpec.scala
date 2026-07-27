@@ -10,8 +10,8 @@ import org.scalatest.matchers.should.Matchers
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchKind,
   BatchMode,
+  JobError,
   JobHook,
-  JobResultError,
   PostConditionUnsatisfied
 }
 
@@ -87,7 +87,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onError { case JobResultError(jo, oc) =>
+          .batchValue(tracer.onError { case JobError(jo, oc) =>
             IO {
               assert(!jo.done)
               assert(jo.job.index == 2)
@@ -110,8 +110,8 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .withPredicate(_ > 3)
             .batchValue(tracer.onComplete { jo =>
               IO {
-                assert(!jo.resultState.done)
-                assert(jo.resultState.job.index == 1)
+                assert(!jo.state.done)
+                assert(jo.state.job.index == 1)
                 assert(jo.value == 1)
               }.void
             })

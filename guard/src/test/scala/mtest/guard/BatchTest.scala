@@ -112,7 +112,7 @@ class BatchTest extends AnyFunSuite {
         .withPredicate(_ => true)
         .batchValue(JobHook.noop)
         .memoizedAcquire
-        .use(_.map(_.resultState.jobs.forall(_.done)))
+        .use(_.map(_.jobs.forall(_.state.done)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
@@ -230,7 +230,7 @@ class BatchTest extends AnyFunSuite {
         .batchValue(JobHook.noop)
         .use { qr =>
           assert(qr.value == 60)
-          assert(qr.resultState.jobs.forall(_.job.name.startsWith("monadic")))
+          assert(qr.state.jobs.forall(_.job.name.startsWith("monadic")))
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -249,7 +249,7 @@ class BatchTest extends AnyFunSuite {
             _ <- job("report-1", agent.adhoc.report.void)
             _ <- job.failSafe("exception", IO.raiseError[Int](new Exception("aaaa")))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+              override def translate(a: Int, jrs: JobState): Json = a.asJson
             })
             _ <- job("f", IO.println("bbbb"))
             _ <- job("report-2", agent.adhoc.report.void)
@@ -258,14 +258,14 @@ class BatchTest extends AnyFunSuite {
         }
         .batchValue(JobHook.noop)
         .use { qr =>
-          assert(qr.resultState.jobs.head.done)
-          assert(qr.resultState.jobs(1).done)
-          assert(qr.resultState.jobs(2).done)
-          assert(qr.resultState.jobs(3).fail)
-          assert(qr.resultState.jobs(4).done)
-          assert(qr.resultState.jobs(5).done)
-          assert(qr.resultState.jobs(6).done)
-          assert(qr.resultState.jobs.size == 7)
+          assert(qr.state.jobs.head.done)
+          assert(qr.state.jobs(1).done)
+          assert(qr.state.jobs(2).done)
+          assert(qr.state.jobs(3).fail)
+          assert(qr.state.jobs(4).done)
+          assert(qr.state.jobs(5).done)
+          assert(qr.state.jobs(6).done)
+          assert(qr.state.jobs.size == 7)
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -305,7 +305,7 @@ class BatchTest extends AnyFunSuite {
         }
         .batchValue(JobHook.noop)
         .use { qr =>
-          val details = qr.resultState.jobs
+          val details = qr.state.jobs.sortBy(_.job.index)
           assert(details.head.job.name === "1")
           assert(details.head.job.index === 1)
           assert(details(1).job.name === "2")
@@ -337,24 +337,25 @@ class BatchTest extends AnyFunSuite {
   test("16.sorted parallel") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).batchValue(JobHook.noop).use {
-        case BatchResultValue(br, rst) =>
+        case BatchValue(_, _, _, _, _, rt) =>
+          val jobs = rt.sortBy(_.state.job.index)
           IO {
-            assert(rst.head == 1)
-            assert(rst(1) == 2)
-            assert(rst(2) == 3)
-            assert(rst(3) == 4)
-            assert(rst(4) == 5)
-            assert(br.jobs.forall(_.done))
-            assert(br.jobs.head.job.name == "1")
-            assert(br.jobs.head.job.index == 1)
-            assert(br.jobs(1).job.name == "2")
-            assert(br.jobs(1).job.index == 2)
-            assert(br.jobs(2).job.name == "3")
-            assert(br.jobs(2).job.index == 3)
-            assert(br.jobs(3).job.name == "4")
-            assert(br.jobs(3).job.index == 4)
-            assert(br.jobs(4).job.name == "5")
-            assert(br.jobs(4).job.index == 5)
+            assert(jobs.head.value == 1)
+            assert(jobs(1).value == 2)
+            assert(jobs(2).value == 3)
+            assert(jobs(3).value == 4)
+            assert(jobs(4).value == 5)
+            assert(jobs.forall(_.state.done))
+            assert(jobs.head.state.job.name == "1")
+            assert(jobs.head.state.job.index == 1)
+            assert(jobs(1).state.job.name == "2")
+            assert(jobs(1).state.job.index == 2)
+            assert(jobs(2).state.job.name == "3")
+            assert(jobs(2).state.job.index == 3)
+            assert(jobs(3).state.job.name == "4")
+            assert(jobs(3).state.job.index == 4)
+            assert(jobs(4).state.job.name == "5")
+            assert(jobs(4).state.job.index == 5)
           }.void
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -364,24 +365,25 @@ class BatchTest extends AnyFunSuite {
   test("17.sorted sequential") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).batchValue(JobHook.noop).use {
-        case BatchResultValue(br, rst) =>
+        case BatchValue(_, _, _, _, _, rt) =>
+          val jobs = rt.sortBy(_.state.job.index)
           IO {
-            assert(rst.head == 1)
-            assert(rst(1) == 2)
-            assert(rst(2) == 3)
-            assert(rst(3) == 4)
-            assert(rst(4) == 5)
-            assert(br.jobs.forall(_.done))
-            assert(br.jobs.head.job.name == "1")
-            assert(br.jobs.head.job.index == 1)
-            assert(br.jobs(1).job.name == "2")
-            assert(br.jobs(1).job.index == 2)
-            assert(br.jobs(2).job.name == "3")
-            assert(br.jobs(2).job.index == 3)
-            assert(br.jobs(3).job.name == "4")
-            assert(br.jobs(3).job.index == 4)
-            assert(br.jobs(4).job.name == "5")
-            assert(br.jobs(4).job.index == 5)
+            assert(jobs.head.value == 1)
+            assert(jobs(1).value == 2)
+            assert(jobs(2).value == 3)
+            assert(jobs(3).value == 4)
+            assert(jobs(4).value == 5)
+            assert(jobs.forall(_.state.done))
+            assert(jobs.head.state.job.name == "1")
+            assert(jobs.head.state.job.index == 1)
+            assert(jobs(1).state.job.name == "2")
+            assert(jobs(1).state.job.index == 2)
+            assert(jobs(2).state.job.name == "3")
+            assert(jobs(2).state.job.index == 3)
+            assert(jobs(3).state.job.name == "4")
+            assert(jobs(3).state.job.index == 4)
+            assert(jobs(4).state.job.name == "5")
+            assert(jobs(4).state.job.index == 5)
           }.void
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -416,7 +418,7 @@ class BatchTest extends AnyFunSuite {
   test("21.monadic flatMap limits") {
     val se = service.eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(10_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)
+        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   BatchKind,
   BatchMode,
   JobHook,
-  JobResultState,
+  JobState,
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
@@ -69,9 +69,9 @@ class BatchParallelTest extends AnyFunSuite {
     var succJob: BatchJob = null
     val tracer: JobHook.Bridge[IO, Int] =
       JobHook.noop[IO, Int]
-        .onError(jo => IO { errorJob = jo.resultState.job })
+        .onError(jo => IO { errorJob = jo.state.job })
         .onCancel(jo => IO { canceledJob = jo })
-        .onComplete(jo => IO { succJob = jo.resultState.job })
+        .onComplete(jo => IO { succJob = jo.state.job })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -116,11 +116,11 @@ class BatchParallelTest extends AnyFunSuite {
 
   test("6.predicate - value") {
     var canceledJob: BatchJob = null
-    var completedJob: List[JobResultState] = Nil
+    var completedJob: List[JobState] = Nil
     val tracer = JobHook
       .noop[IO, Int]
       .onCancel(jo => IO { canceledJob = jo }).onComplete(jo =>
-        IO { completedJob = jo.resultState :: completedJob })
+        IO { completedJob = jo.state :: completedJob })
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     val se = service.eventStream { agent =>

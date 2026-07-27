@@ -3,12 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{
-  JobHandler,
-  JobHook,
-  JobResultState,
-  PostConditionUnsatisfied
-}
+import com.github.chenharryhua.nanjin.guard.batch.{JobHandler, JobHook, JobState, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
@@ -52,7 +47,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             a <- job("a", IO(1))
             _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobResultState): Json = Json.Null
+              override def translate(a: Int, jrs: JobState): Json = Json.Null
             })
             c <- job("c", IO(2))
           } yield a + c
@@ -61,9 +56,9 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>
-        result.asserting(_.resultState.jobs.head.done.shouldBe(true)) >>
-        result.asserting(_.resultState.jobs(1).done.shouldBe(false)) >>
-        result.asserting(_.resultState.jobs(2).done.shouldBe(true)) >>
+        result.asserting(_.state.jobs.head.done.shouldBe(true)) >>
+        result.asserting(_.state.jobs(1).done.shouldBe(false)) >>
+        result.asserting(_.state.jobs(2).done.shouldBe(true)) >>
         IO.unit
     }.compile.lastOrError.unsafeRunSync()
 

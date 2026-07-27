@@ -132,7 +132,7 @@ class RetrySpec extends CatsEffectSuite {
       retry <- Retry[IO](
         zoneId,
         _.withPolicy(_.fixedDelay(10.millis).limited(3)).withDecision { tv =>
-          observed.update(_ :+ tv.attempts).as(tv.followPolicy)
+          observed.update(_ :+ tv.ordinal).as(tv.followPolicy)
         })
       _ <- retry(
         counter.updateAndGet(_ + 1).flatMap { n =>
@@ -207,7 +207,7 @@ class RetrySpec extends CatsEffectSuite {
         zoneId,
         _.withPolicy(_.fixedDelay(25.millis).limited(3)).withDecision { tv =>
           observedCause.set(tv.cause.getMessage) >>
-            observedRetries.set(tv.attempts) >>
+            observedRetries.set(tv.ordinal) >>
             observedSnooze.set(tv.snooze) >>
             IO.pure(tv.giveUp)
         }
