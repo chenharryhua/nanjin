@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.{Endo, MonadThrow}
 import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
 import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
@@ -14,6 +13,7 @@ import cats.syntax.functor.given
 import cats.syntax.monadError.given
 import cats.syntax.show.given
 import cats.syntax.traverse.given
+import cats.{Endo, MonadThrow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.batch.BatchKind
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
@@ -259,7 +259,7 @@ object Batch {
       Resource.eval(uuidGenerator).flatMap { batchId =>
         createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
           .evalMap(bp => exec(bp, batchId))
-          .map(sequential_batch_result_state(metrics, mode, batchId))
+          .map(sequential_batch_result_state(metrics.metricLabel, mode, batchId))
       }
     }
 
@@ -273,7 +273,7 @@ object Batch {
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          sequential_batch_result_value(metrics, mode, batchId)
+          sequential_batch_result_value(metrics.metricLabel, mode, batchId)
         }
       }
     }
@@ -509,7 +509,7 @@ object Batch {
           }.map { case (_, JobState(eoa, history)) =>
             eoa.map { a =>
               val brs: BatchResultState =
-                sequential_batch_result_state(metrics, mode, batchId)(history.reverse.toList)
+                sequential_batch_result_state(metrics.metricLabel, mode, batchId)(history.reverse.toList)
               BatchResultValue(brs, a)
             }
           }.rethrow
