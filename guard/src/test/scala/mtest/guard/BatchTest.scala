@@ -247,10 +247,7 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("report-1", agent.adhoc.report.void)
-            _ <- job.failSafe("exception", IO.raiseError[Int](new Exception("aaaa")))(new JobHandler[Int] {
-              override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobState): Json = a.asJson
-            })
+            _ <- job.failSafe("exception", IO.raiseError[Boolean](new Exception("aaaa")))
             _ <- job("f", IO.println("bbbb"))
             _ <- job("report-2", agent.adhoc.report.void)
             c <- job("c", IO.println("c").as(30))
@@ -337,7 +334,7 @@ class BatchTest extends AnyFunSuite {
   test("16.sorted parallel") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).batchValue(JobHook.noop).use {
-        case BatchValue(_, _, _, _, _, rt) =>
+        case BatchValue(_, _, _, _, rt) =>
           val jobs = rt.sortBy(_.state.job.index)
           IO {
             assert(jobs.head.value == 1)
@@ -365,7 +362,7 @@ class BatchTest extends AnyFunSuite {
   test("17.sorted sequential") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).batchValue(JobHook.noop).use {
-        case BatchValue(_, _, _, _, _, rt) =>
+        case BatchValue(_, _, _, _, rt) =>
           val jobs = rt.sortBy(_.state.job.index)
           IO {
             assert(jobs.head.value == 1)
@@ -416,9 +413,9 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("21.monadic flatMap limits") {
-    val se = service.eventStreamR { agent =>
+    val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)
+        List.fill(10_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

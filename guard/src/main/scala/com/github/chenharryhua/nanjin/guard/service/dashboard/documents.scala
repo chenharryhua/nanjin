@@ -4,14 +4,7 @@ import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
-import com.github.chenharryhua.nanjin.guard.event.{
-  retrieveHealthChecks,
-  Active,
-  Event,
-  Snooze,
-  Timestamp,
-  Took
-}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Active, Event, Snooze, Timestamp, Took}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute, SnapshotPolyglot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -57,9 +50,7 @@ private object documents {
             Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
             "up_rouse_at" -> sp.tick.local(_.commence).asJson,
             Attribute(Active(sp.tick.active)).map(_.show).snakeJsonEntry,
-            Attribute(Timestamp(sp.tick.zoned(_.acquires)))
-              .map(_.value.toLocalDateTime)
-              .snakeJsonEntry,
+            "panic_at" -> sp.tick.local(_.acquires).asJson,
             Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
             "restart_at" -> sp.tick.local(_.conclude).asJson,
             Attribute(sp.stackTrace).snakeJsonEntry
@@ -97,7 +88,7 @@ private object documents {
     now: Instant): Either[String, Json] = {
     val deps_health_check: Json = {
       val res = snapshots.lastOption
-        .map(ms => retrieveHealthChecks(ms.snapshot.gauges).values)
+        .map(ms => retrieve.healthCheck(ms.snapshot.gauges).values)
         .fold(true)(_.forall(identity))
 
       Json.obj("healthy" -> Json.fromBoolean(res))

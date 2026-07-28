@@ -13,10 +13,23 @@ import com.github.chenharryhua.nanjin.guard.service.{
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, prettifyJson}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
+import org.http4s.{HttpRoutes, Uri}
+
+private object HealthPath {
+  private val paths: Set[Uri.Path] = Set(
+    Uri.Path.unsafeFromString("/health_check"),
+    Uri.Path.unsafeFromString("/healthCheck"),
+    Uri.Path.unsafeFromString("/healthcheck"),
+    Uri.Path.unsafeFromString("/health"),
+    Uri.Path.unsafeFromString("/healthz"),
+    Uri.Path.unsafeFromString("/healthcheck/status")
+  )
+
+  def unapply(path: Uri.Path): Boolean = paths(path)
+}
 
 final private class HttpDataRouter[F[_]](
   metricsEventHandler: MetricsEventHandler[F],
@@ -55,7 +68,7 @@ final private class HttpDataRouter[F[_]](
     case POST -> Root / "stop" =>
       Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
 
-    case GET -> Root / hc if Set("health_check", "healthCheck", "health", "healthz")(hc) =>
+    case GET -> HealthPath() =>
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory

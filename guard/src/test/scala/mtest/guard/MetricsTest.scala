@@ -10,16 +10,7 @@ import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
-import com.github.chenharryhua.nanjin.guard.event.{
-  retrieveCounter,
-  retrieveHistogram,
-  retrieveMeter,
-  retrieveRiskCounter,
-  retrieveTimer,
-  Event,
-  MetricID,
-  MetricName
-}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, MetricID, MetricName}
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
@@ -49,8 +40,8 @@ class MetricsTest extends AnyFunSuite {
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.nonEmpty)
-    assert(retrieveCounter(mr.snapshot.counters).values.head.value == 10)
-    assert(retrieveRiskCounter(mr.snapshot.counters).values.isEmpty)
+    assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
+    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
     assert(mr.index.isInstanceOf[Index.Adhoc])
   }
 
@@ -60,8 +51,8 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("counter")(_.counter("counter", _.asRisk))
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(retrieveRiskCounter(mr.snapshot.counters).values.head.value == 10)
-    assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
+    assert(retrieve.riskCounter(mr.snapshot.counters).values.head.value == 10)
+    assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
   }
 
   test("3.counter disable") {
@@ -71,8 +62,30 @@ class MetricsTest extends AnyFunSuite {
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
-    assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
-    assert(retrieveRiskCounter(mr.snapshot.counters).values.isEmpty)
+    assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
+    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+  }
+
+  test("3b.counter reset by policy") {
+    val snapshots = service.eventStream { agent =>
+      agent
+        .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis))))
+        .use { counter =>
+          counter.inc(10) >>
+            agent.adhoc.report >>
+            IO.sleep(500.millis) >>
+            counter.inc(3) >>
+            agent.adhoc.report
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
+
+    assert(snapshots.size == 2)
+
+    val first = retrieve.counter(snapshots.head.snapshot.counters).values.head.value
+    val second = retrieve.counter(snapshots(1).snapshot.counters).values.head.value
+
+    assert(first == 10)
+    assert(second == 3)
   }
 
   test("4.meter") {
@@ -80,7 +93,7 @@ class MetricsTest extends AnyFunSuite {
       val meter: Resource[IO, Meter[IO]] = agent.facilitate("meter")(_.meter("meter", _.withUnit(AUD)))
       meter.use(m => m.mark(10) >> m.mark(20) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val meter = retrieveMeter(mr.snapshot.meters).values.head
+    val meter = retrieve.meter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
     assert(meter.aggregate == 30)
     assert(meter.squants.unitSymbol == AUD.symbol)
@@ -94,7 +107,7 @@ class MetricsTest extends AnyFunSuite {
         .use(_.mark(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
-    assert(retrieveMeter(mr.snapshot.meters).isEmpty)
+    assert(retrieve.meter(mr.snapshot.meters).isEmpty)
   }
 
   test("6.histogram") {
@@ -103,7 +116,7 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Bytes)))
         .use(m => m.update(10) >> m.update(20) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieveHistogram(mr.snapshot.histograms).values.head
+    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)
     assert(histo.max == 20)
@@ -117,7 +130,7 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Milliseconds)))
         .use(m => m.update(1030) >> m.update(200) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieveHistogram(mr.snapshot.histograms).values.head
+    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)
     assert(histo.max == 1030)
@@ -131,7 +144,7 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Percent)))
         .use(m => m.update(30) >> m.update(50) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieveHistogram(mr.snapshot.histograms).values.head
+    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)
     assert(histo.max == 50)
@@ -147,7 +160,7 @@ class MetricsTest extends AnyFunSuite {
           agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
-    assert(retrieveHistogram(mr.snapshot.histograms).isEmpty)
+    assert(retrieve.histogram(mr.snapshot.histograms).isEmpty)
   }
 
   test("10.timer") {
@@ -156,7 +169,7 @@ class MetricsTest extends AnyFunSuite {
         .facilitate("timer")(_.timer("timer"))
         .use(_.elapsedNano(30.seconds.toNanos) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val timer = retrieveTimer(mr.snapshot.timers).values.head
+    val timer = retrieve.timer(mr.snapshot.timers).values.head
     assert(timer.max == 30.seconds.toJava)
     assert(mr.snapshot.nonEmpty)
     assert(timer.calls == 1)
@@ -169,7 +182,7 @@ class MetricsTest extends AnyFunSuite {
         .use(_.elapsedNano(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
-    assert(retrieveTimer(mr.snapshot.timers).isEmpty)
+    assert(retrieve.timer(mr.snapshot.timers).isEmpty)
   }
 
   test("12.empty") {
@@ -199,7 +212,7 @@ class MetricsTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     assert(mr.snapshot.hasDuplication)
-    val counts: Map[MetricID, CounterData] = retrieveCounter(mr.snapshot.counters)
+    val counts: Map[MetricID, CounterData] = retrieve.counter(mr.snapshot.counters)
     assert(counts.values.toList.map(_.value).contains(1L))
     assert(counts.values.toList.map(_.value).contains(2L))
   }

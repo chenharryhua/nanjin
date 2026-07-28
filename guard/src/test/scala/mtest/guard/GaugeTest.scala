@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{retrieveGauge, retrieveHealthChecks, Event, MetricID}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, MetricID}
 import io.circe.Json
 import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,7 +23,7 @@ class GaugeTest extends AnyFunSuite {
           .map(_ => Kleisli((_: Unit) => IO.unit)))
         .surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    val gauge = retrieve.gauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.values.head == 1)
   }
@@ -40,7 +40,7 @@ class GaugeTest extends AnyFunSuite {
               .register(IO(true))))
         .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val health: Map[MetricID, Boolean] = retrieveHealthChecks(mr.snapshot.gauges)
+    val health: Map[MetricID, Boolean] = retrieve.healthCheck(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(health.values.head)
   }
@@ -49,7 +49,7 @@ class GaugeTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent.facilitate("active")(_.activeGauge("active")).surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val active = retrieveGauge[Json](mr.snapshot.gauges)
+    val active = retrieve.gauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(active.values.nonEmpty)
   }
@@ -58,7 +58,7 @@ class GaugeTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent.facilitate("idle")(_.idleGauge("idle")).use(_.wakeUp >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val idle = retrieveGauge[Json](mr.snapshot.gauges)
+    val idle = retrieve.gauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(idle.values.nonEmpty)
   }
@@ -74,8 +74,8 @@ class GaugeTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(2).compile.toList.unsafeRunSync()
 
     assert(snapshots.size == 2)
-    val first = retrieveGauge[Int](snapshots.head.snapshot.gauges).values.head
-    val second = retrieveGauge[Int](snapshots(1).snapshot.gauges).values.head
+    val first = retrieve.gauge[Int](snapshots.head.snapshot.gauges).values.head
+    val second = retrieve.gauge[Int](snapshots(1).snapshot.gauges).values.head
     assert(first == 1)
     assert(second == 2)
   }
@@ -89,7 +89,7 @@ class GaugeTest extends AnyFunSuite {
             .register(IO.never[Int]))
           .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    val gauge = retrieve.gauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
   }
@@ -103,7 +103,7 @@ class GaugeTest extends AnyFunSuite {
             .register(IO.raiseError[Int](new Exception("oops"))))
           .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    val gauge = retrieve.gauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
   }
@@ -144,8 +144,8 @@ class GaugeTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(2).compile.toList.unsafeRunSync()
 
     assert(snapshots.size == 2)
-    val first = retrieveGauge[Int](snapshots.head.snapshot.gauges).values.head
-    val second = retrieveGauge[Int](snapshots(1).snapshot.gauges).values.head
+    val first = retrieve.gauge[Int](snapshots.head.snapshot.gauges).values.head
+    val second = retrieve.gauge[Int](snapshots(1).snapshot.gauges).values.head
     assert(first == 1)
     assert(second == 1)
   }

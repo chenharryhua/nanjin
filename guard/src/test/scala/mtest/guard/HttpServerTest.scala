@@ -41,6 +41,7 @@ class HttpServerTest extends AnyFunSuite {
           c.expect[String]("http://localhost:9999/panics") >>
           c.expect[String]("http://localhost:9999/errors") >>
           c.expect[String]("http://localhost:9999/alarm/level") >>
+          c.expect[String]("http://localhost:9999/healthcheck/status") >>
           c.expect[String](stop)
       }
       .delayBy(5.seconds)
