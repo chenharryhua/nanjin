@@ -1,12 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.implicits.genSpawnOps
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
 import com.codahale.metrics.{Counter as CodahaleCounter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.event.{Category, CounterKind, MetricID, MetricLabel, MetricName}
+
+import java.time.ZoneId
 
 trait Counter[F[_]]:
   def inc(num: Long): F[Unit]
@@ -21,35 +25,56 @@ object Counter {
     isRisk: Boolean,
     name: MetricName)(using F: Sync[F])
       extends Counter[F] {
+    private val metricId: MetricID =
+      if isRisk
+      then MetricID(label, name, Category.Counter(CounterKind.Risk))
+      else MetricID(label, name, Category.Counter(CounterKind.Counter))
 
-    private lazy val (counter_name: String, counter: CodahaleCounter) =
-      if (isRisk) {
-        val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
-        (id, metricRegistry.counter(id))
-      } else {
-        val id = MetricID(label, name, Category.Counter(CounterKind.Counter)).identifier
-        (id, metricRegistry.counter(id))
-      }
+    private lazy val (counterName: String, counter: CodahaleCounter) = {
+      val id = metricId.identifier
+      (id, metricRegistry.counter(id))
+    }
 
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(counter_name)).void
+    val reset: F[Unit] = F.delay(counter.dec(counter.getCount))
+
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(counterName)).void
 
   }
 
-  final class Builder private[Counter] (isEnabled: Boolean, isRisk: Boolean) extends EnableConfig[Builder] {
+  final class Builder private[Counter] (isEnabled: Boolean, isRisk: Boolean, policy: Policy)
+      extends EnableConfig[Builder] {
 
-    def asRisk: Builder = new Builder(isEnabled, true)
+    def asRisk: Builder = new Builder(isEnabled, true, policy)
 
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, isRisk)
+      new Builder(isEnabled, isRisk, policy)
 
-    private[Counter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Counter[F]] = {
+    /** Reset the counter to zero whenever the supplied policy emits a tick.
+      */
+    def withPolicy(f: Policy.type => Policy): Builder =
+      new Builder(isEnabled, isRisk, f(Policy))
+
+    private[Counter] def build[F[_]: Async](
+      label: MetricLabel,
+      name: String,
+      metricRegistry: MetricRegistry,
+      zoneId: ZoneId): Resource[F, Counter[F]] = {
       val counter: Resource[F, Counter[F]] =
-        Resource.make(MetricName(name).map { metricName =>
-          new Impl[F](label, metricRegistry, isRisk, metricName)
-        })(_.unregister)
+        for {
+          counter <- Resource.make(
+            MetricName(name)
+              .map { metricName =>
+                new Impl[F](label, metricRegistry, isRisk, metricName)
+              })(_.unregister)
+          // Keep the counter cumulative only within the current policy window.
+          _ <- tickStream.tickScheduled[F](zoneId, _.fresh(policy))
+            .evalMap(_ => counter.reset)
+            .compile
+            .drain
+            .background
+        } yield counter
 
       val noop: Counter[F] = (_: Long) => ().pure[F]
 
@@ -57,11 +82,12 @@ object Counter {
     }
   }
 
-  private[metrics] def apply[F[_]: Sync](
+  private[metrics] def apply[F[_]: Async](
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
+    zoneId: ZoneId,
     f: Endo[Builder]): Resource[F, Counter[F]] =
-    f(new Builder(isEnabled = true, isRisk = false))
-      .build[F](label, name, mr)
+    f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty))
+      .build[F](label, name, mr, zoneId)
 }

@@ -66,7 +66,7 @@ object MetricsHub {
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, metricLabel, name, f)
+      Counter[F](metricRegistry, metricLabel, name, zoneId, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
       Meter[F](metricRegistry, metricLabel, name, f)

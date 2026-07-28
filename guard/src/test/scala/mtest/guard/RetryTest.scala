@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
-import com.github.chenharryhua.nanjin.guard.event.{retrieveCounter, Event}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -132,7 +132,7 @@ class RetryTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
 
-    assert(retrieveCounter(ss.snapshot.counters).head._2.value == 1)
+    assert(retrieve.counter(ss.snapshot.counters).head._2.value == 1)
   }
 
   test("9.conditional retry") {

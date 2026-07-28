@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
-  JobHandler,
+  BatchKind,
   JobHook,
   JobState,
   JobValue,
@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.batch.{
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -80,14 +79,8 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
-              override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobState): Json = a.asJson
-            })
-            c <- job.customise("c", IO(3))(new JobHandler[Int] {
-              override def predicate(a: Int): Boolean = true
-              override def translate(a: Int, jrs: JobState): Json = a.asJson
-            })
+            _ <- job.failSafe("b", IO.raiseError[Boolean](new Exception()))
+            c <- job("c", IO(3))
           } yield a + c
         }
         .batchValue(tracer)
@@ -117,10 +110,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSafe("b", IO(10))(new JobHandler[Int] {
-              override def predicate(a: Int): Boolean = false
-              override def translate(a: Int, jrs: JobState): Json = a.asJson
-            }.withPredicate(_ > 15).contramap(identity))
+            _ <- job.failSafe("b", IO(false))
             c <- job("c", IO(3))
           } yield a + c
         }
@@ -139,6 +129,40 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(sorted(2).done)
     assert(sorted(2).job.index == 3)
+  }
+
+  test("4b.failSafe should emit boolean json to job hook") {
+    var completedJob: List[JobValue[Json]] = Nil
+    val tracer =
+      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
+
+    val se = service.eventStreamR { agent =>
+      agent
+        .batch("invincible-json")
+        .monadic { job =>
+          for {
+            a <- job("a", IO(1))
+            ok <- job.failSafe("b", IO(true))
+            ko <- job.failSafe("c", IO(false))
+            d <- job("d", IO(4))
+          } yield a + d + (if (ok) 10 else 0) + (if (ko) 100 else 0)
+        }
+        .batchValue(tracer)
+    }.compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+
+    val sorted = completedJob.sortBy(_.state.job.index)
+
+    assert(sorted.size == 4)
+    assert(sorted.head.value == Json.fromInt(1))
+    assert(sorted(1).state.job.kind == BatchKind.Quasi)
+    assert(sorted(1).state.done)
+    assert(sorted(1).value == Json.True)
+    assert(sorted(2).state.job.kind == BatchKind.Quasi)
+    assert(!sorted(2).state.done)
+    assert(sorted(2).value == Json.False)
+    assert(sorted(3).value == Json.fromInt(4))
   }
 
   test("5.filter") {

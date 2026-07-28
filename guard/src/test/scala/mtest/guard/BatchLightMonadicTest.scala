@@ -127,23 +127,23 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "tuple overload should work for apply and failSafe" in {
+    "failSafe true should mark quasi job done" in {
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-tuple")
           .monadic { job =>
             for {
-              a <- job("a" -> IO(1))
-              b <- job.failSafe("b" -> IO.raiseError[Boolean](new Exception("boom")))
-              c <- job("c" -> IO(3))
+              a <- job("a", IO(1))
+              b <- job.failSafe("b", IO(true))
+              c <- job("c", IO(3))
             } yield if (b) a + c + 100 else a + c
           }
           .batchValue
           .map { monadicValue =>
-            monadicValue.value shouldBe 4
+            monadicValue.value shouldBe 104
             monadicValue.state.jobs.size shouldBe 3
             monadicValue.state.jobs(1).job.kind shouldBe BatchKind.Quasi
-            monadicValue.state.jobs(1).done shouldBe false
+            monadicValue.state.jobs(1).done shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()

@@ -4,6 +4,7 @@ import cats.Defer
 import cats.data.ContT
 import cats.derived.derived
 import cats.kernel.Order
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsSnapshot,
@@ -12,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, Event, Snapshot, StopReason}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, Snapshot, StopReason}
 
 enum ColorScheme(val value: Int) derives Order:
   case DebugColor extends ColorScheme(0) // refer to AlarmLevel.Debug
@@ -23,12 +24,12 @@ enum ColorScheme(val value: Int) derives Order:
 end ColorScheme
 
 object ColorScheme:
-  private def color_snapshot(ss: Snapshot): ColorScheme =
-    if (retrieveHealthChecks(ss.gauges).values.forall(identity)) {
-      InfoColor
-    } else {
-      ErrorColor
-    }
+  private def color_snapshot(ss: Snapshot): ColorScheme = {
+    val health = retrieve.healthCheck(ss.gauges).forall(_._2)
+    val risk = retrieve.riskCounter(ss.counters).forall(_._2.value === 0)
+
+    if health && risk then InfoColor else WarnColor
+  }
 
   def decorate[F[_]: Defer, A](evt: Event): ContT[F, A, ColorScheme] =
     ContT.pure[F, A, Event](evt).map {

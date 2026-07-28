@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Endo
-import cats.data.{NonEmptyList, Reader, StateT}
+import cats.data.{Kleisli, NonEmptyList, Reader, StateT}
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.syntax.clock.given
 import cats.implicits.{catsSyntaxMonadErrorRethrow, toFlatMapOps, toFunctorOps, toTraverseOps}
@@ -26,6 +26,8 @@ object BatchLight {
     def map[B](f: A => B): MonadicExecutionState[B] = copy(eoa = eoa.map(f))
   }
 
+  final private case class Callbacks(renameJob: Option[Endo[String]], batchId: UUID)
+
   final class JobBuilder[F[_]] private[BatchLight] (metricLabel: MetricLabel, uuidGenerator: F[UUID])(using
     async: Async[F]) {
 
@@ -34,22 +36,22 @@ object BatchLight {
     def apply[A](name: String, fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
         metricLabel = metricLabel,
-        run = renameJob =>
-          batchId =>
-            StateT { (index: Int) =>
-              val job: BatchJob = BatchJob(
-                name = renameJob.fold(name)(_.apply(name)),
-                index = index,
-                label = metricLabel,
-                mode = mode,
-                kind = BatchKind.Value,
-                batchId = batchId)
+        kleisli = Kleisli { cb =>
+          StateT { (index: Int) =>
+            val job: BatchJob = BatchJob(
+              name = cb.renameJob.fold(name)(_.apply(name)),
+              index = index,
+              label = metricLabel,
+              mode = mode,
+              kind = BatchKind.Value,
+              batchId = cb.batchId)
 
-              fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobState(job, fd.toJava, eoa.isRight)
-                (index + 1, MonadicExecutionState(eoa = eoa, history = NonEmptyList.one(jrs)))
-              }
-            },
+            fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+              val jrs = JobState(job, fd.toJava, eoa.isRight)
+              (index + 1, MonadicExecutionState(eoa = eoa, history = NonEmptyList.one(jrs)))
+            }
+          }
+        },
         renameJob = None,
         uuidGenerator = uuidGenerator
       )
@@ -57,86 +59,80 @@ object BatchLight {
     def failSafe(name: String, fa: F[Boolean]): Monadic[F, Boolean] =
       new Monadic[F, Boolean](
         metricLabel = metricLabel,
-        run = renameJob =>
-          batchId =>
-            StateT { (index: Int) =>
-              val job: BatchJob = BatchJob(
-                name = renameJob.fold(name)(_.apply(name)),
-                index = index,
-                label = metricLabel,
-                mode = mode,
-                kind = BatchKind.Quasi,
-                batchId = batchId)
+        kleisli = Kleisli { cb =>
+          StateT { (index: Int) =>
+            val job: BatchJob = BatchJob(
+              name = cb.renameJob.fold(name)(_.apply(name)),
+              index = index,
+              label = metricLabel,
+              mode = mode,
+              kind = BatchKind.Quasi,
+              batchId = cb.batchId)
 
-              fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, identity))
-                (index + 1, MonadicExecutionState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
-              }
-            },
+            fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+              val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, identity))
+              (index + 1, MonadicExecutionState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
+            }
+          }
+        },
         renameJob = None,
         uuidGenerator = uuidGenerator
       )
-
-    def apply[A](tuple: (String, F[A])): Monadic[F, A] =
-      apply(tuple._1, tuple._2)
-
-    def failSafe(tuple: (String, F[Boolean])): Monadic[F, Boolean] =
-      failSafe(tuple._1, tuple._2)
   }
 
-  final class Monadic[F[_], T] private[BatchLight] (
+  final class Monadic[F[_], A] private[BatchLight] (
     metricLabel: MetricLabel,
-    private val run: Option[Endo[String]] => UUID => StateT[F, Int, MonadicExecutionState[T]],
+    private val kleisli: Kleisli[StateT[F, Int, *], Callbacks, MonadicExecutionState[A]],
     renameJob: Option[Endo[String]],
     uuidGenerator: F[UUID])(using async: Async[F]) {
 
-    def withJobRename(f: String => String): Monadic[F, T] =
-      new Monadic[F, T](metricLabel, run, renameJob = Some(f), uuidGenerator)
+    def withJobRename(f: String => String): Monadic[F, A] =
+      new Monadic[F, A](metricLabel, kleisli, renameJob = Some(f), uuidGenerator)
 
-    def flatMap[B](f: T => Monadic[F, B]): Monadic[F, B] = {
-      val runB: Option[Endo[String]] => UUID => StateT[F, Int, MonadicExecutionState[B]] = rename =>
-        batchId =>
-          StateT { (index: Int) =>
-            run(rename)(batchId).run(index).flatMap { case (nextIndex, jobState) =>
-              jobState.eoa match {
-                case Left(ex) => async.pure((nextIndex, jobState.update[B](ex)))
-                case Right(a) =>
-                  f(a).run(rename)(batchId).run(nextIndex).map { case (finalIndex, nextState) =>
-                    (finalIndex, jobState.prependHistory[B](nextState))
-                  }
-              }
+    def flatMap[B](f: A => Monadic[F, B]): Monadic[F, B] = {
+      val runB: Kleisli[StateT[F, Int, *], Callbacks, MonadicExecutionState[B]] = Kleisli { cb =>
+        StateT { (index: Int) =>
+          kleisli(cb).run(index).flatMap { case (nextIndex, jobState) =>
+            jobState.eoa match {
+              case Left(ex) => async.pure((nextIndex, jobState.update[B](ex)))
+              case Right(a) =>
+                f(a).kleisli(cb).run(nextIndex).map { case (finalIndex, nextState) =>
+                  (finalIndex, jobState.prependHistory[B](nextState))
+                }
             }
           }
+        }
+      }
       new Monadic[F, B](metricLabel, runB, renameJob, uuidGenerator)
     }
 
-    def map[B](f: T => B): Monadic[F, B] =
+    def map[B](f: A => B): Monadic[F, B] =
       new Monadic[F, B](
         metricLabel = metricLabel,
-        run = rename => batchId => run(rename)(batchId).map(_.map(f)),
+        kleisli = kleisli.map(_.map(f)),
         renameJob = renameJob,
         uuidGenerator = uuidGenerator)
 
-    def withFilter(f: T => Boolean): Monadic[F, T] =
-      new Monadic[F, T](
+    def withFilter(f: A => Boolean): Monadic[F, A] =
+      new Monadic[F, A](
         metricLabel = metricLabel,
-        run = rename =>
-          batchId =>
-            run(rename)(batchId).map { case unchange @ MonadicExecutionState(eoa, history) =>
-              eoa match {
-                case Left(_)      => unchange
-                case Right(value) =>
-                  if (f(value)) unchange
-                  else MonadicExecutionState[T](Left(PostConditionUnsatisfied(history.head.job)), history)
-              }
-            },
+        kleisli = Kleisli { cb =>
+          kleisli(cb).map { case unchange @ MonadicExecutionState(eoa, history) =>
+            eoa match {
+              case Left(_)      => unchange
+              case Right(value) =>
+                if (f(value)) unchange
+                else MonadicExecutionState[A](Left(PostConditionUnsatisfied(history.head.job)), history)
+            }
+          }
+        },
         renameJob = renameJob,
         uuidGenerator = uuidGenerator
       )
 
-    def batchValue: F[MonadicValue[T]] =
+    def batchValue: F[MonadicValue[A]] =
       uuidGenerator.flatMap { batchId =>
-        run(renameJob)(batchId)
+        kleisli(Callbacks(renameJob, batchId))
           .run(1)
           .map { case (_, MonadicExecutionState(eoa, history)) =>
             eoa.map { a =>
@@ -145,8 +141,7 @@ object BatchLight {
                 spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
                 mode = BatchMode.Monadic,
                 batchId = batchId,
-                jobs = history.toList
-              )
+                jobs = history.toList)
               MonadicValue(bs, a)
             }
           }

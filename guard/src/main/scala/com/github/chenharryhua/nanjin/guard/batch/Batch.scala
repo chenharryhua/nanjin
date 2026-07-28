@@ -340,7 +340,7 @@ object Batch {
       job: BatchJob,
       jobHook: JobHook[F, Json],
       updatePanel: UpdatePanel[F],
-      translate: (A, JobState) => Json)(
+      translate: A => Json)(
       outcome: Outcome[Resource[F, *], Throwable, SingleJobOutcome[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
@@ -348,7 +348,7 @@ object Batch {
             updatePanel.run(jrs) *>
               eoa.fold(
                 ex => jobHook.errored(JobError(jrs, ex)),
-                a => jobHook.completed(JobValue(jrs, translate(a, jrs))))
+                a => jobHook.completed(JobValue(jrs, translate(a))))
           }
         // Outcome.Errored should be impossible because job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
@@ -364,7 +364,7 @@ object Batch {
       * @param rfa
       *   the job
       */
-    private def fallibleJob[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[A] =
+    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
           StateT { (index: Int) =>
@@ -382,10 +382,10 @@ object Batch {
               .attempt
               .timed
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+                val jrs = JobState(job, fd.toJava, eoa.isRight)
                 SingleJobOutcome(jrs, eoa)
               }
-              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, handler.translate))
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Encoder[A].apply))
               .map { case SingleJobOutcome(jrs, eoa) =>
                 (index + 1, MonadicExecutionState(eoa = eoa, history = NonEmptyList.one(jrs)))
               }
@@ -395,6 +395,9 @@ object Batch {
         uuidGenerator = uuidGenerator
       )
 
+    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
+      apply[A](name, Resource.eval(fa))
+
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
       *   the name of the job
@@ -403,7 +406,7 @@ object Batch {
       * @return
       *   true if no exception occurs and evaluated to true, otherwise false
       */
-    private def failSafeJob[A](name: String, rfa: Resource[F, A], handler: JobHandler[A]): Monadic[Boolean] =
+    def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
           StateT { (index: Int) =>
@@ -420,11 +423,11 @@ object Batch {
               .preAllocate(jobHook.kickoff(job))
               .attempt
               .timed
-              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, handler.predicate))
+              .map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+                val jrs = JobState(job, fd.toJava, eoa.fold(_ => false, identity))
                 SingleJobOutcome(jrs, eoa)
               }
-              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, handler.translate))
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
               .map { case SingleJobOutcome(jrs, _) =>
                 (index + 1, MonadicExecutionState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
               }
@@ -434,42 +437,8 @@ object Batch {
         uuidGenerator = uuidGenerator
       )
 
-    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure
-      */
-
-    def customise[A](name: String, rfa: Resource[F, A])(handler: JobHandler[A]): Monadic[A] =
-      fallibleJob[A](name, rfa, handler)
-
-    def customise[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[A] =
-      customise[A](name, Resource.eval(fa))(handler)
-
-    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
-      customise[A](name, rfa)(new JobHandler[A] {
-        override def predicate(a: A): Boolean = true
-        override def translate(a: A, jrs: JobState): Json = a.asJson
-      })
-
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      apply[A](name, Resource.eval(fa))
-
-    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
-      * @param name
-      *   the name of the job
-      * @param rfa
-      *   the job
-      * @return
-      *   true if no exception occurs and is evaluated to true, otherwise false
-      */
-
-    def failSafe[A](name: String, rfa: Resource[F, A])(handler: JobHandler[A]): Monadic[Boolean] =
-      failSafeJob[A](name, rfa, handler)
-
-    def failSafe[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[Boolean] =
-      failSafe[A](name, Resource.eval(fa))(handler)
-
-    def failSafe[A](tuple: (String, F[A]))(handler: JobHandler[A]): Monadic[Boolean] =
-      failSafe[A](tuple._1, Resource.eval(tuple._2))(handler)
+    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
+      failSafe(name, Resource.eval(fa))
 
     /* Monadic job execution type:
      *
@@ -488,17 +457,17 @@ object Batch {
      *      - Manages the lifecycle of each job effect, ensuring proper acquisition and release.
      *      - Supports effectful computations with automatic cleanup and timing.
      */
-    final class Monadic[T] private[Batch] (
-      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[T]],
+    final class Monadic[A] private[Batch] (
+      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[A]],
       renameJob: Option[Endo[String]],
       uuidGenerator: F[UUID]
     ) {
-      def withJobRename(f: String => String): Monadic[T] =
-        new Monadic[T](kleisli, renameJob = Some(f), uuidGenerator)
+      def withJobRename(f: String => String): Monadic[A] =
+        new Monadic[A](kleisli, renameJob = Some(f), uuidGenerator)
 
-      def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
+      def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[B]] =
-          kleisli.tapWithF { (callbacks: Callbacks[F], jobState: MonadicExecutionState[T]) =>
+          kleisli.tapWithF { (callbacks: Callbacks[F], jobState: MonadicExecutionState[A]) =>
             jobState.eoa match {
               case Left(ex) =>
                 StateT(idx =>
@@ -509,10 +478,10 @@ object Batch {
         new Monadic[B](kleisli = runB, renameJob, uuidGenerator)
       }
 
-      def map[B](f: T => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)), renameJob, uuidGenerator)
+      def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)), renameJob, uuidGenerator)
 
-      def withFilter(f: T => Boolean): Monadic[T] =
-        new Monadic[T](
+      def withFilter(f: A => Boolean): Monadic[A] =
+        new Monadic[A](
           kleisli = kleisli.map { case unchange @ MonadicExecutionState(eoa, history) =>
             eoa match {
               case Left(_)      => unchange
@@ -520,14 +489,14 @@ object Batch {
                 if (f(value))
                   unchange
                 else
-                  MonadicExecutionState[T](Left(PostConditionUnsatisfied(history.head.job)), history)
+                  MonadicExecutionState[A](Left(PostConditionUnsatisfied(history.head.job)), history)
             }
           },
           renameJob = renameJob,
           uuidGenerator = uuidGenerator
         )
 
-      def batchValue(jobHook: JobHook[F, Json]): Resource[F, MonadicValue[T]] =
+      def batchValue(jobHook: JobHook[F, Json]): Resource[F, MonadicValue[A]] =
         Resource.eval(uuidGenerator).flatMap { batchId =>
           createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
             kleisli

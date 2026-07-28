@@ -119,12 +119,7 @@ final case class BatchValue[A](
   batchId: UUID,
   jobs: List[JobValue[A]]) {
   def state: BatchState =
-    BatchState(
-      label = label,
-      spent = spent,
-      mode = mode,
-      batchId = batchId,
-      jobs = jobs.map(_.state))
+    BatchState(label = label, spent = spent, mode = mode, batchId = batchId, jobs = jobs.map(_.state))
 }
 
 object BatchValue:
