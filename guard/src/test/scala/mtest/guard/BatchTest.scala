@@ -66,7 +66,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .withJobRename(_ + ":test")
-        .quasiBatch(JobHook(ga.logger).universal(_.asJson))
+        .quasiBatch(JobHook(ga.logger).universal[Unit](_.asJson).onKickoff(_ => IO.unit))
         .map { qr =>
           assert(qr.jobs.head.completed.done)
           assert(qr.jobs(1).completed.done)
