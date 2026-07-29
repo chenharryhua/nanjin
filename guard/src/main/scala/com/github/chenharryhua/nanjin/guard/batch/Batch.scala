@@ -484,7 +484,7 @@ object Batch {
           uuidGenerator = uuidGenerator
         )
 
-      def monadicResult(jobHook: JobHook[F, Json]): Resource[F, MonadicResult[A]] =
+      def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] =
         Resource.eval(uuidGenerator).flatMap { batchId =>
           createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
             kleisli
@@ -492,7 +492,7 @@ object Batch {
               .run(1)
               .guarantee(Resource.eval(activeGauge.deactivate))
           }.map { case (_, MonadicExecutionState(eoa, history)) =>
-            MonadicResult(
+            MonadicBatch(
               label = metrics.metricLabel,
               spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
               batchId = batchId,

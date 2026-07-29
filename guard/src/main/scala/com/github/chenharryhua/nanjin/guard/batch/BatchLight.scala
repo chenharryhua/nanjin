@@ -133,12 +133,12 @@ object BatchLight {
         uuidGenerator = uuidGenerator
       )
 
-    def monadicResult: F[MonadicResult[A]] =
+    def monadicBatch: F[MonadicBatch[A]] =
       uuidGenerator.flatMap { batchId =>
         kleisli(Callbacks(renameJob, batchId))
           .run(1)
           .map { case (_, MonadicExecutionState(eoa, history)) =>
-            MonadicResult(
+            MonadicBatch(
               label = metricLabel,
               spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
               batchId = batchId,

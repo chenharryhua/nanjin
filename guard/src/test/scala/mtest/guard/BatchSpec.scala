@@ -27,10 +27,10 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .monadicResult(JobHook.noop)
+          .monadicBatch(JobHook.noop)
           .use { monadicResult =>
             monadicResult.result match {
-              case Left(ex)  => IO.raiseError[Int](ex)
+              case Left(ex) => IO.raiseError[Int](ex)
               case Right(v) => IO.pure(v)
             }
           }
@@ -51,7 +51,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .monadicResult(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.result.shouldBe(Right(3))) >>

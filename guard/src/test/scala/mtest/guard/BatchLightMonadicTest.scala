@@ -30,7 +30,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             } yield a + b + c
           }
           .withJobRename("renamed-" + _)
-          .monadicResult
+          .monadicBatch
           .map { monadicValue =>
             println(monadicValue.asJson)
             monadicValue.result shouldBe Right(6)
@@ -58,7 +58,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO { cExecuted = true; 3 })
             } yield a + b + c
           }
-          .monadicResult
+          .monadicBatch
           .map { monadicValue =>
             monadicValue.result.isLeft shouldBe true
             aExecuted shouldBe true
@@ -86,7 +86,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO { cExecuted = true; 3 })
             } yield if (b) a + c else a + c
           }
-          .monadicResult
+          .monadicBatch
           .map { monadicValue =>
             monadicValue.result shouldBe Right(4)
             monadicValue.jobs.size shouldBe 3
@@ -115,7 +115,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO(3))
             } yield a + c
           }
-          .monadicResult
+          .monadicBatch
           .map { monadicValue =>
             monadicValue.result.isLeft shouldBe true
             monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied] shouldBe true
@@ -137,7 +137,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO(3))
             } yield if (b) a + c + 100 else a + c
           }
-          .monadicResult
+          .monadicBatch
           .map { monadicValue =>
             monadicValue.result shouldBe Right(104)
             monadicValue.jobs.size shouldBe 3

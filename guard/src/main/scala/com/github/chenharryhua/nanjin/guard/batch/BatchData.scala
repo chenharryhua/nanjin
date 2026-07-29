@@ -169,14 +169,14 @@ object BatchValue {
     }
 }
 
-final case class MonadicResult[A](
+final case class MonadicBatch[A](
   label: MetricLabel,
   spent: Duration,
   batchId: UUID,
   jobs: List[CompletedJob],
   result: Either[Throwable, A])
-object MonadicResult:
-  given [A: Encoder] => Encoder[MonadicResult[A]] =
+object MonadicBatch:
+  given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mv =>
       Json.obj(
         "batch" -> Json.fromString(mv.label.label),

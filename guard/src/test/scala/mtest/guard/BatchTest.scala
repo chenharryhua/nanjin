@@ -202,7 +202,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("d", IO.println(4)))
           .flatMap(_ => job("e", agent.adhoc.report.void))
           .flatMap(_ => job("f", IO.println(6)))
-          .monadicResult(JobHook.noop)
+          .monadicBatch(JobHook.noop)
           .use(_ => agent.adhoc.report.void)
       }
     }.compile.drain.unsafeRunSync()
@@ -224,7 +224,7 @@ class BatchTest extends AnyFunSuite {
           } yield a + b + c
         }
         .withJobRename("monadic job rename:" + _)
-        .monadicResult(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use { qr =>
           assert(qr.result == Right(60))
           assert(qr.jobs.forall(_.job.name.startsWith("monadic")))
@@ -250,7 +250,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .monadicResult(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -271,7 +271,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a", IO(0)))
-        .monadicResult(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use(_ => agent.adhoc.report.void)
     }.compile.drain.unsafeRunSync()
   }
@@ -297,7 +297,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .monadicResult(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use { qr =>
           val details = qr.jobs.sortBy(_.job.index)
           assert(details.head.job.name === "1")
@@ -412,7 +412,7 @@ class BatchTest extends AnyFunSuite {
   test("21.monadic flatMap limits") {
     val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicResult(JobHook.noop)
+        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
