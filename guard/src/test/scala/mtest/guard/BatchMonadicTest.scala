@@ -33,7 +33,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .batchValue(JobHook.noop[IO, Json] |+| JobHook(agent.logger).json)
+        .monadicResult(JobHook.noop[IO, Json] |+| JobHook(agent.logger).json)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -44,7 +44,7 @@ class BatchMonadicTest extends AnyFunSuite {
       IO { completedJob = jo }
     }
     val se = service.eventStreamR { agent =>
-      val res = agent
+      agent
         .batch("exception")
         .monadic { job =>
           for {
@@ -53,10 +53,11 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .batchValue(tracer)
-        .attempt
-      res.map(r => assert(r.fold(_.isInstanceOf[Exception], _ => false)))
-
+        .monadicResult(tracer)
+        .map { monadicValue =>
+          assert(monadicValue.result.isLeft)
+          assert(monadicValue.result.left.toOption.get.isInstanceOf[Exception])
+        }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(!completedJob.completed.done)
@@ -77,7 +78,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .batchValue(tracer)
+        .monadicResult(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -110,7 +111,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .batchValue(tracer)
+        .monadicResult(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -144,7 +145,7 @@ class BatchMonadicTest extends AnyFunSuite {
             d <- job("d", IO(4))
           } yield a + d + (if (ok) 10 else 0) + (if (ko) 100 else 0)
         }
-        .batchValue(tracer)
+        .monadicResult(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -178,7 +179,7 @@ class BatchMonadicTest extends AnyFunSuite {
             _ <- job("c", IO(3))
           } yield ()
         }
-        .batchValue(tracer)
+        .monadicResult(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -197,7 +198,7 @@ class BatchMonadicTest extends AnyFunSuite {
     val tracer =
       JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
     val se = service.eventStreamR { agent =>
-      val res = agent
+      agent
         .batch("exception")
         .monadic { job =>
           for {
@@ -207,10 +208,11 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .batchValue(tracer)
-        .attempt
-      res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
-
+        .monadicResult(tracer)
+        .map { monadicValue =>
+          assert(monadicValue.result.isLeft)
+          assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -229,7 +231,7 @@ class BatchMonadicTest extends AnyFunSuite {
     val tracer = JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
 
     val se = service.eventStreamR { agent =>
-      val res = agent
+      agent
         .batch("filter-state")
         .monadic { job =>
           for {
@@ -239,9 +241,11 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO { cExecuted = true; 3 })
           } yield a + c
         }
-        .batchValue(tracer)
-        .attempt
-      res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
+        .monadicResult(tracer)
+        .map { monadicValue =>
+          assert(monadicValue.result.isLeft)
+          assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -273,7 +277,7 @@ class BatchMonadicTest extends AnyFunSuite {
             d <- job("d", IO(4).delayBy(1.second))
           } yield a + b + c + d
         }
-        .batchValue(tracer)
+        .monadicResult(tracer)
         .memoizedAcquire
         .use(_.timeout(3.second))
         .attempt

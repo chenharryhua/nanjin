@@ -30,10 +30,10 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             } yield a + b + c
           }
           .withJobRename("renamed-" + _)
-          .batchValue
+          .monadicResult
           .map { monadicValue =>
             println(monadicValue.asJson)
-            monadicValue.result shouldBe 6
+            monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
             monadicValue.jobs.forall(_.job.name.startsWith("renamed-")) shouldBe true
             ()
@@ -48,26 +48,24 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       var bExecuted = false
       var cExecuted = false
 
-      val se = service.eventStreamR { agent =>
-        Resource.eval(
-          agent
-            .batchLight("light-exception")
-            .monadic { job =>
-              for {
-                a <- job("a", IO { aExecuted = true; 1 })
-                b <- job("b", IO { bExecuted = true } *> IO.raiseError[Int](new Exception("boom")))
-                c <- job("c", IO { cExecuted = true; 3 })
-              } yield a + b + c
-            }
-            .batchValue
-            .attempt
-            .map { outcome =>
-              outcome.isLeft shouldBe true
-              aExecuted shouldBe true
-              bExecuted shouldBe true
-              cExecuted shouldBe false
-            }
-        )
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-exception")
+          .monadic { job =>
+            for {
+              a <- job("a", IO { aExecuted = true; 1 })
+              b <- job("b", IO { bExecuted = true } *> IO.raiseError[Int](new Exception("boom")))
+              c <- job("c", IO { cExecuted = true; 3 })
+            } yield a + b + c
+          }
+          .monadicResult
+          .map { monadicValue =>
+            monadicValue.result.isLeft shouldBe true
+            aExecuted shouldBe true
+            bExecuted shouldBe true
+            cExecuted shouldBe false
+            ()
+          }
       }.compile.lastOrError.unsafeRunSync()
 
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
@@ -88,9 +86,9 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO { cExecuted = true; 3 })
             } yield if (b) a + c else a + c
           }
-          .batchValue
+          .monadicResult
           .map { monadicValue =>
-            monadicValue.result shouldBe 4
+            monadicValue.result shouldBe Right(4)
             monadicValue.jobs.size shouldBe 3
             monadicValue.jobs.head.done.shouldBe(true)
             monadicValue.jobs(1).done.shouldBe(false)
@@ -106,24 +104,23 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
     }
 
     "withFilter should fail when predicate is not satisfied" in {
-      val se = service.eventStreamR { agent =>
-        Resource.eval(
-          agent
-            .batchLight("light-filter")
-            .monadic { job =>
-              for {
-                a <- job("a", IO(1))
-                b <- job("b", IO(false))
-                if b
-                c <- job("c", IO(3))
-              } yield a + c
-            }
-            .batchValue
-            .attempt
-            .map { outcome =>
-              outcome.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false) shouldBe true
-            }
-        )
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-filter")
+          .monadic { job =>
+            for {
+              a <- job("a", IO(1))
+              b <- job("b", IO(false))
+              if b
+              c <- job("c", IO(3))
+            } yield a + c
+          }
+          .monadicResult
+          .map { monadicValue =>
+            monadicValue.result.isLeft shouldBe true
+            monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied] shouldBe true
+            ()
+          }
       }.compile.lastOrError.unsafeRunSync()
 
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
@@ -140,9 +137,9 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO(3))
             } yield if (b) a + c + 100 else a + c
           }
-          .batchValue
+          .monadicResult
           .map { monadicValue =>
-            monadicValue.result shouldBe 104
+            monadicValue.result shouldBe Right(104)
             monadicValue.jobs.size shouldBe 3
             monadicValue.jobs(1).job.kind shouldBe BatchKind.Quasi
             monadicValue.jobs(1).done.shouldBe(true)
@@ -161,7 +158,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .batchLight("light-sequential")
           .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
           .withJobRename("seq-" + _)
-          .withPredicate(_ >= 2)
+          .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
@@ -184,7 +181,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           agent
             .batchLight("light-sequential-value")
             .sequential("a" -> IO(1), "b" -> IO(2))
-            .withPredicate(_ > 1)
+            .withPostCondition(_ > 1)
             .batchValue
             .attempt
             .map { outcome =>
@@ -204,7 +201,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .batchLight("light-parallel-default")
           .parallel("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
           .withJobRename("par-" + _)
-          .withPredicate(_ >= 2)
+          .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
@@ -244,7 +241,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           agent
             .batchLight("light-parallel-value")
             .parallel(2)("a" -> IO(1), "b" -> IO(2))
-            .withPredicate(_ > 1)
+            .withPostCondition(_ > 1)
             .batchValue
             .attempt
             .map { outcome =>

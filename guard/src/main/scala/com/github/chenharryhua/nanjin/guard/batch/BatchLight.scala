@@ -8,7 +8,6 @@ import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import monocle.Monocle.focus
@@ -74,8 +73,8 @@ object BatchLight {
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
               val done = eoa.fold(_ => false, identity)
-              val js = JobState(CompletedJob(job, fd.toJava, done), Right(done))
-              (index + 1, MonadicExecutionState(eoa = js.result, history = NonEmptyList.one(js.completed)))
+              val completed = CompletedJob(job, fd.toJava, done)
+              (index + 1, MonadicExecutionState(eoa = Right(done), history = NonEmptyList.one(completed)))
             }
           }
         },
@@ -134,28 +133,25 @@ object BatchLight {
         uuidGenerator = uuidGenerator
       )
 
-    def batchValue: F[MonadicValue[A]] =
+    def monadicResult: F[MonadicResult[A]] =
       uuidGenerator.flatMap { batchId =>
         kleisli(Callbacks(renameJob, batchId))
           .run(1)
           .map { case (_, MonadicExecutionState(eoa, history)) =>
-            eoa.map { a =>
-              MonadicValue(
-                label = metricLabel,
-                spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
-                batchId = batchId,
-                jobs = history.toList,
-                result = a)
-            }
+            MonadicResult(
+              label = metricLabel,
+              spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
+              batchId = batchId,
+              jobs = history.toList,
+              result = eoa)
           }
-          .rethrow
       }
   }
 
-  sealed protected trait Runner[F[_], A] {
-    def withJobRename(f: Endo[String]): Runner[F, A]
-    def withPredicate(f: A => Boolean): Runner[F, A]
-    def quasiBatch: F[BatchState[A]]
+  sealed protected trait BatchRunner[F[_], A] {
+    def withJobRename(f: Endo[String]): BatchRunner[F, A]
+    def withPostCondition(f: A => Boolean): BatchRunner[F, A]
+    def quasiBatch: F[QuasiBatch[A]]
     def batchValue: F[BatchValue[A]]
   }
 
@@ -165,11 +161,11 @@ object BatchLight {
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])(implicit F: Async[F])
-      extends Runner[F, A] {
+      extends BatchRunner[F, A] {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasiBatch: F[BatchState[A]] =
+    override def quasiBatch: F[QuasiBatch[A]] =
       uuidGenerator.flatMap { batchId =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobState[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
@@ -180,7 +176,7 @@ object BatchLight {
               JobState(CompletedJob(job, fd.toJava, result.isRight), result)
             }
         }).map { case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-          BatchState(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          QuasiBatch(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
@@ -210,7 +206,7 @@ object BatchLight {
         jobs.map(_.focus(_.name).modify(f)),
         uuidGenerator)
 
-    override def withPredicate(f: A => Boolean): Parallel[F, A] =
+    override def withPostCondition(f: A => Boolean): Parallel[F, A] =
       new Parallel[F, A](metricLabel, predicate = Reader(f), parallelism, jobs, uuidGenerator)
   }
 
@@ -219,11 +215,11 @@ object BatchLight {
     predicate: Reader[A, Boolean],
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])(implicit F: Sync[F])
-      extends Runner[F, A] {
+      extends BatchRunner[F, A] {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    override def quasiBatch: F[BatchState[A]] =
+    override def quasiBatch: F[QuasiBatch[A]] =
       uuidGenerator.flatMap { batchId =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, metricLabel, mode, BatchKind.Quasi, batchId)
@@ -234,7 +230,7 @@ object BatchLight {
             JobState(CompletedJob(job, fd.toJava, result.isRight), result)
           }
         }.map(jobs =>
-          BatchState(
+          QuasiBatch(
             label = metricLabel,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
@@ -267,7 +263,7 @@ object BatchLight {
     override def withJobRename(f: String => String): Sequential[F, A] =
       new Sequential[F, A](metricLabel, predicate, jobs.map(_.focus(_.name).modify(f)), uuidGenerator)
 
-    override def withPredicate(f: A => Boolean): Sequential[F, A] =
+    override def withPostCondition(f: A => Boolean): Sequential[F, A] =
       new Sequential[F, A](metricLabel, predicate = Reader(f), jobs, uuidGenerator)
 
   }

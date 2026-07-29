@@ -90,7 +90,11 @@ object JobHook {
       new Bridge[F, A](
         completed = { (js: JobState[A]) =>
           js.result match {
-            case Left(ex) => log.warn(Json.obj("fail" -> f(js)), ex)
+            case Left(ex) =>
+              js.completed.job.kind match {
+                case BatchKind.Quasi => log.warn(Json.obj("fail" -> f(js)), ex)
+                case BatchKind.Value => log.error(Json.obj("fail" -> f(js)), ex)
+              }
             case Right(_) => log.good(Json.obj("done" -> f(js)))
           }
         },

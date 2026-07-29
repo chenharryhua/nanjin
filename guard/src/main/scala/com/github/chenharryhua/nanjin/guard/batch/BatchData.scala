@@ -96,9 +96,7 @@ object JobState:
       .deepMerge(a.completed.job.asJson)
   }
 
-final case class JobValue[A](completed: CompletedJob, result: A):
-  val state: JobState[A] = JobState(completed, Right(result))
-end JobValue
+final case class JobValue[A](completed: CompletedJob, result: A)
 object JobValue:
   given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
     Json.obj(
@@ -111,7 +109,7 @@ object JobValue:
  * Batch
  */
 
-final case class BatchState[A](
+final case class QuasiBatch[A](
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
@@ -119,8 +117,8 @@ final case class BatchState[A](
   jobs: List[JobState[A]]) {
   def done: Boolean = jobs.forall(_.completed.done)
 }
-object BatchState {
-  given [A: Encoder] => Encoder[BatchState[A]] =
+object QuasiBatch {
+  given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { bs =>
       val (done, fail) = bs.jobs.partition(_.completed.done)
       Json.obj(
@@ -171,14 +169,14 @@ object BatchValue {
     }
 }
 
-final case class MonadicValue[A](
+final case class MonadicResult[A](
   label: MetricLabel,
   spent: Duration,
   batchId: UUID,
   jobs: List[CompletedJob],
-  result: A)
-object MonadicValue:
-  given [A: Encoder] => Encoder[MonadicValue[A]] =
+  result: Either[Throwable, A])
+object MonadicResult:
+  given [A: Encoder] => Encoder[MonadicResult[A]] =
     Encoder.instance { mv =>
       Json.obj(
         "batch" -> Json.fromString(mv.label.label),

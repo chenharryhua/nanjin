@@ -101,7 +101,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("predicate.quasi")
         .parallel(jobs*)
-        .withPredicate(_ > 2)
+        .withPostCondition(_ > 2)
         .quasiBatch(JobHook(agent.logger).standard[Int])
         .use { mb =>
           IO {
@@ -128,7 +128,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("predicate.value")
         .parallel(jobs*)
-        .withPredicate(_ < 2)
+        .withPostCondition(_ < 2)
         .batchValue(tracer)
         .attempt
         .use(e => IO(assert(e.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false))))

@@ -106,10 +106,10 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
-        .withPredicate(_ => true)
+        .withPostCondition(_ => true)
         .batchValue(JobHook.noop)
         .memoizedAcquire
-        .use(_.map(_.jobs.forall(_.state.completed.done)))
+        .use(_.map(_.jobs.forall(_.completed.done)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
@@ -202,7 +202,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("d", IO.println(4)))
           .flatMap(_ => job("e", agent.adhoc.report.void))
           .flatMap(_ => job("f", IO.println(6)))
-          .batchValue(JobHook.noop)
+          .monadicResult(JobHook.noop)
           .use(_ => agent.adhoc.report.void)
       }
     }.compile.drain.unsafeRunSync()
@@ -224,9 +224,9 @@ class BatchTest extends AnyFunSuite {
           } yield a + b + c
         }
         .withJobRename("monadic job rename:" + _)
-        .batchValue(JobHook.noop)
+        .monadicResult(JobHook.noop)
         .use { qr =>
-          assert(qr.result == 60)
+          assert(qr.result == Right(60))
           assert(qr.jobs.forall(_.job.name.startsWith("monadic")))
           agent.adhoc.report.void
         }
@@ -250,7 +250,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .batchValue(JobHook.noop)
+        .monadicResult(JobHook.noop)
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -271,7 +271,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a", IO(0)))
-        .batchValue(JobHook.noop)
+        .monadicResult(JobHook.noop)
         .use(_ => agent.adhoc.report.void)
     }.compile.drain.unsafeRunSync()
   }
@@ -297,7 +297,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .batchValue(JobHook.noop)
+        .monadicResult(JobHook.noop)
         .use { qr =>
           val details = qr.jobs.sortBy(_.job.index)
           assert(details.head.job.name === "1")
@@ -339,7 +339,7 @@ class BatchTest extends AnyFunSuite {
             assert(jobs(2).result == 3)
             assert(jobs(3).result == 4)
             assert(jobs(4).result == 5)
-            assert(jobs.forall(_.state.completed.done))
+            assert(jobs.forall(_.completed.done))
             assert(jobs.head.completed.job.name == "1")
             assert(jobs.head.completed.job.index == 1)
             assert(jobs(1).completed.job.name == "2")
@@ -367,7 +367,7 @@ class BatchTest extends AnyFunSuite {
             assert(jobs(2).result == 3)
             assert(jobs(3).result == 4)
             assert(jobs(4).result == 5)
-            assert(jobs.forall(_.state.completed.done))
+            assert(jobs.forall(_.completed.done))
             assert(jobs.head.completed.job.name == "1")
             assert(jobs.head.completed.job.index == 1)
             assert(jobs(1).completed.job.name == "2")
@@ -412,7 +412,7 @@ class BatchTest extends AnyFunSuite {
   test("21.monadic flatMap limits") {
     val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(JobHook.noop)
+        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicResult(JobHook.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

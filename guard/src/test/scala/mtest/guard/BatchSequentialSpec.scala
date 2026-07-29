@@ -55,7 +55,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
         val result =
-          agent.batch("predicate").sequential(jobs*).withPredicate(_ > 3).quasiBatch(JobHook.noop)
+          agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch(JobHook.noop)
         result.asserting { mb =>
           mb.jobs.head.completed.done.shouldBe(false)
           mb.jobs(1).completed.done.shouldBe(false)
@@ -110,7 +110,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           agent
             .batch("predicate")
             .sequential(jobs*)
-            .withPredicate(_ > 3)
+            .withPostCondition(_ > 3)
             .batchValue(tracer.onComplete { jo =>
               IO {
                 assert(!jo.completed.done)
