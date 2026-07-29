@@ -158,7 +158,7 @@ object BatchValue {
         "domain" -> Json.fromString(bv.label.domain.value),
         "mode" -> Json.fromString(bv.mode.show),
         "spent" -> Json.fromString(defaultFormatter.format(bv.spent)),
-        "done" -> Json.fromInt(bv.jobs.length),
+        "total" -> Json.fromInt(bv.jobs.length),
         "results" -> bv.jobs.sortBy(_.completed.job.index)
           .map(js =>
             Json.obj(
@@ -185,7 +185,7 @@ object MonadicValue:
         "batch_id" -> mv.batchId.asJson,
         "domain" -> Json.fromString(mv.label.domain.value),
         "spent" -> Json.fromString(defaultFormatter.format(mv.spent)),
-        "done" -> Json.fromInt(mv.jobs.length),
+        "total" -> Json.fromInt(mv.jobs.length),
         "sequence" -> mv.jobs.sortBy(_.job.index)
           .map(cj =>
             Json.obj(

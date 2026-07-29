@@ -30,7 +30,6 @@ object JobHook {
     *
     *   - is kicked off (`onKickoff`)
     *   - completes (`onComplete`)
-    *   - fails (`onError`)
     *   - is canceled (`onCancel`)
     *
     * This trait is protected and intended for internal use within the JobHook system, providing a functional,
@@ -91,7 +90,7 @@ object JobHook {
       new Bridge[F, A](
         completed = { (js: JobState[A]) =>
           js.result match {
-            case Left(ex) => log.warn(f(js), ex)
+            case Left(ex) => log.warn(Json.obj("fail" -> f(js)), ex)
             case Right(_) => log.good(Json.obj("done" -> f(js)))
           }
         },
