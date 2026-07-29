@@ -11,6 +11,8 @@ import io.circe.syntax.given
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.concurrent.duration.DurationInt
+
 class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch-light")
@@ -31,9 +33,9 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .batchValue
           .map { monadicValue =>
             println(monadicValue.asJson)
-            monadicValue.value shouldBe 6
-            monadicValue.state.jobs.size shouldBe 3
-            monadicValue.state.jobs.forall(_.job.name.startsWith("renamed-")) shouldBe true
+            monadicValue.result shouldBe 6
+            monadicValue.jobs.size shouldBe 3
+            monadicValue.jobs.forall(_.job.name.startsWith("renamed-")) shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -88,11 +90,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           }
           .batchValue
           .map { monadicValue =>
-            monadicValue.value shouldBe 4
-            monadicValue.state.jobs.size shouldBe 3
-            monadicValue.state.jobs.head.done shouldBe true
-            monadicValue.state.jobs(1).done shouldBe false
-            monadicValue.state.jobs(2).done shouldBe true
+            monadicValue.result shouldBe 4
+            monadicValue.jobs.size shouldBe 3
+            monadicValue.jobs.head.done.shouldBe(true)
+            monadicValue.jobs(1).done.shouldBe(false)
+            monadicValue.jobs(2).done.shouldBe(true)
             aExecuted shouldBe true
             bExecuted shouldBe true
             cExecuted shouldBe true
@@ -140,10 +142,10 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           }
           .batchValue
           .map { monadicValue =>
-            monadicValue.value shouldBe 104
-            monadicValue.state.jobs.size shouldBe 3
-            monadicValue.state.jobs(1).job.kind shouldBe BatchKind.Quasi
-            monadicValue.state.jobs(1).done shouldBe true
+            monadicValue.result shouldBe 104
+            monadicValue.jobs.size shouldBe 3
+            monadicValue.jobs(1).job.kind shouldBe BatchKind.Quasi
+            monadicValue.jobs(1).done.shouldBe(true)
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -163,12 +165,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.job.name shouldBe "seq-a"
-            state.jobs.head.job.mode shouldBe BatchMode.Sequential
-            state.jobs.head.job.kind shouldBe BatchKind.Quasi
-            state.jobs.head.done shouldBe false
-            state.jobs(1).done shouldBe true
-            state.jobs(2).done shouldBe true
+            state.jobs.head.completed.job.name shouldBe "seq-a"
+            state.jobs.head.completed.job.mode shouldBe BatchMode.Sequential
+            state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.completed.done shouldBe false
+            state.jobs(1).completed.done shouldBe true
+            state.jobs(2).completed.done shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -206,12 +208,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.job.name shouldBe "par-a"
-            state.jobs.head.job.mode shouldBe BatchMode.Parallel(3)
-            state.jobs.head.job.kind shouldBe BatchKind.Quasi
-            state.jobs.head.done shouldBe false
-            state.jobs(1).done shouldBe true
-            state.jobs(2).done shouldBe true
+            state.jobs.head.completed.job.name shouldBe "par-a"
+            state.jobs.head.completed.job.mode shouldBe BatchMode.Parallel(3)
+            state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.completed.done shouldBe false
+            state.jobs(1).completed.done shouldBe true
+            state.jobs(2).completed.done shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -228,7 +230,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { value =>
             value.jobs.size shouldBe 2
             value.mode shouldBe BatchMode.Parallel(1)
-            value.jobs.map(_.value).sum shouldBe 3
+            value.jobs.map(_.result).sum shouldBe 3
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -247,6 +249,32 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             .attempt
             .map { outcome =>
               outcome.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false) shouldBe true
+            }
+        )
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "failed action cancels sibling jobs" in {
+      var aCompleted = false
+      var cCompleted = false
+
+      val se = service.eventStreamR { agent =>
+        Resource.eval(
+          agent
+            .batchLight("light-failed-cancels-siblings")
+            .parallel(3)(
+              "a" -> IO.sleep(2.seconds) *> IO { aCompleted = true; 1 },
+              "b" -> IO.raiseError[Int](new Exception("boom")),
+              "c" -> IO.sleep(5.seconds) *> IO { cCompleted = true; 3 }
+            )
+            .batchValue
+            .attempt
+            .map { outcome =>
+              outcome.isLeft shouldBe true
+              aCompleted shouldBe false
+              cCompleted shouldBe false
             }
         )
       }.compile.lastOrError.unsafeRunSync()

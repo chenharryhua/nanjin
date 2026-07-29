@@ -4,16 +4,15 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
-  BatchJob,
   BatchKind,
   BatchMode,
+  Job,
   JobHook,
   JobState,
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -54,9 +53,9 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch(JobHook(agent.heraldLogger).standard)
         .use { mb =>
           IO {
-            assert(mb.jobs.head.done)
-            assert(mb.jobs(1).done)
-            assert(!mb.jobs(2).done)
+            assert(mb.jobs.head.completed.done)
+            assert(mb.jobs(1).completed.done)
+            assert(!mb.jobs(2).completed.done)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -64,14 +63,17 @@ class BatchParallelTest extends AnyFunSuite {
   }
 
   test("4.exception - value") {
-    var errorJob: BatchJob = null
-    var canceledJob: BatchJob = null
-    var succJob: BatchJob = null
+    var errorJob: Job = null
+    var canceledJob: Job = null
+    var succJob: Job = null
     val tracer: JobHook.Bridge[IO, Int] =
       JobHook.noop[IO, Int]
-        .onError(jo => IO { errorJob = jo.state.job })
         .onCancel(jo => IO { canceledJob = jo })
-        .onComplete(jo => IO { succJob = jo.state.job })
+        .onComplete(jo =>
+          IO {
+            if (jo.result.isLeft) errorJob = jo.completed.job
+            else succJob = jo.completed.job
+          })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -100,14 +102,14 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.quasi")
         .parallel(jobs*)
         .withPredicate(_ > 2)
-        .quasiBatch(JobHook(agent.logger).universal { case (_, jrs) => jrs.asJson })
+        .quasiBatch(JobHook(agent.logger).standard[Int])
         .use { mb =>
           IO {
-            assert(!mb.jobs.head.done)
-            assert(mb.jobs.head.job.mode === BatchMode.Parallel(3))
-            assert(mb.jobs.head.job.kind === BatchKind.Quasi)
-            assert(!mb.jobs(1).done)
-            assert(mb.jobs(2).done)
+            assert(!mb.jobs.head.completed.done)
+            assert(mb.jobs.head.completed.job.mode === BatchMode.Parallel(3))
+            assert(mb.jobs.head.completed.job.kind === BatchKind.Quasi)
+            assert(!mb.jobs(1).completed.done)
+            assert(mb.jobs(2).completed.done)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -115,12 +117,11 @@ class BatchParallelTest extends AnyFunSuite {
   }
 
   test("6.predicate - value") {
-    var canceledJob: BatchJob = null
-    var completedJob: List[JobState] = Nil
+    var canceledJob: Job = null
+    var completedJob: List[JobState[Int]] = Nil
     val tracer = JobHook
       .noop[IO, Int]
-      .onCancel(jo => IO { canceledJob = jo }).onComplete(jo =>
-        IO { completedJob = jo.state :: completedJob })
+      .onCancel(jo => IO { canceledJob = jo }).onComplete(jo => IO { completedJob = jo :: completedJob })
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     val se = service.eventStream { agent =>
@@ -135,17 +136,52 @@ class BatchParallelTest extends AnyFunSuite {
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.job.index)
+    val sorted = completedJob.sortBy(_.completed.job.index)
 
-    assert(sorted.head.job.index == 1)
-    assert(sorted.head.job.kind === BatchKind.Value)
-    assert(sorted.head.job.mode === BatchMode.Parallel(3))
-    assert(sorted.head.done)
+    assert(sorted.head.completed.job.index == 1)
+    assert(sorted.head.completed.job.kind === BatchKind.Value)
+    assert(sorted.head.completed.job.mode === BatchMode.Parallel(3))
+    assert(sorted.head.completed.done)
 
-    assert(sorted(1).job.index == 2)
-    assert(!sorted(1).done)
+    assert(sorted(1).completed.job.index == 2)
+    assert(!sorted(1).completed.done)
 
     assert(canceledJob.index == 3)
+  }
+
+  test("7.failed action cancels sibling jobs") {
+    var canceledJobs: List[Job] = Nil
+    var completedJob: List[JobState[Int]] = Nil
+    val tracer = JobHook
+      .noop[IO, Int]
+      .onCancel(jo => IO { canceledJobs = jo :: canceledJobs })
+      .onComplete(jo => IO { completedJob = jo :: completedJob })
+
+    val jobs = List(
+      "a" -> IO(1).delayBy(1.second),
+      "b" -> IO.raiseError(new Exception("boom")).delayBy(1.second),
+      "c" -> IO(3).delayBy(3.seconds)
+    )
+
+    val se = service.eventStream { agent =>
+      agent
+        .batch("failed-cancels-siblings")
+        .parallel(jobs*)
+        .batchValue(tracer)
+        .attempt
+        .use(e => IO(assert(e.isLeft)))
+        .void
+    }.compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    assert(canceledJobs.exists(_.index == 3))
+    assert(canceledJobs.nonEmpty)
+
+    val sorted = completedJob.sortBy(_.completed.job.index)
+    assert(sorted.nonEmpty)
+    assert(sorted.head.result.isRight)
+    assert(sorted.exists(_.result.isLeft))
+    assert(sorted.exists(_.completed.done == false))
   }
 
 }

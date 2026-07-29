@@ -31,7 +31,9 @@ object BatchMode {
   }
 
   given Encoder[BatchMode] =
-    (a: BatchMode) => Json.fromString(a.show)
+    Encoder.instance { (a: BatchMode) =>
+      Json.fromString(a.show)
+    }
 
   private val Pattern: Regex = raw"parallel-(\d+)".r
 
@@ -44,7 +46,11 @@ object BatchMode {
   }
 }
 
-final case class BatchJob(
+/*
+ * Job
+ */
+
+final case class Job(
   name: String,
   index: Int,
   label: MetricLabel,
@@ -54,62 +60,87 @@ final case class BatchJob(
   val batch: String = label.label
   val domain: String = label.domain.value
   def displayName: String = s"job-$index $name"
-end BatchJob
-
-object BatchJob {
-  given Encoder[BatchJob] =
-    (a: BatchJob) =>
-      Json.obj(
-        show"job-${a.index}" -> Json.fromString(a.name),
-        "batch" -> Json.fromString(a.batch),
-        "batch_id" -> a.batchId.asJson,
-        "domain" -> Json.fromString(a.domain),
-        "mode" -> Json.fromString(a.mode.show),
-        "kind" -> Json.fromString(a.kind.show)
-      )
+end Job
+object Job {
+  given Encoder[Job] = Encoder.instance { (a: Job) =>
+    Json.obj(
+      show"job-${a.index}" -> Json.fromString(a.name),
+      "batch" -> Json.fromString(a.batch),
+      "batch_id" -> a.batchId.asJson,
+      "domain" -> Json.fromString(a.domain),
+      "mode" -> Json.fromString(a.mode.show),
+      "kind" -> Json.fromString(a.kind.show)
+    )
+  }
 }
 
-final case class JobState(job: BatchJob, took: Duration, done: Boolean):
-  val fail: Boolean = !done
+final case class CompletedJob(job: Job, took: Duration, done: Boolean)
 
+private given [A: Encoder] => Encoder[Either[Throwable, A]] =
+  Encoder.instance {
+    case Left(value)  => Json.fromString(ExceptionUtils.getMessage(value))
+    case Right(value) => value.asJson
+  }
+
+/*
+ * Job State and Value
+ */
+final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]):
+  def map[B](f: A => B): JobState[B] = copy(result = result.map(f))
+end JobState
 object JobState:
-  given Encoder[JobState] =
-    (a: JobState) =>
-      Json.obj("took" -> Json.fromString(defaultFormatter.format(a.took))).deepMerge(a.job.asJson)
+  given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
+    Json.obj(
+      "took" -> Json.fromString(defaultFormatter.format(a.completed.took)),
+      "result" -> a.result.asJson)
+      .deepMerge(a.completed.job.asJson)
+  }
 
-final case class JobValue[A](state: JobState, value: A):
-  def map[B](f: A => B): JobValue[B] = copy(value = f(value))
+final case class JobValue[A](completed: CompletedJob, result: A):
+  val state: JobState[A] = JobState(completed, Right(result))
+end JobValue
+object JobValue:
+  given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
+    Json.obj(
+      "took" -> Json.fromString(defaultFormatter.format(a.completed.took)),
+      "result" -> a.result.asJson)
+      .deepMerge(a.completed.job.asJson)
+  }
 
-final case class JobError(state: JobState, cause: Throwable)
+/*
+ * Batch
+ */
 
-final case class BatchState(
+final case class BatchState[A](
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
-  jobs: List[JobState])
+  jobs: List[JobState[A]]) {
+  def done: Boolean = jobs.forall(_.completed.done)
+}
 object BatchState {
-  given Encoder[BatchState] = { (br: BatchState) =>
-    val (done, fail) = br.jobs.partition(_.done)
-    Json.obj(
-      "batch" -> Json.fromString(br.label.label),
-      "batch_id" -> br.batchId.asJson,
-      "domain" -> Json.fromString(br.label.domain.value),
-      "mode" -> Json.fromString(br.mode.show),
-      "spent" -> Json.fromString(defaultFormatter.format(br.spent)),
-      "done" -> Json.fromInt(done.length),
-      "fail" -> Json.fromInt(fail.length),
-      "results" -> br.jobs.sortBy(_.job.index)
-        .map(js =>
-          Json.obj(
-            show"job-${js.job.index}" -> Json.fromString(js.job.name),
-            "took" -> Json.fromString(defaultFormatter.format(js.took)),
-            "kind" -> Json.fromString(js.job.kind.show),
-            "done" -> Json.fromBoolean(js.done)
-          ))
-        .asJson
-    )
-  }
+  given [A: Encoder] => Encoder[BatchState[A]] =
+    Encoder.instance { bs =>
+      val (done, fail) = bs.jobs.partition(_.completed.done)
+      Json.obj(
+        "batch" -> Json.fromString(bs.label.label),
+        "batch_id" -> bs.batchId.asJson,
+        "domain" -> Json.fromString(bs.label.domain.value),
+        "mode" -> Json.fromString(bs.mode.show),
+        "spent" -> Json.fromString(defaultFormatter.format(bs.spent)),
+        "done" -> Json.fromInt(done.length),
+        "fail" -> Json.fromInt(fail.length),
+        "results" -> bs.jobs.sortBy(_.completed.job.index)
+          .map(js =>
+            Json.obj(
+              show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
+              "took" -> Json.fromString(defaultFormatter.format(js.completed.took)),
+              "result" -> js.result.asJson
+            ))
+          .asJson
+      )
+    }
 }
 
 final case class BatchValue[A](
@@ -117,37 +148,56 @@ final case class BatchValue[A](
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
-  jobs: List[JobValue[A]]) {
-  def state: BatchState =
-    BatchState(label = label, spent = spent, mode = mode, batchId = batchId, jobs = jobs.map(_.state))
-}
-
-object BatchValue:
+  jobs: List[JobValue[A]])
+object BatchValue {
   given [A: Encoder] => Encoder[BatchValue[A]] =
-    (bv: BatchValue[A]) =>
+    Encoder.instance { bv =>
       Json.obj(
         "batch" -> Json.fromString(bv.label.label),
         "batch_id" -> bv.batchId.asJson,
         "domain" -> Json.fromString(bv.label.domain.value),
         "mode" -> Json.fromString(bv.mode.show),
         "spent" -> Json.fromString(defaultFormatter.format(bv.spent)),
-        "results" -> bv.jobs.sortBy(_.state.job.index)
-          .map(jv =>
+        "done" -> Json.fromInt(bv.jobs.length),
+        "results" -> bv.jobs.sortBy(_.completed.job.index)
+          .map(js =>
             Json.obj(
-              show"job-${jv.state.job.index}" -> Json.fromString(jv.state.job.name),
-              "took" -> Json.fromString(defaultFormatter.format(jv.state.took)),
-              "kind" -> Json.fromString(jv.state.job.kind.show),
-              "value" -> jv.value.asJson
+              show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
+              "took" -> Json.fromString(defaultFormatter.format(js.completed.took)),
+              "result" -> js.result.asJson
             ))
           .asJson
       )
+    }
+}
 
-final case class MonadicValue[A](state: BatchState, value: A)
+final case class MonadicValue[A](
+  label: MetricLabel,
+  spent: Duration,
+  batchId: UUID,
+  jobs: List[CompletedJob],
+  result: A)
 object MonadicValue:
   given [A: Encoder] => Encoder[MonadicValue[A]] =
-    (a: MonadicValue[A]) => Json.obj("value" -> a.value.asJson).deepMerge(a.state.asJson)
+    Encoder.instance { mv =>
+      Json.obj(
+        "batch" -> Json.fromString(mv.label.label),
+        "batch_id" -> mv.batchId.asJson,
+        "domain" -> Json.fromString(mv.label.domain.value),
+        "spent" -> Json.fromString(defaultFormatter.format(mv.spent)),
+        "done" -> Json.fromInt(mv.jobs.length),
+        "sequence" -> mv.jobs.sortBy(_.job.index)
+          .map(cj =>
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(defaultFormatter.format(cj.took))
+            ))
+          .asJson,
+        "result" -> mv.result.asJson
+      )
+    }
 
-final case class PostConditionUnsatisfied(job: BatchJob)
+final case class PostConditionUnsatisfied(job: Job)
     extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
 
 final private[batch] case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])

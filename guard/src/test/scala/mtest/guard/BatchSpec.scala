@@ -28,7 +28,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             } yield a + b + c
           }
           .batchValue(JobHook.noop)
-          .map(_.value)
+          .map(_.result)
           .memoizedAcquire
           .use(identity)
         result.assertThrowsError[PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
@@ -51,10 +51,10 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .batchValue(JobHook.noop)
         .use(qr => agent.adhoc.report.as(qr))
 
-      result.asserting(_.value.shouldBe(3)) >>
-        result.asserting(_.state.jobs.head.done.shouldBe(true)) >>
-        result.asserting(_.state.jobs(1).done.shouldBe(false)) >>
-        result.asserting(_.state.jobs(2).done.shouldBe(true)) >>
+      result.asserting(_.result.shouldBe(3)) >>
+        result.asserting(_.jobs.head.done.shouldBe(true)) >>
+        result.asserting(_.jobs(1).done.shouldBe(false)) >>
+        result.asserting(_.jobs(2).done.shouldBe(true)) >>
         IO.unit
     }.compile.lastOrError.unsafeRunSync()
 
