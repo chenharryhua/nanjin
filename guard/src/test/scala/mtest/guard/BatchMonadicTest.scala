@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxApplicativeId
 import cats.syntax.group.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
@@ -28,8 +29,11 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("good")
         .monadic { job =>
           for {
+            _ <- job.pure(1)
             a <- job("a", IO(1))
+            _ <- job.pure(2)
             b <- job("b", IO(2))
+            _ <- 3.pure[job.Monadic]
             c <- job("c", IO(3))
           } yield a + b + c
         }

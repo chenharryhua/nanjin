@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.Applicative
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -27,7 +28,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .monadicBatch(JobHook.noop)
+          .monadicBatch(JobHook.noop[IO, io.circe.Json])
           .use { monadicResult =>
             monadicResult.result match {
               case Left(ex) => IO.raiseError[Int](ex)
@@ -40,6 +41,64 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
 
+  "applicative" -
+    "combines values sequentially".in {
+      val se = service.eventStream { agent =>
+        val result = agent
+          .batch("monadic")
+          .monadic { job =>
+            type M[A] = job.Monadic[A]
+            val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
+            combined
+          }
+          .monadicBatch(JobHook.noop[IO, io.circe.Json])
+          .use(qr => agent.adhoc.report.as(qr))
+
+        result.asserting(_.result.shouldBe(Right(3))) >>
+          result.asserting(_.jobs.size.shouldBe(2)) >>
+          IO.unit
+      }.compile.lastOrError.unsafeRunSync()
+
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
+
+  "identity law preserves the job result".in {
+    val se = service.eventStream { agent =>
+      val left = agent
+        .batch("monadic")
+        .monadic { job =>
+          Applicative[job.Monadic].ap(Applicative[job.Monadic].pure((x: Int) => x))(job("a", IO(1)))
+        }
+        .monadicBatch(JobHook.noop[IO, io.circe.Json])
+        .use(_.result match {
+          case Right(value) => IO.pure(value)
+          case Left(ex)     => IO.raiseError(ex)
+        })
+
+      val right = agent
+        .batch("monadic")
+        .monadic { job =>
+          job("a", IO(1))
+        }
+        .monadicBatch(JobHook.noop[IO, io.circe.Json])
+        .use(_.result match {
+          case Right(value) => IO.pure(value)
+          case Left(ex)     => IO.raiseError(ex)
+        })
+
+      for {
+        l <- left
+        r <- right
+      } yield {
+        l shouldBe 1
+        r shouldBe 1
+        ()
+      }
+    }.compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
   "invincible".in {
     val se = service.eventStream { agent =>
       val result = agent
@@ -51,7 +110,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .monadicBatch(JobHook.noop)
+        .monadicBatch(JobHook.noop[IO, io.circe.Json])
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.result.shouldBe(Right(3))) >>

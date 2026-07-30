@@ -1,8 +1,10 @@
 package mtest.guard
 
+import cats.Applicative
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
@@ -24,8 +26,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .batchLight("light")
           .monadic { job =>
             for {
+              _ <- job.pure(1)
               a <- job("a", IO(1))
+              _ <- 2.pure[job.Monadic]
               b <- job("b", IO(2))
+              _ <- job.pure(3)
               c <- job("c", IO(3))
             } yield a + b + c
           }
@@ -98,6 +103,59 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             cExecuted shouldBe true
             ()
           }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "supports applicative-style composition" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-applicative")
+          .monadic { job =>
+            type M[A] = job.Monadic[A]
+            val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
+            combined
+          }
+          .monadicBatch
+          .map { monadicValue =>
+            monadicValue.result shouldBe Right(3)
+            monadicValue.jobs.size shouldBe 2
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "identity law preserves the job result" in {
+      val se = service.eventStream { agent =>
+        val left = agent
+          .batchLight("light-applicative-identity")
+          .monadic { job =>
+            Applicative[job.Monadic].ap(Applicative[job.Monadic].pure((x: Int) => x))(job("a", IO(1)))
+          }
+          .monadicBatch
+          .map(_.result)
+
+        val right = agent
+          .batchLight("light-applicative-identity-right")
+          .monadic { job =>
+            job("a", IO(1))
+          }
+          .monadicBatch
+          .map(_.result)
+
+        val combined = for {
+          l <- left
+          r <- right
+        } yield {
+          l shouldBe Right(1)
+          r shouldBe Right(1)
+          ()
+        }
+
+        combined
       }.compile.lastOrError.unsafeRunSync()
 
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
