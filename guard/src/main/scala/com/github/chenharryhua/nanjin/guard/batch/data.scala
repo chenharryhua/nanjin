@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.{Functor, Show}
 import cats.derived.derived
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import io.circe.syntax.EncoderOps
@@ -105,6 +105,36 @@ object JobValue:
       .deepMerge(a.completed.job.asJson)
   }
 
+final case class CompletedBatch(
+  label: MetricLabel,
+  spent: Duration,
+  mode: BatchMode,
+  batchId: UUID,
+  jobs: List[CompletedJob])
+object CompletedBatch:
+  given Encoder[CompletedBatch] =
+    Encoder.instance { cb =>
+      val (done, fail) = cb.jobs.partition(_.done)
+      Json.obj(
+        "batch" -> Json.fromString(cb.label.label),
+        "batch_id" -> cb.batchId.asJson,
+        "domain" -> Json.fromString(cb.label.domain.value),
+        "mode" -> Json.fromString(cb.mode.show),
+        "spent" -> Json.fromString(defaultFormatter.format(cb.spent)),
+        "done" -> Json.fromInt(done.length),
+        "fail" -> Json.fromInt(fail.length),
+        "jobs" -> cb.jobs.sortBy(_.job.index)
+          .map(cj =>
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(defaultFormatter.format(cj.took)),
+              "kind" -> cj.job.kind.asJson,
+              "done" -> Json.fromBoolean(cj.done)
+            ))
+          .asJson
+      )
+    }
+
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
   * outcome state.
   */
@@ -116,6 +146,13 @@ final case class QuasiBatch[A](
   jobs: List[JobState[A]])
     derives Functor {
   def done: Boolean = jobs.forall(_.completed.done)
+  def completed: CompletedBatch = CompletedBatch(
+    label = label,
+    spent = spent,
+    mode = mode,
+    batchId = batchId,
+    jobs = jobs.map(_.completed)
+  )
 }
 object QuasiBatch {
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
@@ -152,6 +189,13 @@ final case class BatchValue[A](
   jobs: List[JobValue[A]])
     derives Functor {
   val done: Boolean = true
+  def completed: CompletedBatch = CompletedBatch(
+    label = label,
+    spent = spent,
+    mode = mode,
+    batchId = batchId,
+    jobs = jobs.map(_.completed)
+  )
 }
 object BatchValue {
   given [A: Encoder] => Encoder[BatchValue[A]] =
@@ -185,6 +229,14 @@ final case class MonadicBatch[A](
   result: Either[Throwable, A])
     derives Functor {
   def done: Boolean = result.isRight
+
+  def completed: CompletedBatch = CompletedBatch(
+    label = label,
+    spent = spent,
+    mode = BatchMode.Monadic,
+    batchId = batchId,
+    jobs = jobs
+  )
 }
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.data.{Ior, Kleisli, NonEmptyList, Reader, StateT}
+import cats.data.{Ior, Kleisli, Reader, StateT}
 import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Outcome, Resource, Temporal}
 import cats.effect.syntax.clock.given
@@ -13,7 +13,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.given
 import cats.syntax.traverse.given
-import cats.{Endo, MonadThrow}
+import cats.{Applicative, Endo, MonadThrow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
@@ -83,8 +83,6 @@ object Batch {
     } yield BatchMetrics(
       Kleisli((cj: CompletedJob) => F.uncancelable(_ => progress.update(_.appended(cj)))),
       active)
-
-  ///
 
   private def handleOutcome[F[_], A](job: Job, jobHook: JobHook[F, A], updatePanel: UpdatePanel[F])(
     outcome: Outcome[F, Throwable, JobState[A]])(using F: MonadThrow[F]): F[Unit] =
@@ -303,17 +301,6 @@ object Batch {
    * Monadic
    */
 
-  final private case class MonadicExecutionState[A](
-    eoa: Either[Throwable, A],
-    history: NonEmptyList[CompletedJob]) {
-    def update[B](ex: Throwable): MonadicExecutionState[B] = copy(eoa = Left(ex))
-    // reversed order
-    def prependHistory[B](js: MonadicExecutionState[B]): MonadicExecutionState[B] =
-      MonadicExecutionState[B](js.eoa, js.history ::: history)
-
-    def map[B](f: A => B): MonadicExecutionState[B] = copy(eoa = eoa.map(f))
-  }
-
   final private case class Callbacks[F[_]](
     updatePanel: UpdatePanel[F],
     jobHook: JobHook[F, Json],
@@ -321,135 +308,14 @@ object Batch {
     batchId: UUID)
 
   final class JobBuilder[F[_]] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID])(using
-    F: Async[F]) {
+    F: Async[F]):
 
     private val mode: BatchMode = BatchMode.Monadic
 
-    private def handleOutcome[A](
-      job: Job,
-      jobHook: JobHook[F, Json],
-      updatePanel: UpdatePanel[F],
-      translate: A => Json)(outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
-      outcome match {
-        case Outcome.Succeeded(rfa) =>
-          rfa.evalMap(js => updatePanel.run(js.completed) *> jobHook.completed(js.map(translate)))
-        // Outcome.Errored should be impossible because job effects are wrapped in attempt
-        case Outcome.Errored(ex) =>
-          Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
-        case Outcome.Canceled() => Resource.eval(jobHook.canceled(job))
-      }
-
-    /** Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
-      * the monadic chain to stop at the first failure.
-      *
-      * @param name
-      *   name of the job
-      * @param rfa
-      *   the job
-      */
-    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
-      new Monadic[A](
-        kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
-          StateT { (index: Int) =>
-            val job: Job =
-              Job(
-                name = renameJob.fold(name)(_.apply(name)),
-                index = index,
-                label = metrics.metricLabel,
-                mode = mode,
-                kind = BatchKind.Value,
-                batchId = batchId)
-
-            rfa
-              .preAllocate(jobHook.kickoff(job))
-              .attempt
-              .timed
-              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                JobState(CompletedJob(job, fd.toJava, eoa.isRight), eoa)
-              }
-              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Encoder[A].apply))
-              .map { js =>
-                (index + 1, MonadicExecutionState(eoa = js.result, history = NonEmptyList.one(js.completed)))
-              }
-          }
-        },
-        renameJob = None,
-        uuidGenerator = uuidGenerator
-      )
-
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      apply[A](name, Resource.eval(fa))
-
-    /** Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
-      * remainder of the monadic chain to continue.
-      *
-      * @param name
-      *   the name of the job
-      * @param rfa
-      *   the job
-      * @return
-      *   true only when the job succeeds and evaluates to true; otherwise false
-      */
-    def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
-      new Monadic[Boolean](
-        kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
-          StateT { (index: Int) =>
-            val job: Job =
-              Job(
-                name = renameJob.fold(name)(_.apply(name)),
-                index = index,
-                label = metrics.metricLabel,
-                mode = mode,
-                kind = BatchKind.Quasi,
-                batchId = batchId)
-
-            rfa
-              .preAllocate(jobHook.kickoff(job))
-              .attempt
-              .timed
-              .map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                val done = eoa.fold(_ => false, identity)
-                JobState(CompletedJob(job, fd.toJava, done), eoa) // make throwable visible
-              }
-              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
-              .map { js =>
-                (
-                  index + 1,
-                  MonadicExecutionState(
-                    eoa = Right(js.completed.done),
-                    history = NonEmptyList.one(js.completed)))
-              }
-          }
-        },
-        renameJob = None,
-        uuidGenerator = uuidGenerator
-      )
-
-    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
-      failSafe(name, Resource.eval(fa))
-
-    /* Monadic job execution type:
-     *
-     * `Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[T]]`
-     *
-     * The type separates distinct responsibilities:
-     *
-     *   1. `Kleisli[*, Callbacks[F], *]`
-     *      - Provides a read-only environment containing hooks, metrics panels, active gauges, and
-     *        optional job renaming.
-     *      - Allows each job to access required context without explicit parameter passing.
-     *   2. `StateT[Resource[F, *], Int, *]`
-     *      - Tracks sequential state, including job index and history.
-     *      - Supports numbering and result collection.
-     *   3. `Resource[F, *]`
-     *      - Manages the lifecycle of each job effect, ensuring proper acquisition and release.
-     *      - Supports effectful computations with automatic cleanup and timing.
-     */
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], MonadicExecutionState[A]],
       renameJob: Option[Endo[String]],
-      uuidGenerator: F[UUID]
-    ) {
+      uuidGenerator: F[UUID]):
       def withJobRename(f: String => String): Monadic[A] =
         new Monadic[A](kleisli, renameJob = Some(f), uuidGenerator)
 
@@ -496,13 +362,134 @@ object Batch {
               label = metrics.metricLabel,
               spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
               batchId = batchId,
-              jobs = history.toList,
+              jobs = history,
               result = eoa
             )
           }
         }
-    }
-  }
+    end Monadic
+
+    private def pureMonadic[A](a: A): Monadic[A] =
+      new Monadic[A](
+        kleisli = Kleisli { _ =>
+          StateT(index => Resource.pure(index -> MonadicExecutionState(Right(a), Nil)))
+        },
+        renameJob = None,
+        uuidGenerator = uuidGenerator
+      )
+
+    given Applicative[Monadic] with
+      override def pure[A](a: A): Monadic[A] = pureMonadic(a)
+      override def ap[A, B](ff: Monadic[A => B])(fa: Monadic[A]): Monadic[B] =
+        ff.flatMap(f => fa.map(f))
+    end given
+
+    // job constructors
+
+    def pure[A](a: A): Monadic[A] = pureMonadic(a)
+
+    private def handleOutcome[A](
+      job: Job,
+      jobHook: JobHook[F, Json],
+      updatePanel: UpdatePanel[F],
+      translate: A => Json)(outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
+      outcome match {
+        case Outcome.Succeeded(rfa) =>
+          rfa.evalMap(js => updatePanel.run(js.completed) *> jobHook.completed(js.map(translate)))
+        // Outcome.Errored should be impossible because job effects are wrapped in attempt
+        case Outcome.Errored(ex) =>
+          Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
+        case Outcome.Canceled() => Resource.eval(jobHook.canceled(job))
+      }
+
+    /** Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
+      * the monadic chain to stop at the first failure.
+      *
+      * @param name
+      *   name of the job
+      * @param rfa
+      *   the job
+      */
+    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
+      new Monadic[A](
+        kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
+          StateT { (index: Int) =>
+            val job: Job =
+              Job(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = mode,
+                kind = BatchKind.Value,
+                batchId = batchId)
+
+            rfa
+              .preAllocate(jobHook.kickoff(job))
+              .attempt
+              .timed
+              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                JobState(CompletedJob(job, fd.toJava, eoa.isRight), eoa)
+              }
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Encoder[A].apply))
+              .map { js =>
+                (index + 1, MonadicExecutionState(eoa = js.result, history = List(js.completed)))
+              }
+          }
+        },
+        renameJob = None,
+        uuidGenerator = uuidGenerator
+      )
+
+    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
+      apply[A](name, Resource.eval(fa))
+
+    /** Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
+      * remainder of the monadic chain to continue.
+      *
+      * @param name
+      *   the name of the job
+      * @param rfa
+      *   the job
+      * @return
+      *   true only when the job succeeds and evaluates to true; otherwise false
+      */
+    def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
+      new Monadic[Boolean](
+        kleisli = Kleisli { case Callbacks(updatePanel, jobHook, renameJob, batchId) =>
+          StateT { (index: Int) =>
+            val job: Job =
+              Job(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = mode,
+                kind = BatchKind.Quasi,
+                batchId = batchId)
+
+            rfa
+              .preAllocate(jobHook.kickoff(job))
+              .attempt
+              .timed
+              .map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+                val done = eoa.fold(_ => false, identity)
+                JobState(CompletedJob(job, fd.toJava, done), eoa) // make throwable visible
+              }
+              .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
+              .map { js =>
+                (
+                  index + 1,
+                  MonadicExecutionState(eoa = Right(js.completed.done), history = List(js.completed)))
+              }
+          }
+        },
+        renameJob = None,
+        uuidGenerator = uuidGenerator
+      )
+
+    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
+      failSafe(name, Resource.eval(fa))
+
+  end JobBuilder
 }
 
 /** Batch is intended for long-running or stateful work where callers want to observe progress, lifecycle
@@ -542,6 +529,8 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
     parallel[A](fas.size)(fas*)
 
   /** Builds a monadic batch using a fluent job builder that can sequence values and conditional steps. */
-  def monadic[A](f: Batch.JobBuilder[F] => A): A =
-    f(new Batch.JobBuilder[F](metrics, uuidGenerator))
+  def monadic[A](f: Batch.JobBuilder[F] => A): A = {
+    val builder = new Batch.JobBuilder[F](metrics, uuidGenerator)
+    f(builder)
+  }
 }
