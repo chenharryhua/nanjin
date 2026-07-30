@@ -1,19 +1,21 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.implicits.catsSyntaxApplicativeByName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.batch.{
+  BatchKind,
+  BatchMode,
+  BatchValue,
+  JobHook,
+  PostConditionUnsatisfied
+}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
-import com.github.chenharryhua.nanjin.guard.batch.{
-  BatchKind,
-  BatchMode,
-  JobError,
-  JobHook,
-  PostConditionUnsatisfied
-}
 
 class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
@@ -36,13 +38,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val se = service.eventStreamR { agent =>
         val result = agent.batch("exception").sequential(jobs*).quasiBatch(JobHook.noop)
         result.asserting { mb =>
-          mb.jobs.head.done.shouldBe(true)
-          mb.jobs.head.job.mode.shouldBe(BatchMode.Sequential)
-          mb.jobs.head.job.kind.shouldBe(BatchKind.Quasi)
-          mb.jobs(1).done.shouldBe(false)
-          mb.jobs(2).done.shouldBe(true)
-          mb.jobs(3).done.shouldBe(true)
-          mb.jobs(4).done.shouldBe(true)
+          mb.jobs.head.completed.done.shouldBe(true)
+          mb.jobs.head.completed.job.mode.shouldBe(BatchMode.Sequential)
+          mb.jobs.head.completed.job.kind.shouldBe(BatchKind.Quasi)
+          mb.jobs(1).completed.done.shouldBe(false)
+          mb.jobs(2).completed.done.shouldBe(true)
+          mb.jobs(3).completed.done.shouldBe(true)
+          mb.jobs(4).completed.done.shouldBe(true)
         }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -53,13 +55,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
         val result =
-          agent.batch("predicate").sequential(jobs*).withPredicate(_ > 3).quasiBatch(JobHook.noop)
+          agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch(JobHook.noop)
         result.asserting { mb =>
-          mb.jobs.head.done.shouldBe(false)
-          mb.jobs(1).done.shouldBe(false)
-          mb.jobs(2).done.shouldBe(false)
-          mb.jobs(3).done.shouldBe(true)
-          mb.jobs(4).done.shouldBe(true)
+          mb.jobs.head.completed.done.shouldBe(false)
+          mb.jobs(1).completed.done.shouldBe(false)
+          mb.jobs(2).completed.done.shouldBe(false)
+          mb.jobs(3).completed.done.shouldBe(true)
+          mb.jobs(4).completed.done.shouldBe(true)
         }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -87,12 +89,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onError { case JobError(jo, oc) =>
+          .batchValue(tracer.onComplete { jo =>
+            println(jo)
             IO {
-              assert(!jo.done)
-              assert(jo.job.index == 2)
-              assert(oc.getMessage == "abc")
-            }.void
+              assert(jo.result.isLeft)
+              assert(!jo.completed.done)
+              assert(jo.result.left.toOption.get.getMessage == "abc")
+            }.whenA(jo.completed.job.index == 2)
           })
         result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
       }.compile.lastOrError
@@ -103,16 +106,15 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs =
         List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        val result =
+        val result: Resource[IO, BatchValue[Int]] =
           agent
             .batch("predicate")
             .sequential(jobs*)
-            .withPredicate(_ > 3)
+            .withPostCondition(_ > 3)
             .batchValue(tracer.onComplete { jo =>
               IO {
-                assert(!jo.state.done)
-                assert(jo.state.job.index == 1)
-                assert(jo.value == 1)
+                assert(!jo.completed.done)
+                assert(jo.completed.job.index == 1)
               }.void
             })
         result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))

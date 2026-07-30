@@ -27,10 +27,13 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .batchValue(JobHook.noop)
-          .map(_.value)
-          .memoizedAcquire
-          .use(identity)
+          .monadicBatch(JobHook.noop)
+          .use { monadicResult =>
+            monadicResult.result match {
+              case Left(ex) => IO.raiseError[Int](ex)
+              case Right(v) => IO.pure(v)
+            }
+          }
         result.assertThrowsError[PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
       }.compile.lastOrError.unsafeRunSync()
 
@@ -48,13 +51,13 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .batchValue(JobHook.noop)
+        .monadicBatch(JobHook.noop)
         .use(qr => agent.adhoc.report.as(qr))
 
-      result.asserting(_.value.shouldBe(3)) >>
-        result.asserting(_.state.jobs.head.done.shouldBe(true)) >>
-        result.asserting(_.state.jobs(1).done.shouldBe(false)) >>
-        result.asserting(_.state.jobs(2).done.shouldBe(true)) >>
+      result.asserting(_.result.shouldBe(Right(3))) >>
+        result.asserting(_.jobs.head.done.shouldBe(true)) >>
+        result.asserting(_.jobs(1).done.shouldBe(false)) >>
+        result.asserting(_.jobs(2).done.shouldBe(true)) >>
         IO.unit
     }.compile.lastOrError.unsafeRunSync()
 
