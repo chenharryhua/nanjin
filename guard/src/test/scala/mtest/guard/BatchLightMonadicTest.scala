@@ -34,13 +34,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .withJobRename("renamed-" + _)
           .monadicBatch
           .map { monadicValue =>
             println(monadicValue.asJson)
             monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
-            monadicValue.jobs.forall(_.job.name.startsWith("renamed-")) shouldBe true
+            monadicValue.jobs.map(_.job.name) shouldBe List("a", "b", "c")
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -215,12 +214,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
         agent
           .batchLight("light-sequential")
           .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
-          .withJobRename("seq-" + _)
           .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "seq-a"
+            state.jobs.head.completed.job.name shouldBe "a"
             state.jobs.head.completed.job.mode shouldBe BatchMode.Sequential
             state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
             state.jobs.head.completed.done shouldBe false
@@ -258,12 +256,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
         agent
           .batchLight("light-parallel-default")
           .parallel("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
-          .withJobRename("par-" + _)
           .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "par-a"
+            state.jobs.head.completed.job.name shouldBe "a"
             state.jobs.head.completed.job.mode shouldBe BatchMode.Parallel(3)
             state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
             state.jobs.head.completed.done shouldBe false

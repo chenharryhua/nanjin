@@ -32,7 +32,6 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.sleep(1.seconds),
           "f" -> IO.raiseError(new Exception)
         )
-        .withJobRename(_ + ":test")
         .quasiBatch(
           JobHook
             .noop[IO, Unit]
@@ -47,6 +46,7 @@ class BatchTest extends AnyFunSuite {
           assert(!qr.jobs(3).completed.done)
           assert(qr.jobs(4).completed.done)
           assert(!qr.jobs(5).completed.done)
+          assert(qr.jobs.map(_.completed.job.name).toList == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(qr => IO.println(qr.asJson) <* ga.adhoc.report)
@@ -65,7 +65,6 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.raiseError(new Exception),
           "f" -> IO.sleep(4.seconds)
         )
-        .withJobRename(_ + ":test")
         .quasiBatch(JobHook(ga.logger).universal[Unit](_.asJson).onKickoff(_ => IO.unit))
         .map { qr =>
           assert(qr.jobs.head.completed.done)
@@ -74,7 +73,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs(3).completed.done)
           assert(!qr.jobs(4).completed.done)
           assert(qr.jobs(5).completed.done)
-          assert(qr.jobs.forall(_.completed.job.name.endsWith("test")))
+          assert(qr.jobs.map(_.completed.job.name).toList == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(_ => ga.adhoc.report.void)
@@ -223,11 +222,10 @@ class BatchTest extends AnyFunSuite {
             c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
-        .withJobRename("monadic job rename:" + _)
         .monadicBatch(JobHook.noop)
         .use { qr =>
           assert(qr.result == Right(60))
-          assert(qr.jobs.forall(_.job.name.startsWith("monadic")))
+          assert(qr.jobs.map(_.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
