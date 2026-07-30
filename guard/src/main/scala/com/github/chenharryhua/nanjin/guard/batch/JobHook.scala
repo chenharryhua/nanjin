@@ -2,21 +2,15 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.kernel.MonadCancel
 import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.{Applicative, Contravariant, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
-/** `JobHook` is the internal SPI for observing job lifecycle events. Implementations receive notifications
-  * when a job:
-  *
-  *   - starts execution (`kickoff`)
-  *   - completes (`completed`) not necessarily success
-  *   - fails with an exception (`errored`)
-  *   - is canceled (`canceled`)
-  *
-  * `JobHook` is intended to be combined, composed, and traced within the batch system. Concrete bridges (like
-  * `Bridge`) or loggers can implement this trait to handle events in a functional and effectful way.
+/** Internal SPI for observing the lifecycle of a batch job. Implementations receive notifications when a job
+  * starts, finishes (successfully or with failure), or is canceled, and can turn those events into logs,
+  * metrics, tracing, or other side effects.
   */
 sealed trait JobHook[F[_], A]:
   private[batch] def kickoff: Job => F[Unit]
@@ -25,23 +19,16 @@ sealed trait JobHook[F[_], A]:
 
 object JobHook {
 
-  /** `Subscriber` represents a set of callbacks that can be registered to observe lifecycle events of a
-    * `JobHook`. It allows clients to react when a job:
-    *
-    *   - is kicked off (`onKickoff`)
-    *   - completes (`onComplete`)
-    *   - is canceled (`onCancel`)
-    *
-    * This trait is protected and intended for internal use within the JobHook system, providing a functional,
-    * composable way to handle job events.
+  /** A small callback API for registering interest in specific lifecycle events of a job hook. It is intended
+    * for internal composition rather than direct external use.
     */
   sealed protected trait Subscriber[F[_], A]:
     def onComplete(f: JobState[A] => F[Unit]): Bridge[F, A]
     def onCancel(f: Job => F[Unit]): Bridge[F, A]
     def onKickoff(f: Job => F[Unit]): Bridge[F, A]
 
-  /** Concrete implementation of JobHook that bridges internal events to subscriber callbacks. Supports
-    * contramap for type transformations.
+  /** Concrete implementation of JobHook that forwards lifecycle events to registered subscriber callbacks. It
+    * also supports contravariant mapping for adapting the payload type of completed jobs.
     */
   final class Bridge[F[_], A] private[JobHook] (
     private[batch] val completed: JobState[A] => F[Unit],
@@ -89,13 +76,14 @@ object JobHook {
     def universal[A](f: JobState[A] => Json): Bridge[F, A] =
       new Bridge[F, A](
         completed = { (js: JobState[A]) =>
+          val json: Json = f(js)
           js.result match {
             case Left(ex) =>
               js.completed.job.kind match {
-                case BatchKind.Quasi => log.warn(Json.obj("fail" -> f(js)), ex)
-                case BatchKind.Value => log.error(Json.obj("fail" -> f(js)), ex)
+                case BatchKind.Quasi => log.warn(Json.obj("fail" -> json), ex)
+                case BatchKind.Value => log.error(Json.obj("fail" -> json), ex)
               }
-            case Right(_) => log.good(Json.obj("done" -> f(js)))
+            case Right(_) => log.good(Json.obj("done" -> json))
           }
         },
         canceled = (bj: Job) => log.warn(Json.obj("canceled" -> bj.asJson)),

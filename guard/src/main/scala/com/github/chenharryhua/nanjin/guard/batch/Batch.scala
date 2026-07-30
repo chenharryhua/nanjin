@@ -27,6 +27,7 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+/** Primary API for structured batch execution with lifecycle hooks, metrics, and observable progress. */
 object Batch {
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
@@ -105,7 +106,7 @@ object Batch {
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
       Job(jni.name, jni.index, metricLabel, mode, kind, batchId)
 
-    def batchValueInternal(jni: JobNameIndex[F, A]): F[JobValue[A]] = {
+    def runValue(jni: JobNameIndex[F, A]): F[JobValue[A]] = {
       val job: Job = batchJob(jni, BatchKind.Value)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
@@ -120,7 +121,7 @@ object Batch {
             })
     }
 
-    def batchQuasiInternal(jni: JobNameIndex[F, A]): F[JobState[A]] = {
+    def runQuasi(jni: JobNameIndex[F, A]): F[JobState[A]] = {
       val job: Job = batchJob(jni, BatchKind.Quasi)
       jobHook.kickoff(job) *>
         jni.fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
@@ -146,20 +147,17 @@ object Batch {
 
     protected def mode: BatchMode
 
-    /** Exceptions thrown by individual jobs in the batch are suppressed, allowing the overall execution to
-      * continue.
+    /** Exceptions from individual jobs are captured as failed job results, allowing the overall batch to
+      * complete and report per-job outcomes.
       *
       * @return
-      *   BatchResult a job is
-      *
-      * done: when the job returns a value of A and predicate(a) returns true
-      *
-      * otherwise fail
+      *   a batch result where each job is marked as done only when it succeeds and satisfies the
+      *   post-condition; otherwise it is marked as failed.
       */
     def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]]
 
-    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure, and fail prediction will cause `PostConditionUnsatisfied` exception
+    /** Exceptions from individual jobs are propagated, causing the batch operation to fail immediately, and a
+      * post-condition failure is reported as `PostConditionUnsatisfied`.
       */
     def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]]
   }
@@ -181,7 +179,7 @@ object Batch {
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchQuasiInternal
+            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runQuasi
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -204,7 +202,7 @@ object Batch {
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchValueInternal
+            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runValue
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -250,7 +248,7 @@ object Batch {
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobState[A]]] =
         jobs.traverse {
-          JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).batchQuasiInternal
+          JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runQuasi
         }.guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
@@ -279,7 +277,7 @@ object Batch {
               batchId = batchId,
               batchPanel = batchPanel,
               predicate = predicate
-            ).batchValueInternal
+            ).runValue
           ).guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { batchId =>
@@ -341,8 +339,8 @@ object Batch {
         case Outcome.Canceled() => Resource.eval(jobHook.canceled(job))
       }
 
-    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure
+    /** Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
+      * the monadic chain to stop at the first failure.
       *
       * @param name
       *   name of the job
@@ -382,13 +380,15 @@ object Batch {
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
       apply[A](name, Resource.eval(fa))
 
-    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
+    /** Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
+      * remainder of the monadic chain to continue.
+      *
       * @param name
       *   the name of the job
       * @param rfa
       *   the job
       * @return
-      *   true if no exception occurs and evaluated to true, otherwise false
+      *   true only when the job succeeds and evaluates to true; otherwise false
       */
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
@@ -505,11 +505,13 @@ object Batch {
   }
 }
 
-/** Batch is designed for long-running jobs where the caller may want to observe progress, lifecycle events,
-  * and richer execution state while the work is in flight.
+/** Batch is intended for long-running or stateful work where callers want to observe progress, lifecycle
+  * events, and richer execution state while jobs are still in flight.
   */
 final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {
 
+  /** Creates a sequential batch from a list of named effects. Jobs run one after another and preserve order.
+    */
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -521,6 +523,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
   }
 
+  /** Creates a parallel batch from a list of named effects using the given parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -534,9 +537,11 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
   }
 
+  /** Creates a parallel batch with parallelism inferred from the number of jobs. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](fas.size)(fas*)
 
+  /** Builds a monadic batch using a fluent job builder that can sequence values and conditional steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A =
     f(new Batch.JobBuilder[F](metrics, uuidGenerator))
 }

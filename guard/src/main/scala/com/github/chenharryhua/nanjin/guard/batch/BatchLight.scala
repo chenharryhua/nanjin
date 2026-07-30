@@ -270,10 +270,11 @@ object BatchLight {
 }
 
 /** BatchLight is a simpler API for short-lived jobs. It intentionally avoids the richer lifecycle and
-  * progress-tracking machinery of Batch and focuses on straightforward execution.
+  * progress-tracking machinery of Batch and focuses on straightforward, low-overhead execution.
   */
 final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uuidGenerator: F[UUID]) {
 
+  /** Creates a lightweight sequential batch from a list of named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -281,6 +282,7 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
     new BatchLight.Sequential[F, A](metricLabel, Reader(_ => true), jobs, uuidGenerator)
   }
 
+  /** Creates a lightweight parallel batch from a list of named effects using the given parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -288,9 +290,11 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
     new BatchLight.Parallel[F, A](metricLabel, Reader(_ => true), parallelism, jobs, uuidGenerator)
   }
 
+  /** Creates a lightweight parallel batch with parallelism inferred from the number of jobs. */
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =
     parallel[A](fas.size)(fas*)
 
+  /** Builds a lightweight monadic batch using a fluent job builder. */
   def monadic[A](f: BatchLight.JobBuilder[F] => A): A =
     f(new BatchLight.JobBuilder[F](metricLabel, uuidGenerator))
 

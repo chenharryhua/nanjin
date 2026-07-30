@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.Show
+import cats.{Functor, Show}
 import cats.derived.derived
 import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
@@ -15,14 +15,19 @@ import java.util.UUID
 import scala.util.Try
 import scala.util.matching.Regex
 
+/** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
+  * value-batches carry the successful result values for each completed job.
+  */
 enum BatchKind derives Encoder, Show:
   case Quasi, Value
 
+/** Describes how a batch is executed. */
 enum BatchMode:
   case Parallel(parallelism: Int)
   case Sequential
   case Monadic
 
+/** Converts batch modes to stable strings for telemetry and configuration, and parses them back. */
 object BatchMode {
   given Show[BatchMode] = {
     case Parallel(parallelism) => s"parallel-$parallelism"
@@ -46,10 +51,7 @@ object BatchMode {
   }
 }
 
-/*
- * Job
- */
-
+/** Metadata describing a single batch step and the execution context in which it ran. */
 final case class Job(
   name: String,
   index: Int,
@@ -74,6 +76,7 @@ object Job {
   }
 }
 
+/** A completed job record that captures its identity, elapsed time, and whether it finished successfully. */
 final case class CompletedJob(job: Job, took: Duration, done: Boolean)
 
 private given [A: Encoder] => Encoder[Either[Throwable, A]] =
@@ -82,12 +85,8 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
     case Right(value) => value.asJson
   }
 
-/*
- * Job State and Value
- */
-final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]):
-  def map[B](f: A => B): JobState[B] = copy(result = result.map(f))
-end JobState
+/** The recorded outcome of a single batch job, including the completed job summary and its result. */
+final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]) derives Functor
 object JobState:
   given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
     Json.obj(
@@ -96,7 +95,8 @@ object JobState:
       .deepMerge(a.completed.job.asJson)
   }
 
-final case class JobValue[A](completed: CompletedJob, result: A)
+/** A successful batch job value paired with the completion metadata for that job. */
+final case class JobValue[A](completed: CompletedJob, result: A) derives Functor
 object JobValue:
   given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
     Json.obj(
@@ -105,31 +105,31 @@ object JobValue:
       .deepMerge(a.completed.job.asJson)
   }
 
-/*
- * Batch
- */
-
+/** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
+  * outcome state.
+  */
 final case class QuasiBatch[A](
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
-  jobs: List[JobState[A]]) {
+  jobs: List[JobState[A]])
+    derives Functor {
   def done: Boolean = jobs.forall(_.completed.done)
 }
 object QuasiBatch {
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
-    Encoder.instance { bs =>
-      val (done, fail) = bs.jobs.partition(_.completed.done)
+    Encoder.instance { qb =>
+      val (done, fail) = qb.jobs.partition(_.completed.done)
       Json.obj(
-        "batch" -> Json.fromString(bs.label.label),
-        "batch_id" -> bs.batchId.asJson,
-        "domain" -> Json.fromString(bs.label.domain.value),
-        "mode" -> Json.fromString(bs.mode.show),
-        "spent" -> Json.fromString(defaultFormatter.format(bs.spent)),
+        "batch" -> Json.fromString(qb.label.label),
+        "batch_id" -> qb.batchId.asJson,
+        "domain" -> Json.fromString(qb.label.domain.value),
+        "mode" -> Json.fromString(qb.mode.show),
+        "spent" -> Json.fromString(defaultFormatter.format(qb.spent)),
         "done" -> Json.fromInt(done.length),
         "fail" -> Json.fromInt(fail.length),
-        "results" -> bs.jobs.sortBy(_.completed.job.index)
+        "results" -> qb.jobs.sortBy(_.completed.job.index)
           .map(js =>
             Json.obj(
               show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
@@ -141,12 +141,18 @@ object QuasiBatch {
     }
 }
 
+/** The aggregate result of a value-batch execution, where each job contributes a successful value and
+  * completion metadata.
+  */
 final case class BatchValue[A](
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
   jobs: List[JobValue[A]])
+    derives Functor {
+  val done: Boolean = true
+}
 object BatchValue {
   given [A: Encoder] => Encoder[BatchValue[A]] =
     Encoder.instance { bv =>
@@ -169,32 +175,38 @@ object BatchValue {
     }
 }
 
+/** The aggregate result of a monadic batch execution, including the recorded step history and final result.
+  */
 final case class MonadicBatch[A](
   label: MetricLabel,
   spent: Duration,
   batchId: UUID,
   jobs: List[CompletedJob],
   result: Either[Throwable, A])
+    derives Functor {
+  def done: Boolean = result.isRight
+}
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
-    Encoder.instance { mv =>
+    Encoder.instance { mb =>
       Json.obj(
-        "batch" -> Json.fromString(mv.label.label),
-        "batch_id" -> mv.batchId.asJson,
-        "domain" -> Json.fromString(mv.label.domain.value),
-        "spent" -> Json.fromString(defaultFormatter.format(mv.spent)),
-        "total" -> Json.fromInt(mv.jobs.length),
-        "sequence" -> mv.jobs.sortBy(_.job.index)
+        "batch" -> Json.fromString(mb.label.label),
+        "batch_id" -> mb.batchId.asJson,
+        "domain" -> Json.fromString(mb.label.domain.value),
+        "spent" -> Json.fromString(defaultFormatter.format(mb.spent)),
+        "total" -> Json.fromInt(mb.jobs.length),
+        "steps" -> mb.jobs.sortBy(_.job.index)
           .map(cj =>
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(defaultFormatter.format(cj.took))
             ))
           .asJson,
-        "result" -> mv.result.asJson
+        "result" -> mb.result.asJson
       )
     }
 
+/** Raised when a batch job completes, but the post-condition predicate rejects the value. */
 final case class PostConditionUnsatisfied(job: Job)
     extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
 
