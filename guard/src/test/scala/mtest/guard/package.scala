@@ -2,7 +2,6 @@ package mtest
 
 import cats.effect.IO
 import cats.effect.std.Random
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.Event
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -38,8 +37,6 @@ package object guard {
   def fun3fut(a: Int, b: Int, c: Int): Future[Int] = Future(a + b + c)
   def fun4fut(a: Int, b: Int, c: Int, d: Int): Future[Int] = Future(a + b + c + d)
   def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int): Future[Int] = Future(a + b + c + d + e)
-
-  val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   def checkJson(evt: Event): Event =
     decode[Event](evt.asJson.noSpaces) match {

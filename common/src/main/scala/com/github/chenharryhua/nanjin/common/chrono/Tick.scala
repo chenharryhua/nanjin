@@ -8,7 +8,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -144,8 +144,6 @@ object Tick {
         }
       }
     }
-
-  private val fmt = DurationFormatter.defaultFormatter
 
   given Encoder[Tick] =
     (a: Tick) =>

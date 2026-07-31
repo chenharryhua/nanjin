@@ -87,7 +87,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.reverse
 
     println(sorted)
 
@@ -120,7 +120,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.reverse
 
     assert(sorted.head.completed.done)
     assert(sorted.head.completed.job.index == 1)
@@ -131,6 +131,23 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(sorted(2).completed.done)
     assert(sorted(2).completed.job.index == 3)
+  }
+
+  test("4a.withFilter on a pure value should fail without crashing") {
+    val se = service.eventStreamR { agent =>
+      agent
+        .batch("filter-pure")
+        .monadic { job =>
+          job.pure(1).withFilter(_ => false)
+        }
+        .monadicBatch(JobHook.noop)
+        .map { monadicValue =>
+          assert(monadicValue.result.isLeft)
+          assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+        }
+    }.compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("4b.failSafe should emit boolean json to job hook") {
@@ -154,7 +171,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.reverse
 
     assert(sorted.size == 4)
     assert(sorted.head.result == Right(Json.fromInt(1)))
@@ -188,7 +205,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob
 
     assert(sorted.size == 3)
     assert(sorted(1).completed.job.kind == BatchKind.Quasi)
@@ -221,7 +238,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(completedJob.size == 2)
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.reverse
 
     assert(sorted.head.completed.done)
     assert(sorted.head.completed.job.index == 1)
@@ -255,7 +272,7 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(!cExecuted)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.reverse
     assert(sorted.size == 2)
     assert(sorted.head.result == Right(Json.fromInt(1)))
     assert(sorted(1).result == Right(Json.False))

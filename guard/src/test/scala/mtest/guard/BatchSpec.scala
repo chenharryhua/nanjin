@@ -35,7 +35,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               case Right(v) => IO.pure(v)
             }
           }
-        result.assertThrowsError[PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
+        result.assertThrowsError[PostConditionUnsatisfied](_.job.map(_.name).shouldBe(Some("b"))).void
       }.compile.lastOrError.unsafeRunSync()
 
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

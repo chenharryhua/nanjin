@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.testing.scalatest.AsyncIOSpec
-import cats.implicits.catsSyntaxApplicativeId
+import cats.implicits.{catsSyntaxApplicativeId, toTraverseOps}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
@@ -32,15 +32,38 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               b <- job("b", IO(2))
               _ <- job.pure(3)
               c <- job("c", IO(3))
+              _ <- List(1, 2, 3).traverse(job.pure)
             } yield a + b + c
           }
-          .withJobRename("renamed-" + _)
           .monadicBatch
           .map { monadicValue =>
             println(monadicValue.asJson)
             monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
-            monadicValue.jobs.forall(_.job.name.startsWith("renamed-")) shouldBe true
+            monadicValue.jobs.map(_.job.name) shouldBe List("a", "b", "c")
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "completed jobs are ordered by index" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-ordered")
+          .monadic { job =>
+            for {
+              a <- job("a", IO(1))
+              b <- job("b", IO(2))
+              c <- job("c", IO(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .map { monadicValue =>
+            monadicValue.jobs.map(_.job.index) shouldBe List(1, 2, 3)
+            monadicValue.jobs.map(_.job.name) shouldBe List("a", "b", "c")
+            monadicValue.jobs.map(_.done) shouldBe List(true, true, true)
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -161,6 +184,24 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
+    "withFilter on a pure value should fail without crashing (light-1)" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-filter-pure")
+          .monadic { job =>
+            job.pure(1).withFilter(_ => false)
+          }
+          .monadicBatch
+          .map { monadicValue =>
+            monadicValue.result.isLeft shouldBe true
+            monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied] shouldBe true
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
     "withFilter should fail when predicate is not satisfied" in {
       val se = service.eventStream { agent =>
         agent
@@ -172,6 +213,24 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               if b
               c <- job("c", IO(3))
             } yield a + c
+          }
+          .monadicBatch
+          .map { monadicValue =>
+            monadicValue.result.isLeft shouldBe true
+            monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied] shouldBe true
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "withFilter on a pure value should fail without crashing (light-2)" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-filter-pure")
+          .monadic { job =>
+            job.pure(1).withFilter(_ => false)
           }
           .monadicBatch
           .map { monadicValue =>
@@ -215,17 +274,32 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
         agent
           .batchLight("light-sequential")
           .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
-          .withJobRename("seq-" + _)
           .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "seq-a"
+            state.jobs.head.completed.job.name shouldBe "a"
             state.jobs.head.completed.job.mode shouldBe BatchMode.Sequential
             state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
             state.jobs.head.completed.done shouldBe false
             state.jobs(1).completed.done shouldBe true
             state.jobs(2).completed.done shouldBe true
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "completed jobs are ordered by index" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-sequential-ordered")
+          .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
+          .quasiBatch
+          .map { state =>
+            state.jobs.map(_.completed.job.index) shouldBe List(1, 2, 3)
+            state.jobs.map(_.completed.job.name) shouldBe List("a", "b", "c")
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -258,12 +332,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
         agent
           .batchLight("light-parallel-default")
           .parallel("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
-          .withJobRename("par-" + _)
           .withPostCondition(_ >= 2)
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "par-a"
+            state.jobs.head.completed.job.name shouldBe "a"
             state.jobs.head.completed.job.mode shouldBe BatchMode.Parallel(3)
             state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
             state.jobs.head.completed.done shouldBe false
@@ -286,6 +359,22 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             value.jobs.size shouldBe 2
             value.mode shouldBe BatchMode.Parallel(1)
             value.jobs.map(_.result).sum shouldBe 3
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "completed jobs are ordered by index" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-parallel-ordered")
+          .parallel(3)("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
+          .quasiBatch
+          .map { state =>
+            state.jobs.map(_.completed.job.index) shouldBe List(1, 2, 3)
+            state.jobs.map(_.completed.job.name) shouldBe List("a", "b", "c")
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
