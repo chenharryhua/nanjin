@@ -12,6 +12,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.Duration
 import java.util.UUID
 
+/** Raised when a batch job completes, but the post-condition predicate rejects the value. */
+final case class PostConditionUnsatisfied(job: Option[Job])
+    extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
+
 /** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job.
   */
@@ -113,6 +117,16 @@ object CompletedBatch:
       )
     }
 
+sealed trait BatchResult[A] {
+  def label: MetricLabel
+  def spent: Duration
+  def mode: BatchMode
+  def batchId: UUID
+  def jobs: List[A]
+  def done: Boolean
+  def completed: CompletedBatch
+}
+
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
   * outcome state.
   */
@@ -122,9 +136,9 @@ final case class QuasiBatch[A](
   mode: BatchMode,
   batchId: UUID,
   jobs: List[JobState[A]])
-    derives Functor {
-  def done: Boolean = jobs.forall(_.completed.done)
-  def completed: CompletedBatch = CompletedBatch(
+    extends BatchResult[JobState[A]] derives Functor {
+  override def done: Boolean = jobs.forall(_.completed.done)
+  override def completed: CompletedBatch = CompletedBatch(
     label = label,
     spent = spent,
     mode = mode,
@@ -164,15 +178,16 @@ final case class BatchValue[A](
   mode: BatchMode,
   batchId: UUID,
   jobs: List[JobValue[A]])
-    derives Functor {
-  val done: Boolean = true
-  def completed: CompletedBatch = CompletedBatch(
-    label = label,
-    spent = spent,
-    mode = mode,
-    batchId = batchId,
-    jobs = jobs.map(_.completed)
-  )
+    extends BatchResult[JobValue[A]] derives Functor {
+  override val done: Boolean = true
+  override def completed: CompletedBatch =
+    CompletedBatch(
+      label = label,
+      spent = spent,
+      mode = mode,
+      batchId = batchId,
+      jobs = jobs.map(_.completed)
+    )
 }
 object BatchValue {
   given [A: Encoder] => Encoder[BatchValue[A]] =
@@ -203,16 +218,18 @@ final case class MonadicBatch[A](
   batchId: UUID,
   jobs: List[CompletedJob],
   result: Either[Throwable, A])
-    derives Functor {
-  def done: Boolean = result.isRight
+    extends BatchResult[CompletedJob] derives Functor {
+  override val mode: BatchMode = BatchMode.Monadic
+  override def done: Boolean = result.isRight
 
-  def completed: CompletedBatch = CompletedBatch(
-    label = label,
-    spent = spent,
-    mode = BatchMode.Monadic,
-    batchId = batchId,
-    jobs = jobs
-  )
+  override def completed: CompletedBatch =
+    CompletedBatch(
+      label = label,
+      spent = spent,
+      mode = BatchMode.Monadic,
+      batchId = batchId,
+      jobs = jobs
+    )
 }
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
@@ -232,7 +249,3 @@ object MonadicBatch:
         "result" -> mb.result.asJson
       )
     }
-
-/** Raised when a batch job completes, but the post-condition predicate rejects the value. */
-final case class PostConditionUnsatisfied(job: Option[Job])
-    extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
