@@ -110,8 +110,8 @@ object BatchLight:
               batchId = batchId)
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              val js = JobState(CompletedJob(job, fd.toJava, eoa.isRight), eoa)
-              index + 1 -> ExecutionState(eoa = eoa, history = List(js.completed))
+              val completed = CompletedJob(job, fd.toJava, eoa.isRight)
+              index + 1 -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
         }
@@ -193,8 +193,12 @@ object BatchLight:
             val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                eoa.flatMap(a =>
-                  if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
+                eoa.flatMap { a =>
+                  if (predicate(a))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(Some(job)))
+                }.match {
                   case Left(ex)     => F.raiseError[JobValue[A]](ex)
                   case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
                 }
@@ -255,8 +259,12 @@ object BatchLight:
           val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
           F.timed(F.attempt(fa))
             .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              eoa.flatMap(a =>
-                if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
+              eoa.flatMap { a =>
+                if (predicate(a))
+                  Right(a)
+                else
+                  Left(PostConditionUnsatisfied(Some(job)))
+              }.match {
                 case Left(ex)     => F.raiseError[JobValue[A]](ex)
                 case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
               }
