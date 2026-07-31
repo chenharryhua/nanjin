@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.{catsSyntaxFlatMapOps, catsSyntaxTuple2Semigroupal}
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.*
@@ -453,7 +453,8 @@ class BatchTest extends AnyFunSuite {
   test("22.monadic flatMap limits") {
     val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop)
+        List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop) >>
+          (1 to 5_000).toList.traverse(x => job(x.toString, IO(x))).monadicBatch(JobHook.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

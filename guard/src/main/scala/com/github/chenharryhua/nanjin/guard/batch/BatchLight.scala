@@ -82,12 +82,13 @@ object BatchLight:
             }
         }
     end Monadic
-
-    given Applicative[Monadic] with
-      override def pure[A](a: A): Monadic[A] = JobBuilder.this.pure(a)
-      override def ap[A, B](ff: Monadic[A => B])(fa: Monadic[A]): Monadic[B] =
-        ff.flatMap(fa.map)
-    end given
+    object Monadic:
+      given Applicative[Monadic] with
+        override def pure[A](a: A): Monadic[A] = JobBuilder.this.pure(a)
+        override def ap[A, B](ff: Monadic[A => B])(fa: Monadic[A]): Monadic[B] =
+          ff.flatMap(fa.map)
+      end given
+    end Monadic
 
     // job constructors
 
