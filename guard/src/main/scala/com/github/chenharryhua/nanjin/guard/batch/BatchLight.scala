@@ -13,98 +13,92 @@ import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 
 import java.time.Duration
 import java.util.UUID
+import scala.Right
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-object BatchLight {
+object BatchLight:
   /*
    * Monadic
    */
 
-  final class JobBuilder[F[_]] private[BatchLight] (val metricLabel: MetricLabel, val uuidGenerator: F[UUID])(
-    using async: Async[F]):
+  final class JobBuilder[F[_]: Async] private[BatchLight] (
+    val metricLabel: MetricLabel,
+    val uuidGenerator: F[UUID]):
 
     private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[BatchLight] (
-      metricLabel: MetricLabel,
-      private val kleisli: Kleisli[StateT[F, Int, *], UUID, MonadicExecutionState[A]],
-      uuidGenerator: F[UUID])(using async: Async[F]):
+      private val kleisli: Kleisli[StateT[F, Int, *], UUID, ExecutionState[A]]):
 
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], UUID, MonadicExecutionState[B]] = Kleisli { cb =>
+        val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] = Kleisli { (batchId: UUID) =>
           StateT { (index: Int) =>
-            kleisli(cb).run(index).flatMap { case (nextIndex, jobState) =>
+            kleisli(batchId).run(index).flatMap { case (nextIndex, jobState) =>
               jobState.eoa match {
-                case Left(ex) => async.pure(nextIndex -> jobState.update[B](ex))
+                case Left(ex) => (nextIndex -> jobState.update[B](ex)).pure[F]
                 case Right(a) =>
-                  f(a).kleisli(cb).run(nextIndex).map { case (finalIndex, nextState) =>
+                  f(a).kleisli(batchId).run(nextIndex).map { case (finalIndex, nextState) =>
                     finalIndex -> jobState.prependHistory[B](nextState)
                   }
               }
             }
           }
         }
-        new Monadic[B](metricLabel, runB, uuidGenerator)
+        new Monadic[B](runB)
       }
 
-      def map[B](f: A => B): Monadic[B] =
-        new Monadic[B](
-          metricLabel = metricLabel,
-          kleisli = kleisli.map(_.map(f)),
-          uuidGenerator = uuidGenerator)
+      def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
 
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
-          metricLabel = metricLabel,
-          kleisli = Kleisli { cb =>
-            kleisli(cb).map { case unchange @ MonadicExecutionState(eoa, history) =>
+          Kleisli { (batchId: UUID) =>
+            kleisli(batchId).map { case unchange @ ExecutionState(eoa, history) =>
               eoa match {
                 case Left(_)      => unchange
                 case Right(value) =>
-                  if (f(value)) unchange
-                  else MonadicExecutionState[A](Left(PostConditionUnsatisfied(history.head.job)), history)
+                  if (f(value))
+                    unchange
+                  else {
+                    val err = PostConditionUnsatisfied(history.headOption.map(_.job))
+                    ExecutionState[A](Left(err), history)
+                  }
               }
             }
-          },
-          uuidGenerator = uuidGenerator
+          }
         )
 
       def monadicBatch: F[MonadicBatch[A]] =
-        uuidGenerator.flatMap { batchId =>
+        uuidGenerator.flatMap { (batchId: UUID) =>
           kleisli(batchId)
             .run(1)
-            .map { case (_, MonadicExecutionState(eoa, history)) =>
+            .map { case (_, ExecutionState(eoa, history)) =>
               MonadicBatch(
                 label = metricLabel,
                 spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
                 batchId = batchId,
-                jobs = history,
+                jobs = history.reverse,
                 result = eoa)
             }
         }
     end Monadic
 
-    def pure[A](a: A): Monadic[A] =
-      new Monadic[A](
-        metricLabel = metricLabel,
-        kleisli = Kleisli { _ =>
-          StateT(index => async.pure(index -> MonadicExecutionState(Right(a), Nil)))
-        },
-        uuidGenerator = uuidGenerator)
-
     given Applicative[Monadic] with
       override def pure[A](a: A): Monadic[A] = JobBuilder.this.pure(a)
       override def ap[A, B](ff: Monadic[A => B])(fa: Monadic[A]): Monadic[B] =
-        ff.flatMap(f => fa.map(f))
+        ff.flatMap(fa.map)
     end given
 
     // job constructors
 
+    def pure[A](a: A): Monadic[A] =
+      new Monadic[A](Kleisli { _ =>
+        StateT(index => (index -> ExecutionState(Right(a), Nil)).pure[F])
+      })
+
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
-        metricLabel = metricLabel,
-        kleisli = Kleisli { batchId =>
+        Kleisli { (batchId: UUID) =>
           StateT { (index: Int) =>
             val job: Job = Job(
               name = name,
@@ -116,17 +110,15 @@ object BatchLight {
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               val js = JobState(CompletedJob(job, fd.toJava, eoa.isRight), eoa)
-              (index + 1, MonadicExecutionState(eoa = eoa, history = List(js.completed)))
+              index + 1 -> ExecutionState(eoa = eoa, history = List(js.completed))
             }
           }
-        },
-        uuidGenerator = uuidGenerator
+        }
       )
 
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
-        metricLabel = metricLabel,
-        kleisli = Kleisli { batchId =>
+        Kleisli { (batchId: UUID) =>
           StateT { (index: Int) =>
             val job: Job = Job(
               name = name,
@@ -139,11 +131,10 @@ object BatchLight {
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
               val done = eoa.fold(_ => false, identity)
               val completed = CompletedJob(job, fd.toJava, done)
-              (index + 1, MonadicExecutionState(eoa = Right(done), history = List(completed)))
+              index + 1 -> ExecutionState(eoa = Right(done), history = List(completed))
             }
           }
-        },
-        uuidGenerator = uuidGenerator
+        }
       )
   end JobBuilder
 
@@ -170,35 +161,50 @@ object BatchLight {
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
     override def quasiBatch: F[QuasiBatch[A]] =
-      uuidGenerator.flatMap { batchId =>
+      uuidGenerator.flatMap { (batchId: UUID) =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobState[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
             val job = Job(name, idx, metricLabel, mode, BatchKind.Quasi, batchId)
             F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               val result: Either[Throwable, A] =
-                eoa.flatMap(a => if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(job)))
+                eoa.flatMap { a =>
+                  if (predicate(a))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(Some(job)))
+                }
               JobState(CompletedJob(job, fd.toJava, result.isRight), result)
             }
         }).map { case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-          QuasiBatch(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          QuasiBatch(
+            label = metricLabel,
+            spent = fd.toJava,
+            mode = mode,
+            batchId = batchId,
+            jobs = jobs.sortBy(_.completed.job.index))
         }
       }
 
     override def batchValue: F[BatchValue[A]] =
-      uuidGenerator.flatMap { batchId =>
+      uuidGenerator.flatMap { (batchId: UUID) =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobValue[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
             val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 eoa.flatMap(a =>
-                  if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(job))) match {
+                  if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
                   case Left(ex)     => F.raiseError[JobValue[A]](ex)
                   case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
                 }
               }
         }).map { case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-          BatchValue(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          BatchValue(
+            label = metricLabel,
+            spent = fd.toJava,
+            mode = mode,
+            batchId = batchId,
+            jobs = jobs.sortBy(_.completed.job.index))
         }
       }
 
@@ -219,12 +225,17 @@ object BatchLight {
     private val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch: F[QuasiBatch[A]] =
-      uuidGenerator.flatMap { batchId =>
+      uuidGenerator.flatMap { (batchId: UUID) =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, metricLabel, mode, BatchKind.Quasi, batchId)
           F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             val result: Either[Throwable, A] =
-              eoa.flatMap(a => if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(job)))
+              eoa.flatMap { a =>
+                if (predicate(a))
+                  Right(a)
+                else
+                  Left(PostConditionUnsatisfied(Some(job)))
+              }
 
             JobState(CompletedJob(job, fd.toJava, result.isRight), result)
           }
@@ -238,12 +249,13 @@ object BatchLight {
       }
 
     override def batchValue: F[BatchValue[A]] =
-      uuidGenerator.flatMap { batchId =>
+      uuidGenerator.flatMap { (batchId: UUID) =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
           F.timed(F.attempt(fa))
             .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              eoa.flatMap(a => if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(job))) match {
+              eoa.flatMap(a =>
+                if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
                 case Left(ex)     => F.raiseError[JobValue[A]](ex)
                 case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
               }
@@ -260,9 +272,9 @@ object BatchLight {
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
       new Sequential[F, A](metricLabel, predicate = Reader(f), jobs, uuidGenerator)
-
   }
-}
+
+end BatchLight
 
 /** BatchLight is a simpler API for short-lived jobs. It intentionally avoids the richer lifecycle and
   * progress-tracking machinery of Batch and focuses on straightforward, low-overhead execution.

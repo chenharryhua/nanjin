@@ -117,7 +117,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
                 assert(jo.completed.job.index == 1)
               }.void
             })
-        result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))
+        result.assertThrowsError[PostConditionUnsatisfied](_.job.map(_.index).shouldBe(Some(1)))
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }

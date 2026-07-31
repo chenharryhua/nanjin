@@ -159,7 +159,7 @@ class BatchParallelTest extends AnyFunSuite {
 
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
-      "b" -> IO.raiseError(new Exception("boom")).delayBy(1.second),
+      "b" -> IO.raiseError(new Exception("boom")).delayBy(2.second),
       "c" -> IO(3).delayBy(3.seconds)
     )
 
