@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.Unique
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, OpaqueLift}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
+import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -50,7 +50,7 @@ object Took:
   def apply(fd: FiniteDuration): Took = fd.toJava
   extension (t: Took) inline def value: Duration = t
 
-  given Show[Took] = t => DurationFormatter.defaultFormatter.format(t.value)
+  given Show[Took] = t => fmt.format(t.value)
   given Encoder[Took] = OpaqueLift.lift[Took, Duration, Encoder]
   given Decoder[Took] = OpaqueLift.lift[Took, Duration, Decoder]
 end Took
@@ -61,7 +61,7 @@ object Active:
   def apply(value: Duration): Active = value
   extension (a: Active) inline def value: Duration = a
 
-  given Show[Active] = a => defaultFormatter.format(a.value)
+  given Show[Active] = a => fmt.format(a.value)
   given Encoder[Active] = OpaqueLift.lift[Active, Duration, Encoder]
   given Decoder[Active] = OpaqueLift.lift[Active, Duration, Decoder]
 end Active
@@ -72,7 +72,7 @@ object Snooze:
   def apply(value: Duration): Snooze = value
   extension (s: Snooze) inline def value: Duration = s
 
-  given Show[Snooze] = s => defaultFormatter.format(s.value)
+  given Show[Snooze] = s => fmt.format(s.value)
   given Encoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Encoder]
   given Decoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Decoder]
 end Snooze

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
@@ -56,7 +56,7 @@ object RotateFile {
         "recordCount" -> Json.fromLong(a.recordCount),
         "create" -> a.create.time.toLocalDateTime.asJson,
         "closed" -> a.closed.atZone(a.create.time.getZone).toLocalDateTime.asJson,
-        "window" -> DurationFormatter.defaultFormatter.format(a.window).asJson,
+        "window" -> defaultFormatter.format(a.window).asJson,
         "zoneId" -> a.create.time.getZone.asJson,
         "sequenceId" -> a.create.sequenceId.asJson
       )
