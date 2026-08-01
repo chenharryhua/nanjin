@@ -327,6 +327,40 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
   }
 
   "parallel" - {
+    "parallel(0) should fail fast" in {
+      val se = service.eventStreamR { agent =>
+        Resource.eval(
+          agent
+            .batchLight("light-parallel-invalid")
+            .parallel(0)("a" -> IO(1))
+            .quasiBatch
+            .attempt
+            .map { outcome =>
+              outcome.fold(_.getMessage.contains("parallelism must be > 0"), _ => false) shouldBe true
+            }
+        )
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 3
+    }
+
+    "parallel(fas*) should fail fast when empty" in {
+      val se = service.eventStreamR { agent =>
+        Resource.eval(
+          agent
+            .batchLight("light-parallel-empty")
+            .parallel[Int]()
+            .quasiBatch
+            .attempt
+            .map { outcome =>
+              outcome.fold(_.getMessage.contains("parallelism must be > 0"), _ => false) shouldBe true
+            }
+        )
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 3
+    }
+
     "parallel(fas*) should create parallel mode using input size" in {
       val se = service.eventStream { agent =>
         agent

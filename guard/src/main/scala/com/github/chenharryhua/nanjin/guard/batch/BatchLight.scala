@@ -32,19 +32,21 @@ object BatchLight:
       private val kleisli: Kleisli[StateT[F, Int, *], UUID, ExecutionState[A]]):
 
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] = Kleisli { (batchId: UUID) =>
-          StateT { (index: Int) =>
-            kleisli(batchId).run(index).flatMap { case (nextIndex, jobState) =>
-              jobState.eoa match {
-                case Left(ex) => (nextIndex -> jobState.update[B](ex)).pure[F]
-                case Right(a) =>
-                  f(a).kleisli(batchId).run(nextIndex).map { case (finalIndex, nextState) =>
-                    finalIndex -> jobState.prependHistory[B](nextState)
-                  }
+        val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] =
+          Kleisli { (batchId: UUID) =>
+            StateT { (idx: Int) =>
+              kleisli(batchId).run(idx).flatMap { case (nextIdx: Int, execState: ExecutionState[A]) =>
+                execState.eoa match {
+                  case Left(ex) => (nextIdx -> execState.update[B](ex)).pure[F]
+                  case Right(a) =>
+                    f(a).kleisli(batchId).run(nextIdx).map {
+                      case (finalIdx: Int, nextState: ExecutionState[B]) =>
+                        finalIdx -> execState.prependHistory[B](nextState)
+                    }
+                }
               }
             }
           }
-        }
         new Monadic[B](runB)
       }
 
@@ -94,7 +96,7 @@ object BatchLight:
 
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(index => (index -> ExecutionState(Right(a), Nil)).pure[F])
+        StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure[F])
       })
 
     def apply[A](name: String, fa: F[A]): Monadic[A] =
@@ -110,8 +112,8 @@ object BatchLight:
               batchId = batchId)
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              val js = JobState(CompletedJob(job, fd.toJava, eoa.isRight), eoa)
-              index + 1 -> ExecutionState(eoa = eoa, history = List(js.completed))
+              val completed = CompletedJob(job, fd.toJava, eoa.isRight)
+              index + 1 -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
         }
@@ -193,8 +195,12 @@ object BatchLight:
             val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                eoa.flatMap(a =>
-                  if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
+                eoa.flatMap { a =>
+                  if (predicate(a))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(Some(job)))
+                }.match {
                   case Left(ex)     => F.raiseError[JobValue[A]](ex)
                   case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
                 }
@@ -255,8 +261,12 @@ object BatchLight:
           val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
           F.timed(F.attempt(fa))
             .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              eoa.flatMap(a =>
-                if predicate(a) then Right(a) else Left(PostConditionUnsatisfied(Some(job)))) match {
+              eoa.flatMap { a =>
+                if (predicate(a))
+                  Right(a)
+                else
+                  Left(PostConditionUnsatisfied(Some(job)))
+              }.match {
                 case Left(ex)     => F.raiseError[JobValue[A]](ex)
                 case Right(value) => JobValue(CompletedJob(job, fd.toJava, true), value).pure[F]
               }
@@ -292,6 +302,7 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
 
   /** Creates a lightweight parallel batch from a list of named effects using the given parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
+    require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
