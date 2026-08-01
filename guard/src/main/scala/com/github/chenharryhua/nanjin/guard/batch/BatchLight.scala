@@ -32,19 +32,21 @@ object BatchLight:
       private val kleisli: Kleisli[StateT[F, Int, *], UUID, ExecutionState[A]]):
 
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] = Kleisli { (batchId: UUID) =>
-          StateT { (index: Int) =>
-            kleisli(batchId).run(index).flatMap { case (nextIndex, jobState) =>
-              jobState.eoa match {
-                case Left(ex) => (nextIndex -> jobState.update[B](ex)).pure[F]
-                case Right(a) =>
-                  f(a).kleisli(batchId).run(nextIndex).map { case (finalIndex, nextState) =>
-                    finalIndex -> jobState.prependHistory[B](nextState)
-                  }
+        val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] =
+          Kleisli { (batchId: UUID) =>
+            StateT { (idx: Int) =>
+              kleisli(batchId).run(idx).flatMap { case (nextIdx: Int, execState: ExecutionState[A]) =>
+                execState.eoa match {
+                  case Left(ex) => (nextIdx -> execState.update[B](ex)).pure[F]
+                  case Right(a) =>
+                    f(a).kleisli(batchId).run(nextIdx).map {
+                      case (finalIdx: Int, nextState: ExecutionState[B]) =>
+                        finalIdx -> execState.prependHistory[B](nextState)
+                    }
+                }
               }
             }
           }
-        }
         new Monadic[B](runB)
       }
 
@@ -94,7 +96,7 @@ object BatchLight:
 
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(index => (index -> ExecutionState(Right(a), Nil)).pure[F])
+        StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure[F])
       })
 
     def apply[A](name: String, fa: F[A]): Monadic[A] =

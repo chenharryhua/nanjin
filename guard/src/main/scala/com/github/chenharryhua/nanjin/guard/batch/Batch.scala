@@ -308,11 +308,10 @@ object Batch:
 
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Context[F], ExecutionState[B]] =
-          kleisli.tapWithF { (ctx: Context[F], jobState: ExecutionState[A]) =>
-            jobState.eoa match {
-              case Left(ex) =>
-                StateT(idx => Resource.pure[F, ExecutionState[B]](jobState.update[B](ex)).map((idx, _)))
-              case Right(a) => f(a).kleisli.run(ctx).map(jobState.prependHistory[B])
+          kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
+            execState.eoa match {
+              case Left(ex) => StateT((idx: Int) => (idx -> execState.update[B](ex)).pure)
+              case Right(a) => f(a).kleisli(ctx).map(execState.prependHistory[B])
             }
           }
         new Monadic[B](runB)
@@ -365,7 +364,7 @@ object Batch:
 
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(index => Resource.pure(index -> ExecutionState(Right(a), Nil)))
+        StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure)
       })
 
     private def handleOutcome[A](
