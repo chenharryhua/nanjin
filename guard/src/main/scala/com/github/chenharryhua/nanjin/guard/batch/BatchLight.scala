@@ -302,6 +302,7 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
 
   /** Creates a lightweight parallel batch from a list of named effects using the given parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
+    require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
