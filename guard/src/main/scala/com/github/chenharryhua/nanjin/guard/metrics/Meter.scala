@@ -34,19 +34,19 @@ object Meter {
     name: MetricName)(using F: Sync[F])
       extends Meter[F] with UnsafeMeter {
 
-    private val meter_name: String =
+    private val meterName: String =
       MetricID(
         metricLabel = label,
         metricName = name,
         Category.Meter(kind = MeterKind.Meter, squants = squants)
       ).identifier
 
-    private lazy val meter: CodahaleMeter = metricRegistry.meter(meter_name)
+    private val meter: CodahaleMeter = metricRegistry.meter(meterName)
 
     override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
     override def unsafeMark(num: Long): Unit = meter.mark(num)
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(meterName)).void
 
   }
 
@@ -60,12 +60,12 @@ object Meter {
 
     private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
       F: Sync[F]): Resource[F, Meter[F] & UnsafeMeter] = {
-      val meter: Resource[F, Meter[F] & UnsafeMeter] =
+      def meter: Resource[F, Meter[F] & UnsafeMeter] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
         })(_.unregister)
 
-      lazy val noop: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
+      def noop: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
         override def mark(num: Long): F[Unit] = ().pure
         override def unsafeMark(num: Long): Unit = ()
       }

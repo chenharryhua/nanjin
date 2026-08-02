@@ -49,7 +49,7 @@ object Timer {
   )(implicit F: Sync[F])
       extends Timer[F] with UnsafeTimer {
 
-    private val timer_name: String =
+    private val timerName: String =
       MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
@@ -58,7 +58,7 @@ object Timer {
         case None        => new CodahaleTimer(new ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private lazy val timer: CodahaleTimer = metricRegistry.timer(timer_name, supplier)
+    private val timer: CodahaleTimer = metricRegistry.timer(timerName, supplier)
 
     override def elapsedNano(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def unsafeElapsedNano(num: Long): Unit = timer.update(num, TimeUnit.NANOSECONDS)
@@ -68,7 +68,7 @@ object Timer {
       result
     }
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(timerName)).void
 
   }
 
@@ -85,10 +85,10 @@ object Timer {
 
     private[Timer] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
       F: Sync[F]): Resource[F, Timer[F] & UnsafeTimer] = {
-      val timer: Resource[F, Timer[F] & UnsafeTimer] =
+      def timer: Resource[F, Timer[F] & UnsafeTimer] =
         Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
 
-      lazy val noop: Timer[F] & UnsafeTimer =
+      def noop: Timer[F] & UnsafeTimer =
         new Timer[F] with UnsafeTimer {
           override def elapsedNano(num: Long): F[Unit] = ().pure
           override def timing[A](fa: F[A]): F[A] = fa

@@ -154,7 +154,6 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
-      .filter(_.counter.value > 0)
       .map(c =>
         c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.counter)}"))
 

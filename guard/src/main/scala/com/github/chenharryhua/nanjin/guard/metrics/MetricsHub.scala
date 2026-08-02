@@ -24,6 +24,8 @@ import java.time.ZoneId
 sealed trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
 
+  // basic
+
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
   def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
 
@@ -81,13 +83,11 @@ object MetricsHub {
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
       Histogram[F](metricRegistry, metricLabel, name, f)
-
     override def unsafeHistogram(name: String, f: Endo[Histogram.Builder]): Resource[F, UnsafeHistogram] =
       Histogram[F](metricRegistry, metricLabel, name, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
       Timer[F](metricRegistry, metricLabel, name, f)
-
     override def unsafeTimer(name: String, f: Endo[Timer.Builder]): Resource[F, UnsafeTimer] =
       Timer[F](metricRegistry, metricLabel, name, f)
 

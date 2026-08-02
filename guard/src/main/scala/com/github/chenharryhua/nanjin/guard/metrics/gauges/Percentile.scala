@@ -79,12 +79,12 @@ object Percentile {
     private[Percentile] def build[F[_]](gp: GaugeParams[F], name: String)(using
       F: Async[F]): Resource[F, Percentile[F]] = {
 
-      val impl: Resource[F, Percentile[F]] = for {
+      def impl: Resource[F, Percentile[F]] = for {
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Ratio).register(ref.get.map(translator)))
       } yield new Impl[F](ref)
 
-      val noop: Percentile[F] =
+      def noop: Percentile[F] =
         new Percentile[F] {
           override def incNumerator(numerator: Long): F[Unit] = F.unit
           override def incDenominator(denominator: Long): F[Unit] = F.unit

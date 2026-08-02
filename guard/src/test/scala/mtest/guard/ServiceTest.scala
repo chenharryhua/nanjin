@@ -276,4 +276,32 @@ class ServiceTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(res.last.isInstanceOf[ReportedEvent])
   }
+
+  test("14.watchdog retries a failing service according to restart policy") {
+    val events = guard
+      .service("watchdog")
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(2)))
+      .eventStream(_ => IO.raiseError(new Exception("boom")).void)
+      .map(checkJson)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(events.count(_.isInstanceOf[ServiceStart]) == 3)
+    assert(events.count(_.isInstanceOf[ServicePanic]) == 2)
+    assert(events.last.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
+
+  test("15.watchdog stops on cancellation") {
+    val events = guard
+      .service("watchdog-cancel")
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(1)))
+      .eventStream(_ => IO.canceled)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(events.head.isInstanceOf[ServiceStart])
+    assert(events.last.asInstanceOf[ServiceStop].cause == StopReason.ByCancellation)
+  }
 }

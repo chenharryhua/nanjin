@@ -91,7 +91,7 @@ private[guard] object ServiceGuard {
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)
-          .concurrently(Watchdog(F.defer(runAgent(agent)), seHandler))
+          .concurrently(watchdog(F.defer(runAgent(agent)), seHandler))
           .concurrently(
             HttpServer(
               emberServerBuilder = emberServerBuilder,

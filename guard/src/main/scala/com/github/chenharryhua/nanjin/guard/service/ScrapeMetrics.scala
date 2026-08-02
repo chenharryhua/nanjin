@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Sync
+import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricElement, MetricID, Snapshot}
 import io.circe.jawn.{decode, parse}
@@ -17,7 +18,7 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    *Counters
    */
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
-    sm.asScala.iterator.flatMap { case (name, counter) =>
+    sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
       decode[MetricID](name) match {
         case Left(_)    => None
         case Right(mid) =>
