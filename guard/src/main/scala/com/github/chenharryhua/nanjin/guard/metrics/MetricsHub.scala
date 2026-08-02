@@ -28,6 +28,7 @@ sealed trait MetricsHub[F[_]] {
   def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
 
   def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
+  def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, UnsafeMeter]
 
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, Histogram[F]]
 
@@ -72,6 +73,8 @@ object MetricsHub {
       Counter[F](metricRegistry, metricLabel, name, zoneId, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
+      Meter[F](metricRegistry, metricLabel, name, f)
+    override def unsafeMeter(name: String, f: Endo[Meter.Builder]): Resource[F, UnsafeMeter] =
       Meter[F](metricRegistry, metricLabel, name, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =

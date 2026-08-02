@@ -113,6 +113,20 @@ class MetricsTest extends AnyFunSuite {
     assert(meter.squants.dimensionName == Money.name)
   }
 
+  test("4b.unsafe meter") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("meter")(_.unsafeMeter("meter"))
+        .use { meter =>
+          IO.delay(meter.unsafeMark(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val meter = retrieve.meter(mr.snapshot.meters).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(meter.aggregate == 10)
+  }
+
   test("5.meter disable") {
     val mr = service.eventStream { agent =>
       agent

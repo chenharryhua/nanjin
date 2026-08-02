@@ -22,6 +22,8 @@ trait MetricsHubS[F[_]] {
   def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, UnsafeCounter]
 
   def meter(name: String, f: Endo[Meter.Builder] = identity): Stream[F, Meter[F]]
+  def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Stream[F, UnsafeMeter]
+
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Stream[F, Histogram[F]]
   def timer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, Timer[F]]
   // gauges
@@ -50,6 +52,9 @@ object MetricsHubS {
 
       override def meter(name: String, f: Endo[Meter.Builder]): Stream[F, Meter[F]] =
         Stream.resource(hub.meter(name, f))
+
+      override def unsafeMeter(name: String, f: Endo[Meter.Builder]): Stream[F, UnsafeMeter] =
+        Stream.resource(hub.unsafeMeter(name, f))
 
       override def histogram(name: String, f: Endo[Histogram.Builder]): Stream[F, Histogram[F]] =
         Stream.resource(hub.histogram(name, f))
