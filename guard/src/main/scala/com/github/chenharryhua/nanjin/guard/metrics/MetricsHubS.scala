@@ -18,6 +18,7 @@ import io.github.timwspence.cats.stm.STM
 
 trait MetricsHubS[F[_]] {
   def metricLabel: MetricLabel
+
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
   def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, UnsafeCounter]
 
