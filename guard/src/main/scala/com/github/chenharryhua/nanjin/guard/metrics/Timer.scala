@@ -34,6 +34,12 @@ trait Timer[F[_]]:
     elapsedNano(summon[ToNanos[A]](nano))
 end Timer
 
+trait UnsafeTimer:
+  def unsafeElapsedNano(num: Long): Unit
+  final def unsafeElapsedNano[A: ToNanos](nano: A): Unit =
+    unsafeElapsedNano(summon[ToNanos[A]](nano))
+end UnsafeTimer
+
 object Timer {
   private class Impl[F[_]](
     label: MetricLabel,
@@ -41,7 +47,7 @@ object Timer {
     reservoir: Option[Reservoir],
     name: MetricName
   )(implicit F: Sync[F])
-      extends Timer[F] {
+      extends Timer[F] with UnsafeTimer {
 
     private val timer_name: String =
       MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
@@ -55,6 +61,7 @@ object Timer {
     private lazy val timer: CodahaleTimer = metricRegistry.timer(timer_name, supplier)
 
     override def elapsedNano(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
+    override def unsafeElapsedNano(num: Long): Unit = timer.update(num, TimeUnit.NANOSECONDS)
 
     override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>
       timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
@@ -77,14 +84,15 @@ object Timer {
       new Builder(isEnabled, reservoir)
 
     private[Timer] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Timer[F]] = {
-      val timer: Resource[F, Timer[F]] =
+      F: Sync[F]): Resource[F, Timer[F] & UnsafeTimer] = {
+      val timer: Resource[F, Timer[F] & UnsafeTimer] =
         Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
 
-      lazy val noop: Timer[F] =
-        new Timer[F] {
-          override def elapsedNano(num: Long): F[Unit] = F.unit
+      lazy val noop: Timer[F] & UnsafeTimer =
+        new Timer[F] with UnsafeTimer {
+          override def elapsedNano(num: Long): F[Unit] = ().pure
           override def timing[A](fa: F[A]): F[A] = fa
+          override def unsafeElapsedNano(num: Long): Unit = ()
         }
 
       if isEnabled then timer else noop.pure
@@ -95,7 +103,7 @@ object Timer {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Timer[F]] =
+    f: Endo[Builder]): Resource[F, Timer[F] & UnsafeTimer] =
     f(new Builder(isEnabled = true, reservoir = None))
       .build[F](label, name, mr)
 }

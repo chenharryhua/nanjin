@@ -28,6 +28,8 @@ trait MetricsHubS[F[_]] {
   def unsafeHistogram(name: String, f: Endo[Histogram.Builder] = identity): Stream[F, UnsafeHistogram]
 
   def timer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, Timer[F]]
+  def unsafeTimer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, UnsafeTimer]
+
   // gauges
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit]
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Stream[F, Unit]
@@ -66,6 +68,9 @@ object MetricsHubS {
 
       override def timer(name: String, f: Endo[Timer.Builder]): Stream[F, Timer[F]] =
         Stream.resource(hub.timer(name, f))
+
+      override def unsafeTimer(name: String, f: Endo[Timer.Builder]): Stream[F, UnsafeTimer] =
+        Stream.resource(hub.unsafeTimer(name, f))
 
       override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit] =
         Stream.resource(hub.gauge(name, f))

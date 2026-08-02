@@ -217,6 +217,21 @@ class MetricsTest extends AnyFunSuite {
     assert(timer.calls == 1)
   }
 
+  test("10b.unsafe timer") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("timer")(_.unsafeTimer("timer"))
+        .use { timer =>
+          IO.delay(timer.unsafeElapsedNano(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val timer = retrieve.timer(mr.snapshot.timers).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(timer.calls == 1)
+    assert(timer.max == 10.nanos.toJava)
+  }
+
   test("11.timer disable") {
     val mr = service.eventStream { agent =>
       agent
