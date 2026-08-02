@@ -73,7 +73,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs(3).completed.done)
           assert(!qr.jobs(4).completed.done)
           assert(qr.jobs(5).completed.done)
-          assert(qr.jobs.map(_.completed.job.name).toList == List("a", "bb", "cccc", "ddd", "ee", "f"))
+          assert(qr.jobs.map(_.completed.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(_ => ga.adhoc.report.void)
