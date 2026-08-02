@@ -19,6 +19,8 @@ import io.github.timwspence.cats.stm.STM
 trait MetricsHubS[F[_]] {
   def metricLabel: MetricLabel
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
+  def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, UnsafeCounter]
+
   def meter(name: String, f: Endo[Meter.Builder] = identity): Stream[F, Meter[F]]
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Stream[F, Histogram[F]]
   def timer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, Timer[F]]
@@ -42,6 +44,9 @@ object MetricsHubS {
 
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))
+
+      override def unsafeCounter(name: String, f: Endo[Counter.Builder]): Stream[F, UnsafeCounter] =
+        Stream.resource(hub.unsafeCounter(name, f))
 
       override def meter(name: String, f: Endo[Meter.Builder]): Stream[F, Meter[F]] =
         Stream.resource(hub.meter(name, f))

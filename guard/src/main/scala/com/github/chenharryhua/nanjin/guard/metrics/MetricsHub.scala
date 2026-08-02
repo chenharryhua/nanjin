@@ -25,6 +25,7 @@ sealed trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
+  def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
 
   def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
 
@@ -66,6 +67,8 @@ object MetricsHub {
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
+      Counter[F](metricRegistry, metricLabel, name, zoneId, f)
+    override def unsafeCounter(name: String, f: Endo[Counter.Builder]): Resource[F, UnsafeCounter] =
       Counter[F](metricRegistry, metricLabel, name, zoneId, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =

@@ -66,7 +66,20 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
   }
 
-  test("3b.counter reset by policy") {
+  test("3b.unsafe counter") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("counter")(_.unsafeCounter("counter"))
+        .use { counter =>
+          IO.delay(counter.unsafeInc(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
+    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+  }
+
+  test("3c.counter reset by policy") {
     val snapshots = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis))))
