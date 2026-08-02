@@ -23,9 +23,13 @@ import squants.{Each, Quantity, UnitOfMeasure}
 
 trait Histogram[F[_]]:
   def update(num: Long): F[Unit]
-
   final def update(num: Int): F[Unit] = update(num.toLong)
 end Histogram
+
+trait UnsafeHistogram:
+  def unsafeUpdate(num: Long): Unit
+  final def unsafeUpdate(num: Int): Unit = unsafeUpdate(num.toLong)
+end UnsafeHistogram
 
 object Histogram {
 
@@ -35,7 +39,7 @@ object Histogram {
     squants: Squants,
     reservoir: Option[Reservoir],
     name: MetricName)(using F: Sync[F])
-      extends Histogram[F] {
+      extends Histogram[F] with UnsafeHistogram {
 
     private val histogram_name: String =
       MetricID(
@@ -54,6 +58,7 @@ object Histogram {
       metricRegistry.histogram(histogram_name, supplier)
 
     override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
+    override def unsafeUpdate(num: Long): Unit = histogram.update(num)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
 
@@ -72,8 +77,8 @@ object Histogram {
       new Builder(isEnabled, squants, reservoir)
 
     private[Histogram] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Histogram[F]] = {
-      val histogram: Resource[F, Histogram[F]] =
+      F: Sync[F]): Resource[F, Histogram[F] & UnsafeHistogram] = {
+      val histogram: Resource[F, Histogram[F] & UnsafeHistogram] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](
             label = label,
@@ -83,7 +88,10 @@ object Histogram {
             name = metricName)
         })(_.unregister)
 
-      val noop: Histogram[F] = (_: Long) => F.unit
+      lazy val noop: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
+        override def update(num: Long): F[Unit] = ().pure
+        override def unsafeUpdate(num: Long): Unit = ()
+      }
 
       if isEnabled then histogram else noop.pure
     }
@@ -93,7 +101,7 @@ object Histogram {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Histogram[F]] =
+    f: Endo[Builder]): Resource[F, Histogram[F] & UnsafeHistogram] =
     f(new Builder(isEnabled = true, squants = Squants(Each), reservoir = None))
       .build[F](label, name, mr)
 }

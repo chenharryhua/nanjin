@@ -25,12 +25,16 @@ sealed trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
+  def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
 
   def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
+  def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, UnsafeMeter]
 
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, Histogram[F]]
+  def unsafeHistogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, UnsafeHistogram]
 
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
+  def unsafeTimer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, UnsafeTimer]
 
   // gauges
 
@@ -67,14 +71,24 @@ object MetricsHub {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
       Counter[F](metricRegistry, metricLabel, name, zoneId, f)
+    override def unsafeCounter(name: String, f: Endo[Counter.Builder]): Resource[F, UnsafeCounter] =
+      Counter[F](metricRegistry, metricLabel, name, zoneId, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
+      Meter[F](metricRegistry, metricLabel, name, f)
+    override def unsafeMeter(name: String, f: Endo[Meter.Builder]): Resource[F, UnsafeMeter] =
       Meter[F](metricRegistry, metricLabel, name, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
       Histogram[F](metricRegistry, metricLabel, name, f)
 
+    override def unsafeHistogram(name: String, f: Endo[Histogram.Builder]): Resource[F, UnsafeHistogram] =
+      Histogram[F](metricRegistry, metricLabel, name, f)
+
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
+      Timer[F](metricRegistry, metricLabel, name, f)
+
+    override def unsafeTimer(name: String, f: Endo[Timer.Builder]): Resource[F, UnsafeTimer] =
       Timer[F](metricRegistry, metricLabel, name, f)
 
     // gauges

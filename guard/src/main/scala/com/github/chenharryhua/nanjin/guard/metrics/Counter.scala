@@ -17,6 +17,10 @@ trait Counter[F[_]]:
   final def inc(num: Int): F[Unit] = inc(num.toLong)
 end Counter
 
+trait UnsafeCounter:
+  def unsafeInc(num: Long): Unit
+  final def unsafeInc(num: Int): Unit = unsafeInc(num.toLong)
+
 object Counter {
 
   private class Impl[F[_]](
@@ -24,7 +28,7 @@ object Counter {
     metricRegistry: MetricRegistry,
     isRisk: Boolean,
     name: MetricName)(using F: Sync[F])
-      extends Counter[F] {
+      extends Counter[F] with UnsafeCounter {
     private val metricId: MetricID =
       if isRisk
       then MetricID(label, name, Category.Counter(CounterKind.Risk))
@@ -35,6 +39,7 @@ object Counter {
       (id, metricRegistry.counter(id))
     }
 
+    override def unsafeInc(num: Long): Unit = counter.inc(num)
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
 
     val reset: F[Unit] = F.delay(counter.dec(counter.getCount))
@@ -60,8 +65,8 @@ object Counter {
       label: MetricLabel,
       name: String,
       metricRegistry: MetricRegistry,
-      zoneId: ZoneId): Resource[F, Counter[F]] = {
-      val counter: Resource[F, Counter[F]] =
+      zoneId: ZoneId): Resource[F, Counter[F] & UnsafeCounter] = {
+      val counter: Resource[F, Impl[F]] =
         for {
           counter <- Resource.make(
             MetricName(name)
@@ -76,7 +81,10 @@ object Counter {
             .background
         } yield counter
 
-      val noop: Counter[F] = (_: Long) => ().pure[F]
+      lazy val noop: Counter[F] & UnsafeCounter = new Counter[F] with UnsafeCounter {
+        override def inc(num: Long): F[Unit] = ().pure
+        override def unsafeInc(num: Long): Unit = ()
+      }
 
       if isEnabled then counter else noop.pure
     }
@@ -87,7 +95,7 @@ object Counter {
     label: MetricLabel,
     name: String,
     zoneId: ZoneId,
-    f: Endo[Builder]): Resource[F, Counter[F]] =
+    f: Endo[Builder]): Resource[F, Counter[F] & UnsafeCounter] =
     f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty))
       .build[F](label, name, mr, zoneId)
 }

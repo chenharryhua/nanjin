@@ -17,9 +17,13 @@ import com.github.chenharryhua.nanjin.guard.event.{
 import squants.{Each, Quantity, UnitOfMeasure}
 trait Meter[F[_]]:
   def mark(num: Long): F[Unit]
-
   final def mark(num: Int): F[Unit] = mark(num.toLong)
 end Meter
+
+trait UnsafeMeter:
+  def unsafeMark(num: Long): Unit
+  final def unsafeMark(num: Int): Unit = unsafeMark(num.toLong)
+end UnsafeMeter
 
 object Meter {
 
@@ -28,7 +32,7 @@ object Meter {
     metricRegistry: MetricRegistry,
     squants: Squants,
     name: MetricName)(using F: Sync[F])
-      extends Meter[F] {
+      extends Meter[F] with UnsafeMeter {
 
     private val meter_name: String =
       MetricID(
@@ -40,6 +44,7 @@ object Meter {
     private lazy val meter: CodahaleMeter = metricRegistry.meter(meter_name)
 
     override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
+    override def unsafeMark(num: Long): Unit = meter.mark(num)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
 
@@ -54,13 +59,16 @@ object Meter {
       new Builder(isEnabled, Squants(um))
 
     private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Meter[F]] = {
-      val meter: Resource[F, Meter[F]] =
+      F: Sync[F]): Resource[F, Meter[F] & UnsafeMeter] = {
+      val meter: Resource[F, Meter[F] & UnsafeMeter] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
         })(_.unregister)
 
-      val noop: Meter[F] = (_: Long) => F.unit
+      lazy val noop: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
+        override def mark(num: Long): F[Unit] = ().pure
+        override def unsafeMark(num: Long): Unit = ()
+      }
 
       if isEnabled then meter else noop.pure
     }
@@ -70,7 +78,7 @@ object Meter {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Meter[F]] =
+    f: Endo[Builder]): Resource[F, Meter[F] & UnsafeMeter] =
     f(new Builder(isEnabled = true, squants = Squants(Each)))
       .build[F](label, name, mr)
 }

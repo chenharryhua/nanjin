@@ -66,7 +66,20 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
   }
 
-  test("3b.counter reset by policy") {
+  test("3b.unsafe counter") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("counter")(_.unsafeCounter("counter"))
+        .use { counter =>
+          IO.delay(counter.unsafeInc(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
+    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+  }
+
+  test("3c.counter reset by policy") {
     val snapshots = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis))))
@@ -100,6 +113,20 @@ class MetricsTest extends AnyFunSuite {
     assert(meter.squants.dimensionName == Money.name)
   }
 
+  test("4b.unsafe meter") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("meter")(_.unsafeMeter("meter"))
+        .use { meter =>
+          IO.delay(meter.unsafeMark(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val meter = retrieve.meter(mr.snapshot.meters).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(meter.aggregate == 10)
+  }
+
   test("5.meter disable") {
     val mr = service.eventStream { agent =>
       agent
@@ -122,6 +149,21 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.max == 20)
     assert(histo.squants.unitSymbol == Bytes.symbol)
     assert(histo.squants.dimensionName == Information.name)
+  }
+
+  test("6b.unsafe histogram") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("histogram")(_.unsafeHistogram("histogram"))
+        .use { histogram =>
+          IO.delay(histogram.unsafeUpdate(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(histo.updates == 1)
+    assert(histo.max == 10)
   }
 
   test("7.histogram timer") {
@@ -173,6 +215,21 @@ class MetricsTest extends AnyFunSuite {
     assert(timer.max == 30.seconds.toJava)
     assert(mr.snapshot.nonEmpty)
     assert(timer.calls == 1)
+  }
+
+  test("10b.unsafe timer") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("timer")(_.unsafeTimer("timer"))
+        .use { timer =>
+          IO.delay(timer.unsafeElapsedNano(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val timer = retrieve.timer(mr.snapshot.timers).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(timer.calls == 1)
+    assert(timer.max == 10.nanos.toJava)
   }
 
   test("11.timer disable") {

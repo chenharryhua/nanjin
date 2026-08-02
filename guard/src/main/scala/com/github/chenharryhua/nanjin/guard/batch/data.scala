@@ -73,7 +73,9 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
   }
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
-final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]) derives Functor
+final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]) derives Functor {
+  val done: Boolean = result.isRight
+}
 object JobState:
   given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
     Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), "result" -> a.result.asJson)
@@ -93,7 +95,9 @@ final case class CompletedBatch(
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
-  jobs: List[CompletedJob])
+  jobs: List[CompletedJob]) {
+  def done: Boolean = jobs.forall(_.done)
+}
 object CompletedBatch:
   given Encoder[CompletedBatch] =
     Encoder.instance { cb =>
@@ -162,7 +166,7 @@ object QuasiBatch {
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            "result" -> js.result.asJson
+            (if (js.done) "result" else "error") -> js.result.asJson
           ))
           .asJson
       )
@@ -246,6 +250,6 @@ object MonadicBatch:
             "took" -> Json.fromString(fmt.format(cj.took))
           ))
           .asJson,
-        "result" -> mb.result.asJson
+        (if (mb.done) "result" else "error") -> mb.result.asJson
       )
     }
