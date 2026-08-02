@@ -34,7 +34,10 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     MetricID(label, metricName(name), category)
 
   private val snapshot: Snapshot = Snapshot(
-    counters = List(MetricElement.Counter(id("requests", Category.Counter(CounterKind.Counter)), MetricElement.CounterData(42))),
+    counters = List(
+      MetricElement.Counter(
+        id("requests", Category.Counter(CounterKind.Counter)),
+        MetricElement.CounterData(42))),
     meters = List(
       MetricElement.Meter(
         id("throughput", Category.Meter(MeterKind.Meter, Squants(Each))),
@@ -89,7 +92,10 @@ class SnapshotPolyglotTest extends AnyFunSuite {
         )
       )
     ),
-    gauges = List(MetricElement.Gauge(id("status", Category.Gauge(GaugeKind.Gauge)), MetricElement.GaugeData(Json.fromString("ok"))))
+    gauges = List(
+      MetricElement.Gauge(
+        id("status", Category.Gauge(GaugeKind.Gauge)),
+        MetricElement.GaugeData(Json.fromString("ok"))))
   )
 
   test("renders the full snapshot across JSON and YAML formats") {

@@ -18,7 +18,7 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    *Counters
    */
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
-    sm.asScala.iterator.filter(_._2.getCount =!= 0).flatMap { case (name, counter) =>
+    sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
       decode[MetricID](name) match {
         case Left(_)    => None
         case Right(mid) =>
