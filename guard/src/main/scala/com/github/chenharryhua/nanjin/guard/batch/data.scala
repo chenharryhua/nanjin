@@ -4,7 +4,7 @@ import cats.derived.derived
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
+import com.github.chenharryhua.nanjin.guard.event.{MetricLabel, StackTrace}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -19,8 +19,12 @@ final case class PostConditionUnsatisfied(job: Option[Job])
 /** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job.
   */
-enum BatchKind derives Encoder, Show:
+enum BatchKind:
   case Quasi, Value
+end BatchKind
+object BatchKind:
+  given Encoder[BatchKind] = Encoder.encodeString.contramap(_.productPrefix)
+  given Show[BatchKind] = _.productPrefix
 end BatchKind
 
 /** Describes how a batch is executed. */
@@ -162,7 +166,7 @@ object QuasiBatch {
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "done" -> Json.fromInt(done.length),
         "fail" -> Json.fromInt(fail.length),
-        "results" -> qb.jobs.map(js =>
+        "jobs" -> qb.jobs.map(js =>
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
@@ -202,8 +206,7 @@ object BatchValue {
         "domain" -> Json.fromString(bv.label.domain.value),
         "mode" -> bv.mode.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "total" -> Json.fromInt(bv.jobs.length),
-        "results" -> bv.jobs.map(js =>
+        "jobs" -> bv.jobs.map(js =>
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
@@ -243,13 +246,12 @@ object MonadicBatch:
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.label.domain.value),
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "total" -> Json.fromInt(mb.jobs.length),
-        "steps" -> mb.jobs.map(cj =>
+        "jobs" -> mb.jobs.map(cj =>
           Json.obj(
             show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
             "took" -> Json.fromString(fmt.format(cj.took))
           ))
           .asJson,
-        (if (mb.done) "result" else "error") -> mb.result.asJson
+        (if (mb.done) "result" else "error") -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
