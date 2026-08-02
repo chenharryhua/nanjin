@@ -29,15 +29,12 @@ object Counter {
     isRisk: Boolean,
     name: MetricName)(using F: Sync[F])
       extends Counter[F] with UnsafeCounter {
-    private val metricId: MetricID =
+    private val counterName: String =
       if isRisk
-      then MetricID(label, name, Category.Counter(CounterKind.Risk))
-      else MetricID(label, name, Category.Counter(CounterKind.Counter))
+      then MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
+      else MetricID(label, name, Category.Counter(CounterKind.Counter)).identifier
 
-    private lazy val (counterName: String, counter: CodahaleCounter) = {
-      val id = metricId.identifier
-      (id, metricRegistry.counter(id))
-    }
+    private val counter: CodahaleCounter = metricRegistry.counter(counterName)
 
     override def unsafeInc(num: Long): Unit = counter.inc(num)
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
@@ -66,7 +63,7 @@ object Counter {
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId): Resource[F, Counter[F] & UnsafeCounter] = {
-      val counter: Resource[F, Impl[F]] =
+      def counter: Resource[F, Impl[F]] =
         for {
           counter <- Resource.make(
             MetricName(name)
@@ -81,7 +78,7 @@ object Counter {
             .background
         } yield counter
 
-      lazy val noop: Counter[F] & UnsafeCounter = new Counter[F] with UnsafeCounter {
+      def noop: Counter[F] & UnsafeCounter = new Counter[F] with UnsafeCounter {
         override def inc(num: Long): F[Unit] = ().pure
         override def unsafeInc(num: Long): Unit = ()
       }

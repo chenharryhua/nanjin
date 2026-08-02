@@ -41,7 +41,7 @@ object Histogram {
     name: MetricName)(using F: Sync[F])
       extends Histogram[F] with UnsafeHistogram {
 
-    private val histogram_name: String =
+    private val histogramName: String =
       MetricID(
         metricLabel = label,
         metricName = name,
@@ -54,13 +54,12 @@ object Histogram {
         case None        => new CodahaleHistogram(new ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private lazy val histogram: CodahaleHistogram =
-      metricRegistry.histogram(histogram_name, supplier)
+    private val histogram: CodahaleHistogram = metricRegistry.histogram(histogramName, supplier)
 
     override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
     override def unsafeUpdate(num: Long): Unit = histogram.update(num)
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(histogramName)).void
 
   }
 
@@ -78,7 +77,7 @@ object Histogram {
 
     private[Histogram] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
       F: Sync[F]): Resource[F, Histogram[F] & UnsafeHistogram] = {
-      val histogram: Resource[F, Histogram[F] & UnsafeHistogram] =
+      def histogram: Resource[F, Histogram[F] & UnsafeHistogram] =
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](
             label = label,
@@ -88,7 +87,7 @@ object Histogram {
             name = metricName)
         })(_.unregister)
 
-      lazy val noop: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
+      def noop: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
         override def update(num: Long): F[Unit] = ().pure
         override def unsafeUpdate(num: Long): Unit = ()
       }
