@@ -151,6 +151,21 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.squants.dimensionName == Information.name)
   }
 
+  test("6b.unsafe histogram") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("histogram")(_.unsafeHistogram("histogram"))
+        .use { histogram =>
+          IO.delay(histogram.unsafeUpdate(10)) >> agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(histo.updates == 1)
+    assert(histo.max == 10)
+  }
+
   test("7.histogram timer") {
     val mr = service.eventStream { agent =>
       agent

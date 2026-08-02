@@ -81,7 +81,7 @@ object Timer {
       val timer: Resource[F, Timer[F]] =
         Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
 
-      val noop: Timer[F] =
+      lazy val noop: Timer[F] =
         new Timer[F] {
           override def elapsedNano(num: Long): F[Unit] = F.unit
           override def timing[A](fa: F[A]): F[A] = fa
