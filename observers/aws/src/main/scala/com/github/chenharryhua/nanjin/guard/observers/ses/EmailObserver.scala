@@ -11,10 +11,11 @@ import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator, UpdateTranslator}
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -67,16 +68,16 @@ final class EmailObserver[F[_]] private (
   private def translate(evt: Event): F[Option[ColoredTag]] =
     translator
       .translate(evt)
-      .map(_.map(tag => ColoredTag(tag, ColorScheme.decorate[Eval, ColorScheme](evt).eval.value)))
+      .map(_.map(tag => ColoredTag(tag, eventLogLevel[Eval, LogLevel](evt).eval.value)))
 
   private def compose_letter(tags: Chunk[ColoredTag]): Letter = {
     val (warns, errors) = tags.foldLeft((0, 0)) { case ((w, e), i) =>
       i.color match {
-        case ColorScheme.GoodColor  => (w, e)
-        case ColorScheme.InfoColor  => (w, e)
-        case ColorScheme.DebugColor => (w, e)
-        case ColorScheme.WarnColor  => (w + 1, e)
-        case ColorScheme.ErrorColor => (w, e + 1)
+        case LogLevel.Good  => (w, e)
+        case LogLevel.Info  => (w, e)
+        case LogLevel.Debug => (w, e)
+        case LogLevel.Warn  => (w + 1, e)
+        case LogLevel.Error => (w, e + 1)
       }
     }
 
@@ -109,7 +110,7 @@ final class EmailObserver[F[_]] private (
         EmailContent(from, to, subject, content)
       } else {
         val text =
-          p(b(s"Message body size exceeds ${maximumMessageSize.value.toString()}, which contains ${data.size} events."))
+          p(b(s"Message body size exceeds ${maximumMessageSize.value}, which contains ${data.size} events."))
         val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }

@@ -1,12 +1,19 @@
-package com.github.chenharryhua.nanjin.guard
-
-import cats.Eval
-import cats.syntax.eq.given
+package com.github.chenharryhua.nanjin.guard.translator
+import cats.data.ContT
+import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.given
+import cats.{Defer, Eval}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
+import com.github.chenharryhua.nanjin.guard.event.Event.{
+  MetricsSnapshot,
+  ReportedEvent,
+  ServicePanic,
+  ServiceStart,
+  ServiceStop
+}
+import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, StopReason}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
@@ -17,74 +24,89 @@ import java.text.DecimalFormat
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
-package object translator {
-  private[translator] val space2: String = StringUtils.SPACE * 2
-  private[translator] val space4: String = StringUtils.SPACE * 4
+private val space2: String = StringUtils.SPACE * 2
+private val space4: String = StringUtils.SPACE * 4
 
-  final val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
+final val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
 
-  def eventTitle(evt: Event): String =
-    evt match {
-      case ss: Event.ServiceStart =>
-        if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: Event.ServiceStop     => "Stop Service"
-      case _: Event.ServicePanic    => "Service Panic"
-      case _: Event.ReportedEvent   => "Reported Event"
-      case _: Event.MetricsSnapshot => "Metrics Report"
-    }
-
-  private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
-    val duration = Duration.between(start, end)
-    val localTime: String =
-      if (duration.minus(Duration.ofHours(24)).isNegative)
-        end.truncatedTo(ChronoUnit.SECONDS).toLocalTime.show
-      else
-        end.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
-
-    (localTime, defaultFormatter.format(duration))
+def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
+  ContT.pure[F, A, Event](evt).map {
+    case _: ServiceStart => LogLevel.Info
+    case _: ServicePanic => LogLevel.Error
+    case ss: ServiceStop =>
+      ss.cause match
+        case StopReason.Successfully   => LogLevel.Good
+        case StopReason.ByCancellation => LogLevel.Warn
+        case StopReason.ByException(_) => LogLevel.Error
+        case StopReason.Maintenance    => LogLevel.Info
+    case ReportedEvent(_, _, _, _, level, _, _) => level
+    case MetricsSnapshot(_, _, snapshot, _)     =>
+      val health = retrieve.healthCheck(snapshot.gauges).forall(_._2)
+      val risk = retrieve.riskCounter(snapshot.counters).forall(_._2.value === 0)
+      if health && risk then LogLevel.Info else LogLevel.Warn
   }
 
-  def panicText(evt: ServicePanic): String = {
-    val (time, dur) = localTime_duration(evt.timestamp.value, evt.tick.zoned(_.conclude))
-    s"Restart scheduled for $time, in $dur."
-  }
-
-  def interpretServiceParams(serviceParams: ServiceParams): Json =
-    Json.obj(
-      Attribute(serviceParams.taskName).snakeJsonEntry,
-      Attribute(serviceParams.serviceName).snakeJsonEntry,
-      Attribute(serviceParams.serviceId).snakeJsonEntry,
-      Attribute(serviceParams.homepage).snakeJsonEntry,
-      Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
-      "service_policies" -> Json.obj(
-        "restart" -> Json.obj(
-          Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
-          "threshold" -> serviceParams.policies.restart.threshold.map(defaultFormatter.format).asJson
-        ),
-        "dashboard" ->
-          serviceParams.policies.dashboard.map { tm =>
-            Json.obj(
-              Attribute(tm.policy).map(_.show).snakeJsonEntry,
-              Attribute(tm.maxPoints).snakeJsonEntry
-            )
-          }.asJson,
-        "metrics_report" -> serviceParams.policies.report.show.asJson
-      ),
-      Attribute(serviceParams.logFormat).snakeJsonEntry,
-      "history_capacity" -> serviceParams.history.asJson,
-      "launch_time" -> serviceParams.launchTime.asJson,
-      "nanjin" -> serviceParams.nanjin.asJson,
-      Attribute(serviceParams.brief).snakeJsonEntry
-    )
-
-  def htmlColoring(evt: Event): String = ColorScheme
-    .decorate[Eval, String](evt)
+def htmlColoring(evt: Event): String =
+  eventLogLevel[Eval, String](evt)
     .run {
-      case ColorScheme.GoodColor  => Eval.now("color:darkgreen")
-      case ColorScheme.InfoColor  => Eval.now("color:black")
-      case ColorScheme.WarnColor  => Eval.now("color:#b3b300")
-      case ColorScheme.ErrorColor => Eval.now("color:red")
-      case ColorScheme.DebugColor => Eval.now("color:#FF00FF")
+      case LogLevel.Good  => Eval.now("color:darkgreen")
+      case LogLevel.Info  => Eval.now("color:black")
+      case LogLevel.Warn  => Eval.now("color:#b3b300")
+      case LogLevel.Error => Eval.now("color:red")
+      case LogLevel.Debug => Eval.now("color:#FF00FF")
     }
     .value
+
+def eventTitle(evt: Event): String =
+  evt match {
+    case ss: Event.ServiceStart =>
+      if (ss.tick.index === 0) "Start Service" else "Restart Service"
+    case _: Event.ServiceStop     => "Stop Service"
+    case _: Event.ServicePanic    => "Service Panic"
+    case _: Event.ReportedEvent   => "Reported Event"
+    case _: Event.MetricsSnapshot => "Metrics Report"
+  }
+
+def interpretServiceParams(serviceParams: ServiceParams): Json =
+  Json.obj(
+    Attribute(serviceParams.taskName).snakeJsonEntry,
+    Attribute(serviceParams.serviceName).snakeJsonEntry,
+    Attribute(serviceParams.serviceId).snakeJsonEntry,
+    Attribute(serviceParams.homepage).snakeJsonEntry,
+    Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
+    "service_policies" -> Json.obj(
+      "restart" -> Json.obj(
+        Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
+        "threshold" -> serviceParams.policies.restart.threshold.map(defaultFormatter.format).asJson
+      ),
+      "dashboard" ->
+        serviceParams.policies.dashboard.map { tm =>
+          Json.obj(
+            Attribute(tm.policy).map(_.show).snakeJsonEntry,
+            Attribute(tm.maxPoints).snakeJsonEntry
+          )
+        }.asJson,
+      "metrics_report" -> serviceParams.policies.report.show.asJson
+    ),
+    Attribute(serviceParams.logFormat).snakeJsonEntry,
+    "history_capacity" -> serviceParams.history.asJson,
+    "launch_time" -> serviceParams.launchTime.asJson,
+    "nanjin" -> serviceParams.nanjin.asJson,
+    Attribute(serviceParams.brief).snakeJsonEntry
+  )
+
+private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
+  val duration = Duration.between(start, end)
+  val localTime: String =
+    if (duration.minus(Duration.ofHours(24)).isNegative)
+      end.truncatedTo(ChronoUnit.SECONDS).toLocalTime.show
+    else
+      end.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
+
+  (localTime, defaultFormatter.format(duration))
+}
+
+def panicText(evt: ServicePanic): String = {
+  val (time, dur) = localTime_duration(evt.timestamp.value, evt.tick.zoned(_.conclude))
+  s"Restart scheduled for $time, in $dur."
 }

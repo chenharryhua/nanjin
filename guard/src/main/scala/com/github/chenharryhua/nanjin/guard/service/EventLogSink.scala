@@ -6,12 +6,13 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import cats.{Defer, Monad}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{
+  eventLogLevel,
   eventTitle,
-  ColorScheme,
   PrettyJsonTranslator,
   SimpleTextTranslator,
   Translator
@@ -50,12 +51,12 @@ final private class EventLogSink[F[_]: {Monad, Defer}] private (
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
-          ColorScheme.decorate[F, Unit](event).run {
-            case ColorScheme.GoodColor  => logger.info(s"${logColor.good(eventTitle(event))} $text")
-            case ColorScheme.InfoColor  => logger.info(s"${logColor.info(eventTitle(event))} $text")
-            case ColorScheme.WarnColor  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
-            case ColorScheme.ErrorColor => logger.error(s"${logColor.error(eventTitle(event))} $text")
-            case ColorScheme.DebugColor => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
+          eventLogLevel[F, Unit](event).run {
+            case LogLevel.Good  => logger.info(s"${logColor.good(eventTitle(event))} $text")
+            case LogLevel.Info  => logger.info(s"${logColor.info(eventTitle(event))} $text")
+            case LogLevel.Warn  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
+            case LogLevel.Error => logger.error(s"${logColor.error(eventTitle(event))} $text")
+            case LogLevel.Debug => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
           }
         })
         .void

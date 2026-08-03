@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{
+  eventLogLevel,
   eventTitle,
   panicText,
   Attribute,
-  ColorScheme,
   SnapshotPolyglot,
   TextEntry,
   Translator
@@ -23,16 +23,16 @@ private object SlackTranslator extends all {
 
   private case class Index(value: Long)
 
-  private def coloring(evt: Event): String = ColorScheme
-    .decorate[Eval, String](evt)
-    .run {
-      case ColorScheme.GoodColor  => Eval.now("#36a64f")
-      case ColorScheme.InfoColor  => Eval.now("#b3d1ff")
-      case ColorScheme.WarnColor  => Eval.now("#ffd79a")
-      case ColorScheme.ErrorColor => Eval.now("#935252")
-      case ColorScheme.DebugColor => Eval.now("#FF00FF")
-    }
-    .value
+  private def coloring(evt: Event): String =
+    eventLogLevel[Eval, String](evt)
+      .run {
+        case LogLevel.Good  => Eval.now("#36a64f")
+        case LogLevel.Info  => Eval.now("#b3d1ff")
+        case LogLevel.Warn  => Eval.now("#ffd79a")
+        case LogLevel.Error => Eval.now("#935252")
+        case LogLevel.Debug => Eval.now("#FF00FF")
+      }
+      .value
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
