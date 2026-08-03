@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common.logging
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.syntax.show.showInterpolator
@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.logging.LogLevel
 
 import scala.io.AnsiColor
 
-sealed trait LogColor:
+sealed private trait LogColor:
   def good: Endo[String]
   def info: Endo[String]
   def warn: Endo[String]
@@ -14,7 +14,7 @@ sealed trait LogColor:
   def debug: Endo[String]
 end LogColor
 
-object LogColor:
+private object LogColor:
   private def colorize(level: LogLevel, code: String)(name: String): String =
     show"${level.name} -- $code$name${AnsiColor.RESET}"
 

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common.logging
+package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.syntax.all.catsSyntaxEq
