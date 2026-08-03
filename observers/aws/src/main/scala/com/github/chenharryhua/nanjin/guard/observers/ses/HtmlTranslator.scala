@@ -112,11 +112,11 @@ private object HtmlTranslator extends all {
   private def reported_event(evt: ReportedEvent): Text.TypedTag[String] = {
     val domain = Attribute(evt.domain).textEntry
     val correlation = Attribute(evt.correlation).textEntry
-    val alarm_level = Attribute(evt.level).textEntry
+    val logLevel = Attribute(evt.level).textEntry
 
     val fg = frag(
-      tr(th(domain.tag), th(correlation.tag), th(alarm_level.tag)),
-      tr(td(domain.text), td(correlation.text), td(alarm_level.text))
+      tr(th(domain.tag), th(correlation.tag), th(logLevel.tag)),
+      tr(td(domain.text), td(correlation.text), td(logLevel.text))
     )
 
     div(

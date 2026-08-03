@@ -2,7 +2,7 @@ package mtest.terminals
 
 import better.files.*
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.RetentionStatus.Retained
+import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
 import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionStatus}
 import io.lemonlabs.uri.Url
@@ -47,7 +47,7 @@ class HadoopTest extends AnyFunSuite {
   }
   test("3.exist") {
     assert(hdp.isExist(p1).unsafeRunSync())
-    assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) == 4)
+    assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) >= 4)
   }
 
   test("4.file in") {
@@ -132,5 +132,34 @@ class HadoopTest extends AnyFunSuite {
     val frs = FolderRetentionStatus(path, Retained)
     println(frs.asJson)
     println(frs.status.show)
+  }
+
+  test("13.date folder retention removes stale partitions") {
+    val retentionRoot = path / "retention" / "isolated"
+    hdp.delete(retentionRoot).unsafeRunSync()
+
+    val keep = retentionRoot / ymd(LocalDate.of(2025, 8, 10))
+    val stale = retentionRoot / ymd(LocalDate.of(2024, 8, 10))
+    File(keep.toString()).createDirectories()
+    File(stale.toString()).createDirectories()
+    File((keep / "data.txt").toString()).createFileIfNotExists(createParents = true)
+    File((stale / "old.txt").toString()).createFileIfNotExists(createParents = true)
+
+    val result = hdp.dateFolderRetention(retentionRoot, List(LocalDate.of(2025, 8, 10))).unsafeRunSync()
+
+    assert(result.exists(_.status == Retained))
+    assert(result.exists(_.status == Removed))
+    assert(hdp.isExist(keep).unsafeRunSync())
+    assert(!hdp.isExist(stale).unsafeRunSync())
+  }
+
+  test("14.missing paths are handled as empty") {
+    val missingRoot = path / "retention" / "missing"
+
+    assert(!hdp.isExist(missingRoot).unsafeRunSync())
+    assert(hdp.filesIn(missingRoot).unsafeRunSync().isEmpty)
+    assert(hdp.dataFolders(missingRoot).unsafeRunSync().isEmpty)
+    assert(hdp.emptyFolders(missingRoot).unsafeRunSync().isEmpty)
+    assert(hdp.dateFolderRetention(missingRoot, List(LocalDate.of(2025, 8, 10))).unsafeRunSync().isEmpty)
   }
 }

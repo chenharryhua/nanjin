@@ -4,6 +4,7 @@ import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.{Applicative, Endo, Functor}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.logging.{LogFormat, LogLevel}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.syntax.EncoderOps
@@ -66,7 +67,7 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] val zoneId: ZoneId,
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]],
-  private[guard] val alarmLevel: AlarmLevel) {
+  private[guard] val logLevel: LogLevel) {
   import ServiceConfigF.*
 
   private def copy(
@@ -74,8 +75,8 @@ final class ServiceConfig[F[_]: Applicative] private (
     zoneId: ZoneId = this.zoneId,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs,
-    alarmLevel: AlarmLevel = this.alarmLevel): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, alarmLevel)
+    logLevel: LogLevel = this.logLevel): ServiceConfig[F] =
+    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logLevel)
 
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
@@ -104,8 +105,8 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
 
-  def withInitialAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
-    copy(alarmLevel = f(AlarmLevel))
+  def withInitialLogLevel(f: LogLevel.type => LogLevel): ServiceConfig[F] =
+    copy(logLevel = f(LogLevel))
 
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
@@ -136,6 +137,6 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
-      alarmLevel = AlarmLevel.Info
+      logLevel = LogLevel.Info
     )
 }

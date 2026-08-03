@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{
   MetricsEventHandler,
@@ -40,7 +40,7 @@ final private class HttpDataRouter[F[_]](
   private val serviceParams = metricsEventHandler.serviceParams
 
   private val DISABLED = "Disabled"
-  private def toJson(level: Option[AlarmLevel]): Json =
+  private def toJson(level: Option[LogLevel]): Json =
     level.fold(DISABLED.asJson)(_.asJson)
 
   val router: HttpRoutes[F] = HttpRoutes.of[F] {
@@ -100,15 +100,15 @@ final private class HttpDataRouter[F[_]](
       Ok(text)
 
     /*
-     * Realtime Alarm Level
+     * Realtime Log Level
      */
 
-    case GET -> Root / "alarm" / "level" =>
-      Ok(reportedEventHandler.alarmThreshold.get.map(toJson))
+    case GET -> Root / "log" / "level" =>
+      Ok(reportedEventHandler.logThreshold.get.map(toJson))
 
-    case POST -> Root / "alarm" / level =>
+    case POST -> Root / "log" / level =>
       if level.equalsIgnoreCase(DISABLED) then
-        reportedEventHandler.alarmThreshold.getAndSet(None)
+        reportedEventHandler.logThreshold.getAndSet(None)
           .flatMap(prev =>
             Ok(
               Json.obj(
@@ -116,9 +116,9 @@ final private class HttpDataRouter[F[_]](
                 "current" -> toJson(None)
               )))
       else
-        AlarmLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
+        LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
           case lvl @ Some(_) =>
-            reportedEventHandler.alarmThreshold.getAndSet(lvl)
+            reportedEventHandler.logThreshold.getAndSet(lvl)
               .flatMap(prev =>
                 Ok(
                   Json.obj(
@@ -128,8 +128,8 @@ final private class HttpDataRouter[F[_]](
           case None =>
             BadRequest(
               Json.obj(
-                "invalid_alarm_level" -> level.asJson,
-                "valid" -> (DISABLED :: AlarmLevel.values.map(_.toString).toList).asJson
+                "invalid_log_level" -> level.asJson,
+                "valid" -> (DISABLED :: LogLevel.values.map(_.toString).toList).asJson
               ))
         }
   }

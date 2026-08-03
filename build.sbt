@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.3-SNAPSHOT"
+ThisBuild / version      := "0.21.4-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -98,12 +98,10 @@ lazy val common = (project in file("common"))
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
-      "io.circe" %% "circe-generic"                    % circeV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
-
       "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
-// java
+      // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ testLib
   )
@@ -116,13 +114,13 @@ lazy val http = (project in file("http"))
   .settings(commonSettings *)
   .settings(name := "nj-http")
   .settings(libraryDependencies ++= List(
-    "org.http4s" %% "http4s-circe"        % http4sV,
-    "org.http4s" %% "http4s-client"       % http4sV,
-    "org.http4s" %% "http4s-dsl"          % http4sV % Test,
-    "org.http4s" %% "http4s-ember-server" % http4sV % Test,
-    "org.http4s" %% "http4s-ember-client" % http4sV % Test,
-    // java
-    "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
+    "org.http4s" %% "http4s-circe"  % http4sV,
+    "org.http4s" %% "http4s-client" % http4sV,
+    // test
+    "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
+    "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
+    "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
+    "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
   ) ++ testLib)
 
 // ==========================
@@ -172,7 +170,6 @@ lazy val frontend = project.in(file("frontend"))
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
       "io.circe" %%% "circe-core"      % circeV,
-      "io.circe" %%% "circe-generic"   % circeV,
       "io.circe" %%% "circe-jawn"      % circeV,
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
       "com.raquo" %%% "laminar"        % "17.0.0"
@@ -193,10 +190,11 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.3",
-      "org.http4s" %% "http4s-ember-client" % http4sV % Test,
       // java
-      "io.dropwizard.metrics" % "metrics-core"    % metricsV,
-      "ch.qos.logback"        % "logback-classic" % logbackV % Test
+      "io.dropwizard.metrics" % "metrics-core" % metricsV,
+      // test
+      "org.http4s" %% "http4s-ember-client" % http4sV           % Test,
+      "ch.qos.logback"                      % "logback-classic" % logbackV % Test
     ) ++ testLib
   )
   .settings {
@@ -270,9 +268,9 @@ lazy val database = (project in file("database"))
       "org.typelevel" %% "doobie-core"   % doobieV,
       "org.typelevel" %% "doobie-hikari" % doobieV,
       "org.typelevel" %% "doobie-free"   % doobieV,
-
       // java
-      "com.zaxxer"     % "HikariCP"        % "7.1.0",
+      "com.zaxxer" % "HikariCP" % "7.1.0",
+      // test
       "org.postgresql" % "postgresql"      % postgresV % Test,
       "ch.qos.logback" % "logback-classic" % logbackV  % Test
     ) ++ testLib
@@ -303,11 +301,14 @@ lazy val kafka = (project in file("kafka"))
       "io.confluent"     % "kafka-schema-registry-client" % confluentV,
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test,
-      "io.opentelemetry" % "opentelemetry-api"            % "1.64.0", // snyk by kafka-client
-      "org.apache.httpcomponents.core5" % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm" % "6.4.5", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"            % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
+      // test
+      "ch.qos.logback"              % "logback-classic" % logbackV % Test,
+      "io.circe" %% "circe-generic" % circeV            % Test,
+      // snyk
+      "io.opentelemetry"                % "opentelemetry-api" % "1.64.0", // snyk by kafka-client
+      "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
+      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5", // snyk by kafka-protobuf-provider
+      "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
@@ -327,14 +328,17 @@ lazy val pipes = (project in file("pipes"))
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-      "org.typelevel" %% "jawn-fs2"                            % "2.6.0" % Test,
-      "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
-      "org.apache.hadoop"  % "hadoop-client"          % hadoopV,
-      "org.apache.parquet" % "parquet-avro"           % parquetV,
-      "org.apache.avro"    % "avro"                   % avroV,
-      "org.tukaani"        % "xz"                     % "1.12",
-      "at.yawk.lz4"        % "lz4-java"               % "1.11.1", // drop-in replacement of org.lz4:lz4-java
+      "org.apache.hadoop"  % "hadoop-client" % hadoopV,
+      "org.apache.parquet" % "parquet-avro"  % parquetV,
+      "org.apache.avro"    % "avro"          % avroV,
+      "org.tukaani"        % "xz"            % "1.12",
+      "at.yawk.lz4"        % "lz4-java"      % "1.11.1", // drop-in replacement of org.lz4:lz4-java
+      // test
+      "io.circe" %% "circe-generic"          % circeV  % Test,
+      "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
+      "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
+      // snyk
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
       "io.netty"           % "netty-all"              % "4.2.16.Final", // snky by hadoop-client
       "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snky by hadoop-client

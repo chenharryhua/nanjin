@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import io.circe.generic.auto.*
+import io.circe.{Decoder, Encoder}
 import org.http4s.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
@@ -54,6 +54,7 @@ object Salesforce {
       token_type: String,
       issued_at: String,
       signature: String)
+        derives Encoder, Decoder
 
     override def login(client: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
@@ -93,8 +94,7 @@ object Salesforce {
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
     expiresIn: FiniteDuration = 2.hours): Resource[F, Login[F]] =
-    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { sr =>
-      given dummy: SecureRandom[F] = sr
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
       new PasswordGrantAuth[F](
         credential = credential,
         expiresIn = expiresIn,

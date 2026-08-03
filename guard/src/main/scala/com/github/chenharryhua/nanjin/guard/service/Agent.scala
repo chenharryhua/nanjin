@@ -4,12 +4,12 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricLabel}
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricsHub, MetricsHubS}
-import com.github.chenharryhua.nanjin.guard.service.logging.Log
 import fs2.Stream
 import fs2.concurrent.Channel
 

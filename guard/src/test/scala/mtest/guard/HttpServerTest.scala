@@ -40,7 +40,7 @@ class HttpServerTest extends AnyFunSuite {
           c.expect[String]("http://localhost:9999/health") >>
           c.expect[String]("http://localhost:9999/panics") >>
           c.expect[String]("http://localhost:9999/errors") >>
-          c.expect[String]("http://localhost:9999/alarm/level") >>
+          c.expect[String]("http://localhost:9999/log/level") >>
           c.expect[String]("http://localhost:9999/healthcheck/status") >>
           c.expect[String](stop)
       }

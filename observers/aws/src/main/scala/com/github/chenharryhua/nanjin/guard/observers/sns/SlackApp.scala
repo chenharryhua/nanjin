@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import com.github.chenharryhua.nanjin.guard.translator.TextEntry
-import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
-import io.circe.Codec
 
 final case class TextField(tag: String, value: String)
 object TextField {
@@ -41,14 +39,14 @@ object Section {
   }
 }
 
-final case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Codec.AsObject
-final case class KeyValueSection(tag: String, value: String) extends Section derives Codec.AsObject
-final case class MarkdownSection(text: String) extends Section derives Codec.AsObject
-final case class HeaderSection(text: String) extends Section derives Codec.AsObject
+final case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Encoder
+final case class KeyValueSection(tag: String, value: String) extends Section derives Encoder
+final case class MarkdownSection(text: String) extends Section derives Encoder
+final case class HeaderSection(text: String) extends Section derives Encoder
 
-final case class Attachment(color: String, blocks: List[Section]) derives Codec.AsObject
+final case class Attachment(color: String, blocks: List[Section]) derives Encoder
 
-final case class SlackApp(username: String, attachments: List[Attachment]) derives Codec.AsObject {
+final case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder {
   // before first section
   def prependMarkdown(text: String): SlackApp =
     SlackApp(

@@ -50,37 +50,35 @@ import scala.jdk.CollectionConverters.*
   *   - Cookies are keyed per URI; multiple cookies for the same URI are supported.
   *   - CE3 fibers calling the middleware concurrently are safe, thanks to Java SE synchronization.
   */
-object cookieBox {
 
-  /** cookieManager the underlying Java CookieManager that holds cookies
-    * @param cookieManager
-    *   java CookieManager
-    * @param client
-    *   the HTTP client to wrap
-    * @tparam F
-    *   the effect type, must have `Sync[F]` to safely handle blocking Java calls
-    * @return
-    *   a new `Client[F]` that automatically manages cookies
-    */
-  def apply[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sync[F]): Client[F] = {
-    val cookie_store: CookieStore = cookieManager.getCookieStore
-    Client[F] { req =>
-      for {
-        cookies <- Resource.eval[F, List[RequestCookie]](
-          F.blocking(
-            cookie_store
-              .get(URI.create(req.uri.renderString))
-              .asScala
-              .toList
-              .map(hc => RequestCookie(hc.getName, hc.getValue))))
-        out <- client.run(cookies.foldLeft(req) { case (r, c) => r.addCookie(c) }).evalTap { resp =>
-          F.blocking(
-            resp.headers.headers
-              .filter(_.name === `Set-Cookie`.name)
-              .flatMap(c => HttpCookie.parse(c.value).asScala)
-              .foreach(hc => cookie_store.add(URI.create(req.uri.renderString), hc)))
-        }
-      } yield out
-    }
+/** cookieManager the underlying Java CookieManager that holds cookies
+  * @param cookieManager
+  *   java CookieManager
+  * @param client
+  *   the HTTP client to wrap
+  * @tparam F
+  *   the effect type, must have `Sync[F]` to safely handle blocking Java calls
+  * @return
+  *   a new `Client[F]` that automatically manages cookies
+  */
+def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sync[F]): Client[F] = {
+  val cookie_store: CookieStore = cookieManager.getCookieStore
+  Client[F] { req =>
+    for {
+      cookies <- Resource.eval[F, List[RequestCookie]](
+        F.blocking(
+          cookie_store
+            .get(URI.create(req.uri.renderString))
+            .asScala
+            .toList
+            .map(hc => RequestCookie(hc.getName, hc.getValue))))
+      out <- client.run(cookies.foldLeft(req) { case (r, c) => r.addCookie(c) }).evalTap { resp =>
+        F.blocking(
+          resp.headers.headers
+            .filter(_.name === `Set-Cookie`.name)
+            .flatMap(c => HttpCookie.parse(c.value).asScala)
+            .foreach(hc => cookie_store.add(URI.create(req.uri.renderString), hc)))
+      }
+    } yield out
   }
 }

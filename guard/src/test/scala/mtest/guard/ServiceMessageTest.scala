@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.group.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
@@ -16,11 +15,11 @@ class ServiceMessageTest extends AnyFunSuite {
     TaskGuard[IO]("Messaging System")
       .service("Forward")
       .updateConfig(
-        _.withInitialAlarmLevel(_.Debug)
+        _.withInitialLogLevel(_.Debug)
           .withMetricsReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    val log = agent.logger |+| agent.herald
+    val log = agent.heraldLogger
     log.info("a") >>
       log.info(1) >>
       log.info(List(1, 2, 3)) >>
@@ -29,14 +28,14 @@ class ServiceMessageTest extends AnyFunSuite {
       log.info(Json.Null)
 
   private def warn(agent: Agent[IO]): IO[Unit] =
-    val log = agent.logger |+| agent.herald
+    val log = agent.heraldLogger
     log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
       log.warn(Json.Null) >>
       log.warn("oops", new Exception()) >>
       log.warn(Json.Null, new Exception())
 
   private def mix(agent: Agent[IO]): IO[Unit] =
-    val log = agent.logger |+| agent.herald
+    val log = agent.heraldLogger
     agent.adhoc.report >>
       log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
       log.info(Json.Null) >>
