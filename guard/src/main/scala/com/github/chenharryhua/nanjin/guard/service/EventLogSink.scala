@@ -9,7 +9,13 @@ import cats.{Defer, Monad}
 import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.LogSink
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, PrettyJsonTranslator, SimpleTextTranslator, Translator, eventTitle}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventTitle,
+  ColorScheme,
+  PrettyJsonTranslator,
+  SimpleTextTranslator,
+  Translator
+}
 import fs2.Stream
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.slf4j.Slf4jLogger
