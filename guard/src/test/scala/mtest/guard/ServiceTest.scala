@@ -25,7 +25,7 @@ class ServiceTest extends AnyFunSuite {
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withLogFormat(_.Slf4j_Json_OneLine)
-      .withInitialAlarmLevel(_.Debug)
+      .withInitialLogLevel(_.Debug)
       .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))
 

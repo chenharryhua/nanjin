@@ -1,11 +1,13 @@
-package com.github.chenharryhua.nanjin.guard.service.logging
+package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.Console
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
+import cats.{Defer, Monad}
+import com.github.chenharryhua.nanjin.common.logging.{LogColor, LogFormat}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{
@@ -21,8 +23,25 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
-final private class EventLogSink[F[_]: Sync] private (
+final private class ConsoleLogger[F[_]: {Console, Clock, Monad}](zoneId: ZoneId, loggerName: LoggerName)
+    extends MessageLogger[F] {
+  private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+  private def out(message: String): F[Unit] =
+    Clock[F].realTimeInstant.map(_.atZone(zoneId).toLocalDateTime.format(fmt)).flatMap { time =>
+      Console[F].println(s"$time [${loggerName.value}] $message")
+    }
+
+  override def error(message: => String): F[Unit] = out(message)
+  override def warn(message: => String): F[Unit] = out(message)
+  override def info(message: => String): F[Unit] = out(message)
+  override def debug(message: => String): F[Unit] = out(message)
+  override def trace(message: => String): F[Unit] = out(message)
+}
+
+final private class EventLogSink[F[_]: {Monad, Defer}] private (
   logger: MessageLogger[F],
   translator: Translator[F, String],
   logColor: LogColor
@@ -44,7 +63,7 @@ final private class EventLogSink[F[_]: Sync] private (
     }
 }
 
-private[service] object EventLogSink {
+private object EventLogSink:
   def apply[F[_]: Console](serviceParams: ServiceParams)(using F: Sync[F]): Stream[F, LogSink[F]] =
     serviceParams.logFormat match {
       case Some(format) =>
@@ -113,4 +132,4 @@ private[service] object EventLogSink {
           logColor = LogColor.none
         )
     }
-}
+end EventLogSink

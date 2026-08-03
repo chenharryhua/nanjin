@@ -15,7 +15,6 @@ import org.apache.parquet.hadoop.util.HiddenFileFilter
 import java.time.{LocalDate, ZoneId}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 final class Hadoop[F[_]](config: Configuration) {
 
@@ -59,7 +58,7 @@ final class Hadoop[F[_]](config: Configuration) {
       if (!fs.exists(hp)) Nil
       else {
         val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-        val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
+        val lb = mutable.ListBuffer.empty[LocatedFileStatus]
         while (ri.hasNext) lb.addOne(ri.next()) // scalafix:ok
         lb.toList
       }
@@ -87,34 +86,35 @@ final class Hadoop[F[_]](config: Configuration) {
       }
     }
 
-  def emptyFolders(path: Url)(using F: Sync[F]): F[List[Url]] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
+  def emptyFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
 
-    if (!fs.exists(hp)) Nil
-    else {
-      val result = ListBuffer.empty[Path]
-      val stack = mutable.Stack(hp)
+      if (!fs.exists(hp)) Nil
+      else {
+        val result = mutable.ListBuffer.empty[Path]
+        val stack = mutable.Stack(hp)
 
-      while (stack.nonEmpty) { // scalafix:ok
-        val current = stack.pop()
-        val status = fs.getFileStatus(current)
+        while (stack.nonEmpty) { // scalafix:ok
+          val current = stack.pop()
+          val status = fs.getFileStatus(current)
 
-        if (status.isDirectory) {
-          val children = fs.listStatus(current)
-          if (children.isEmpty) {
-            result += current
-          } else {
-            children.foreach { child =>
-              if (child.isDirectory)
-                stack.push(child.getPath)
+          if (status.isDirectory) {
+            val children = fs.listStatus(current)
+            if (children.isEmpty) {
+              result += current
+            } else {
+              children.foreach { child =>
+                if (child.isDirectory)
+                  stack.push(child.getPath)
+              }
             }
           }
         }
+        result.toList.map(p => Uri(p.toUri).toUrl)
       }
-      result.toList.map(p => Uri(p.toUri).toUrl)
     }
-  }
 
   /** List files directly under a path, sorted by modification time.
     *
@@ -164,28 +164,29 @@ final class Hadoop[F[_]](config: Configuration) {
     */
   def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(using
     F: Sync[F],
-    Ord: Ordering[T]): F[Option[Url]] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    if (!fs.exists(hp)) None
-    else {
-      @tailrec
-      def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
-        js match {
-          case f :: tail =>
-            fs.listStatus(hp)
-              .filter(_.isDirectory)
-              .flatMap(s => f(s.getPath.getName).map((_, s)))
-              .maxByOption(_._1)
-              .map(_._2) match {
-              case Some(status) => go(status.getPath, tail)
-              case None         => None
-            }
-          case Nil => Some(hp)
-        }
-      go(hp, rules.toList).map(p => Uri(p.toUri).toUrl)
+    Ord: Ordering[T]): F[Option[Url]] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      if (!fs.exists(hp)) None
+      else {
+        @tailrec
+        def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
+          js match {
+            case f :: tail =>
+              fs.listStatus(hp)
+                .filter(_.isDirectory)
+                .flatMap(s => f(s.getPath.getName).map((_, s)))
+                .maxByOption(_._1)
+                .map(_._2) match {
+                case Some(status) => go(status.getPath, tail)
+                case None         => None
+              }
+            case Nil => Some(hp)
+          }
+        go(hp, rules.toList).map(p => Uri(p.toUri).toUrl)
+      }
     }
-  }
 
   /** @param path
     *   the path where search starts

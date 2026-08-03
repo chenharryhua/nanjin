@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.data.NonEmptyList
 import cats.syntax.order.given
-import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
@@ -35,9 +35,9 @@ object EventPipe {
     override def apply(event: Event): Option[Event] = Some(event)
   }
 
-  def alarmLevel(f: AlarmLevel.type => AlarmLevel): EventPipe =
+  def logLevel(f: LogLevel.type => LogLevel): EventPipe =
     new EventPipe {
-      private val threshold: AlarmLevel = f(AlarmLevel)
+      private val threshold: LogLevel = f(LogLevel)
       override def apply(event: Event): Option[Event] =
         event match {
           case evt @ Event.ReportedEvent(_, _, _, _, level, _, _) =>

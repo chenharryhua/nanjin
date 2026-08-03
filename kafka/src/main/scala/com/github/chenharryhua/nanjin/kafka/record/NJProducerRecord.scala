@@ -28,7 +28,7 @@ final case class NJProducerRecord[K, V](
   headers: List[NJHeader],
   key: Option[K],
   value: Option[V]
-) derives Bitraverse, Eq {
+) derives Bitraverse, Eq, JsonEncoder, JsonDecoder {
 
   def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
@@ -82,12 +82,6 @@ object NJProducerRecord {
     given SchemaFor[VAL] = SchemaFor[VAL](valSchema)
     SchemaFor[NJProducerRecord[KEY, VAL]].schema
   }
-
-  given [K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
-
-  given [K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 
   given [K, V]: Transformer[JavaProducerRecord[K, V], NJProducerRecord[K, V]] =
     (src: JavaProducerRecord[K, V]) =>

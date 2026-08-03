@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
-import io.circe.generic.auto.*
+import io.circe.{Decoder, Encoder}
 import org.http4s.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -90,6 +90,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     access_token: String,
     expires_in: Option[Long], // in seconds
     refresh_token: Option[String])
+      derives Encoder, Decoder
 
   private val urlForm: UrlForm = {
     val uf = UrlForm(
@@ -165,7 +166,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
     id_token: String,
     token_type: String,
     expires_in: Long // in second
-  )
+  ) derives Encoder, Decoder
 
   private val urlForm: UrlForm = {
     val uf = UrlForm(

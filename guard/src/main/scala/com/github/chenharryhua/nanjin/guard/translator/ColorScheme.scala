@@ -5,7 +5,7 @@ import cats.data.ContT
 import cats.derived.derived
 import cats.kernel.Order
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsSnapshot,
   ReportedEvent,
@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, Snapshot, StopReason}
 
 enum ColorScheme(val value: Int) derives Order:
-  case DebugColor extends ColorScheme(0) // refer to AlarmLevel.Debug
+  case DebugColor extends ColorScheme(0) // refer to LogLevel.Debug
   case InfoColor extends ColorScheme(1) // fyi
   case GoodColor extends ColorScheme(2) // successful-ish
   case WarnColor extends ColorScheme(3) // well, not so wrong
@@ -43,11 +43,11 @@ object ColorScheme:
           case StopReason.Maintenance    => InfoColor
       case sm: ReportedEvent =>
         sm.level match
-          case AlarmLevel.Error => ErrorColor
-          case AlarmLevel.Warn  => WarnColor
-          case AlarmLevel.Info  => InfoColor
-          case AlarmLevel.Good  => GoodColor
-          case AlarmLevel.Debug => DebugColor
+          case LogLevel.Error => ErrorColor
+          case LogLevel.Warn  => WarnColor
+          case LogLevel.Info  => InfoColor
+          case LogLevel.Good  => GoodColor
+          case LogLevel.Debug => DebugColor
       case MetricsSnapshot(_, _, snapshot, _) => color_snapshot(snapshot)
     }
 end ColorScheme

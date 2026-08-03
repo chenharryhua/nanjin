@@ -2,14 +2,10 @@ package example
 
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
-import io.circe.Codec
 import org.apache.avro.generic.GenericRecord
 
 final case class Foo(a: Int, b: String)
 
-object Foo {
-  implicit val codec: Codec[Foo] = io.circe.generic.semiauto.deriveCodec[Foo]
-}
 final case class Bar(c: Int, d: Long)
 final case class FooBar(e: Int, f: String)
 

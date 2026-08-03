@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, UpTime}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import io.circe.Codec
@@ -39,7 +40,7 @@ object Event {
     domain: Domain,
     timestamp: Timestamp,
     correlation: Correlation,
-    level: AlarmLevel,
+    level: LogLevel,
     stackTrace: Option[StackTrace],
     message: Message
   ) extends Event

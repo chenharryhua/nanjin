@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.eq.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Brief, ServiceParams}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
@@ -182,11 +183,11 @@ private object SlackTranslator extends all {
 
   private def reported_event(evt: ReportedEvent): SlackApp = {
     val symbol: String = evt.level match {
-      case AlarmLevel.Error => ":warning:"
-      case AlarmLevel.Warn  => ":warning:"
-      case AlarmLevel.Info  => ""
-      case AlarmLevel.Good  => ""
-      case AlarmLevel.Debug => ""
+      case LogLevel.Error => ":warning:"
+      case LogLevel.Warn  => ":warning:"
+      case LogLevel.Info  => ""
+      case LogLevel.Good  => ""
+      case LogLevel.Debug => ""
     }
 
     val color = coloring(evt)

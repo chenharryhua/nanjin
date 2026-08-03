@@ -4,7 +4,7 @@ import cats.effect.kernel.MonadCancel
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.{Applicative, Contravariant, Monoid}
-import com.github.chenharryhua.nanjin.guard.service.logging.Log
+import com.github.chenharryhua.nanjin.common.logging.Log
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 

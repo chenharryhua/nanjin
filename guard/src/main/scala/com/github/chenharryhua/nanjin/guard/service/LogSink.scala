@@ -9,3 +9,4 @@ private object LogSink:
   extension [F[_]](ls: LogSink[F])
     inline def write(e: Event): F[Unit] = ls.run(e)
     def value: Kleisli[F, Event, Unit] = ls
+end LogSink

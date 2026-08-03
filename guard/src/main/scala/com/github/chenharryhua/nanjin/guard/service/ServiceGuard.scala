@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
-import com.github.chenharryhua.nanjin.guard.service.logging.EventLogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -46,9 +45,7 @@ private[guard] object ServiceGuard {
       uuidGenerator: F[UUID])
 
     private def kicking_off: F[KickedOff] =
-      SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
-        given dummy: SecureRandom[F] = sr
-
+      SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
         for {
           launchTime <- F.realTimeInstant
           jsons <- config.briefs
@@ -78,7 +75,7 @@ private[guard] object ServiceGuard {
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink <- EventLogSink[F](serviceParams)
         seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.alarmLevel)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.logLevel)
         meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](

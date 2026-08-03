@@ -140,12 +140,15 @@ class RetryClientTests extends CatsEffectSuite {
     val client = Client[IO] { req =>
       Resource.eval(
         sawCookieHeader
-          .update(_ || (req.uri.renderString == "http://example.com/second" && req.headers.headers.exists(_.name == CIString("Cookie"))))
+          .update(
+            _ || (req.uri.renderString == "http://example.com/second" && req.headers.headers.exists(
+              _.name == CIString("Cookie"))))
           .flatMap { _ =>
             if (req.uri.renderString == "http://example.com/first") {
               IO.pure(
                 Response[IO](Status.Ok)
-                  .withHeaders(Headers(Header.Raw(CIString(`Set-Cookie`.name.toString), "session=abc; Path=/")))
+                  .withHeaders(
+                    Headers(Header.Raw(CIString(`Set-Cookie`.name.toString), "session=abc; Path=/")))
               )
             } else {
               IO.pure(Response[IO](Status.Ok))
@@ -159,7 +162,8 @@ class RetryClientTests extends CatsEffectSuite {
     for {
       _ <- wrapped.run(Request[IO](Method.GET, uri"http://example.com/first")).use(IO.pure)
       _ <- wrapped.run(Request[IO](Method.GET, uri"http://example.com/second")).use(IO.pure)
-      cookies <- IO.pure(cookieManager.getCookieStore.get(URI.create("http://example.com/first")).asScala.toList)
+      cookies <- IO.pure(
+        cookieManager.getCookieStore.get(URI.create("http://example.com/first")).asScala.toList)
       saw <- sawCookieHeader.get
     } yield {
       assertEquals(cookies.map(_.getName), List("session"))
