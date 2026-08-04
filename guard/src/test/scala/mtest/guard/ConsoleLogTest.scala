@@ -43,7 +43,7 @@ class ConsoleLogTest extends AnyFunSuite {
 
   test("1.console - verbose json") {
     val mr = service
-      .updateConfig(_.withLogFormat(_.Console_JsonVerbose))
+      .updateConfig(_.withLogFormat(_.Slf4j_PlainText))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)

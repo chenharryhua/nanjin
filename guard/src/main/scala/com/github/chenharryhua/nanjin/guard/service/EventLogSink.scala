@@ -6,19 +6,20 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import cats.{Defer, Monad}
-import com.github.chenharryhua.nanjin.common.logging.{LogColor, LogFormat}
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{
+  eventLogLevel,
   eventTitle,
-  ColorScheme,
   PrettyJsonTranslator,
   SimpleTextTranslator,
   Translator
 }
 import fs2.Stream
 import io.circe.syntax.EncoderOps
+import org.slf4j.event.Level
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
@@ -29,16 +30,16 @@ final private class ConsoleLogger[F[_]: {Console, Clock, Monad}](zoneId: ZoneId,
     extends MessageLogger[F] {
   private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
-  private def out(message: String): F[Unit] =
+  private def out(level: Level, message: String): F[Unit] =
     Clock[F].realTimeInstant.map(_.atZone(zoneId).toLocalDateTime.format(fmt)).flatMap { time =>
-      Console[F].println(s"$time [${loggerName.value}] $message")
+      Console[F].println(s"$time ${level.name} [${loggerName.value}] $message")
     }
 
-  override def error(message: => String): F[Unit] = out(message)
-  override def warn(message: => String): F[Unit] = out(message)
-  override def info(message: => String): F[Unit] = out(message)
-  override def debug(message: => String): F[Unit] = out(message)
-  override def trace(message: => String): F[Unit] = out(message)
+  override def error(message: => String): F[Unit] = out(Level.ERROR, message)
+  override def warn(message: => String): F[Unit] = out(Level.WARN, message)
+  override def info(message: => String): F[Unit] = out(Level.INFO, message)
+  override def debug(message: => String): F[Unit] = out(Level.DEBUG, message)
+  override def trace(message: => String): F[Unit] = out(Level.TRACE, message)
 }
 
 final private class EventLogSink[F[_]: {Monad, Defer}] private (
@@ -51,12 +52,12 @@ final private class EventLogSink[F[_]: {Monad, Defer}] private (
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
-          ColorScheme.decorate[F, Unit](event).run {
-            case ColorScheme.GoodColor  => logger.info(s"${logColor.good(eventTitle(event))} $text")
-            case ColorScheme.InfoColor  => logger.info(s"${logColor.info(eventTitle(event))} $text")
-            case ColorScheme.WarnColor  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
-            case ColorScheme.ErrorColor => logger.error(s"${logColor.error(eventTitle(event))} $text")
-            case ColorScheme.DebugColor => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
+          eventLogLevel[F, Unit](event).run {
+            case LogLevel.Good  => logger.info(s"${logColor.good(eventTitle(event))} $text")
+            case LogLevel.Info  => logger.info(s"${logColor.info(eventTitle(event))} $text")
+            case LogLevel.Warn  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
+            case LogLevel.Error => logger.error(s"${logColor.error(eventTitle(event))} $text")
+            case LogLevel.Debug => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
           }
         })
         .void
@@ -89,25 +90,25 @@ private object EventLogSink:
         new EventLogSink[F](
           translator = SimpleTextTranslator[F],
           logger = new ConsoleLogger[F](zoneId, loggerName),
-          logColor = LogColor.console
+          logColor = LogColor.render
         )
       case LogFormat.Console_Json_OneLine =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = new ConsoleLogger[F](zoneId, loggerName),
-          logColor = LogColor.console
+          logColor = LogColor.render
         )
       case LogFormat.Console_Json_MultiLine =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
-          logColor = LogColor.console
+          logColor = LogColor.render
         )
       case LogFormat.Console_JsonVerbose =>
         new EventLogSink[F](
           translator = Translator.idTranslator.map(_.asJson.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
-          logColor = LogColor.console
+          logColor = LogColor.render
         )
 
       /*
@@ -117,18 +118,24 @@ private object EventLogSink:
         new EventLogSink[F](
           translator = SimpleTextTranslator[F],
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
-          logColor = LogColor.none
+          logColor = LogColor.render
         )
       case LogFormat.Slf4j_Json_OneLine =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
+          logColor = LogColor.render
+        )
+      case LogFormat.AWS_Slf4j_Json_OneLine =>
+        new EventLogSink[F](
+          translator = PrettyJsonTranslator[F].map(_.noSpaces),
+          logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.none
         )
-      case LogFormat.Slf4j_Json_MultiLine =>
+      case LogFormat.AWS_Console_Json_OneLine =>
         new EventLogSink[F](
-          translator = PrettyJsonTranslator[F].map(_.spaces2),
-          logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
+          translator = PrettyJsonTranslator[F].map(_.noSpaces),
+          logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.none
         )
     }

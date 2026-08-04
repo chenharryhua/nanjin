@@ -12,10 +12,11 @@ import io.circe.{Encoder, Json}
   * starts, finishes (successfully or with failure), or is canceled, and can turn those events into logs,
   * metrics, tracing, or other side effects.
   */
-sealed trait JobHook[F[_], A]:
-  private[batch] def kickoff: Job => F[Unit]
-  private[batch] def canceled: Job => F[Unit]
-  private[batch] def completed: JobState[A] => F[Unit]
+sealed private trait JobHook[F[_], A]:
+  def kickoff: Job => F[Unit]
+  def canceled: Job => F[Unit]
+  def completed: JobState[A] => F[Unit]
+end JobHook
 
 object JobHook {
 
@@ -31,9 +32,9 @@ object JobHook {
     * also supports contravariant mapping for adapting the payload type of completed jobs.
     */
   final class Bridge[F[_], A] private[JobHook] (
-    private[batch] val completed: JobState[A] => F[Unit],
-    private[batch] val canceled: Job => F[Unit],
-    private[batch] val kickoff: Job => F[Unit]
+    val completed: JobState[A] => F[Unit],
+    val canceled: Job => F[Unit],
+    val kickoff: Job => F[Unit]
   ) extends JobHook[F, A] with Subscriber[F, A] {
 
     private def copy(
@@ -95,7 +96,7 @@ object JobHook {
     def json: Bridge[F, Json] = standard[Json]
   }
 
-  given monoidBridge[F[_], A](using F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
+  given [F[_], A](using F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
     new Monoid[Bridge[F, A]] {
 
       override val empty: Bridge[F, A] = noop[F, A]

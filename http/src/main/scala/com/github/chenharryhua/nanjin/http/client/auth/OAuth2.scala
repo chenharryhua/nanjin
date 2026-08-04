@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
-import cats.effect.syntax.temporal.given
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
-import io.circe.{Decoder, Encoder}
+import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
+import io.circe.Codec
 import org.http4s.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -39,6 +40,7 @@ final case class ClientCredentials(
   client_id: String,
   client_secret: String,
   scope: Option[NonEmptyList[String]] = None)
+    derives Codec.AsObject
 
 /** Credentials for OAuth 2.0 Authorization Code flow.
   *
@@ -65,6 +67,7 @@ final case class AuthorizationCode(
   code: String,
   redirect_uri: String,
   scope: Option[NonEmptyList[String]] = None)
+    derives Codec.AsObject
 
 /*
  * private section
@@ -90,7 +93,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     access_token: String,
     expires_in: Option[Long], // in seconds
     refresh_token: Option[String])
-      derives Encoder, Decoder
+      derives Codec.AsObject
 
   private val urlForm: UrlForm = {
     val uf = UrlForm(
@@ -104,9 +107,9 @@ private class ClientCredentialsAuth[F[_]: Async](
     authClient.flatMap { authenticationClient =>
       val tac: TokenAuthClient[F, Token] = new TokenAuthClient[F, Token]() {
         override protected def getToken: F[Token] =
-          post_token[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+          postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
-        private def refresh_access_token(refresh_token: String): F[Token] =
+        private def refreshAccessToken(refresh_token: String): F[Token] =
           uuidGenerator.flatMap { uuid =>
             authenticationClient.expect[Token](
               POST(
@@ -130,7 +133,7 @@ private class ClientCredentialsAuth[F[_]: Async](
               case (Some(expire), None) =>
                 getToken.delayBy(skewed(expire))
               case (Some(expire), Some(token)) =>
-                refresh_access_token(token).delayBy(skewed(expire))
+                refreshAccessToken(token).delayBy(skewed(expire))
               case _ =>
                 Async[F].never[Token]
             }
@@ -166,7 +169,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
     id_token: String,
     token_type: String,
     expires_in: Long // in second
-  ) derives Encoder, Decoder
+  ) derives Codec.AsObject
 
   private val urlForm: UrlForm = {
     val uf = UrlForm(
@@ -191,7 +194,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
-        private def refresh_access_token(pre: Token): F[Token] =
+        private def refreshAccessToken(pre: Token): F[Token] =
           uuidGenerator.flatMap { uuid =>
             authClient.use(
               _.expect[Token](POST(
@@ -207,7 +210,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
-            newToken <- refresh_access_token(oldToken).delayBy(oldToken.expires_in.seconds)
+            newToken <- refreshAccessToken(oldToken).delayBy(oldToken.expires_in.seconds)
             _ <- ref.set(newToken)
           } yield ()
 

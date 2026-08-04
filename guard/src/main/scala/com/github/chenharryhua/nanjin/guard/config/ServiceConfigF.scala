@@ -4,7 +4,7 @@ import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.{Applicative, Endo, Functor}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.common.logging.{LogFormat, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.syntax.EncoderOps

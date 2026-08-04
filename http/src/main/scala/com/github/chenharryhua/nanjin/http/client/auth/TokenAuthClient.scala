@@ -38,7 +38,7 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
   protected def renewToken(ref: Ref[F, T]): F[Unit]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
-  final protected def post_token[A: EntityDecoder[F, *]](
+  final protected def postToken[A: EntityDecoder[F, *]](
     client: Client[F],
     auth_endpoint: Uri,
     form: UrlForm,

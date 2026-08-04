@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.guard.translator.ColorScheme
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import scalatags.Text
 import scalatags.Text.all.*
 
-final private case class ColoredTag(tag: Text.TypedTag[String], color: ColorScheme)
+final private case class ColoredTag(tag: Text.TypedTag[String], color: LogLevel)
 
 final private case class Letter(
   warns: Int,
@@ -23,7 +23,7 @@ final private case class Letter(
       """))
 
   def emailBody(chunkSize: ChunkSize): String = {
-    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/${chunkSize}")))
+    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/$chunkSize")))
     html(emailHeader, body(notice, content, foot)).render
   }
 }

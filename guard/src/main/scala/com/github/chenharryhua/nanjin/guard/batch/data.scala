@@ -154,7 +154,7 @@ final case class QuasiBatch[A](
     jobs = jobs.map(_.completed)
   )
 }
-object QuasiBatch {
+object QuasiBatch:
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
       val (done, fail) = qb.jobs.partition(_.completed.done)
@@ -166,16 +166,17 @@ object QuasiBatch {
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "done" -> Json.fromInt(done.length),
         "fail" -> Json.fromInt(fail.length),
-        "jobs" -> qb.jobs.map(js =>
+        "jobs" -> qb.jobs.map { js =>
+          val tag: String = if (js.done) "result" else "error"
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            (if (js.done) "result" else "error") -> js.result.asJson
-          ))
-          .asJson
+            tag -> js.result.asJson
+          )
+        }.asJson
       )
     }
-}
+end QuasiBatch
 
 /** The aggregate result of a value-batch execution, where each job contributes a successful value and
   * completion metadata.
@@ -197,7 +198,7 @@ final case class BatchValue[A](
       jobs = jobs.map(_.completed)
     )
 }
-object BatchValue {
+object BatchValue:
   given [A: Encoder] => Encoder[BatchValue[A]] =
     Encoder.instance { bv =>
       Json.obj(
@@ -215,7 +216,7 @@ object BatchValue {
           .asJson
       )
     }
-}
+end BatchValue
 
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   */
@@ -241,10 +242,12 @@ final case class MonadicBatch[A](
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
+      val tag: String = if (mb.done) "result" else "error"
       Json.obj(
         "batch" -> Json.fromString(mb.label.label),
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.label.domain.value),
+        "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
         "jobs" -> mb.jobs.map(cj =>
           Json.obj(
@@ -252,6 +255,7 @@ object MonadicBatch:
             "took" -> Json.fromString(fmt.format(cj.took))
           ))
           .asJson,
-        (if (mb.done) "result" else "error") -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
+end MonadicBatch
