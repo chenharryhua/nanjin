@@ -24,14 +24,14 @@ final private class MetricsEventHandler[F[_]] private (
     extends AdhocReport[F] {
   val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
 
-  private def build_full_snapshot(index: Index): F[MetricsSnapshot] =
+  private def buildFullSnapshot(index: Index): F[MetricsSnapshot] =
     scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
       MetricsSnapshot(index = index, serviceParams = serviceParams, snapshot = snapshot, took = Took(took))
     }
 
   private def publish(index: Index): F[MetricsSnapshot] =
     for {
-      ms <- build_full_snapshot(index)
+      ms <- buildFullSnapshot(index)
       _ <- channel.send(ms)
       _ <- logSink.write(ms)
       _ <- history.add(ms)
@@ -42,7 +42,7 @@ final private class MetricsEventHandler[F[_]] private (
    */
   def httpReport: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
-      build_full_snapshot(Adhoc(ts))
+      buildFullSnapshot(Adhoc(ts))
     }
 
   def reportPeriodically: Stream[F, Nothing] =

@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.syntax.temporal.given
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{SecureRandom, UUIDGen}
+import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import io.circe.{Decoder, Encoder}
+import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
+import io.circe.Codec
 import org.http4s.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
@@ -54,13 +55,13 @@ object Salesforce {
       token_type: String,
       issued_at: String,
       signature: String)
-        derives Encoder, Decoder
+        derives Codec.AsObject
 
     override def login(client: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val tac = new TokenAuthClient[F, Token] {
           override protected def getToken: F[Token] =
-            post_token[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+            postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
           override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
             getToken.delayBy(expiresIn).flatMap(ref.set)
@@ -82,6 +83,7 @@ object Salesforce {
     client_secret: String,
     username: String,
     password: String)
+      derives Codec.AsObject
 
   /** Create a Salesforce `Login` using the Password Grant flow.
     *

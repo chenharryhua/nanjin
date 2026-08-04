@@ -2,7 +2,13 @@ package mtest.http
 
 import cats.effect.*
 import com.github.chenharryhua.nanjin.http.client.auth
-import com.github.chenharryhua.nanjin.http.client.auth.{AuthorizationCode, ClientCredentials, Salesforce}
+import com.github.chenharryhua.nanjin.http.client.auth.{
+  AuthorizationCode,
+  ClientCredentials,
+  Salesforce,
+  UriJsonCodec
+}
+import io.circe.syntax.given
 import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
@@ -211,7 +217,29 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("5.Salesforce password grant rewrites the request URI") {
+  test("5.Uri JSON codec round-trips HTTP4S URIs") {
+    import UriJsonCodec.given
+
+    val uri = uri"https://example.com/api"
+    val json = uri.asJson
+    val decoded = json.as[Uri]
+
+    assertEquals(json.noSpaces, "\"https://example.com/api\"")
+    assertEquals(decoded, Right(uri))
+  }
+
+  test("6.Uri JSON codec preserves explicit ports") {
+    import UriJsonCodec.given
+
+    val uri = uri"https://example.com:8443/api"
+    val json = uri.asJson
+    val decoded = json.as[Uri]
+
+    assertEquals(json.noSpaces, "\"https://example.com:8443/api\"")
+    assertEquals(decoded, Right(uri))
+  }
+
+  test("7.Salesforce password grant rewrites the request URI") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
         Ok(

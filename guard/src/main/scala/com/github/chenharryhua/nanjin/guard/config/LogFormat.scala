@@ -11,7 +11,8 @@ enum LogFormat:
     Console_JsonVerbose,
     Slf4j_PlainText,
     Slf4j_Json_OneLine,
-    Slf4j_Json_MultiLine
+    AWS_Slf4j_Json_OneLine,
+    AWS_Console_Json_OneLine
 end LogFormat
 
 object LogFormat:
