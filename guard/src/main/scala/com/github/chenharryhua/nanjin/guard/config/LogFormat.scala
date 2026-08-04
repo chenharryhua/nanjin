@@ -6,13 +6,13 @@ import io.circe.{Decoder, Encoder}
 
 enum LogFormat:
   case Console_PlainText,
-    Console_Json_OneLine,
+    Console_Json,
+    Console_Json_NoColor,
     Console_Json_MultiLine,
-    Console_JsonVerbose,
+    Console_Json_Verbose,
     Slf4j_PlainText,
-    Slf4j_Json_OneLine,
-    AWS_Slf4j_Json_OneLine,
-    AWS_Console_Json_OneLine
+    Slf4j_Json,
+    Slf4j_Json_NoColor
 end LogFormat
 
 object LogFormat:

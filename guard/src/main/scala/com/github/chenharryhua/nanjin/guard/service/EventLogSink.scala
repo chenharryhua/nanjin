@@ -92,7 +92,7 @@ private object EventLogSink:
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.render
         )
-      case LogFormat.Console_Json_OneLine =>
+      case LogFormat.Console_Json =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = new ConsoleLogger[F](zoneId, loggerName),
@@ -104,13 +104,18 @@ private object EventLogSink:
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.render
         )
-      case LogFormat.Console_JsonVerbose =>
+      case LogFormat.Console_Json_Verbose =>
         new EventLogSink[F](
           translator = Translator.idTranslator.map(_.asJson.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.render
         )
-
+      case LogFormat.Console_Json_NoColor =>
+        new EventLogSink[F](
+          translator = PrettyJsonTranslator[F].map(_.noSpaces),
+          logger = new ConsoleLogger[F](zoneId, loggerName),
+          logColor = LogColor.none
+        )
       /*
        * slf4j
        */
@@ -120,22 +125,16 @@ private object EventLogSink:
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.render
         )
-      case LogFormat.Slf4j_Json_OneLine =>
+      case LogFormat.Slf4j_Json =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
           logColor = LogColor.render
         )
-      case LogFormat.AWS_Slf4j_Json_OneLine =>
+      case LogFormat.Slf4j_Json_NoColor =>
         new EventLogSink[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = Slf4jLogger.getLoggerFromName[F](loggerName.value),
-          logColor = LogColor.none
-        )
-      case LogFormat.AWS_Console_Json_OneLine =>
-        new EventLogSink[F](
-          translator = PrettyJsonTranslator[F].map(_.noSpaces),
-          logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.none
         )
     }
