@@ -14,7 +14,7 @@ import java.util.UUID
 
 /** Raised when a batch job completes, but the post-condition predicate rejects the value. */
 final case class PostConditionUnsatisfied(job: Option[Job])
-    extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
+    extends Exception(s"check failed after: ${job.map(_.displayName).getOrElse("<empty>")}")
 
 /** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job.

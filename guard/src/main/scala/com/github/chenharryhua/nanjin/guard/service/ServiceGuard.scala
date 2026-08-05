@@ -73,7 +73,7 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         channel <- Stream.eval(Channel.unbounded[F, Event])
-        logSink <- EventLogSink[F](serviceParams)
+        logSink = EventLogSink[F](serviceParams)
         seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
         reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.logLevel)
         meHandler <- MetricsEventHandler(serviceParams, channel, logSink)

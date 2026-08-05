@@ -19,7 +19,10 @@ import org.scalatest.matchers.should.Matchers
 import java.util
 import java.util.Optional
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import cats.effect.Ref
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import io.circe.Encoder
+import scala.concurrent.duration.FiniteDuration
 
 class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   private class FakeSchemaRegistryClient extends SchemaRegistryClient {
@@ -125,8 +128,15 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
       for {
         startup <- IO.deferred[Unit]
         stop <- IO.deferred[Either[Throwable, Unit]]
-        transition <- IO.deferred[StateTransition]
-        testBuilder = builder.onStateTransition(st => transition.complete(st) >> IO.unit)
+        logged <- Ref.of[IO, List[(LogLevel, StateTransition)]](Nil)
+        recordingLog = new Log[IO] {
+          override protected type M = (LogLevel, StateTransition)
+          override protected def create[S: Encoder](msg: S, level: LogLevel, ex: Option[Throwable]): IO[M] =
+            IO.pure((level, msg.asInstanceOf[StateTransition]))
+          override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
+          override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
+        }
+        testBuilder = builder.onStateTransition(recordingLog)
         stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
         _ <- IO {
           stateChange.getClass
@@ -134,8 +144,11 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
             .invoke(stateChange, State.RUNNING, State.CREATED)
         }
         _ <- startup.get
-        received <- transition.get
-      } yield received shouldBe StateTransition(applicationId, State.CREATED, State.RUNNING)
+        entries <- logged.get
+      } yield {
+        entries.map(_._1) shouldBe List(LogLevel.Good)
+        entries.map(_._2) shouldBe List(StateTransition(applicationId, State.CREATED, State.RUNNING))
+      }
     }.unsafeRunSync()
   }
 
@@ -174,23 +187,28 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("9.onStateTransition should invoke the configured callback") {
+  test("9.onStateTransition should log the correct level per state") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
         stop <- IO.deferred[Either[Throwable, Unit]]
-        transition <- IO.deferred[StateTransition]
-        testBuilder = builder.onStateTransition(st => transition.complete(st) >> IO.unit)
+        logged <- Ref.of[IO, List[LogLevel]](Nil)
+        recordingLog = new Log[IO] {
+          override protected type M = LogLevel
+          override protected def create[S: Encoder](msg: S, level: LogLevel, ex: Option[Throwable]): IO[M] =
+            IO.pure(level)
+          override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
+          override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
+        }
+        testBuilder = builder.onStateTransition(recordingLog)
         stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
         _ <- IO {
-          stateChange.getClass
-            .getMethod("onChange", classOf[State], classOf[State])
-            .invoke(stateChange, State.RUNNING, State.CREATED)
+          val m = stateChange.getClass.getMethod("onChange", classOf[State], classOf[State])
+          m.invoke(stateChange, State.RUNNING, State.CREATED)
+          m.invoke(stateChange, State.NOT_RUNNING, State.RUNNING)
         }
-        received <- transition.get.timeoutTo(
-          1.second,
-          IO.raiseError(new AssertionError("transition callback was not invoked")))
-      } yield received.newState shouldBe State.RUNNING
+        levels <- logged.get
+      } yield levels shouldBe List(LogLevel.Good, LogLevel.Warn)
     }.unsafeRunSync()
   }
 

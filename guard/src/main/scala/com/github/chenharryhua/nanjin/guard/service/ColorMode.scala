@@ -5,19 +5,19 @@ import cats.syntax.show.showInterpolator
 
 import scala.io.AnsiColor
 
-sealed private trait LogColor:
+sealed private trait ColorMode:
   def good: Endo[String]
   def info: Endo[String]
   def warn: Endo[String]
   def error: Endo[String]
   def debug: Endo[String]
-end LogColor
+end ColorMode
 
-private object LogColor:
-  private def colorize(code: String)(name: String): String =
-    show"$code$name${AnsiColor.RESET}"
+private object ColorMode:
+  private def colorize(code: String)(text: String): String =
+    show"$code$text${AnsiColor.RESET}"
 
-  val render: LogColor = new LogColor {
+  val render: ColorMode = new ColorMode {
     override val good: Endo[String] = colorize(AnsiColor.GREEN)
     override val info: Endo[String] = colorize(AnsiColor.CYAN)
     override val warn: Endo[String] = colorize(AnsiColor.YELLOW)
@@ -25,11 +25,11 @@ private object LogColor:
     override val debug: Endo[String] = colorize(AnsiColor.MAGENTA)
   }
 
-  val none: LogColor = new LogColor {
+  val none: ColorMode = new ColorMode {
     override val good: Endo[String] = identity
     override val info: Endo[String] = identity
     override val warn: Endo[String] = identity
     override val error: Endo[String] = identity
     override val debug: Endo[String] = identity
   }
-end LogColor
+end ColorMode

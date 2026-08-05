@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.Show
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.Dispatcher
-import cats.syntax.applicative.given
-import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.HasProperties
+import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.utils.toProperties
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
 import fs2.Stream
@@ -47,7 +45,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   serdeSettings: SerdeSettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
   startUpTimeout: Duration,
-  stateTransitionHandler: Kleisli[F, StateTransition, Unit])(using F: Async[F])
+  log: Log[F])(using F: Async[F])
     extends HasProperties {
 
   final private class StateTransitionListener(
@@ -60,20 +58,19 @@ final class KafkaStreamsBuilder[F[_]] private (
       val st = StateTransition(applicationId = applicationId, oldState = oldState, newState = newState)
       newState match {
         case State.RUNNING =>
-          dispatcher.unsafeRunSync(startup.complete(()).void)
+          dispatcher.unsafeRunSync(startup.complete(()) >> log.good(st))
         case State.ERROR =>
           dispatcher.unsafeRunSync(
-            startup.complete(()).void >>
+            startup.complete(()) >>
+              log.error(st) >>
               stop.complete(Left(KafkaStreamsAbnormallyStopped)).void)
         // Defensive: Kafka Streams may transition to NOT_RUNNING without this
         // resource initiating shutdown (for example after an internal failure).
         // Ensure the managed Stream terminates in that case.
         case State.NOT_RUNNING =>
-          dispatcher.unsafeRunSync(stop.complete(Right(())).void)
-        case _ => ()
+          dispatcher.unsafeRunSync(log.warn(st) >> stop.complete(Right(())).void)
+        case _ => dispatcher.unsafeRunSync(log.info(st))
       }
-
-      dispatcher.unsafeRunAndForget(stateTransitionHandler.run(st).handleErrorWith(_ => F.unit))
     }
   }
 
@@ -105,7 +102,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   private def copy(
     streamSettings: KafkaStreamSettings = this.streamSettings,
     startUpTimeout: Duration = this.startUpTimeout,
-    stateTransitionHandler: Kleisli[F, StateTransition, Unit] = this.stateTransitionHandler
+    log: Log[F] = this.log
   ): KafkaStreamsBuilder[F] = new KafkaStreamsBuilder[F](
     applicationId = this.applicationId,
     streamSettings = streamSettings,
@@ -113,15 +110,15 @@ final class KafkaStreamsBuilder[F[_]] private (
     serdeSettings = this.serdeSettings,
     top = this.top,
     startUpTimeout = startUpTimeout,
-    stateTransitionHandler = stateTransitionHandler
+    log = log
   )
 
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     copy(startUpTimeout = value)
 
   /** Registers a callback invoked after a Kafka Streams transition is published. */
-  def onStateTransition(f: StateTransition => F[Unit]): KafkaStreamsBuilder[F] =
-    copy(stateTransitionHandler = Kleisli(f))
+  def onStateTransition(log: Log[F]): KafkaStreamsBuilder[F] =
+    copy(log = log)
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     copy(streamSettings = streamSettings.withProperty(key, value))
@@ -152,6 +149,6 @@ object KafkaStreamsBuilder {
       serdeSettings = serdeSettings,
       top = top,
       startUpTimeout = Duration.Inf,
-      stateTransitionHandler = Kleisli(_ => ().pure[F])
+      log = Log.noop[F]
     )
 }

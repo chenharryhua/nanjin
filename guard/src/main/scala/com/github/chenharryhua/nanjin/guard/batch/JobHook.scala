@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.effect.kernel.MonadCancel
+import cats.effect.MonadCancelThrow
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.{Applicative, Contravariant, Monoid}
@@ -31,17 +31,11 @@ object JobHook {
   /** Concrete implementation of JobHook that forwards lifecycle events to registered subscriber callbacks. It
     * also supports contravariant mapping for adapting the payload type of completed jobs.
     */
-  final class Bridge[F[_], A] private[JobHook] (
-    val completed: JobState[A] => F[Unit],
-    val canceled: Job => F[Unit],
-    val kickoff: Job => F[Unit]
+  final case class Bridge[F[_], A] private[JobHook] (
+    completed: JobState[A] => F[Unit],
+    canceled: Job => F[Unit],
+    kickoff: Job => F[Unit]
   ) extends JobHook[F, A] with Subscriber[F, A] {
-
-    private def copy(
-      completed: JobState[A] => F[Unit] = this.completed,
-      canceled: Job => F[Unit] = this.canceled,
-      kickoff: Job => F[Unit] = this.kickoff): Bridge[F, A] =
-      new Bridge[F, A](completed, canceled, kickoff)
 
     override def onComplete(f: JobState[A] => F[Unit]): Bridge[F, A] = copy(completed = f)
     override def onCancel(f: Job => F[Unit]): Bridge[F, A] = copy(canceled = f)
@@ -75,7 +69,7 @@ object JobHook {
   final class ByLogger[F[_]](log: Log[F]) {
 
     def universal[A](f: JobState[A] => Json): Bridge[F, A] =
-      new Bridge[F, A](
+      Bridge[F, A](
         completed = { (js: JobState[A]) =>
           val json: Json = f(js)
           js.result match {
@@ -96,14 +90,14 @@ object JobHook {
     def json: Bridge[F, Json] = standard[Json]
   }
 
-  given [F[_], A](using F: MonadCancel[F, Throwable]): Monoid[Bridge[F, A]] =
+  given [F[_], A](using F: MonadCancelThrow[F]): Monoid[Bridge[F, A]] =
     new Monoid[Bridge[F, A]] {
 
       override val empty: Bridge[F, A] = noop[F, A]
 
       override def combine(x: Bridge[F, A], y: Bridge[F, A]): Bridge[F, A] =
-        new Bridge[F, A](
-          completed = jrv => F.uncancelable(_ => x.completed(jrv) >> y.completed(jrv)),
+        Bridge[F, A](
+          completed = js => F.uncancelable(_ => x.completed(js) >> y.completed(js)),
           canceled = bj => F.uncancelable(_ => x.canceled(bj) >> y.canceled(bj)),
           kickoff = bj => F.uncancelable(_ => x.kickoff(bj) >> y.kickoff(bj))
         )

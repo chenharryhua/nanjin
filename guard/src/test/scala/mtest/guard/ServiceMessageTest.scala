@@ -45,7 +45,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("1.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.AWS_Console_Json_OneLine))
+      .updateConfig(_.withLogFormat(_.Console_Json_NoColor))
       .eventStream(info)
       .compile
       .drain
@@ -54,7 +54,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("2.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
+      .updateConfig(_.withLogFormat(_.Console_Json))
       .eventStream(info)
       .compile
       .drain
@@ -63,7 +63,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("3.warn json space2") {
     service
-      .updateConfig(_.withLogFormat(_.AWS_Slf4j_Json_OneLine))
+      .updateConfig(_.withLogFormat(_.Slf4j_Json_NoColor))
       .eventStream(warn)
       .compile
       .drain
@@ -72,7 +72,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("4.warn json no spaces") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
+      .updateConfig(_.withLogFormat(_.Console_Json))
       .eventStream(warn)
       .compile
       .drain

@@ -18,7 +18,7 @@ import fs2.Stream
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("event.filters").service("filters").updateConfig(_.withLogFormat(_.Slf4j_Json_OneLine))
+    TaskGuard[IO]("event.filters").service("filters").updateConfig(_.withLogFormat(_.Slf4j_Json))
 
   test("1.sampling - FiniteDuration") {
     val List(a, b, c, d) = service
