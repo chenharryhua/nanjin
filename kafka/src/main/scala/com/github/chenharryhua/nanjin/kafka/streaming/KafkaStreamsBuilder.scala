@@ -62,14 +62,14 @@ final class KafkaStreamsBuilder[F[_]] private (
         case State.ERROR =>
           dispatcher.unsafeRunSync(
             startup.complete(()) >>
-              stop.complete(Left(KafkaStreamsAbnormallyStopped)) >>
-              log.error(st))
+              log.error(st) >>
+              stop.complete(Left(KafkaStreamsAbnormallyStopped)).void)
         // Defensive: Kafka Streams may transition to NOT_RUNNING without this
         // resource initiating shutdown (for example after an internal failure).
         // Ensure the managed Stream terminates in that case.
         case State.NOT_RUNNING =>
-          dispatcher.unsafeRunSync(stop.complete(Right(())) >> log.warn(st))
-        case _ => ()
+          dispatcher.unsafeRunSync(log.warn(st) >> stop.complete(Right(())).void)
+        case _ => dispatcher.unsafeRunSync(log.info(st))
       }
     }
   }
