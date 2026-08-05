@@ -340,7 +340,7 @@ lazy val pipes = (project in file("pipes"))
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.16.Final", // snky by hadoop-client
+      "io.netty"           % "netty-all"              % "4.2.17.Final", // snky by hadoop-client
       "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % "12.1.11", // snyk by hadoop-client
