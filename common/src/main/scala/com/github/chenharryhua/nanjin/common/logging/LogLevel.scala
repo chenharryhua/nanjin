@@ -5,12 +5,12 @@ import cats.{Order, Show}
 import io.circe.{Decoder, Encoder}
 
 // name corresponding to org.slf4j.event.Level
-enum LogLevel(val value: Int, val name: String):
-  case Error extends LogLevel(4, "ERROR")
-  case Warn extends LogLevel(3, "WARN")
-  case Good extends LogLevel(2, "INFO")
-  case Info extends LogLevel(1, "INFO")
-  case Debug extends LogLevel(0, "DEBUG")
+enum LogLevel(val value: Int):
+  case Error extends LogLevel(4)
+  case Warn extends LogLevel(3)
+  case Good extends LogLevel(2)
+  case Info extends LogLevel(1)
+  case Debug extends LogLevel(0)
 end LogLevel
 
 object LogLevel:
