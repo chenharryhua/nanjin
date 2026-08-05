@@ -58,18 +58,20 @@ final class KafkaStreamsBuilder[F[_]] private (
       val st = StateTransition(applicationId = applicationId, oldState = oldState, newState = newState)
       newState match {
         case State.RUNNING =>
-          dispatcher.unsafeRunSync(startup.complete(()) >> log.good(st))
+          dispatcher.unsafeRunSync(log.good(st) >> startup.complete(()).void)
         case State.ERROR =>
           dispatcher.unsafeRunSync(
-            startup.complete(()) >>
-              log.error(st) >>
+            log.error(st) >>
+              startup.complete(()) >>
               stop.complete(Left(KafkaStreamsAbnormallyStopped)).void)
-        // Defensive: Kafka Streams may transition to NOT_RUNNING without this
-        // resource initiating shutdown (for example after an internal failure).
-        // Ensure the managed Stream terminates in that case.
+        // Defensive: handles external ks.close() calls and shutdown before RUNNING is reached.
         case State.NOT_RUNNING =>
-          dispatcher.unsafeRunSync(log.warn(st) >> stop.complete(Right(())).void)
-        case _ => dispatcher.unsafeRunSync(log.info(st))
+          dispatcher.unsafeRunSync(
+            log.warn(st) >>
+              startup.complete(()) >>
+              stop.complete(Right(())).void)
+        case _ =>
+          dispatcher.unsafeRunSync(log.info(st))
       }
     }
   }
