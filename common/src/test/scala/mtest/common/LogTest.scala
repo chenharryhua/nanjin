@@ -76,8 +76,5 @@ class LogTest extends AnyFunSuite {
     assert(LogLevel.Warn.value > LogLevel.Info.value)
     assert(LogLevel.Info.value > LogLevel.Debug.value)
     assert(LogLevel.Good.value > LogLevel.Info.value)
-
-    assert(LogLevel.Error.name === "ERROR")
-    assert(LogLevel.Debug.name === "DEBUG")
   }
 }

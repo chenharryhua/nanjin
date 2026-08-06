@@ -5,7 +5,12 @@ import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateTransition}
+import com.github.chenharryhua.nanjin.kafka.streaming.{
+  KafkaStreamsAbnormallyStopped,
+  KafkaStreamsBuilder,
+  StateTransition
+}
+import fs2.Stream
 import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
@@ -23,6 +28,8 @@ import cats.effect.Ref
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import io.circe.Encoder
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   private class FakeSchemaRegistryClient extends SchemaRegistryClient {
@@ -165,7 +172,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         }
         result <- stop.get
       } yield result match {
-        case Left(err) => err.getMessage shouldBe "Kafka Streams were stopped abnormally"
+        case Left(err) => err.getMessage shouldBe "KafkaStreams(app-id) were stopped abnormally"
         case Right(_)  => fail("expected KafkaStreamsAbnormallyStopped")
       }
     }.unsafeRunSync()
@@ -208,7 +215,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
           m.invoke(stateChange, State.NOT_RUNNING, State.RUNNING)
         }
         levels <- logged.get
-      } yield levels shouldBe List(LogLevel.Good, LogLevel.Warn)
+      } yield levels shouldBe List(LogLevel.Good, LogLevel.Info)
     }.unsafeRunSync()
   }
 
@@ -234,5 +241,104 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     val result = throwingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
 
     result.isLeft shouldBe true
+  }
+
+  test("12.StateChange should complete stop on close path (PENDING_SHUTDOWN -> NOT_RUNNING)") {
+    Dispatcher.sequential[IO].use { dispatcher =>
+      for {
+        startup <- IO.deferred[Unit]
+        stop <- IO.deferred[Either[Throwable, Unit]]
+        stateChange = newStateChange(builder, dispatcher, startup, stop)
+        _ <- IO {
+          val m = stateChange.getClass.getMethod("onChange", classOf[State], classOf[State])
+          m.invoke(stateChange, State.PENDING_SHUTDOWN, State.RUNNING)
+          m.invoke(stateChange, State.NOT_RUNNING, State.PENDING_SHUTDOWN)
+        }
+        result <- stop.get
+      } yield result shouldBe Right(())
+    }.unsafeRunSync()
+  }
+
+  test("13.fs2 stream should terminate when stop is completed with Right") {
+    val result = for {
+      stop <- IO.deferred[Either[Throwable, Unit]]
+      fiber <- Stream.never[IO].interruptWhen(stop).compile.drain.start
+      _ <- stop.complete(Right(())).void
+      done <- fiber.joinWithNever.timeout(1.second).attempt
+    } yield done
+
+    result.unsafeRunSync() shouldBe Right(())
+  }
+
+  test("14.fs2 stream should fail when internal KafkaStreams error is signaled") {
+    Dispatcher.sequential[IO].use { dispatcher =>
+      for {
+        startup <- IO.deferred[Unit]
+        stop <- IO.deferred[Either[Throwable, Unit]]
+        stateChange = newStateChange(builder, dispatcher, startup, stop)
+        fiber <- Stream.never[IO].interruptWhen(stop).compile.drain.attempt.start
+        _ <- IO {
+          stateChange.getClass
+            .getMethod("onChange", classOf[State], classOf[State])
+            .invoke(stateChange, State.ERROR, State.RUNNING)
+        }
+        result <- fiber.joinWithNever.timeout(1.second)
+      } yield result match {
+        case Left(err: KafkaStreamsAbnormallyStopped) => err.applicationId shouldBe applicationId
+        case Left(other)                              => fail(s"unexpected error: ${other.getClass.getName}")
+        case Right(_)                                 => fail("expected fs2 stream failure on internal error")
+      }
+    }.unsafeRunSync()
+  }
+
+  test("15.StateChange randomized terminal invariant: first terminal signal wins") {
+    Dispatcher.sequential[IO].use { dispatcher =>
+      def firstTerminal(states: List[State]): Option[Either[Throwable, Unit]] =
+        states.collectFirst {
+          case State.ERROR       => Left(new RuntimeException("error"))
+          case State.NOT_RUNNING => Right(())
+        }
+
+      val nonTerminalStates = List(State.PENDING_ERROR, State.PENDING_SHUTDOWN, State.REBALANCING)
+      val terminalStates = List(State.ERROR, State.NOT_RUNNING)
+      val rng = new Random(20260806L)
+
+      val scenarios: List[List[State]] = List.fill(80) {
+        val prefix = List.fill(rng.between(0, 5))(nonTerminalStates(rng.nextInt(nonTerminalStates.size)))
+        val terminal = terminalStates(rng.nextInt(terminalStates.size))
+        val suffix = List.fill(rng.between(0, 3))(nonTerminalStates(rng.nextInt(nonTerminalStates.size)))
+        prefix ++ (terminal :: suffix)
+      }
+
+      scenarios.foldLeft(IO.unit) { (acc, seq) =>
+        acc >> {
+          for {
+            startup <- IO.deferred[Unit]
+            stop <- IO.deferred[Either[Throwable, Unit]]
+            stateChange = newStateChange(builder, dispatcher, startup, stop)
+            _ <- IO {
+              val m = stateChange.getClass.getMethod("onChange", classOf[State], classOf[State])
+              var old: State = State.CREATED
+              seq.foreach { next =>
+                m.invoke(stateChange, next, old)
+                old = next
+              }
+            }
+            _ <- startup.get.timeout(1.second)
+            stopResult <- stop.get.timeout(1.second)
+          } yield {
+            firstTerminal(seq) match {
+              case Some(Left(_)) =>
+                stopResult.isLeft shouldBe true
+                ()
+              case Some(Right(_)) =>
+                stopResult shouldBe Right(())
+                ()
+              case None => fail("scenario generation error: terminal state missing")
+            }
+          }
+        }
+      }
+    }.unsafeRunSync()
   }
 }

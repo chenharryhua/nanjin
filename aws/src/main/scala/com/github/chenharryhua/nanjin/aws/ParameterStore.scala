@@ -62,8 +62,9 @@ object ParameterStore {
   def apply[F[_]](f: Endo[SsmClientBuilder])(using F: Async[F]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name").as(f(SsmClient.builder()).build())) { client =>
-        shutdown(name, logger)(F.blocking(client.close()))
+      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SsmClient.builder()).build())) {
+        client =>
+          shutdown(name, logger)(F.blocking(client.close()))
       }
     } yield new AwsPS[F](client, logger)
 
