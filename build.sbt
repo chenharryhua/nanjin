@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.4-SNAPSHOT"
+ThisBuild / version      := "0.21.5-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.50.2"
+val awsV = "2.51.1"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -28,10 +28,12 @@ val fs2KafkaV = "4.0.0"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.1"
+val jettyV = "12.1.12"
 val http4sV = "0.23.36"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.1"
+val lz4V = "1.11.1"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -305,6 +307,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
+      "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
       "io.opentelemetry"                % "opentelemetry-api" % "1.64.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5", // snyk by kafka-protobuf-provider
@@ -333,18 +336,19 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet" % "parquet-avro"  % parquetV,
       "org.apache.avro"    % "avro"          % avroV,
       "org.tukaani"        % "xz"            % "1.12",
-      "at.yawk.lz4"        % "lz4-java"      % "1.11.1", // drop-in replacement of org.lz4:lz4-java
+      "at.yawk.lz4"        % "lz4-java"      % lz4V, // drop-in replacement of org.lz4:lz4-java
       // test
       "io.circe" %% "circe-generic"          % circeV  % Test,
       "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.16.Final", // snky by hadoop-client
+      "io.netty"           % "netty-all"              % "4.2.17.Final", // snky by hadoop-client
       "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snky by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
-      "org.eclipse.jetty"  % "jetty-server"           % "12.1.11", // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-http"             % "12.1.11", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85" // snyk by hadoop-client
     ) ++ testLib
   )

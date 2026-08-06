@@ -11,10 +11,11 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
 import java.util.UUID
+import scala.util.control.NoStackTrace
 
 /** Raised when a batch job completes, but the post-condition predicate rejects the value. */
-final case class PostConditionUnsatisfied(job: Option[Job])
-    extends Exception(s"check failed after: ${job.map(_.displayName).getOrElse("<empty>")}")
+final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(
+      s"predicate failed after: ${job.map(_.displayName).getOrElse("<empty>")}") with NoStackTrace
 
 /** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job.

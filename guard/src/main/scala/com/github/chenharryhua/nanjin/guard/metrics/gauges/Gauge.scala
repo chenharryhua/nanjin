@@ -13,7 +13,7 @@ import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.util.Try
+import scala.util.control.NonFatal
 
 object Gauge {
 
@@ -60,8 +60,12 @@ object Gauge {
           () =>
             new CodahaleGauge[Json] {
               override def getValue: Json =
-                Try(gp.dispatcher.unsafeRunTimed(json, builder.timeout)).fold(trans_error, identity)
-            })
+                try gp.dispatcher.unsafeRunTimed(json, builder.timeout)
+                catch {
+                  case NonFatal(ex) => trans_error(ex)
+                }
+            }
+        )
       })(_ => F.delay(gp.metricRegistry.remove(metricID)).void)
     } yield ()
 

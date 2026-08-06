@@ -17,8 +17,15 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, To
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.util.control.NoStackTrace
 
-case object KafkaStreamsAbnormallyStopped extends RuntimeException("Kafka Streams were stopped abnormally")
+final case class KafkaStreamsAbnormallyStopped(applicationId: String)
+    extends RuntimeException(s"KafkaStreams($applicationId) were stopped abnormally") with NoStackTrace
+
+final case class KafkaStreamsStartupTimeout(applicationId: String, startupTimeout: Duration)
+    extends RuntimeException(s"KafkaStreams($applicationId) did not reach RUNNING within $startupTimeout")
+    with NoStackTrace
 
 final case class StateTransition(applicationId: String, oldState: State, newState: State) {
   override def toString: String =
@@ -44,7 +51,8 @@ final class KafkaStreamsBuilder[F[_]] private (
   srClient: SchemaRegistryClient,
   serdeSettings: SerdeSettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
-  startUpTimeout: Duration,
+  startupTimeout: Duration,
+  closeTimeout: FiniteDuration,
   log: Log[F])(using F: Async[F])
     extends HasProperties {
 
@@ -54,22 +62,36 @@ final class KafkaStreamsBuilder[F[_]] private (
     stop: Deferred[F, Either[Throwable, Unit]]
   ) extends KafkaStreams.StateListener {
 
+    private def isDispatcherShutdownRace(e: IllegalStateException): Boolean =
+      e.getStackTrace.exists(_.getClassName.startsWith("cats.effect.std.Dispatcher"))
+
+    private def runOrIgnoreOnShutdown(fa: F[Unit]): Unit =
+      try dispatcher.unsafeRunSync(fa)
+      catch {
+        case e: IllegalStateException if isDispatcherShutdownRace(e) => ()
+      }
+
     override def onChange(newState: State, oldState: State): Unit = {
       val st = StateTransition(applicationId = applicationId, oldState = oldState, newState = newState)
       newState match {
         case State.RUNNING =>
-          dispatcher.unsafeRunSync(startup.complete(()) >> log.good(st))
-        case State.ERROR =>
-          dispatcher.unsafeRunSync(
-            startup.complete(()) >>
-              log.error(st) >>
-              stop.complete(Left(KafkaStreamsAbnormallyStopped)).void)
-        // Defensive: Kafka Streams may transition to NOT_RUNNING without this
-        // resource initiating shutdown (for example after an internal failure).
-        // Ensure the managed Stream terminates in that case.
-        case State.NOT_RUNNING =>
-          dispatcher.unsafeRunSync(log.warn(st) >> stop.complete(Right(())).void)
-        case _ => dispatcher.unsafeRunSync(log.info(st))
+          runOrIgnoreOnShutdown(log.good(st) >> startup.complete(()).void)
+
+        case State.PENDING_ERROR => runOrIgnoreOnShutdown(log.warn(st))
+        case State.ERROR         =>
+          runOrIgnoreOnShutdown(
+            log.error(st) >>
+              startup.complete(()).void >>
+              stop.complete(Left(KafkaStreamsAbnormallyStopped(applicationId))).void)
+
+        case State.PENDING_SHUTDOWN => runOrIgnoreOnShutdown(log.info(st))
+        case State.NOT_RUNNING      =>
+          runOrIgnoreOnShutdown(
+            log.info(st) >>
+              startup.complete(()).void >>
+              stop.complete(Right(())).void)
+
+        case _ => runOrIgnoreOnShutdown(log.info(st))
       }
     }
   }
@@ -82,15 +104,21 @@ final class KafkaStreamsBuilder[F[_]] private (
     val sc: StreamsConfig = new StreamsConfig(properties.asJava)
     for { // Create and manage the Kafka Streams instance, including listener registration and startup.
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
+      startup <- Stream.eval(F.deferred[Unit])
       stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+      listener = new StateTransitionListener(dispatcher, startup, stop)
       kafkaStreams <- Stream
-        .bracket(F.blocking(new KafkaStreams(topology, sc)))(ks => F.blocking(ks.close()))
+        .bracket(F.blocking(new KafkaStreams(topology, sc))) { ks =>
+          F.blocking(ks.close(closeTimeout.toJava)).void
+        }
         .evalTap { kss =>
           for {
-            startup <- F.deferred[Unit]
-            _ <- F.blocking(kss.setStateListener(new StateTransitionListener(dispatcher, startup, stop)))
+            _ <- F.blocking(kss.setStateListener(listener))
             _ <- F.blocking(kss.start())
-            _ <- F.timeout(startup.get, startUpTimeout)
+            _ <- F.timeoutTo(
+              startup.get,
+              startupTimeout,
+              F.raiseError(KafkaStreamsStartupTimeout(applicationId, startupTimeout)))
           } yield ()
         }
         .interruptWhen(stop)
@@ -101,7 +129,8 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   private def copy(
     streamSettings: KafkaStreamSettings = this.streamSettings,
-    startUpTimeout: Duration = this.startUpTimeout,
+    startupTimeout: Duration = this.startupTimeout,
+    closeTimeout: FiniteDuration = this.closeTimeout,
     log: Log[F] = this.log
   ): KafkaStreamsBuilder[F] = new KafkaStreamsBuilder[F](
     applicationId = this.applicationId,
@@ -109,12 +138,16 @@ final class KafkaStreamsBuilder[F[_]] private (
     srClient = this.srClient,
     serdeSettings = this.serdeSettings,
     top = this.top,
-    startUpTimeout = startUpTimeout,
+    startupTimeout = startupTimeout,
+    closeTimeout = closeTimeout,
     log = log
   )
 
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
-    copy(startUpTimeout = value)
+    copy(startupTimeout = value)
+
+  def withCloseTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
+    copy(closeTimeout = value)
 
   /** Registers a callback invoked after a Kafka Streams transition is published. */
   def onStateTransition(log: Log[F]): KafkaStreamsBuilder[F] =
@@ -148,7 +181,8 @@ object KafkaStreamsBuilder {
       srClient = srClient,
       serdeSettings = serdeSettings,
       top = top,
-      startUpTimeout = Duration.Inf,
+      startupTimeout = Duration.Inf,
+      closeTimeout = FiniteDuration(30, scala.concurrent.duration.SECONDS),
       log = Log.noop[F]
     )
 }
