@@ -4,34 +4,36 @@ import java.lang.reflect.Field
 import java.net.URLClassLoader
 
 object KafkaConfigKeysGenerator {
+  private val fields: List[String] = List(
+    "org.apache.kafka.clients.consumer.ConsumerConfig",
+    "org.apache.kafka.clients.producer.ProducerConfig",
+    "org.apache.kafka.clients.admin.AdminClientConfig",
+    "org.apache.kafka.streams.StreamsConfig"
+  )
+  private val declares: List[String] = List(
+    "io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig",
+    "io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializerConfig",
+    "io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig",
+    "io.confluent.kafka.serializers.KafkaAvroSerializerConfig",
+    "io.confluent.kafka.serializers.KafkaAvroDeserializerConfig",
+    "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializerConfig",
+    "io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig"
+  )
 
   def generate(out: File, classpath: Seq[File]): Seq[File] = {
-    val classes = Seq(
-      "org.apache.kafka.clients.consumer.ConsumerConfig",
-      "org.apache.kafka.clients.producer.ProducerConfig",
-      "org.apache.kafka.clients.admin.AdminClientConfig",
-      "org.apache.kafka.streams.StreamsConfig",
-      "io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig",
-      "io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializerConfig",
-      "io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig",
-      "io.confluent.kafka.serializers.KafkaAvroSerializerConfig",
-      "io.confluent.kafka.serializers.KafkaAvroDeserializerConfig",
-      "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializerConfig",
-      "io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig"
-    )
 
     IO.createDirectory(out)
 
-    val loader = new URLClassLoader(classpath.map(_.toURI.toURL).toArray, null)
+    def generatedFiles(classes: List[String], useDeclare: Boolean) = {
+      val loader = new URLClassLoader(classpath.map(_.toURI.toURL).toArray, null)
 
-    val generatedFiles =
       try
         classes.map { className =>
           val cls = Class.forName(className, false, loader)
 
           val simpleName = cls.getSimpleName + "Keys"
 
-          val classFields = cls.getFields
+          val classFields = if (useDeclare) cls.getDeclaredFields else cls.getFields
           val allNames = classFields.map(_.getName.toUpperCase).toSet
 
           def isConfigKeyField(field: Field): Boolean = {
@@ -39,9 +41,9 @@ object KafkaConfigKeysGenerator {
             val name = field.getName.toUpperCase
             val hasDocOrDefault =
               allNames.contains(s"${name}_DOC") ||
-              allNames.contains(s"${name}_DOCS") ||
-              allNames.contains(s"${name}_D0C") ||
-              allNames.contains(s"${name}_DEFAULT")
+                allNames.contains(s"${name}_DOCS") ||
+                allNames.contains(s"${name}_D0C") ||
+                allNames.contains(s"${name}_DEFAULT")
             java.lang.reflect.Modifier.isPublic(modifiers) &&
             java.lang.reflect.Modifier.isStatic(modifiers) &&
             java.lang.reflect.Modifier.isFinal(modifiers) &&
@@ -55,18 +57,15 @@ object KafkaConfigKeysGenerator {
           }
 
           val fields =
-            classFields
-              .filter(isConfigKeyField)
-              .sortBy(_.getName)
+            classFields.filter(isConfigKeyField).sortBy(_.getName)
 
           val methods =
-            fields
-              .map { f =>
-                val ownerClassName = f.getDeclaringClass.getName
-                s"""  inline final def ${f.getName}: String =
-                   |    $ownerClassName.${f.getName}
-                   |""".stripMargin
-              }
+            fields.map { f =>
+              val ownerClassName = f.getDeclaringClass.getName
+              s"""  final inline def ${f.getName}: String =
+                 |    $ownerClassName.${f.getName}
+                 |""".stripMargin
+            }
               .mkString("\n")
 
           val content =
@@ -76,7 +75,7 @@ object KafkaConfigKeysGenerator {
                |$methods
                |}
                |
-               |object $simpleName extends $simpleName
+               |private object $simpleName extends $simpleName
                |""".stripMargin
 
           val file = out / s"$simpleName.scala"
@@ -84,10 +83,17 @@ object KafkaConfigKeysGenerator {
           file
         }
       finally loader.close()
+    }
 
-    val generatedNames = generatedFiles.map(_.name).toSet
-    IO.listFiles(out).filter(f => f.ext == "scala" && !generatedNames.contains(f.name)).foreach(IO.delete)
+    val getFields = generatedFiles(fields, useDeclare = false)
+    val getDeclares = generatedFiles(declares, useDeclare = true)
 
-    generatedFiles
+    val together = getDeclares ++ getFields
+
+    IO.listFiles(out)
+      .filter(f => f.ext == "scala" && !together.map(_.name).toSet.contains(f.name))
+      .foreach(IO.delete)
+
+    together
   }
 }
