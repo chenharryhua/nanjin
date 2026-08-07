@@ -1,23 +1,18 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.aws
 
-import cats.effect.syntax.temporal.given
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.DurationInt
+private def shutdown[F[_]: Sync](
+  name: String,
+  logger: Logger[F]
+)(close: => Unit): F[Unit] =
+  Sync[F].blocking(close).attempt.flatMap {
+    case Left(ex) => logger.warn(ex)(s"$name shutdown encountered an error")
+    case Right(_) => logger.info(s"$name was closed")
+  }
 
-package object aws {
-  private[aws] def shutdown[F[_]: Async](
-    name: String,
-    logger: Logger[F]
-  )(shutdownEffect: F[Unit]): F[Unit] =
-    shutdownEffect.timeout(10.seconds).attempt.flatMap {
-      case Left(ex) => logger.warn(ex)(s"$name shutdown encountered an error")
-      case Right(_) => logger.info(s"$name was closed")
-    }
-
-  private[aws] def blockingF[F[_], A](fa: => A, ctx: String, logger: Logger[F])(using F: Sync[F]): F[A] =
-    F.blocking(fa).onError(ex => logger.error(ex)(ctx))
-}
+private def blockingF[F[_], A](fa: => A, ctx: String, logger: Logger[F])(using F: Sync[F]): F[A] =
+  F.blocking(fa).onError(ex => logger.error(ex)(ctx))

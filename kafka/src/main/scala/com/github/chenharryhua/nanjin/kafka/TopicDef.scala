@@ -1,6 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.kafka.config.{
+  KafkaConsumerSettings,
+  KafkaProducerSettings,
+  SerdeSettings
+}
 import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaRecordSerde, KafkaSerde, Unregistered}
 import fs2.kafka.{ConsumerSettings, ProducerSettings}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient

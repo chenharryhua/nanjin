@@ -13,13 +13,13 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.51.1"
+val awsV = "2.51.2"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
 val circeV = "0.14.16"
 val confluentV = "8.3.1"
-val kafkaV = "8.3.0-ce"
+val kafkaV = "8.3.1-ce"
 val cron4sV = "0.8.2"
 val docV = "0.1.5"
 val doobieV = "1.0.0-RC13"
@@ -33,7 +33,7 @@ val http4sV = "0.23.36"
 val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.1"
-val lz4V = "1.11.1"
+val lz4V = "1.11.2"
 val metricsV = "4.2.39"
 val monocleV = "3.3.0"
 val natchezV = "0.3.10"
@@ -314,6 +314,13 @@ lazy val kafka = (project in file("kafka"))
       "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
+  .settings {
+    Compile / sourceGenerators += Def.task {
+      val out = (Compile / sourceManaged).value / "kafka-config"
+      val cp = (Compile / dependencyClasspath).value.files
+      KafkaConfigKeysGenerator.generate(out, cp)
+    }.taskValue
+  }
 
 // ==========================
 // Pipes
@@ -349,7 +356,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
-      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85" // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
     ) ++ testLib
   )
 

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.kafka.SerdeSettings
+import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.serdes.Unregistered
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.common.serialization.Serde

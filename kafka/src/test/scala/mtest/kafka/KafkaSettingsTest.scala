@@ -1,6 +1,7 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.KafkaSettings
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
@@ -9,14 +10,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class KafkaSettingsTest extends AnyFunSuite {
   val setting: KafkaSettings = KafkaSettings("broker-url", "schema-registry-url")
-    .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    .withConsumerProperty(_.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
   test("1.should allow independently change properties") {
     val p = setting
-      .withProducerProperty(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "producer")
+      .withProducerProperty(_.BOOTSTRAP_SERVERS_CONFIG, "producer")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
       .withSaslJaas("jaas")
-      .withSerdeProperty("a", "b")
+      .withSerdeProperty(_.MAX_RETRIES_CONFIG, "b")
 
     assert(p.producerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "producer")
     assert(p.consumerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker-url")
@@ -25,7 +26,7 @@ class KafkaSettingsTest extends AnyFunSuite {
     assert(p.producerSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
     assert(p.consumerSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
     assert(p.streamSettings.properties(SaslConfigs.SASL_JAAS_CONFIG) === "jaas")
-    assert(p.serdeSettings.properties("a") === "b")
+    assert(p.serdeSettings.properties(AbstractKafkaSchemaSerDeConfig.MAX_RETRIES_CONFIG) === "b")
 
     val b = setting.withBrokers("broker")
     assert(b.consumerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker")
