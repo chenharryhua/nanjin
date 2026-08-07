@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
 import com.github.chenharryhua.nanjin.kafka.streaming.{
   KafkaStreamsAbnormallyStopped,
   KafkaStreamsBuilder,
@@ -26,6 +25,7 @@ import java.util.Optional
 import java.util.concurrent.TimeUnit
 import cats.effect.Ref
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings}
 import io.circe.Encoder
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.DurationInt
@@ -58,7 +58,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   }
 
   private val applicationId = "app-id"
-  private val streamSettings = KafkaStreamSettings(Map("foo" -> "bar"))
+  private val streamSettings = KafkaStreamSettings(Map("state.dir" -> "bar"))
   private val serdeSettings = SerdeSettings(Map.empty)
   private val srClient = new FakeSchemaRegistryClient
 
@@ -72,14 +72,14 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
 
   test("1.should include application id in properties") {
     builder.properties("application.id") shouldBe applicationId
-    builder.properties("foo") shouldBe "bar"
+    builder.properties("state.dir") shouldBe "bar"
   }
 
   test("2.withProperty should produce an updated builder without mutating the original") {
-    val updated = builder.withProperty("foo", "baz")
+    val updated = builder.withProperty(_.STATE_DIR_CONFIG, "baz")
 
-    updated.properties("foo") shouldBe "baz"
-    builder.properties("foo") shouldBe "bar"
+    updated.properties("state.dir") shouldBe "baz"
+    builder.properties("state.dir") shouldBe "bar"
   }
 
   test("3.withProperties should merge multiple properties immutably") {
@@ -221,7 +221,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
 
   test("10.kafkaStreams should fail when startup does not complete before the timeout") {
     val failingBuilder = builder
-      .withProperty("bootstrap.servers", "localhost:9092")
+      .withProperty(_.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
       .withStartUpTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
 
     val result = failingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()

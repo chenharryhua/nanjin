@@ -3,11 +3,10 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.schema.KafkaJsonSchema
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
-import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializerConfig
-import org.apache.kafka.clients.consumer.ConsumerConfig
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -16,9 +15,9 @@ class UpAndDownJsonTest extends AnyFunSuite {
   private val ctx: KafkaContext[IO] =
     KafkaContext[IO](
       KafkaSettings.local
-        .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-        .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
-        .withSerdeProperty(KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE, classOf[JsonNode].getName)
+        .withConsumerProperty(_.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        .withConsumerProperty(_.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
+        .withJsonDeserializerConfig(_.JSON_VALUE_TYPE, classOf[JsonNode].getName)
     )
 
   private val topic = TopicName("up.and.down.json2")

@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.admins.{
   SchemaRegistryApi,
   SnapshotConsumer
 }
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.serdes.{Registered, Unregistered}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}

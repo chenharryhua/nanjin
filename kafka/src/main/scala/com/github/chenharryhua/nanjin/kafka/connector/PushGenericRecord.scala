@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
+import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.schema.immigrate
-import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SerdeSettings, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
 import fs2.kafka.ProducerRecord
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import io.confluent.kafka.serializers.KafkaAvroSerializer
