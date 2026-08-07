@@ -154,7 +154,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     copy(log = log)
 
   def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamsBuilder[F] =
-    copy(streamSettings = streamSettings.withProperty(f(StreamsConfigKeys), value))
+    copy(streamSettings = streamSettings.withProperty(f, value))
 
   def withProperties(map: Map[String, String]): KafkaStreamsBuilder[F] =
     copy(streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) })
