@@ -326,16 +326,14 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
             }
             _ <- startup.get.timeout(1.second)
             stopResult <- stop.get.timeout(1.second)
-          } yield {
-            firstTerminal(seq) match {
-              case Some(Left(_)) =>
-                stopResult.isLeft shouldBe true
-                ()
-              case Some(Right(_)) =>
-                stopResult shouldBe Right(())
-                ()
-              case None => fail("scenario generation error: terminal state missing")
-            }
+          } yield firstTerminal(seq) match {
+            case Some(Left(_)) =>
+              stopResult.isLeft shouldBe true
+              ()
+            case Some(Right(_)) =>
+              stopResult shouldBe Right(())
+              ()
+            case None => fail("scenario generation error: terminal state missing")
           }
         }
       }

@@ -110,7 +110,7 @@ object SimpleQueueService {
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(g(SqsClient.builder()).build())) { cw =>
-        shutdown(name, logger)(F.blocking(cw.close()))
+        shutdown(name, logger)(cw.close())
       }
     } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
 
