@@ -2,20 +2,20 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.schema.KafkaProtobufSchema
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import com.google.protobuf.DynamicMessage
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 class UpAndDownProtoTest extends AnyFunSuite {
   private val ctx: KafkaContext[IO] =
     KafkaContext[IO](
       KafkaSettings.local
-        .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-        .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
+        .withConsumerProperty(_.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        .withConsumerProperty(_.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
     )
 
   private val topic = TopicName("up.and.down.proto")

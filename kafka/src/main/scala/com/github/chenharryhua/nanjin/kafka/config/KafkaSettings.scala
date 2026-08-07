@@ -1,11 +1,10 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.config
 
 import cats.Show
 import cats.derived.derived
+import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import fs2.kafka.AdminClientSettings
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 
@@ -21,22 +20,34 @@ final case class KafkaConsumerSettings(properties: Map[String, String])
     extends Settings[KafkaConsumerSettings] {
   override def withProperty(key: String, value: String): KafkaConsumerSettings =
     copy(properties = properties.updated(key, value))
+
+  def withProperty(f: ConsumerConfigKeys => String, value: String): KafkaConsumerSettings =
+    withProperty(f(ConsumerConfigKeys), value)
 }
 
 final case class KafkaProducerSettings(properties: Map[String, String])
     extends Settings[KafkaProducerSettings] {
   override def withProperty(key: String, value: String): KafkaProducerSettings =
     copy(properties = properties.updated(key, value))
+
+  def withProperty(f: ProducerConfigKeys => String, value: String): KafkaProducerSettings =
+    withProperty(f(ProducerConfigKeys), value)
 }
 
 final case class KafkaStreamSettings(properties: Map[String, String]) extends Settings[KafkaStreamSettings] {
   override def withProperty(key: String, value: String): KafkaStreamSettings =
     copy(properties = properties.updated(key, value))
+
+  def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamSettings =
+    withProperty(f(StreamsConfigKeys), value)
 }
 
 final case class SerdeSettings(properties: Map[String, String]) extends Settings[SerdeSettings] {
   override def withProperty(key: String, value: String): SerdeSettings =
     copy(properties = properties.updated(key, value))
+
+  def withProperty(f: AbstractKafkaSchemaSerDeConfigKeys => String, value: String): SerdeSettings =
+    withProperty(f(AbstractKafkaSchemaSerDeConfigKeys), value)
 }
 
 final case class KafkaSettings(
@@ -49,10 +60,10 @@ final case class KafkaSettings(
 
   def withBrokers(brokers: String): KafkaSettings =
     KafkaSettings(
-      consumerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
-      producerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
+      consumerSettings.withProperty(_.BOOTSTRAP_SERVERS_CONFIG, brokers),
+      producerSettings.withProperty(_.BOOTSTRAP_SERVERS_CONFIG, brokers),
       adminSettings.withBootstrapServers(brokers),
-      streamSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
+      streamSettings.withProperty(_.BOOTSTRAP_SERVERS_CONFIG, brokers),
       serdeSettings
     )
 
@@ -74,17 +85,40 @@ final case class KafkaSettings(
       serdeSettings
     )
 
-  def withProducerProperty(key: String, value: String): KafkaSettings =
-    copy(producerSettings = producerSettings.withProperty(key, value))
+  def withProducerProperty(f: ProducerConfigKeys => String, value: String): KafkaSettings =
+    copy(producerSettings = producerSettings.withProperty(f, value))
 
-  def withConsumerProperty(key: String, value: String): KafkaSettings =
-    copy(consumerSettings = consumerSettings.withProperty(key, value))
+  def withConsumerProperty(f: ConsumerConfigKeys => String, value: String): KafkaSettings =
+    copy(consumerSettings = consumerSettings.withProperty(f, value))
 
-  def withStreamingProperty(key: String, value: String): KafkaSettings =
-    copy(streamSettings = streamSettings.withProperty(key, value))
+  def withStreamingProperty(f: StreamsConfigKeys => String, value: String): KafkaSettings =
+    copy(streamSettings = streamSettings.withProperty(f, value))
 
-  def withSerdeProperty(key: String, value: String): KafkaSettings =
-    copy(serdeSettings = serdeSettings.withProperty(key, value))
+  def withSerdeProperty(f: AbstractKafkaSchemaSerDeConfigKeys => String, value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f, value))
+
+  def withAvroSerializerConfig(f: KafkaAvroSerializerConfigKeys => String, value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaAvroSerializerConfigKeys), value))
+  def withAvroDeserializerConfig(f: KafkaAvroDeserializerConfigKeys => String, value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaAvroDeserializerConfigKeys), value))
+
+  def withJsonSerializerConfig(
+    f: KafkaJsonSchemaSerializerConfigKeys => String,
+    value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaJsonSchemaSerializerConfigKeys), value))
+  def withJsonDeserializerConfig(
+    f: KafkaJsonSchemaDeserializerConfigKeys => String,
+    value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaJsonSchemaDeserializerConfigKeys), value))
+
+  def withProtobufSerializerConfig(
+    f: KafkaProtobufSerializerConfigKeys => String,
+    value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaProtobufSerializerConfigKeys), value))
+  def withProtobufDeserializerConfig(
+    f: KafkaProtobufDeserializerConfigKeys => String,
+    value: String): KafkaSettings =
+    copy(serdeSettings = serdeSettings.withProperty(f(KafkaProtobufDeserializerConfigKeys), value))
 
   def withAdminClient(f: AdminClientSettings => AdminClientSettings): KafkaSettings =
     copy(adminSettings = f(adminSettings))
@@ -102,7 +136,7 @@ object KafkaSettings {
       KafkaStreamSettings(Map.empty),
       SerdeSettings(Map.empty)
     ).withBrokers(brokers)
-      .withSerdeProperty(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry)
+      .withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry)
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
 
   val local: KafkaSettings = apply("localhost:9092", "http://localhost:8081")

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.given
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -46,11 +46,11 @@ object SecretsManager {
 
   private val name = "aws.SecretsManager"
 
-  def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(using F: Async[F]): Resource[F, SecretsManager[F]] =
+  def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(using F: Sync[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(SecretsManagerClient.builder()).build())) {
-        sm => shutdown(name, logger)(F.blocking(sm.close()))
+        sm => shutdown(name, logger)(sm.close())
       }
     } yield new SecretsManagerImpl(client, logger)
 

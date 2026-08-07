@@ -33,11 +33,11 @@ object PrettyJsonTranslator {
 
   private def service_stop(evt: ServiceStop): Json =
     Json.obj(
-      Attribute(evt).map(_.upTime.show).snakeJsonEntry,
+      Attribute(evt).map(_.cause.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.cause).snakeJsonEntry
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry
     )
 
   private def metrics_snapshot(evt: MetricsSnapshot): Json =

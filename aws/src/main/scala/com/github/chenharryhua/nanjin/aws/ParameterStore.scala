@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.effect.kernel.{Async, Resource}
+import cats.Endo
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.Endo
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse}
@@ -59,16 +59,15 @@ object ParameterStore {
 
   private val name = "aws.ParameterStore"
 
-  def apply[F[_]](f: Endo[SsmClientBuilder])(using F: Async[F]): Resource[F, ParameterStore[F]] =
+  def apply[F[_]](f: Endo[SsmClientBuilder])(using F: Sync[F]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SsmClient.builder()).build())) {
-        client =>
-          shutdown(name, logger)(F.blocking(client.close()))
+        client => shutdown(name, logger)(client.close())
       }
     } yield new AwsPS[F](client, logger)
 
-  final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(using F: Async[F])
+  final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(using F: Sync[F])
       extends ParameterStore[F] {
 
     override def fetch(request: GetParametersRequest): F[GetParametersResponse] =

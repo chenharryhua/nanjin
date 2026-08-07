@@ -8,7 +8,7 @@ import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.HasProperties
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.utils.toProperties
-import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SerdeSettings}
+import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings, StreamsConfigKeys}
 import fs2.Stream
 import io.circe.{Encoder, Json}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
@@ -153,8 +153,8 @@ final class KafkaStreamsBuilder[F[_]] private (
   def onStateTransition(log: Log[F]): KafkaStreamsBuilder[F] =
     copy(log = log)
 
-  def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
-    copy(streamSettings = streamSettings.withProperty(key, value))
+  def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamsBuilder[F] =
+    copy(streamSettings = streamSettings.withProperty(f, value))
 
   def withProperties(map: Map[String, String]): KafkaStreamsBuilder[F] =
     copy(streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) })

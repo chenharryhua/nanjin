@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.given
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -54,12 +54,11 @@ object CloudWatch {
     * @return
     *   a resource wrapping `CloudWatch` implementation
     */
-  def apply[F[_]](f: Endo[CloudWatchClientBuilder])(using F: Async[F]): Resource[F, CloudWatch[F]] =
+  def apply[F[_]](f: Endo[CloudWatchClientBuilder])(using F: Sync[F]): Resource[F, CloudWatch[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(logger.info(s"initialize $name").as(f(CloudWatchClient.builder()).build())) {
-        cw =>
-          shutdown(name, logger)(F.blocking(cw.close()))
+        cw => shutdown(name, logger)(cw.close())
       }
     } yield new AwsCloudWatch[F](client, logger)
 
@@ -68,5 +67,4 @@ object CloudWatch {
 
     override def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse] =
       blockingF(client.putMetricData(request), request.toString, logger)
-
 }

@@ -1,15 +1,14 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{
+import com.github.chenharryhua.nanjin.kafka.config.{
   KafkaConsumerSettings,
-  KafkaContext,
   KafkaProducerSettings,
   KafkaSettings,
   KafkaStreamSettings,
-  SerdeSettings,
-  TopicName
+  SerdeSettings
 }
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
 import fs2.kafka.AdminClientSettings
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
