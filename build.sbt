@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.51.2"
+val awsV = "2.51.3"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -308,10 +308,9 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
-      "io.opentelemetry"                % "opentelemetry-api" % "1.64.0", // snyk by kafka-client
+      "io.opentelemetry"                % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
+      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5" // snyk by kafka-protobuf-provider
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
   .settings {
