@@ -5,14 +5,13 @@ import io.circe.{Codec, Decoder, DecodingFailure, Encoder, Json}
 
 import scala.xml.{Elem, MetaData, Node, Null, Text, TopScope, UnprefixedAttribute}
 
-given Codec[Node] =
-  Codec.from(decodeNode, Encoder.instance(encodeNode))
+given Codec[Node] = Codec.from(decodeNode, Encoder.instance(encodeNode))
 
 private def encodeNode(node: Node): Json =
   node match
     case elem: Elem => Json.obj(elem.label -> element(elem))
     case text: Text => Json.fromString(text.text)
-    case oops       => sys.error(oops.toString)
+    case oops       => sys.error(s"unknown xml node: $oops")
 
 private def decodeNode: Decoder[Node] =
   Decoder.instance { c =>
@@ -139,7 +138,8 @@ private def element(elem: Elem): Json = {
         }*)
       }.toSeq
 
-    Json.obj((attributes ++ textField ++ grouped.toSeq ++ orderedChildrenField)*)
+    val allFields = attributes ++ textField ++ grouped.toSeq ++ orderedChildrenField
+    Json.obj(allFields*)
 }
 
 private def merge(a: Json, b: Json): Json =
