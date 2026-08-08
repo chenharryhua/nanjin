@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.xml.{Comment, Node, Text, XML}
 
-class XmlNodeJsonCodeTest extends AnyFunSuite {
+class XmlNodeJsonCodecTest extends AnyFunSuite {
 
   private val codec: Codec[Node] = summon[Codec[Node]]
 

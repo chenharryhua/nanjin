@@ -47,7 +47,7 @@ object MetricsHubS {
   def apply[F[_]](hub: MetricsHub[F])(using MonadCancel[F, Throwable]): MetricsHubS[F] =
     new MetricsHubS[F] {
 
-      override def metricLabel: MetricLabel = hub.metricLabel
+      override val metricLabel: MetricLabel = hub.metricLabel
 
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))
