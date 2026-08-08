@@ -100,6 +100,7 @@ lazy val common = (project in file("common"))
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
+      "org.scala-lang.modules" %% "scala-xml"          % "2.4.0",
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
       "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
