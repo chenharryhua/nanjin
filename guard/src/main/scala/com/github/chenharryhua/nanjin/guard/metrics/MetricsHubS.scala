@@ -16,7 +16,7 @@ import fs2.Stream
 import io.circe.Encoder
 import io.github.timwspence.cats.stm.STM
 
-trait MetricsHubS[F[_]] {
+sealed trait MetricsHubS[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
@@ -47,7 +47,7 @@ object MetricsHubS {
   def apply[F[_]](hub: MetricsHub[F])(using MonadCancel[F, Throwable]): MetricsHubS[F] =
     new MetricsHubS[F] {
 
-      override def metricLabel: MetricLabel = hub.metricLabel
+      override val metricLabel: MetricLabel = hub.metricLabel
 
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))

@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 
 trait ActiveGauge[F[_]]:
   def deactivate: F[Unit]
+end ActiveGauge
 
 object ActiveGauge:
   final class Builder(isEnabled: Boolean) extends EnableConfig[Builder] {
@@ -45,3 +46,4 @@ object ActiveGauge:
     name: String,
     f: Builder => Builder): Resource[F, ActiveGauge[F]] =
     f(Builder(true)).build(gp, name)
+end ActiveGauge

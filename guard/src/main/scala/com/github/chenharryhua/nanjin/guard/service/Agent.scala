@@ -51,6 +51,7 @@ sealed trait Agent[F[_]] {
   def metricsHubS(label: String): MetricsHubS[F]
 
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
+  def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A
 
   val adhoc: AdhocReport[F]
 
@@ -114,6 +115,9 @@ final private class GeneralAgent[F[_]: Async](
 
   override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
     f(metricsHub(label))
+
+  override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
+    f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
     new Batch[F](metricsHub(label), uuidGenerator)
