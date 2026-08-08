@@ -16,7 +16,7 @@ import fs2.Stream
 import io.circe.Encoder
 import io.github.timwspence.cats.stm.STM
 
-trait MetricsHubS[F[_]] {
+sealed trait MetricsHubS[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]

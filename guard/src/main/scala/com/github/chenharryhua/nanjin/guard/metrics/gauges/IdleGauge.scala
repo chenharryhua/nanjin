@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 
 trait IdleGauge[F[_]]:
   def wakeUp: F[Unit]
+end IdleGauge
 
 object IdleGauge:
   final class Builder private[IdleGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
@@ -40,3 +41,4 @@ object IdleGauge:
 
   def apply[F[_]: Async](gp: GaugeParams[F], name: String, f: Builder => Builder): Resource[F, IdleGauge[F]] =
     f(Builder(true)).build(gp, name)
+end IdleGauge
