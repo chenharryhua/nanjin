@@ -1,20 +1,26 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.xml2Json
-import io.circe.Json
+import com.github.chenharryhua.nanjin.common.xml.given
+import io.circe.{Codec, Json}
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.xml.{Comment, Text, XML}
+import scala.xml.{Comment, Node, Text, XML}
 
 class Xml2JsonTest extends AnyFunSuite {
+
+  private val codec: Codec[Node] = summon[Codec[Node]]
+
+  private def encode(node: Node): Json = codec(node)
+
+  private def decode(json: Json): Node = codec.decodeJson(json).toOption.get
 
   test("1.simple text node") {
     val xml = XML.loadString("<name>alice</name>")
 
     val expected = Json.obj("name" -> Json.fromString("alice"))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("2.attributes with text") {
@@ -27,7 +33,7 @@ class Xml2JsonTest extends AnyFunSuite {
         "#text" -> Json.fromString("tom")
       ))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("3.repeated child elements become array") {
@@ -43,7 +49,7 @@ class Xml2JsonTest extends AnyFunSuite {
         "user" -> List("alice", "bob").asJson
       ))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("4.mixed content keeps text and children") {
@@ -67,7 +73,7 @@ class Xml2JsonTest extends AnyFunSuite {
         ).asJson
       ))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("5.attribute-only element includes empty #text") {
@@ -79,11 +85,11 @@ class Xml2JsonTest extends AnyFunSuite {
         "#text" -> Json.fromString("")
       ))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("6.top-level unsupported node throws") {
-    assertThrows[RuntimeException](xml2Json(Comment("not-an-elem")))
+    assertThrows[RuntimeException](encode(Comment("not-an-elem")))
   }
 
   test("7.mixed content preserves ordering in #children") {
@@ -103,14 +109,52 @@ class Xml2JsonTest extends AnyFunSuite {
         ).asJson
       ))
 
-    assert(xml2Json(xml) == expected)
+    assert(encode(xml) == expected)
   }
 
   test("8.root text preserves spaces but nested text is trimmed") {
-    val rootText = xml2Json(Text("  hi  "))
-    val nestedText = xml2Json(XML.loadString("<a>  hi  </a>"))
+    val rootText = encode(Text("  hi  "))
+    val nestedText = encode(XML.loadString("<a>  hi  </a>"))
 
     assert(rootText == Json.fromString("  hi  "))
     assert(nestedText == Json.obj("a" -> Json.fromString("hi")))
+  }
+
+  test("9.codec decodes a simple encoded object") {
+    val json = Json.obj("name" -> Json.fromString("alice"))
+
+    val decoded = decode(json)
+
+    assert(decoded.label == "name")
+    assert(decoded.text == "alice")
+  }
+
+  test("10.codec rejects multi-field root object") {
+    val json = Json.obj(
+      "a" -> Json.fromString("x"),
+      "b" -> Json.fromString("y")
+    )
+
+    assert(codec.decodeJson(json).isLeft)
+  }
+
+  test("11.xml-json-xml-json round trip keeps mixed-content shape") {
+    val xml = XML.loadString("<root>pre<x>1</x>mid<y>2</y>post</root>")
+
+    val encoded = encode(xml)
+    val decoded = decode(encoded)
+
+    assert(encode(decoded) == encoded)
+  }
+
+  test("12.json-xml-json round trip keeps grouped-child shape without #children") {
+    val json = Json.obj(
+      "users" -> Json.obj(
+        "user" -> List("alice", "bob").asJson
+      ))
+
+    val decoded = decode(json)
+
+    assert(encode(decoded) == json)
   }
 }
