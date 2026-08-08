@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.xml.{Comment, Node, Text, XML}
 
-class Xml2JsonTest extends AnyFunSuite {
+class XmlNodeJsonCodeTest extends AnyFunSuite {
 
   private val codec: Codec[Node] = summon[Codec[Node]]
 
@@ -48,7 +48,6 @@ class Xml2JsonTest extends AnyFunSuite {
       "users" -> Json.obj(
         "user" -> List("alice", "bob").asJson
       ))
-
     assert(encode(xml) == expected)
   }
 

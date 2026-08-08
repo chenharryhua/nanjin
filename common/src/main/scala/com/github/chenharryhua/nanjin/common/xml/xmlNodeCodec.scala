@@ -23,7 +23,7 @@ private def decodeNode: Decoder[Node] =
             val (label, payload) = obj.toIterable.head
             decodeElement(label, payload).flatMap(validateRoundTrip(c.value, c.history))
           case _ =>
-            Left(DecodingFailure("xml2Json expects a JSON string or a single-field root object", c.history))
+            Left(DecodingFailure("expects a JSON string or a single-field root object", c.history))
   }
 
 private def validateRoundTrip(original: Json, history: List[io.circe.CursorOp])(
@@ -31,7 +31,7 @@ private def validateRoundTrip(original: Json, history: List[io.circe.CursorOp])(
   Either.cond(
     encodeNode(node) === original,
     node,
-    DecodingFailure("xml2Json only decodes canonical JSON produced by this codec", history)
+    DecodingFailure("only decodes canonical JSON produced by this codec", history)
   )
 
 private def decodeElement(label: String, payload: Json): Decoder.Result[Elem] =
