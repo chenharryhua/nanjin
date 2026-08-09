@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.terminals
+package mtest.terminals
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}

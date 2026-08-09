@@ -5,7 +5,7 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.NonEmptyHotswap
 import cats.syntax.monadError.given
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
@@ -195,9 +195,9 @@ final private class RotateBySizeSink[F[_]](
   }
 
   // json node
-  override def jsonNode: Pipe[F, JsonNode, RotateFile] = {
+  override def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, RotateFile] = {
     val get_writer: GetWriter[JsonNode] =
-      Reader(url => HadoopWriter.jsonNodeR(configuration, url))
+      Reader(url => HadoopWriter.jsonNodeR(configuration, url, ow))
 
     (ss: Stream[F, JsonNode]) => persist(ss, get_writer)
   }

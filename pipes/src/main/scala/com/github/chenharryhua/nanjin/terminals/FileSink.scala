@@ -4,7 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.given
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -77,7 +77,7 @@ sealed trait FileSink[F[_]] {
   /** `https://github.com/FasterXML/jackson-databind`
     * @return
     */
-  def jsonNode: Pipe[F, JsonNode, Int]
+  def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, Int]
 }
 
 final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSink[F] {
@@ -170,8 +170,8 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
     }
   }
 
-  override def jsonNode: Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
-    Stream.resource(HadoopWriter.jsonNodeR[F](configuration, url)).flatMap { w =>
+  override def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
+    Stream.resource(HadoopWriter.jsonNodeR[F](configuration, url, ow)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }

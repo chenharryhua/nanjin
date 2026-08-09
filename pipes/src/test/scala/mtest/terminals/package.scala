@@ -1,6 +1,6 @@
 package mtest
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.JsonNode
 import io.circe.{jawn, Json}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -37,7 +37,6 @@ package object terminals {
       datumReader.read(null, jsonDecoder)
     }
 
-  val objectMapper = new ObjectMapper
   def genericRecord2JsonNode(record: GenericRecord): Try[JsonNode] =
     Using(new ByteArrayOutputStream) { baos =>
       val encoder = EncoderFactory.get().jsonEncoder(record.getSchema, baos)

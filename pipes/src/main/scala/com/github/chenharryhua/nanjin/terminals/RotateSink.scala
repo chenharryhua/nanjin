@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import fs2.Pipe
 import io.circe.Json
 import kantan.csv.CsvConfiguration
@@ -120,7 +120,7 @@ sealed trait RotateSink[F[_]] {
     * A JsonNode rotate sink that periodically writes JsonNode to text files, with file rotation controlled by
     * a time-based or size-based policy.
     */
-  def jsonNode: Pipe[F, JsonNode, RotateFile]
+  def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, RotateFile]
 }
 
 abstract class RotateBySize[F[_]] extends RotateSink[F] {}
