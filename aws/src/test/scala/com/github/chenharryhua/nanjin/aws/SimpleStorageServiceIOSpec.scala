@@ -14,7 +14,7 @@ import software.amazon.awssdk.services.s3.model.{
 
 class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
 
-  private final class FakeS3Client extends S3Client {
+  final private class FakeS3Client extends S3Client {
     @volatile var lastHeadRequest: Option[HeadObjectRequest] = None
     @volatile var lastRenameRequest: Option[RenameObjectRequest] = None
 
@@ -71,7 +71,8 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    val request = RenameObjectRequest.builder().bucket("bucket-r").key("target").renameSource("source").build()
+    val request =
+      RenameObjectRequest.builder().bucket("bucket-r").key("target").renameSource("source").build()
     service.renameObject(request).unsafeRunSync()
 
     client.lastRenameRequest.map(_.bucket()) shouldBe Some("bucket-r")
