@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
@@ -23,48 +23,47 @@ import java.time.LocalDate
 import scala.annotation.tailrec
 import scala.util.Try
 
-package object terminals {
+given Codec[Url] = new Codec[Url] {
+  override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
+  override def apply(a: Url): Json = a.toJavaURI.asJson
+}
 
-  given Codec[Url] = new Codec[Url] {
-    override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
-    override def apply(a: Url): Json = a.toJavaURI.asJson
-  }
+def toHadoopPath(url: Url): Path =
+  if (url.schemeOption.exists(_ === "s3")) {
+    new Path(url.withScheme("s3a").normalize(removeEmptyPathParts = true).toJavaURI)
+  } else
+    new Path(url.normalize(removeEmptyPathParts = true).toJavaURI)
 
-  def toHadoopPath(url: Url): Path =
-    if (url.schemeOption.exists(_ === "s3")) {
-      new Path(url.withScheme("s3a").normalize(removeEmptyPathParts = true).toJavaURI)
-    } else
-      new Path(url.normalize(removeEmptyPathParts = true).toJavaURI)
+/** extract LocalDate from a url
+  * @return
+  *   optional LocalDate
+  */
+def extractDate(url: Url): Option[LocalDate] = {
+  @tailrec
+  def go(ps: List[String]): Option[LocalDate] =
+    ps match {
+      case head :: next =>
+        partitionPath.year(head) match {
+          case Some(year) =>
+            next match {
+              case month :: day :: _ =>
+                (partitionPath.month(month), partitionPath.day(day)).flatMapN { case (m, d) =>
+                  Try(LocalDate.of(year, m, d)).toOption
+                }
+              case _ => None
+            }
+          case None => go(next)
+        }
+      case Nil => None
+    }
+  go(url.path.parts.toList)
+}
 
-  /** extract LocalDate from a url
-    * @return
-    *   optional LocalDate
-    */
-  def extractDate(url: Url): Option[LocalDate] = {
-    @tailrec
-    def go(ps: List[String]): Option[LocalDate] =
-      ps match {
-        case head :: next =>
-          partitionPath.year(head) match {
-            case Some(year) =>
-              next match {
-                case month :: day :: _ =>
-                  (partitionPath.month(month), partitionPath.day(day)).flatMapN { case (m, d) =>
-                    Try(LocalDate.of(year, m, d)).toOption
-                  }
-                case _ => None
-              }
-            case None => go(next)
-          }
-        case Nil => None
-      }
-    go(url.path.parts.toList)
-  }
-
-  def default_parquet_write_builder(
-    configuration: Configuration,
-    schema: Schema,
-    f: Endo[Builder[GenericRecord]]): Reader[Url, Builder[GenericRecord]] = Reader((url: Url) =>
+private def default_parquet_write_builder(
+  configuration: Configuration,
+  schema: Schema,
+  f: Endo[Builder[GenericRecord]]): Reader[Url, Builder[GenericRecord]] =
+  Reader((url: Url) =>
     AvroParquetWriter
       .builder[GenericRecord](HadoopOutputFile.fromPath(toHadoopPath(url), configuration))
       .withDataModel(GenericData.get())
@@ -72,4 +71,3 @@ package object terminals {
       .withSchema(schema)
       .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
-}

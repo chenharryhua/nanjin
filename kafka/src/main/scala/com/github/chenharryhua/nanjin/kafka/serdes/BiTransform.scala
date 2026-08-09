@@ -40,9 +40,9 @@ object BiTransform:
     new BiTransform[JsonNode, B]:
       private val schema: JsonSchema = KafkaJsonSchema[B].schema
 
-      override def to(a: JsonNode): B = globalObjectMapper.convertValue[B](a)
+      override def to(a: JsonNode): B = objectMapper.convertValue[B](a)
       override def from(b: B): JsonNode =
-        JsonSchemaUtils.envelope(schema, globalObjectMapper.valueToTree[JsonNode](b))
+        JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](b))
   end given
 
   given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.schema
 
-import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
+import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
 import com.sksamuel.avro4s.SchemaFor
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
@@ -18,7 +18,7 @@ object KafkaJsonSchema:
 
   given [A: ClassTag]: KafkaJsonSchema[A] = new KafkaJsonSchema {
     override def schema: JsonSchema = new JsonSchema(
-      new JsonSchemaGenerator(globalObjectMapper)
+      new JsonSchemaGenerator(objectMapper)
         .generateJsonSchema(summon[ClassTag[A]].runtimeClass)
     )
   }

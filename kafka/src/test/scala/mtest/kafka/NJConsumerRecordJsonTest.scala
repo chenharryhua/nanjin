@@ -1,7 +1,7 @@
 package mtest.kafka
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.*
-import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
+import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper
 import io.circe.{Decoder, Encoder, Json}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,8 +24,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("1.toJsonNode: basic fields") {
     val node: JsonNode =
       base.toJsonNode(
-        k => globalObjectMapper.valueToTree(k),
-        v => globalObjectMapper.valueToTree(v)
+        k => objectMapper.valueToTree(k),
+        v => objectMapper.valueToTree(v)
       )
 
     assert(node.get("topic").asText() == "test-topic")
@@ -37,8 +37,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("2.toJsonNode: key/value mapping") {
     val node =
       base.toJsonNode(
-        k => globalObjectMapper.valueToTree(k.toUpperCase),
-        v => globalObjectMapper.valueToTree(v.reverse)
+        k => objectMapper.valueToTree(k.toUpperCase),
+        v => objectMapper.valueToTree(v.reverse)
       )
 
     assert(node.get("key").asText() == "K")
@@ -58,8 +58,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("4.toJsonNode: partial mapping") {
     val node =
       base.toJsonNode(
-        k => globalObjectMapper.valueToTree(k),
-        v => globalObjectMapper.valueToTree(v)
+        k => objectMapper.valueToTree(k),
+        v => objectMapper.valueToTree(v)
       )
 
     assert(node.get("key").asText() == "k")
@@ -69,8 +69,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("5.toJsonNode: headers serialized") {
     val node =
       base.toJsonNode(
-        k => globalObjectMapper.valueToTree(k),
-        v => globalObjectMapper.valueToTree(v)
+        k => objectMapper.valueToTree(k),
+        v => objectMapper.valueToTree(v)
       )
 
     val headers = node.get("headers")
@@ -83,8 +83,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
   test("6.toJsonNode: leaderEpoch optional") {
     val node =
       base.toJsonNode(
-        k => globalObjectMapper.valueToTree(k),
-        v => globalObjectMapper.valueToTree(v)
+        k => objectMapper.valueToTree(k),
+        v => objectMapper.valueToTree(v)
       )
 
     assert(node.get("leaderEpoch").asInt() == 3)
@@ -92,8 +92,8 @@ class NJConsumerRecordJsonTest extends AnyFunSuite {
     val noEpoch =
       base.copy(leaderEpoch = None)
         .toJsonNode(
-          k => globalObjectMapper.valueToTree(k),
-          v => globalObjectMapper.valueToTree(v)
+          k => objectMapper.valueToTree(k),
+          v => objectMapper.valueToTree(v)
         )
 
     assert(noEpoch.get("leaderEpoch").isNull)

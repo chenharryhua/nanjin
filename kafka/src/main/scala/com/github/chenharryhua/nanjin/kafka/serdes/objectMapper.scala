@@ -6,6 +6,6 @@ import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModul
  *Use one configured ObjectMapper per application (or per distinct configuration).
  * It’s designed for concurrent use.
  */
-object globalObjectMapper extends ObjectMapper with ClassTagExtensions {
+object objectMapper extends ObjectMapper with ClassTagExtensions {
   this.registerModules(DefaultScalaModule)
 }

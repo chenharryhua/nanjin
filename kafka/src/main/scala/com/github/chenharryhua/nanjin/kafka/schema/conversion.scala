@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.schema
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
+import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper
 import io.circe.{jawn, Json}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -68,7 +68,7 @@ def genericRecord2JsonNode(record: GenericRecord): Try[JsonNode] =
     encoder.flush()
     baos.close()
 
-    globalObjectMapper.readTree(baos.toByteArray)
+    objectMapper.readTree(baos.toByteArray)
   }
 
 def jsonNode2GenericRecord(json: JsonNode, schema: Schema): Try[GenericRecord] =
