@@ -162,4 +162,37 @@ class HadoopTest extends AnyFunSuite {
     assert(hdp.emptyFolders(missingRoot).unsafeRunSync().isEmpty)
     assert(hdp.dateFolderRetention(missingRoot, List(LocalDate.of(2025, 8, 10))).unsafeRunSync().isEmpty)
   }
+
+  test("15.copy keeps source and overwrites target") {
+    val root = path / "copy-move" / "copy-case"
+    val source = root / "source.txt"
+    val target = root / "target.txt"
+
+    hdp.delete(root).unsafeRunSync()
+    File(source.toString()).createFileIfNotExists(createParents = true).overwrite("copied-content")
+    File(target.toString()).createFileIfNotExists(createParents = true).overwrite("old-content")
+
+    val copied = hdp.copy(source, target).unsafeRunSync()
+
+    assert(copied)
+    assert(hdp.isExist(source).unsafeRunSync())
+    assert(hdp.isExist(target).unsafeRunSync())
+    assert(File(target.toString()).contentAsString == "copied-content")
+  }
+
+  test("16.move deletes source and keeps target") {
+    val root = path / "copy-move" / "move-case"
+    val source = root / "source.txt"
+    val target = root / "target.txt"
+
+    hdp.delete(root).unsafeRunSync()
+    File(source.toString()).createFileIfNotExists(createParents = true).overwrite("moved-content")
+
+    val moved = hdp.move(source, target).unsafeRunSync()
+
+    assert(moved)
+    assert(!hdp.isExist(source).unsafeRunSync())
+    assert(hdp.isExist(target).unsafeRunSync())
+    assert(File(target.toString()).contentAsString == "moved-content")
+  }
 }
