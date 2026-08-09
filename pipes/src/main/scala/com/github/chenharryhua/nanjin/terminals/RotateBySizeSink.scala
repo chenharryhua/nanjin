@@ -195,9 +195,9 @@ final private class RotateBySizeSink[F[_]](
   }
 
   // json node
-  override def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, RotateFile] = {
+  override def jsonNode(objectWriter: ObjectWriter): Pipe[F, JsonNode, RotateFile] = {
     val get_writer: GetWriter[JsonNode] =
-      Reader(url => HadoopWriter.jsonNodeR(configuration, url, ow))
+      Reader(url => HadoopWriter.jsonNodeR(configuration, url, objectWriter))
 
     (ss: Stream[F, JsonNode]) => persist(ss, get_writer)
   }

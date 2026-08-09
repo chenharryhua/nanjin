@@ -120,7 +120,7 @@ sealed trait RotateSink[F[_]] {
     * A JsonNode rotate sink that periodically writes JsonNode to text files, with file rotation controlled by
     * a time-based or size-based policy.
     */
-  def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, RotateFile]
+  def jsonNode(objectWriter: ObjectWriter): Pipe[F, JsonNode, RotateFile]
 }
 
 abstract class RotateBySize[F[_]] extends RotateSink[F] {}
