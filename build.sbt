@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.1"
 val avro4sV = "5.0.15"
-val awsV = "2.51.2"
+val awsV = "2.51.3"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -100,6 +100,7 @@ lazy val common = (project in file("common"))
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
+      "org.scala-lang.modules" %% "scala-xml"          % "2.4.0",
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
       "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
@@ -134,7 +135,8 @@ val awsLib = List(
   "software.amazon.awssdk" % "sqs",
   "software.amazon.awssdk" % "ssm",
   "software.amazon.awssdk" % "sns",
-  "software.amazon.awssdk" % "ses"
+  "software.amazon.awssdk" % "ses",
+  "software.amazon.awssdk" % "s3"
 ).map(_ % awsV)
 
 lazy val aws = (project in file("aws"))
@@ -308,7 +310,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
-      "io.opentelemetry"                % "opentelemetry-api" % "1.64.0", // snyk by kafka-client
+      "io.opentelemetry"                % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm

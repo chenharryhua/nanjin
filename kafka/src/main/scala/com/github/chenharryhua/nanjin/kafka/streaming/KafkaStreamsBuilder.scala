@@ -109,7 +109,10 @@ final class KafkaStreamsBuilder[F[_]] private (
       listener = new StateTransitionListener(dispatcher, startup, stop)
       kafkaStreams <- Stream
         .bracket(F.blocking(new KafkaStreams(topology, sc))) { ks =>
-          F.blocking(ks.close(closeTimeout.toJava)).void
+          if (ks.state().hasCompletedShutdown)
+            F.unit
+          else
+            F.blocking(ks.close(closeTimeout.toJava)).void
         }
         .evalTap { kss =>
           for {
