@@ -132,15 +132,14 @@ private object HadoopWriter {
       schema,
       url)
 
-  def jsonNodeR[F[_]](configuration: Configuration, url: Url)(using
+  def jsonNodeR[F[_]](configuration: Configuration, url: Url, objectWriter: ObjectWriter)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
     outputStreamR[F](configuration, url).map { os =>
-      val writer: ObjectWriter = objectMapper.writer()
       new HadoopWriter[F, JsonNode] {
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
           F.blocking {
             cjn.foreach { jn =>
-              os.write(writer.writeValueAsBytes(jn))
+              os.write(objectWriter.writeValueAsBytes(jn))
               os.write('\n')
             }
             os.flush()

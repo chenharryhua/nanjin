@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.serdes
+package mtest.kafka
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
@@ -6,6 +6,6 @@ import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModul
  *Use one configured ObjectMapper per application (or per distinct configuration).
  * It’s designed for concurrent use.
  */
-object globalObjectMapper extends ObjectMapper with ClassTagExtensions {
+object objectMapper extends ObjectMapper with ClassTagExtensions {
   this.registerModules(DefaultScalaModule)
 }

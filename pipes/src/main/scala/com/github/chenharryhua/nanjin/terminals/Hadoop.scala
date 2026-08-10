@@ -264,8 +264,19 @@ final class Hadoop[F[_]](config: Configuration) {
       FileUtil.copy(srcFs, src, tgtFs, tgt, deleteSource, true, config)
     }
 
+  /** Copy a file or directory from one Hadoop-compatible path to another.
+    *
+    * The source is preserved and the target is created as a new path. This is a thin wrapper over Hadoop's
+    * file copy logic and uses the configured Hadoop filesystem implementation.
+    */
   def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
     copyFile(source, target, false)
+
+  /** Move a file or directory from one Hadoop-compatible path to another.
+    *
+    * This is equivalent to a copy followed by deletion of the source path. The source is removed after a
+    * successful transfer, subject to the underlying Hadoop filesystem semantics.
+    */
   def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
     copyFile(source, target, true)
 

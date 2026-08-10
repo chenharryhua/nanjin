@@ -1,28 +1,9 @@
-package com.github.chenharryhua.nanjin.kafka.schema
+package com.github.chenharryhua.nanjin.kafka.serdes
 
-import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
-import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
 import com.sksamuel.avro4s.SchemaFor
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
-
-import scala.reflect.ClassTag
-
-sealed trait KafkaJsonSchema[A]:
-  def schema: JsonSchema
-
-object KafkaJsonSchema:
-  def apply[A](using ev: KafkaJsonSchema[A]): KafkaJsonSchema[A] = ev
-
-  given [A: ClassTag]: KafkaJsonSchema[A] = new KafkaJsonSchema {
-    override def schema: JsonSchema = new JsonSchema(
-      new JsonSchemaGenerator(globalObjectMapper)
-        .generateJsonSchema(summon[ClassTag[A]].runtimeClass)
-    )
-  }
-end KafkaJsonSchema
 
 sealed trait KafkaAvroSchema[A]:
   def schema: AvroSchema

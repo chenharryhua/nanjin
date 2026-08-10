@@ -2,8 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.schema.KafkaAvroSchema
-import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaAvroSchema, Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.avro.generic.GenericRecord

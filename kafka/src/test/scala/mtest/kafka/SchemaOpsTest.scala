@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.schema.*
+import com.github.chenharryhua.nanjin.kafka.utils.*
 import org.apache.avro.{Schema, SchemaFormatter}
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite

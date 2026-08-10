@@ -160,7 +160,7 @@ sealed trait FileSource[F[_]] {
     *
     * empty line regarded as end of the file
     */
-  def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode]
+  def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode]
 }
 
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
@@ -229,8 +229,6 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     chunkSize: ChunkSize): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
-  override def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode] = {
-    val reader: ObjectReader = objectMapper.reader()
-    text(chunkSize).takeWhile(_.nonEmpty).map(reader.readTree)
-  }
+  override def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode] =
+    text(chunkSize).takeWhile(_.nonEmpty).map(or.readTree)
 }

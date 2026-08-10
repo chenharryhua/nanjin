@@ -17,9 +17,9 @@ trait SimpleStorageService[F[_]] {
 
   /** Retrieve object metadata by issuing an S3 `HeadObject` request.
     *
-    * This is the standard S3 object metadata operation and is generally available for normal S3 buckets as
-    * well as directory buckets, assuming the client is configured for the appropriate endpoint and
-    * permissions.
+    * This is the standard S3 metadata operation for inspecting an object's existence and attributes without
+    * copying or moving the object. It is generally available for normal S3 buckets as well as directory
+    * buckets, assuming the client is configured for the appropriate endpoint and permissions.
     */
   def headObject(hor: HeadObjectRequest): F[HeadObjectResponse]
   final def headObject(f: Endo[HeadObjectRequest.Builder]): F[HeadObjectResponse] =
@@ -27,8 +27,9 @@ trait SimpleStorageService[F[_]] {
 
   /** Rename an existing object by issuing an S3 `RenameObject` request.
     *
-    * This API is only supported for S3 Express One Zone directory buckets. For standard S3 buckets, a
-    * copy-and-delete fallback is typically required.
+    * This operation behaves like a move within the same directory bucket. It is only supported for S3 Express
+    * One Zone directory buckets. For standard S3 buckets, a move is typically implemented as a copy followed
+    * by delete.
     */
   def renameObject(ror: RenameObjectRequest): F[RenameObjectResponse]
   final def renameObject(f: Endo[RenameObjectRequest.Builder]): F[RenameObjectResponse] =

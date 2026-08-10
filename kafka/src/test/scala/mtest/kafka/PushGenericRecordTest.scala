@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJProducerRecord
-import com.github.chenharryhua.nanjin.kafka.schema.KafkaAvroSchema
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaAvroSchema
 import com.sksamuel.avro4s.SchemaFor
 import org.scalatest.funsuite.AnyFunSuite
 

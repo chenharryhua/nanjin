@@ -7,7 +7,7 @@ import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.admins.SchemaRegistryApi
 import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
-import com.github.chenharryhua.nanjin.kafka.schema.jackson2GenericRecord
+import com.github.chenharryhua.nanjin.kafka.utils.jackson2GenericRecord
 import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, OptionalAvroSchemaPair, TopicName}
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}

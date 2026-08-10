@@ -1,7 +1,6 @@
-package com.github.chenharryhua.nanjin.kafka.schema
+package com.github.chenharryhua.nanjin.kafka.utils
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.kafka.serdes.globalObjectMapper
 import io.circe.{jawn, Json}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -58,17 +57,6 @@ def jackson2GenericRecord(schema: Schema, jackson: String): Try[GenericData.Reco
     val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, bais)
     val datumReader = new GenericDatumReader[GenericData.Record](schema)
     datumReader.read(null, jsonDecoder)
-  }
-
-def genericRecord2JsonNode(record: GenericRecord): Try[JsonNode] =
-  Using(new ByteArrayOutputStream) { baos =>
-    val encoder = EncoderFactory.get().jsonEncoder(record.getSchema, baos)
-    val writer = new GenericDatumWriter[GenericRecord](record.getSchema)
-    writer.write(record, encoder)
-    encoder.flush()
-    baos.close()
-
-    globalObjectMapper.readTree(baos.toByteArray)
   }
 
 def jsonNode2GenericRecord(json: JsonNode, schema: Schema): Try[GenericRecord] =
