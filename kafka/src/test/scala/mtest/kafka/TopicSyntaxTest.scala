@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{objectMapper, KafkaJsonSchemaCodec, Primitive, Structured}
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import io.circe.Json
@@ -42,6 +42,8 @@ class TopicSyntaxTest extends AnyFunSuite {
   }
 
   test("5.schema-based") {
+    given KafkaJsonSchemaCodec[Foo] = KafkaJsonSchemaCodec[Foo](objectMapper)
+
     Structured[JsonNode].option.become[Option[Foo]].orNull
     Structured[GenericRecord].become[Foo]
     Structured[DynamicMessage]

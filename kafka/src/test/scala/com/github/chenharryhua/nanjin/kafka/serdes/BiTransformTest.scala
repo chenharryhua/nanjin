@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
-import com.fasterxml.jackson.databind.JsonNode
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -14,17 +13,6 @@ class BiTransformTest extends AnyFunSuite {
     assert(bi.to(Integer.valueOf(42)) === Some(42))
     assert(bi.from(Some(42)) === Integer.valueOf(42))
     assert(bi.from(None) === null)
-  }
-
-  test("json node transform round-trips to and from a case class") {
-    val bi = summon[BiTransform[JsonNode, JsonPerson]]
-    val person = JsonPerson("alice", 30)
-
-    val node: JsonNode = bi.from(person)
-    println(node)
-    assert(node != null)
-    assert(node.isObject)
-    assert(bi.to(node.get("payload")) === person)
   }
 
   test("generic record transform round-trips to and from a case class") {

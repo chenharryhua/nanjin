@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.schema
+package com.github.chenharryhua.nanjin.kafka.utils
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper

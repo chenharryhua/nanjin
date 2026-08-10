@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.github.chenharryhua.nanjin.kafka.schema.KafkaJsonSchema
+import cats.Endo
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.module.scala.ClassTagExtensions
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.google.protobuf.DynamicMessage
+import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaGenerator}
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
@@ -12,7 +15,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
-import scala.reflect.ClassTag
+import scala.reflect.{classTag, ClassTag}
 
 sealed trait BiTransform[A, B]:
   def to(a: A): B
@@ -34,15 +37,6 @@ object BiTransform:
       override def to(a: DynamicMessage): B = gmc.parseFrom(a.toByteArray)
       override def from(b: B): DynamicMessage =
         DynamicMessage.parseFrom(b.companion.javaDescriptor, b.toByteArray)
-  end given
-
-  given [B: ClassTag]: BiTransform[JsonNode, B] =
-    new BiTransform[JsonNode, B]:
-      private val schema: JsonSchema = KafkaJsonSchema[B].schema
-
-      override def to(a: JsonNode): B = objectMapper.convertValue[B](a)
-      override def from(b: B): JsonNode =
-        JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](b))
   end given
 
   given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =
@@ -104,3 +98,33 @@ object BiTransform:
       override def from(b: Option[B]): Option[A] = b.map(ab.from)
 
 end BiTransform
+
+sealed trait KafkaJsonSchema[A]:
+  def schema: JsonSchema
+
+final class KafkaJsonSchemaCodec[A: ClassTag] private (
+  objectMapper: ObjectMapper & ClassTagExtensions,
+  f: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder])
+    extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonSchemaCodec[A]]
+    with BiTransform[JsonNode, A] with KafkaJsonSchema[A] {
+
+  /** Generated schema for the runtime class of `A`. */
+  override lazy val schema: JsonSchema =
+    new JsonSchema(
+      new JsonSchemaGenerator(objectMapper, f(JsonSchemaConfig.builder()).build())
+        .generateJsonSchema(classTag[A].runtimeClass))
+
+  override def updateConfig(g: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder]): KafkaJsonSchemaCodec[A] =
+    new KafkaJsonSchemaCodec[A](objectMapper, g.compose(f))
+
+  override def to(jn: JsonNode): A = objectMapper.convertValue[A](jn)
+
+  // Confluent JSON Schema requires the schema envelope.
+  override def from(a: A): JsonNode =
+    JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](a))
+}
+
+object KafkaJsonSchemaCodec:
+  /** Creates a schema helper from the supplied Jackson object mapper. */
+  def apply[A: ClassTag](objectMapper: ObjectMapper & ClassTagExtensions): KafkaJsonSchemaCodec[A] =
+    new KafkaJsonSchemaCodec[A](objectMapper, identity)
