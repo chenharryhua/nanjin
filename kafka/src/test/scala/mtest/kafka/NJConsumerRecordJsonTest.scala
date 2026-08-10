@@ -2,7 +2,6 @@ package mtest.kafka
 import cats.implicits.toBifunctorOps
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.*
-import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper
 import io.circe.{Decoder, Encoder, Json}
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -4,8 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.schema.KafkaProtobufSchema
-import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaProtobufSchema, Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import com.google.protobuf.DynamicMessage
 import org.scalatest.funsuite.AnyFunSuite

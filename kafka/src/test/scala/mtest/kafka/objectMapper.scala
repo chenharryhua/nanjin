@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.serdes
+package mtest.kafka
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}

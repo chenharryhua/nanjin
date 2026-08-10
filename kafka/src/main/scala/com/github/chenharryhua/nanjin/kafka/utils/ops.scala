@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.schema
+package com.github.chenharryhua.nanjin.kafka.utils
 
 import io.circe.optics.all.*
 import io.circe.{jawn, ACursor, Json}
