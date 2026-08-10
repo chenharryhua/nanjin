@@ -48,9 +48,10 @@ object BiTransform:
   given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =
     new BiTransform[Json, B]:
       private val enc: JsonEncoder[B] = JsonEncoder[B]
+      private val dec: JsonDecoder[B] = JsonDecoder[B]
 
       override def to(a: Json): B =
-        a.as[B] match
+        dec.decodeJson(a) match
           case Left(ex)     => throw ex // scalafix:ok
           case Right(value) => value
 

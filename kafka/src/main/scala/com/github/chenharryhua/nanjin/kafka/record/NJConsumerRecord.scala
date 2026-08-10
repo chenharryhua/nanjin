@@ -6,9 +6,7 @@ import cats.derived.derived
 import cats.kernel.Eq
 import cats.syntax.apply.given
 import cats.syntax.eq.given
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.objectMapper
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroDoc, AvroName, AvroNamespace, Encoder, SchemaFor, ToRecord}
 import fs2.kafka.{ConsumerRecord, Header, Headers, Timestamp}
@@ -85,9 +83,6 @@ final case class NJConsumerRecord[K, V](
       .withFieldComputed(_.value, _.value.map(v))
       .withFieldConst(_.unknownFields, _root_.scalapb.UnknownFieldSet.empty)
       .transform
-
-  def toJsonNode(k: K => JsonNode, v: V => JsonNode): JsonNode =
-    objectMapper.valueToTree[JsonNode](copy(key = key.map(k), value = value.map(v)))
 
   def toGenericRecord(using Encoder[K], Encoder[V], SchemaFor[K], SchemaFor[V]): GenericRecord = {
     val schema = summon[SchemaFor[NJConsumerRecord[K, V]]].schema
