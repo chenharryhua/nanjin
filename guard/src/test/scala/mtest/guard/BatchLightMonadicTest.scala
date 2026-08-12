@@ -71,6 +71,28 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
+    "timing is preserved in the batch report" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-timing")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.sleep(50.millis).as(1))
+              b <- job("b", IO.sleep(50.millis).as(2))
+            } yield a + b
+          }
+          .monadicBatch
+          .map { monadicValue =>
+            monadicValue.spent.toMillis should be > 0L
+            monadicValue.jobs.map(_.took.toMillis).forall(_ > 0L) shouldBe true
+            monadicValue.jobs.map(_.job.name) shouldBe List("a", "b")
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
     "exception" in {
       var aExecuted = false
       var bExecuted = false
