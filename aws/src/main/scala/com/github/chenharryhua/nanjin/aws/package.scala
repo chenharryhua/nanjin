@@ -15,4 +15,4 @@ private def shutdown[F[_]: Sync](
   }
 
 private def blockingF[F[_], A](fa: => A, ctx: String, logger: Logger[F])(using F: Sync[F]): F[A] =
-  F.blocking(fa).onError(ex => logger.error(ex)(ctx))
+  F.blocking(fa).onError(ex => logger.error(ex)(s"AWS operation failed: $ctx"))

@@ -4,10 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
-import com.github.chenharryhua.nanjin.kafka.serdes.{
-  Primitive,
-  Structured
-}
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import org.scalatest.funsuite.AnyFunSuite
 
