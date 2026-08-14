@@ -17,6 +17,14 @@ import com.github.chenharryhua.nanjin.kafka.{
 import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.acl.{
+  AccessControlEntry,
+  AccessControlEntryFilter,
+  AclBindingFilter,
+  AclOperation,
+  AclPermissionType
+}
+import org.apache.kafka.common.resource.{PatternType, ResourcePatternFilter, ResourceType}
 
 trait AdminTopic[F[_]] {
   def adminClient: KafkaAdminClient[F]
@@ -102,6 +110,17 @@ trait AdminTopic[F[_]] {
     *   an effect that returns the record if it exists
     */
   def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  def acls: F[List[AccessControlEntry]]
+
+  /** List ACLs for this topic and a specific Kafka principal.
+    *
+    * The principal must use Kafka's full representation, for example `User:alice`.
+    *
+    * @param principal
+    *   Full Kafka principal string to match.
+    */
+  def acls(principal: String): F[List[AccessControlEntry]]
 }
 
 private[kafka] object AdminTopic {
@@ -159,5 +178,35 @@ private[kafka] object AdminTopic {
       offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       consumerClient.retrieveRecord(Partition(partition), Offset(offset))
 
+    override val acls: F[List[AccessControlEntry]] = {
+      val filter: AclBindingFilter =
+        new AclBindingFilter(
+          new ResourcePatternFilter(
+            ResourceType.TOPIC,
+            topicName.value,
+            PatternType.LITERAL
+          ),
+          AccessControlEntryFilter.ANY)
+
+      adminClient.describeAcls(filter).map(_.map(_.entry()))
+    }
+
+    override def acls(principal: String): F[List[AccessControlEntry]] = {
+      val filter =
+        new AclBindingFilter(
+          new ResourcePatternFilter(
+            ResourceType.TOPIC,
+            topicName.value,
+            PatternType.LITERAL
+          ),
+          new AccessControlEntryFilter(
+            principal,
+            null,
+            AclOperation.ANY,
+            AclPermissionType.ANY
+          )
+        )
+      adminClient.describeAcls(filter).map(_.map(_.entry()))
+    }
   }
 }
