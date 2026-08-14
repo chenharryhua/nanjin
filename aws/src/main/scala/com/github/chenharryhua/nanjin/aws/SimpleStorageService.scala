@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.presigner.model.{GetObjectPresignReque
 import software.amazon.awssdk.services.s3.{S3Client, S3ClientBuilder}
 
 import java.net.URI
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 trait SimpleStorageService[F[_]] {
@@ -90,7 +90,9 @@ trait SimpleStorageService[F[_]] {
     * validation occur eagerly and throw `IllegalArgumentException` when invalid; the delegated AWS operation
     * is deferred in `F`.
     */
-  final def presignGetObject(s3Url: String, duration: FiniteDuration): F[PresignedGetObjectRequest] = {
+  final def presignGetObject(
+    s3Url: String,
+    duration: FiniteDuration = 30.minutes): F[PresignedGetObjectRequest] = {
     val (bucket, key) = parseS3Url(s3Url)
     require(duration > Duration.Zero, s"Signature duration must be positive: $duration")
     presignGetObject(
