@@ -10,152 +10,233 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
+/** Format-specific rotating sinks that write successive files from an `fs2.Stream`.
+  *
+  * Create a sink with `Hadoop.rotateSink`, choose a format, and run it as a normal pipe. A size-based sink
+  * rotates after a configured number of input values; a policy-based sink rotates according to a time policy.
+  * The supplied path builder receives a `CreateRotateFile` for each file and must return its output URL.
+  *
+  * Each completed rotation emits one `RotateFile`, including the output URL and the number of records
+  * written. For example:
+  *
+  * {{{
+  * val completed =
+  *   input.through(hadoop.rotateSink(zoneId, 1000)(pathBuilder).text).compile.toList
+  * }}}
+  *
+  * Rotation resources are opened and closed by the stream. The final partially filled file is emitted when
+  * the input stream completes.
+  */
 sealed trait RotateSink[F[_]] {
   protected type Sink[A] = Pipe[F, A, RotateFile]
 
-  /** `https://avro.apache.org`
+  /** Write generic Avro records to rotating Avro data files.
     *
-    * An Avro rotate sink that periodically writes generic records to Avro files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.avro(codec))`. The default overload writes uncompressed Avro.
+    *
+    * @param compression
+    *   Avro compression configuration.
+    * @see
+    *   https://avro.apache.org
     */
   def avro(compression: AvroCompression): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://avro.apache.org`
+  /** Select Avro compression settings before creating the rotating sink.
     *
-    * An Avro rotate sink that periodically writes generic records to Avro files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Equivalent to `avro(f(AvroCompression))`.
     */
   final def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, RotateFile] =
     avro(f(AvroCompression))
 
-  /** `https://avro.apache.org`
+  /** Write uncompressed Avro records to rotating files.
     *
-    * An Avro rotate sink that periodically writes generic records to Avro files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.avro)`.
     */
   final def avro: Pipe[F, GenericRecord, RotateFile] =
     avro(AvroCompression.Uncompressed)
 
-  /** `https://avro.apache.org`
+  /** Write generic records to rotating binary Avro files.
     *
-    * A Binary Avro rotate sink that periodically writes generic records to Binary Avro files, with file
-    * rotation controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.binAvro)`.
+    *
+    * @see
+    *   https://avro.apache.org
     */
   def binAvro: Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://github.com/FasterXML/jackson`
+  /** Write generic records to rotating Jackson JSON files.
     *
-    * A Jackson rotate sink that periodically writes generic records to Jackson json files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.jackson)`.
+    *
+    * @see
+    *   https://github.com/FasterXML/jackson
     */
   def jackson: Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://parquet.apache.org`
+  /** Write generic records to rotating Parquet files with a builder customization.
     *
-    * A Parquet rotate sink that periodically writes generic records to Parquet files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.parquet(customize))`. The function customizes the configured Parquet
+    * builder for each newly rotated file.
+    *
+    * @param f
+    *   Function that customizes the Parquet writer builder.
+    * @see
+    *   https://parquet.apache.org
     */
   def parquet(f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://parquet.apache.org`
+  /** Write generic records to rotating Parquet files with default settings.
     *
-    * A Parquet rotate sink that periodically writes generic records to Parquet files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.parquet)`.
+    *
+    * @see
+    *   https://parquet.apache.org
     */
   final def parquet: Pipe[F, GenericRecord, RotateFile] =
     parquet(identity[Builder[GenericRecord]])
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Write rows to rotating CSV files using the supplied configuration.
     *
-    * A Kantan rotate sink that periodically writes rows to CSV files, represented by sequence of strings,
-    * with file rotation controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.kantan(configuration))`.
+    *
+    * @param csvConfiguration
+    *   CSV dialect and formatting configuration.
+    * @see
+    *   https://nrinaudo.github.io/kantan.csv
     */
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], RotateFile]
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Customize the default RFC CSV configuration for a rotating sink.
     *
-    * A Kantan rotate sink that periodically writes rows to CSV files, represented by sequence of strings,
-    * with file rotation controlled by a time-based or size-based policy.
+    * Equivalent to `kantan(f(CsvConfiguration.rfc))`.
+    *
+    * @param f
+    *   Function that customizes the default CSV configuration.
+    * @see
+    *   https://nrinaudo.github.io/kantan.csv
     */
   final def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], RotateFile] =
     kantan(f(CsvConfiguration.rfc))
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Write rows to rotating CSV files using the default RFC configuration.
     *
-    * A Kantan rotate sink that periodically writes rows to CSV files, represented by sequence of strings,
-    * with file rotation controlled by a time-based or size-based policy.
+    * Use this as `input.through(rotating.kantan)`.
+    *
+    * @see
+    *   https://nrinaudo.github.io/kantan.csv
     */
   final def kantan: Pipe[F, Seq[String], RotateFile] =
     kantan(CsvConfiguration.rfc)
 
-  /** A Bytes rotate sink that periodically writes bytes to binary files, with file rotation controlled by a
-    * time-based or size-based policy.
+  /** Write bytes to rotating binary files.
+    *
+    * Use this as `input.through(rotating.bytes)`.
     */
   def bytes: Pipe[F, Byte, RotateFile]
 
-  /** `https://github.com/circe/circe`
+  /** Write Circe JSON values to rotating JSON files.
     *
-    * A Circe rotate sink that periodically writes json to circe json files, with file rotation controlled by
-    * a time-based or size-based policy.
+    * Use this as `input.through(rotating.circe)`.
+    *
+    * @see
+    *   https://github.com/circe/circe
     */
   def circe: Pipe[F, Json, RotateFile]
 
-  /** A Text rotate sink that periodically writes strings to text files, with file rotation controlled by a
-    * time-based or size-based policy.
+  /** Write text values to rotating text files.
+    *
+    * Use this as `input.through(rotating.text)`.
     */
   def text: Pipe[F, String, RotateFile]
 
-  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
-    * implementations. It’s recommended to bound request and response sizes.
+  /** Write length-delimited Protocol Buffer messages to rotating files.
     *
-    * `https://protobuf.dev/programming-guides/proto-limits/#total`
+    * Use this as `input.through(rotating.protobuf)`. Keep serialized messages below 2 GiB, the maximum
+    * supported by all implementations.
     *
-    * A Protobuf rotate sink that periodically writes GeneratedMessage to proto-buf files, with file rotation
-    * controlled by a time-based or size-based policy.
+    * @see
+    *   https://protobuf.dev/programming-guides/proto-limits/#total
     */
   def protobuf: Pipe[F, GeneratedMessage, RotateFile]
 
-  /** `https://github.com/FasterXML/jackson-databind`
+  /** Write Jackson JSON trees to rotating text files.
     *
-    * A JsonNode rotate sink that periodically writes JsonNode to text files, with file rotation controlled by
-    * a time-based or size-based policy.
+    * Use this as `input.through(rotating.jsonNode(objectWriter))`.
+    *
+    * @param objectWriter
+    *   Jackson writer used to serialize each JSON tree.
+    * @see
+    *   https://github.com/FasterXML/jackson-databind
     */
   def jsonNode(objectWriter: ObjectWriter): Pipe[F, JsonNode, RotateFile]
 }
 
+/** A rotating sink whose files are bounded by the number of input values. */
 abstract class RotateBySize[F[_]] extends RotateSink[F] {}
 
+/** A rotating sink whose files are bounded by a time-based policy.
+  *
+  * The schema-aware methods should be used when each rotation must create a writer with an explicit Avro
+  * schema.
+  */
 abstract class RotateByPolicy[F[_]] extends RotateSink[F] {
 
-  /** `https://avro.apache.org`
+  /** Write schema-bound Avro records to rotating files.
+    *
+    * @param schema
+    *   Schema used by every rotated Avro writer.
+    * @param compression
+    *   Avro compression configuration.
+    * @see
+    *   https://avro.apache.org
     */
   def avro(schema: Schema, compression: AvroCompression): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://avro.apache.org`
-    */
+  /** Select compression settings for schema-bound rotating Avro output. */
   final def avro(
     schema: Schema,
     f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, RotateFile] =
     avro(schema, f(AvroCompression))
 
-  /** `https://avro.apache.org`
-    */
+  /** Write uncompressed schema-bound Avro records to rotating files. */
   final def avro(schema: Schema): Pipe[F, GenericRecord, RotateFile] =
     avro(schema, AvroCompression.Uncompressed)
 
-  /** `https://avro.apache.org`
+  /** Write schema-bound records to rotating binary Avro files.
+    *
+    * @param schema
+    *   Schema used by every rotated writer.
+    * @see
+    *   https://avro.apache.org
     */
   def binAvro(schema: Schema): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://github.com/FasterXML/jackson`
+  /** Write schema-bound records to rotating Jackson JSON files.
+    *
+    * @param schema
+    *   Schema used by every rotated writer.
+    * @see
+    *   https://github.com/FasterXML/jackson
     */
   def jackson(schema: Schema): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://parquet.apache.org`
+  /** Write schema-bound records to rotating Parquet files.
+    *
+    * @param schema
+    *   Schema used by every rotated writer.
+    * @param f
+    *   Function that customizes each Parquet writer builder.
+    * @see
+    *   https://parquet.apache.org
     */
   def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, RotateFile]
 
-  /** `https://parquet.apache.org`
+  /** Write schema-bound records to rotating Parquet files with default settings.
+    *
+    * @param schema
+    *   Schema used by every rotated writer.
+    * @see
+    *   https://parquet.apache.org
     */
   final def parquet(schema: Schema): Pipe[F, GenericRecord, RotateFile] =
     parquet(schema, identity[Builder[GenericRecord]])

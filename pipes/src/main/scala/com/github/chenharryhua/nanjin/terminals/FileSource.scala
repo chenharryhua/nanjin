@@ -19,146 +19,212 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
 
+/** A collection of lazy streams for reading typed data from a Hadoop-compatible path.
+  *
+  * Obtain a source from `Hadoop.source(path)` and compile the stream you need:
+  *
+  * {{{
+  * val records = hadoop.source(path).text(ChunkSize(4096)).compile.toList
+  * }}}
+  *
+  * Opening the file and reading data happen when the stream is run. The underlying reader is closed when the
+  * stream finishes. `chunkSize` controls the number of decoded values emitted in each stream chunk and must
+  * be positive. `bytes` uses an `Information` value because its chunk size is a byte-buffer size rather than
+  * a count of decoded values.
+  */
 sealed trait FileSource[F[_]] {
 
-  /** `https://avro.apache.org`
+  /** Read an Avro data file using its writer schema.
+    *
+    * Use this as `hadoop.source(path).avro(chunkSize)`. The stream emits generic Avro records in chunks of up
+    * to `chunkSize` records.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
+    * @see
+    *   https://avro.apache.org
     */
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record]
 
-  /** `https://avro.apache.org`
+  /** Read an Avro data file and resolve it with a reader schema.
     *
-    * re-interpret the record according to the reader schema
+    * Use this as `hadoop.source(path).avro(chunkSize, readerSchema)` when the application schema differs from
+    * the schema stored in the file.
     *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     * @param readerSchema
-    *   expected schema
+    *   Schema expected by the application.
     */
   def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** `https://avro.apache.org`
+  /** Read a binary Avro file using explicit writer and reader schemas.
     *
-    * re-interpret the record according to the reader schema
+    * Use this as `hadoop.source(path).binAvro(chunkSize, writerSchema, readerSchema)`. The writer schema
+    * describes the encoded file and the reader schema describes the records returned to the application.
     *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     * @param writerSchema
-    *   the one the record was originally written with
+    *   Schema used to encode the file.
     * @param readerSchema
-    *   the new (upgraded) schema
+    *   Schema expected by the application.
     */
   def binAvro(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** `https://avro.apache.org`
+  /** Read a binary Avro file using one schema for both writing and reading.
+    *
+    * Use this as `hadoop.source(path).binAvro(chunkSize, schema)`.
     *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     * @param schema
-    *   the schema of the file
+    *   Schema used to decode the file.
     */
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
 
-  /** `https://github.com/FasterXML/jackson`
+  /** Read Jackson-encoded Avro records with explicit writer and reader schemas.
     *
-    * re-interpret the record according to the reader schema
+    * Use this as `hadoop.source(path).jackson(chunkSize, writerSchema, readerSchema)`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     * @param writerSchema
-    *   the one the record was originally written with
+    *   Schema used to encode the file.
     * @param readerSchema
-    *   the new (upgraded) schema
+    *   Schema expected by the application.
     */
   def jackson(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** `https://github.com/FasterXML/jackson`
+  /** Read Jackson-encoded Avro records using one schema for both sides.
+    *
+    * Use this as `hadoop.source(path).jackson(chunkSize, schema)`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     * @param schema
-    *   the schema of the file
+    *   Schema used to decode the file.
     */
   def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
 
-  /** @param bufferSize
-    *   in terms of bytes, bits, kilobytes, megabytes, etc. Each chunk of the stream is of uniform size,
-    *   except for the final chunk, which may be smaller depending on the remaining data.
+  /** Read the file as raw bytes.
+    *
+    * Use this as `hadoop.source(path).bytes(64.bytes)`. The stream emits chunks of approximately `bufferSize`
+    * bytes, with a smaller final chunk possible. A buffer smaller than one byte is rejected.
+    *
+    * @param bufferSize
+    *   Size of the byte buffer, expressed with a `squants` information unit.
     */
   def bytes(bufferSize: Information): Stream[F, Byte]
 
-  /** `https://github.com/circe/circe`
+  /** Read newline-delimited JSON values as Circe JSON.
+    *
+    * Use this as `hadoop.source(path).circe(chunkSize)`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of JSON values in each emitted chunk. Must be positive.
+    * @see
+    *   https://github.com/circe/circe
     */
   def circe(chunkSize: ChunkSize): Stream[F, Json]
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Read CSV rows using the supplied Kantan CSV configuration.
+    *
+    * Use this as `hadoop.source(path).kantan(chunkSize, configuration)`. Each emitted value is one row
+    * represented as a sequence of column values.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of rows in each emitted chunk. Must be positive.
     * @param csvConfiguration
-    *   kantan CSV configuration
+    *   CSV dialect and parsing configuration.
+    * @see
+    *   https://nrinaudo.github.io/kantan.csv
     */
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]]
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Read CSV rows using a function that customizes the default RFC configuration.
+    *
+    * This is equivalent to `kantan(chunkSize, f(CsvConfiguration.rfc))`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of rows in each emitted chunk. Must be positive.
+    * @param f
+    *   Function that customizes the default RFC CSV configuration.
+    * @see
+    *   https://nrinaudo.github.io/kantan.csv
     */
   def kantan(chunkSize: ChunkSize, f: Endo[CsvConfiguration]): Stream[F, Seq[String]]
 
-  /** `https://nrinaudo.github.io/kantan.csv`
+  /** Read CSV rows using the default RFC configuration.
+    *
+    * Use this as `hadoop.source(path).kantan(chunkSize)`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of rows in each emitted chunk. Must be positive.
     */
   def kantan(chunkSize: ChunkSize): Stream[F, Seq[String]]
 
-  /** `https://parquet.apache.org`
+  /** Read Parquet records with an optional builder customization.
+    *
+    * Use this as `hadoop.source(path).parquet(chunkSize, identity)` when no customization is needed. The
+    * function receives the configured reader builder after the input path, Hadoop configuration, and generic
+    * data model have been set.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
+    * @param f
+    *   Function that customizes the configured Parquet reader builder.
+    * @see
+    *   https://parquet.apache.org
     */
   def parquet(
     chunkSize: ChunkSize,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record]
 
-  /** `https://parquet.apache.org`
+  /** Read Parquet records using the default reader configuration.
+    *
+    * Use this as `hadoop.source(path).parquet(chunkSize)`.
+    *
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of records in each emitted chunk. Must be positive.
     */
   def parquet(chunkSize: ChunkSize): Stream[F, GenericData.Record]
 
-  /** @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+  /** Read the file as text.
+    *
+    * Use this as `hadoop.source(path).text(chunkSize)`. Each element represents one line; the final line may
+    * be emitted without a trailing line separator.
+    *
+    * @param chunkSize
+    *   Maximum number of lines in each emitted chunk. Must be positive.
     */
   def text(chunkSize: ChunkSize): Stream[F, String]
 
-  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
-    * implementations. It’s recommended to bound request and response sizes.
+  /** Read length-delimited Protocol Buffer messages.
     *
-    * `https://protobuf.dev/programming-guides/proto-limits/#total`
+    * Use this as `hadoop.source(path).protobuf[MessageType](chunkSize)`. The message companion supplies the
+    * decoder for the requested type.
+    *
+    * Keep serialized messages below 2 GiB, the maximum supported by all implementations.
+    *
+    * @see
+    *   https://protobuf.dev/programming-guides/proto-limits/#total
     * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+    *   Maximum number of messages in each emitted chunk. Must be positive.
     */
   def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: ChunkSize): Stream[F, A]
 
-  /** @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
+  /** Read JSON tree values with a Jackson `ObjectReader`.
     *
-    * empty line regarded as end of the file
+    * Use this as `hadoop.source(path).jsonNode(chunkSize, objectReader)`. Input is read as text and an empty
+    * line terminates the stream; each non-empty line is parsed into one `JsonNode`.
+    *
+    * @param chunkSize
+    *   Maximum number of JSON values in each emitted chunk. Must be positive.
+    * @param or
+    *   Jackson reader used to parse each non-empty line.
+    * @see
+    *   https://github.com/FasterXML/jackson-databind
     */
   def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode]
 }
