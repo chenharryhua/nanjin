@@ -10,21 +10,28 @@ import cats.syntax.group.given
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import io.circe.Json
 
+/** Effectful ratio gauge built from numerator and denominator counts. */
 trait Percentile[F[_]] {
 
-  /** @param numerator
+  /** Add to the numerator count.
+    *
+    * @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction
     *   3/4, 3 is the numerator.
     */
   def incNumerator(numerator: Long): F[Unit]
 
-  /** @param denominator
+  /** Add to the denominator count.
+    *
+    * @param denominator
     *   The number below the fraction line, representing the total number of equal parts. For example, in the
     *   fraction 3/4, 4 is the denominator.
     */
   def incDenominator(denominator: Long): F[Unit]
 
-  /** @param numerator
+  /** Add to numerator and denominator together.
+    *
+    * @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction
     *   3/4, 3 is the numerator.
     * @param denominator
@@ -53,6 +60,7 @@ object Percentile {
 
   }
 
+  /** Default translator that renders the accumulated ratio as a percentage. */
   val translator: Ior[Long, Long] => Json = {
     case Ior.Left(_)    => Json.fromString("n/a")
     case Ior.Right(_)   => Json.fromString("0.0%")
@@ -70,9 +78,11 @@ object Percentile {
     translator: Ior[Long, Long] => Json
   ) extends EnableConfig[Builder] {
 
+    /** Customize the JSON value derived from accumulated numerator and denominator counts. */
     def withTranslator(translator: Ior[Long, Long] => Json): Builder =
       new Builder(isEnabled, translator)
 
+    /** Enable or disable percentile registration; disabled gauges become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, translator)
 

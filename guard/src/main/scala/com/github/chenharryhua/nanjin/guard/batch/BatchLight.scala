@@ -17,6 +17,12 @@ import scala.Right
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+/** Low-overhead batch construction API for short-lived jobs.
+  *
+  * Obtain a `BatchLight` from `Agent.batchLight(label)`. It has the same sequential, parallel, and monadic
+  * shapes as `Batch`, but returns `F` values directly and omits the metrics-backed progress machinery. Use
+  * `quasiBatch` to retain per-job failures or `batchValue` to raise them.
+  */
 object BatchLight:
   /*
    * Monadic
@@ -31,6 +37,7 @@ object BatchLight:
     final class Monadic[A] private[BatchLight] (
       private val kleisli: Kleisli[StateT[F, Int, *], UUID, ExecutionState[A]]):
 
+      /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[F, Int, *], UUID, ExecutionState[B]] =
           Kleisli { (batchId: UUID) =>
@@ -50,8 +57,10 @@ object BatchLight:
         new Monadic[B](runB)
       }
 
+      /** Transform a successful monadic job value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
 
+      /** Filter a successful monadic value; a rejected value becomes a failed quasi-job. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
           Kleisli { (batchId: UUID) =>
@@ -70,6 +79,7 @@ object BatchLight:
           }
         )
 
+      /** Execute the monadic batch and return its result in `F`. */
       def monadicBatch: F[MonadicBatch[A]] =
         uuidGenerator.flatMap { (batchId: UUID) =>
           kleisli(batchId)
@@ -94,11 +104,13 @@ object BatchLight:
 
     // job constructors
 
+    /** Lift a pure value into the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure[F])
       })
 
+    /** Add a named effect-backed value job. */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: UUID) =>
@@ -119,6 +131,7 @@ object BatchLight:
         }
       )
 
+    /** Add a boolean job whose failure or false result is retained as a quasi failure. */
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { (batchId: UUID) =>
@@ -145,8 +158,14 @@ object BatchLight:
    * Runners
    */
   sealed protected trait BatchRunner[F[_], A] {
+
+    /** Reject successful values that do not satisfy `f`. */
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
+
+    /** Execute while preserving per-job success or failure state. */
     def quasiBatch: F[QuasiBatch[A]]
+
+    /** Execute and raise on failure, returning successful values. */
     def batchValue: F[BatchValue[A]]
   }
 
@@ -290,9 +309,11 @@ end BatchLight
 /** BatchLight is a simpler API for short-lived jobs. It intentionally avoids the richer lifecycle and
   * progress-tracking machinery of Batch and focuses on straightforward, low-overhead execution.
   */
+/** Lightweight batch façade for short-lived jobs. */
 final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uuidGenerator: F[UUID]) {
 
   /** Creates a lightweight sequential batch from a list of named effects. */
+  /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -301,6 +322,7 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
   }
 
   /** Creates a lightweight parallel batch from a list of named effects using the given parallelism. */
+  /** Create a parallel batch with an explicit positive parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -310,10 +332,13 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
   }
 
   /** Creates a lightweight parallel batch with parallelism inferred from the number of jobs. */
+  /** Create a parallel batch with parallelism inferred from the job count. */
+  /** Create a parallel batch with parallelism inferred from the job count. */
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =
     parallel[A](fas.size)(fas*)
 
   /** Builds a lightweight monadic batch using a fluent job builder. */
+  /** Build a monadic batch for dependent steps. */
   def monadic[A](f: BatchLight.JobBuilder[F] => A): A = {
     val builder = new BatchLight.JobBuilder[F](metricLabel, uuidGenerator)
     f(builder)

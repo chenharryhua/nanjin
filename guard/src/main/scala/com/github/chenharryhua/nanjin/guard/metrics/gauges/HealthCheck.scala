@@ -7,21 +7,27 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
+/** Builder for boolean health-check gauges. */
 object HealthCheck {
   final class Builder private[HealthCheck] (
     isEnabled: Boolean,
     timeout: FiniteDuration,
     policy: Option[Policy])
       extends EnableConfig[Builder] {
+
+    /** Enable or disable health-check registration. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy)
 
+    /** Bound the health-check effect and report false on timeout or failure. */
     def withTimeout(timeout: FiniteDuration): Builder =
       new Builder(isEnabled, timeout, policy)
 
+    /** Refresh the health check according to a policy. */
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(isEnabled, timeout, Some(f(Policy)))
 
+    /** Register a boolean effect as a health check. */
     def register[F[_]](fb: F[Boolean])(using F: Temporal[F]): Registered[F] =
       Registered[F](
         _.withKind(_.HealthCheck)

@@ -12,12 +12,16 @@ import com.github.chenharryhua.nanjin.guard.event.{Category, CounterKind, Metric
 
 import java.time.ZoneId
 
+/** Effectful monotonically adjustable count. Acquire it from `MetricsHub.counter`. */
 trait Counter[F[_]]:
+  /** Add `num` to the counter inside `F`. */
   def inc(num: Long): F[Unit]
   final def inc(num: Int): F[Unit] = inc(num.toLong)
 end Counter
 
+/** Synchronous counter handle for updates from already-effectful code. */
 trait UnsafeCounter:
+  /** Add `num` immediately; callers provide their own synchronization and error boundary. */
   def unsafeInc(num: Long): Unit
   final def unsafeInc(num: Int): Unit = unsafeInc(num.toLong)
 
@@ -48,8 +52,10 @@ object Counter {
   final class Builder private[Counter] (isEnabled: Boolean, isRisk: Boolean, policy: Policy)
       extends EnableConfig[Builder] {
 
+    /** Classify the counter as a risk counter in reported metrics. */
     def asRisk: Builder = new Builder(isEnabled, true, policy)
 
+    /** Enable or disable metric registration; disabled counters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk, policy)
 

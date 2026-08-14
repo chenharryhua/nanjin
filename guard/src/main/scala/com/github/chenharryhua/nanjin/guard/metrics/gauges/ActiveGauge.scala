@@ -7,13 +7,16 @@ import cats.syntax.option.{none, given}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.EnableConfig
 
+/** Gauge reporting how long the tracked activity has been active. */
 trait ActiveGauge[F[_]]:
+  /** Stop reporting active elapsed time. */
   def deactivate: F[Unit]
 end ActiveGauge
 
 object ActiveGauge:
   final class Builder(isEnabled: Boolean) extends EnableConfig[Builder] {
 
+    /** Enable or disable active-gauge registration. */
     override def enable(isEnabled: Boolean): Builder = new Builder(isEnabled)
 
     def build[F[_]](gp: GaugeParams[F], name: String)(using F: Async[F]): Resource[F, ActiveGauge[F]] =

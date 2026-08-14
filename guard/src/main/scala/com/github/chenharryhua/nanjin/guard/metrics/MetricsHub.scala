@@ -21,36 +21,64 @@ import io.github.timwspence.cats.stm.STM
 
 import java.time.ZoneId
 
+/** Resource-based factory for metrics registered under one `MetricLabel`.
+  *
+  * Obtain a hub from `Agent.metricsHub(label)`, acquire an instrument with its `Resource`, and update it
+  * inside the resource scope:
+  *
+  * {{ agent.metricsHub("requests").counter("total").use(_.inc(1)) }}
+  *
+  * Releasing the resource unregisters the metric. Use `MetricsHubS` when a stream-based registration API is
+  * more convenient.
+  */
 sealed trait MetricsHub[F[_]] {
+
+  /** Metric label shared by instruments created from this hub. */
   def metricLabel: MetricLabel
 
-  // basic
-
+  /** Register a counter; the returned counter is safe to update in `F`. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
+
+  /** Register a counter with a synchronous, unsafe update method. */
   def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
 
+  /** Register a rate meter with effectful updates. */
   def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
+
+  /** Register a rate meter with a synchronous, unsafe update method. */
   def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, UnsafeMeter]
 
+  /** Register a histogram with effectful updates. */
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, Histogram[F]]
+
+  /** Register a histogram with a synchronous, unsafe update method. */
   def unsafeHistogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, UnsafeHistogram]
 
+  /** Register a timer with effectful updates. */
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
+
+  /** Register a timer with a synchronous, unsafe update method. */
   def unsafeTimer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, UnsafeTimer]
 
-  // gauges
-
+  /** Register a custom effectful gauge. The resource unregisters it on release. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit]
 
+  /** Register a boolean health check with timeout and optional refresh policy. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
 
+  /** Register a numerator/denominator percentile gauge. */
   def percentile(name: String, f: Endo[Percentile.Builder] = identity): Resource[F, Percentile[F]]
 
+  /** Register a gauge reporting elapsed time since the last `wakeUp`. */
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Resource[F, IdleGauge[F]]
 
+  /** Register a gauge reporting elapsed time since acquisition until `deactivate`. */
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Resource[F, ActiveGauge[F]]
 
+  /** Register a transactional gauge backed by a supplied STM runtime and variable. */
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
+
+  /** Register a two-sided balance gauge and return operations to move values between sides. */
   def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
     target: (String, A)): Resource[F, BalanceGauge[F, A]]

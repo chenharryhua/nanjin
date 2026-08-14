@@ -21,7 +21,11 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(
   * value-batches carry the successful result values for each completed job.
   */
 enum BatchKind:
-  case Quasi, Value
+  /** Collects each job outcome, including failures, in the resulting quasi-batch. */
+  case Quasi
+
+  /** Propagates a job failure and returns only successful values. */
+  case Value
 end BatchKind
 object BatchKind:
   given Encoder[BatchKind] = Encoder.encodeString.contramap(_.productPrefix)
@@ -53,6 +57,8 @@ final case class Job(
   batchId: UUID):
   val batch: String = label.label
   val domain: String = label.domain.value
+
+  /** Human-readable name combining the job index and configured name. */
   def displayName: String = s"job-$index $name"
 end Job
 object Job {
@@ -95,12 +101,15 @@ object JobValue:
       .deepMerge(a.completed.job.asJson)
   }
 
+/** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
   jobs: List[CompletedJob]) {
+
+  /** Whether every job in the batch completed successfully. */
   def done: Boolean = jobs.forall(_.done)
 }
 object CompletedBatch:
@@ -127,12 +136,26 @@ object CompletedBatch:
     }
 
 sealed trait BatchResult[A] {
+
+  /** Batch label and domain. */
   def label: MetricLabel
+
+  /** Total elapsed execution time. */
   def spent: Duration
+
+  /** Sequential, parallel, or monadic execution mode. */
   def mode: BatchMode
+
+  /** Unique identifier for this execution. */
   def batchId: UUID
+
+  /** Per-job result values represented by this result type. */
   def jobs: List[A]
+
+  /** Whether all jobs completed successfully. */
   def done: Boolean
+
+  /** Completion-only summary suitable for reporting. */
   def completed: CompletedBatch
 }
 
@@ -250,11 +273,19 @@ object MonadicBatch:
         "domain" -> Json.fromString(mb.label.domain.value),
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map(cj =>
-          Json.obj(
-            show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-            "took" -> Json.fromString(fmt.format(cj.took))
-          ))
+        "jobs" -> mb.jobs.map { cj =>
+          if (cj.done)
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(fmt.format(cj.took)))
+          else
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(fmt.format(cj.took)),
+              "kind" -> cj.job.kind.asJson,
+              "done" -> Json.fromBoolean(false)
+            )
+        }
           .asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
