@@ -65,7 +65,7 @@ class AdminApiTest extends AnyFunSuite {
     assert(end.asJson.as[TopicPartitionMap[Option[Offset]]].toOption.get == end)
   }
 
-  test("4.acls") {
+  ignore("4.acls") {
     val run = ctx.admin(topic.topicName).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt

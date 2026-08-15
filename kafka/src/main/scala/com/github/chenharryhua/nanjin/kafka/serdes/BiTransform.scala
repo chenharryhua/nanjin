@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
 import cats.Endo
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.fasterxml.jackson.module.scala.ClassTagExtensions
+import com.fasterxml.jackson.databind.{JavaType, JsonNode, ObjectMapper}
+import com.fasterxml.jackson.module.scala.JavaTypeable
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.google.protobuf.DynamicMessage
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaGenerator}
@@ -42,7 +42,7 @@ object BiTransform:
     KafkaCodec.avro[B]
   given [B <: GeneratedMessage: GeneratedMessageCompanion]: BiTransform[DynamicMessage, B] =
     KafkaCodec.protobuf[B]
-  given [B: ClassTag](using mapper: ObjectMapper & ClassTagExtensions): BiTransform[JsonNode, B] =
+  given [B: ClassTag](using mapper: ObjectMapper): BiTransform[JsonNode, B] =
     KafkaCodec.json(mapper)
 
   /*
@@ -116,14 +116,15 @@ end KafkaCodec
 
 object KafkaCodec:
   /** Creates an Avro codec with its generated Avro schema. */
-  def avro[B: {SchemaFor, Decoder, Encoder}]: KafkaAvroCodec[B] = new KafkaAvroCodec[B]
+  def avro[B: {SchemaFor, Decoder, Encoder}]: KafkaAvroCodec[B] =
+    new KafkaAvroCodec[B]
 
   /** Creates a Protobuf codec with the schema from the generated message descriptor. */
   def protobuf[B <: GeneratedMessage: GeneratedMessageCompanion]: KafkaProtobufCodec[B] =
     new KafkaProtobufCodec[B]
 
   /** Creates a JSON Schema codec using the supplied Jackson object mapper. */
-  def json[B: ClassTag](objectMapper: ObjectMapper & ClassTagExtensions): KafkaJsonCodec[B] =
+  def json[B: ClassTag](objectMapper: ObjectMapper): KafkaJsonCodec[B] =
     new KafkaJsonCodec[B](objectMapper, identity)
 end KafkaCodec
 
@@ -148,7 +149,7 @@ end KafkaProtobufCodec
 
 /** A codec between a JSON Schema `JsonNode` and an application value. */
 final class KafkaJsonCodec[B: ClassTag](
-  mapper: ObjectMapper & ClassTagExtensions,
+  mapper: ObjectMapper,
   f: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder])
     extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonCodec[B]]
     with KafkaCodec[JsonSchema, JsonNode, B]:
@@ -162,7 +163,9 @@ final class KafkaJsonCodec[B: ClassTag](
   override def updateConfig(g: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder]): KafkaJsonCodec[B] =
     new KafkaJsonCodec[B](mapper, g.compose(f))
 
-  override def to(a: JsonNode): B = mapper.convertValue[B](a)
+  private val jt: JavaType = summon[JavaTypeable[B]].asJavaType(mapper.getTypeFactory)
+
+  override def to(a: JsonNode): B = mapper.treeToValue[B](a, jt)
 
   // Confluent JSON Schema requires the schema envelope.
   override def from(b: B): JsonNode =
