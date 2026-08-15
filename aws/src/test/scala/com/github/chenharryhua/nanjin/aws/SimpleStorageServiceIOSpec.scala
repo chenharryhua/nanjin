@@ -9,16 +9,16 @@ import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
+  CopyObjectRequest,
+  CopyObjectResponse,
+  DeleteObjectRequest,
+  DeleteObjectResponse,
   GetObjectRequest,
   GetObjectResponse,
   HeadObjectRequest,
   HeadObjectResponse,
   PutObjectRequest,
   PutObjectResponse,
-  CopyObjectRequest,
-  CopyObjectResponse,
-  DeleteObjectRequest,
-  DeleteObjectResponse,
   RenameObjectRequest,
   RenameObjectResponse
 }
@@ -178,7 +178,8 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    service.deleteObject(DeleteObjectRequest.builder().bucket("bucket-d").key("key-d").build()).unsafeRunSync()
+    service.deleteObject(
+      DeleteObjectRequest.builder().bucket("bucket-d").key("key-d").build()).unsafeRunSync()
     client.lastDeleteRequest.map(_.bucket()) shouldBe Some("bucket-d")
     client.lastDeleteRequest.map(_.key()) shouldBe Some("key-d")
 
