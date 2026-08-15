@@ -103,6 +103,10 @@ end BiTransform
 
 /** A bidirectional codec coupled with its Confluent Schema Registry schema.
   *
+  * Use the factory methods on `KafkaCodec` to create codecs. The concrete codec
+  * implementations are kept inside the companion so their required schema and
+  * transformation typeclass instances are captured at construction time.
+  *
   * @tparam S
   *   the concrete Confluent schema type
   * @tparam A
@@ -116,15 +120,28 @@ end KafkaCodec
 
 object KafkaCodec:
 
-  /** Creates an Avro codec with its generated Avro schema. */
+  /** Creates an Avro codec with its generated Avro schema.
+    *
+    * The schema is derived from `SchemaFor[B]`; customize Avro schemas through
+    * Avro4s annotations or an explicit `SchemaFor[B]` instance.
+    */
   def avro[B: {SchemaFor, Decoder, Encoder}]: KafkaAvroCodec[B] =
     new KafkaAvroCodec[B](SchemaFor[B], Decoder[B], Encoder[B])
 
-  /** Creates a Protobuf codec with the schema from the generated message descriptor. */
+  /** Creates a Protobuf codec with the schema from the generated message descriptor.
+    *
+    * The schema is defined by the generated descriptor and therefore by the
+    * source `.proto` definition.
+    */
   def protobuf[B <: GeneratedMessage: GeneratedMessageCompanion]: KafkaProtobufCodec[B] =
     new KafkaProtobufCodec[B](summon[GeneratedMessageCompanion[B]])
 
-  /** Creates a JSON Schema codec using the supplied Jackson object mapper. */
+  /** Creates a JSON Schema codec using the supplied Jackson object mapper.
+    *
+    * JSON Schema generation can be customized immutably with `updateConfig`.
+    * This configures schema generation only; Confluent serializer settings are
+    * configured separately through `KafkaSettings`.
+    */
   def json[B: ClassTag](objectMapper: ObjectMapper): KafkaJsonCodec[B] =
     new KafkaJsonCodec[B](objectMapper, identity)
 
