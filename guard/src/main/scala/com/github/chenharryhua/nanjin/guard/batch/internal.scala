@@ -24,3 +24,7 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
 
 private def resultTag(done: Boolean): String =
   if done then "result" else "error"
+
+
+private val SeverityNonFatal: String = "nonfatal"
+private val SeverityCritical: String = "critical"

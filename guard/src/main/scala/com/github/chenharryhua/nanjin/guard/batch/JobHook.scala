@@ -84,8 +84,8 @@ object JobHook {
           js.result match {
             case Left(ex) =>
               js.completed.job.kind match {
-                case BatchKind.Quasi => log.warn(Json.obj("nonfatal" -> json), ex)
-                case BatchKind.Value => log.error(Json.obj("critical" -> json), ex)
+                case BatchKind.Quasi => log.warn(Json.obj(SeverityNonFatal -> json), ex)
+                case BatchKind.Value => log.error(Json.obj(SeverityCritical -> json), ex)
               }
             case Right(_) => log.good(Json.obj("done" -> json))
           }
