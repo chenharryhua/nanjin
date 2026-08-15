@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.s3.presigner.model.{GetObjectPresignReque
 import software.amazon.awssdk.services.s3.{S3Client, S3ClientBuilder}
 
 import java.net.URI
-import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 trait SimpleStorageService[F[_]] {
@@ -98,44 +98,13 @@ trait SimpleStorageService[F[_]] {
   final def presignGetObject(f: Endo[GetObjectPresignRequest.Builder]): F[PresignedGetObjectRequest] =
     presignGetObject(f(GetObjectPresignRequest.builder()).build())
 
-  /** Create a presigned GET request for a validated `s3://bucket/key` URL.
+  /** Create a presigned GET request from a URI host and path.
     *
-    * This convenience overload is intended for development and one-off use; do not use it in production.
-    * Production code should use the fully configured `GetObjectPresignRequest` overload.
-    *
-    * The URL must use the `s3` scheme and contain a non-empty bucket and object key. User info, ports, query
-    * parameters, and fragments are rejected. The signature duration must be positive. URL parsing and
-    * validation occur eagerly and throw `IllegalArgumentException` when invalid; the delegated AWS operation
-    * is deferred in `F`.
+    * The URI scheme, authority details, and query components are not restricted by this adapter. The URI host is
+    * used as the bucket and the path, with its leading slash removed, is used as the object key. Request
+    * validation and errors are delegated to the configured S3 presigner and are reported through `F`.
     */
-  final def presignGetObject(
-    s3Url: String,
-    duration: FiniteDuration = 30.minutes): F[PresignedGetObjectRequest] = {
-    val (bucket, key) = parseS3Url(s3Url)
-    require(duration > Duration.Zero, s"Signature duration must be positive: $duration")
-    presignGetObject(
-      _.getObjectRequest(_.bucket(bucket).key(key): Unit)
-        .signatureDuration(duration.toJava))
-  }
-
-  /*
-   * private
-   */
-  private def parseS3Url(s3Url: String): (String, String) = {
-    val uri = URI(s3Url)
-    require("s3".equalsIgnoreCase(uri.getScheme), s"Expected an s3 URL, got: $s3Url")
-    require(
-      Option(uri.getUserInfo).isEmpty && uri.getPort < 0,
-      s"S3 URL must not contain user info or a port: $s3Url")
-    require(
-      Option(uri.getQuery).isEmpty && Option(uri.getFragment).isEmpty,
-      s"S3 URL must not contain a query or fragment: $s3Url")
-    val bucket = Option(uri.getHost).getOrElse("")
-    require(bucket.nonEmpty, s"S3 URL must contain a bucket: $s3Url")
-    val key = uri.getPath.stripPrefix("/")
-    require(key.nonEmpty, s"S3 URL must contain an object key: $s3Url")
-    bucket -> key
-  }
+  def presignGetObject(s3Url: String, duration: FiniteDuration = 30.minutes): F[PresignedGetObjectRequest]
 }
 
 object SimpleStorageService:
@@ -186,5 +155,13 @@ object SimpleStorageService:
     override def presignGetObject(gpr: GetObjectPresignRequest): F[PresignedGetObjectRequest] =
       blockingF(presigner.presignGetObject(gpr), gpr.toString, logger)
 
+    override def presignGetObject(s3Url: String, duration: FiniteDuration): F[PresignedGetObjectRequest] =
+      F.defer {
+        val uri = URI(s3Url)
+        val key = uri.getPath.stripPrefix("/")
+        presignGetObject(
+          _.getObjectRequest(_.bucket(uri.getHost).key(key): Unit)
+            .signatureDuration(duration.toJava))
+      }
   }
 end SimpleStorageService

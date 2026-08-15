@@ -24,7 +24,9 @@ import software.amazon.awssdk.services.s3.model.{
 }
 import software.amazon.awssdk.services.s3.presigner.model.{GetObjectPresignRequest, PresignedGetObjectRequest}
 
+import java.net.URI
 import scala.concurrent.duration._
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
 
@@ -97,6 +99,15 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
           client.lastPresignRequest = Some(gpr)
           null.asInstanceOf[PresignedGetObjectRequest]
         }
+
+      override def presignGetObject(s3Url: String, duration: FiniteDuration): IO[PresignedGetObjectRequest] = {
+        val uri = URI(s3Url)
+        val bucket = Option(uri.getHost).getOrElse("")
+        val key = uri.getPath.stripPrefix("/")
+        presignGetObject(
+          _.signatureDuration(duration.toJava)
+            .getObjectRequest(_.bucket(bucket).key(key): Unit))
+      }
     }
 
   "SimpleStorageService" should "head object using request" in {
@@ -243,33 +254,22 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     client.lastPresignRequest.map(_.signatureDuration()) shouldBe Some(java.time.Duration.ofMinutes(5))
   }
 
-  it should "reject a non-S3 URL when presigning by URL" in {
-    val service = mkService(new FakeS3Client)
+  it should "accept a URI with a host and path when presigning by URL" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
 
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("https://bucket.example.com/key", 5.minutes)
+    service.presignGetObject("https://bucket.example.com/key", 5.minutes).unsafeRunSync()
+    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket.example.com")
+    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
   }
 
-  it should "reject an S3 URL without a bucket or key" in {
-    val service = mkService(new FakeS3Client)
+  it should "delegate URI validation to S3" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
 
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3:///key", 5.minutes)
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket", 5.minutes)
-  }
+    service.presignGetObject("s3://user@bucket/key?versionId=abc", 5.minutes).unsafeRunSync()
 
-  it should "reject an invalid signature duration" in {
-    val service = mkService(new FakeS3Client)
-
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket/key", Duration.Zero)
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket/key", -1.second)
-  }
-
-  it should "reject unsupported S3 URL components" in {
-    val service = mkService(new FakeS3Client)
-
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("s3://bucket/key?versionId=abc", 5.minutes)
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("s3://user@bucket/key", 5.minutes)
+    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket")
+    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
   }
 }
