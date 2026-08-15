@@ -8,6 +8,10 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.model.{
+  CopyObjectRequest,
+  CopyObjectResponse,
+  DeleteObjectRequest,
+  DeleteObjectResponse,
   GetObjectRequest,
   GetObjectResponse,
   HeadObjectRequest,
@@ -58,6 +62,20 @@ trait SimpleStorageService[F[_]] {
   /** Retrieve object metadata using a fluent S3 request builder. */
   final def headObject(f: Endo[HeadObjectRequest.Builder]): F[HeadObjectResponse] =
     headObject(f(HeadObjectRequest.builder()).build())
+
+  /** Copy an object using a fully configured request. */
+  def copyObject(cor: CopyObjectRequest): F[CopyObjectResponse]
+
+  /** Copy an object using a fluent S3 request builder. */
+  final def copyObject(f: Endo[CopyObjectRequest.Builder]): F[CopyObjectResponse] =
+    copyObject(f(CopyObjectRequest.builder()).build())
+
+  /** Delete an object using a fully configured request. */
+  def deleteObject(cor: DeleteObjectRequest): F[DeleteObjectResponse]
+
+  /** Delete an object using a fluent S3 request builder. */
+  final def deleteObject(f: Endo[DeleteObjectRequest.Builder]): F[DeleteObjectResponse] =
+    deleteObject(f(DeleteObjectRequest.builder()).build())
 
   /** Rename an object using a fully configured S3 request.
     *
@@ -156,10 +174,17 @@ object SimpleStorageService:
     override def putObject(body: RequestBody, por: PutObjectRequest): F[PutObjectResponse] =
       blockingF(s3.putObject(por, body), por.toString, logger)
 
+    override def copyObject(cor: CopyObjectRequest): F[CopyObjectResponse] =
+      blockingF(s3.copyObject(cor), cor.toString, logger)
+
+    override def deleteObject(cor: DeleteObjectRequest): F[DeleteObjectResponse] =
+      blockingF(s3.deleteObject(cor), cor.toString, logger)
+
     override def renameObject(ror: RenameObjectRequest): F[RenameObjectResponse] =
       blockingF(s3.renameObject(ror), ror.toString, logger)
 
     override def presignGetObject(gpr: GetObjectPresignRequest): F[PresignedGetObjectRequest] =
       blockingF(presigner.presignGetObject(gpr), gpr.toString, logger)
+
   }
 end SimpleStorageService
