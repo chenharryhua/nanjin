@@ -9,8 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.kafka.serdes.KafkaJsonSchemaCodec
-import com.github.chenharryhua.nanjin.kafka.serdes.KafkaJsonSchema
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, KafkaJsonCodec}
 
 class UpAndDownJsonTest extends AnyFunSuite {
   private val ctx: KafkaContext[IO] =
@@ -20,14 +19,14 @@ class UpAndDownJsonTest extends AnyFunSuite {
         .withConsumerProperty(_.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
         .withJsonDeserializerConfig(_.JSON_VALUE_TYPE, classOf[JsonNode].getName)
     )
-  given KafkaJsonSchemaCodec[UpAndDown] = KafkaJsonSchemaCodec[UpAndDown](objectMapper)
+  given KafkaJsonCodec[UpAndDown] = KafkaCodec.json[UpAndDown](objectMapper)
 
   private val topic = TopicName("up.and.down.json2")
   private val json: TopicDef[Integer, UpAndDown] =
     TopicDef(topic, Primitive[Integer], Structured[JsonNode].become[UpAndDown])
 
   test("1.json - schema register") {
-    val schema = summon[KafkaJsonSchema[UpAndDown]].schema
+    val schema = summon[KafkaJsonCodec[UpAndDown]].schema
     println(schema)
     ctx.schemaRegistry
       .register(topic, value = Some(schema))

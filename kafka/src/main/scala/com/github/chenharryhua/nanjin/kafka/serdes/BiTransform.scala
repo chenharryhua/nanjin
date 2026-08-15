@@ -8,10 +8,12 @@ import com.google.protobuf.DynamicMessage
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaGenerator}
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, SchemaFor, ToRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
+import io.confluent.kafka.schemaregistry.ParsedSchema
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.scalaland.chimney.Iso as ChimneyIso
 import monocle.Iso as MonocleIso
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -23,23 +25,6 @@ sealed trait BiTransform[A, B]:
 end BiTransform
 
 object BiTransform:
-  given [B: {SchemaFor, Decoder, Encoder}]: BiTransform[GenericRecord, B] =
-    new BiTransform[GenericRecord, B]:
-      private val schema: Schema = SchemaFor[B].schema
-      private val dec: FromRecord[B] = FromRecord[B](schema)
-      private val enc: ToRecord[B] = ToRecord[B](schema)
-
-      override def to(a: GenericRecord): B = dec.from(a)
-      override def from(b: B): GenericRecord = enc.to(b)
-  end given
-
-  given [B <: GeneratedMessage](using gmc: GeneratedMessageCompanion[B]): BiTransform[DynamicMessage, B] =
-    new BiTransform[DynamicMessage, B]:
-      override def to(a: DynamicMessage): B = gmc.parseFrom(a.toByteArray)
-      override def from(b: B): DynamicMessage =
-        DynamicMessage.parseFrom(b.companion.javaDescriptor, b.toByteArray)
-  end given
-
   given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =
     new BiTransform[Json, B]:
       private val enc: JsonEncoder[B] = JsonEncoder[B]
@@ -52,6 +37,10 @@ object BiTransform:
 
       override def from(b: B): Json = enc(b)
   end given
+
+  given [B: {SchemaFor, Decoder, Encoder}]: BiTransform[GenericRecord, B] = KafkaCodec.avro[B]
+  given [B <: GeneratedMessage: GeneratedMessageCompanion]: BiTransform[DynamicMessage, B] =
+    KafkaCodec.protobuf[B]
 
   /*
    * Primitive
@@ -109,33 +98,67 @@ object BiTransform:
 
 end BiTransform
 
-sealed trait KafkaJsonSchema[A]:
-  def schema: JsonSchema
+/** A bidirectional codec coupled with its Confluent Schema Registry schema.
+  *
+  * @tparam S the concrete Confluent schema type
+  * @tparam A the Kafka-side representation, such as `GenericRecord`, `DynamicMessage`, or `JsonNode`
+  * @tparam B the application value type
+  */
+sealed trait KafkaCodec[S <: ParsedSchema, A, B] extends BiTransform[A, B]:
+  def schema: S
+end KafkaCodec
 
-final class KafkaJsonSchemaCodec[A: ClassTag] private (
+object KafkaCodec:
+  /** Creates an Avro codec with its generated Avro schema. */
+  def avro[B: {SchemaFor, Decoder, Encoder}]: KafkaAvroCodec[B] = new KafkaAvroCodec[B]
+
+  /** Creates a Protobuf codec with the schema from the generated message descriptor. */
+  def protobuf[B <: GeneratedMessage: GeneratedMessageCompanion]: KafkaProtobufCodec[B] =
+    new KafkaProtobufCodec[B]
+
+  /** Creates a JSON Schema codec using the supplied Jackson object mapper. */
+  def json[B: ClassTag](objectMapper: ObjectMapper & ClassTagExtensions): KafkaJsonCodec[B] =
+    new KafkaJsonCodec[B](objectMapper, identity)
+end KafkaCodec
+
+/** A codec between an Avro `GenericRecord` and an application value. */
+final class KafkaAvroCodec[B: {SchemaFor, Decoder, Encoder}] extends KafkaCodec[AvroSchema, GenericRecord, B]:
+  override val schema: AvroSchema = AvroSchema(SchemaFor[B].schema)
+  private val dec: FromRecord[B] = FromRecord[B](schema.rawSchema())
+  private val enc: ToRecord[B] = ToRecord[B](schema.rawSchema())
+  override def to(a: GenericRecord): B = dec.from(a)
+  override def from(b: B): GenericRecord = enc.to(b)
+end KafkaAvroCodec
+
+/** A codec between a Protobuf `DynamicMessage` and an application value. */
+final class KafkaProtobufCodec[B <: GeneratedMessage](using gmc: GeneratedMessageCompanion[B])
+    extends KafkaCodec[ProtobufSchema, DynamicMessage, B]:
+  override val schema: ProtobufSchema =
+    ProtobufSchema(summon[GeneratedMessageCompanion[B]].javaDescriptor)
+  override def to(a: DynamicMessage): B = gmc.parseFrom(a.toByteArray)
+  override def from(b: B): DynamicMessage =
+    DynamicMessage.parseFrom(b.companion.javaDescriptor, b.toByteArray)
+end KafkaProtobufCodec
+
+/** A codec between a JSON Schema `JsonNode` and an application value. */
+final class KafkaJsonCodec[B: ClassTag](
   objectMapper: ObjectMapper & ClassTagExtensions,
   f: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder])
-    extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonSchemaCodec[A]]
-    with BiTransform[JsonNode, A] with KafkaJsonSchema[A]:
+    extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonCodec[B]]
+    with KafkaCodec[JsonSchema, JsonNode, B]:
 
-  /** Generated schema for the runtime class of `A`. */
-  override lazy val schema: JsonSchema =
+  /** Generated schema for the runtime class of `B`. */
+  override val schema: JsonSchema =
     new JsonSchema(
       new JsonSchemaGenerator(objectMapper, f(JsonSchemaConfig.builder()).build())
-        .generateJsonSchema(classTag[A].runtimeClass))
+        .generateJsonSchema(classTag[B].runtimeClass))
 
-  override def updateConfig(g: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder]): KafkaJsonSchemaCodec[A] =
-    new KafkaJsonSchemaCodec[A](objectMapper, g.compose(f))
+  override def updateConfig(g: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder]): KafkaJsonCodec[B] =
+    new KafkaJsonCodec[B](objectMapper, g.compose(f))
 
-  override def to(jn: JsonNode): A = objectMapper.convertValue[A](jn)
+  override def to(a: JsonNode): B = objectMapper.convertValue[B](a)
 
   // Confluent JSON Schema requires the schema envelope.
-  override def from(a: A): JsonNode =
-    JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](a))
-end KafkaJsonSchemaCodec
-
-object KafkaJsonSchemaCodec:
-  /** Creates a schema helper from the supplied Jackson object mapper. */
-  def apply[A: ClassTag](objectMapper: ObjectMapper & ClassTagExtensions): KafkaJsonSchemaCodec[A] =
-    new KafkaJsonSchemaCodec[A](objectMapper, identity)
-end KafkaJsonSchemaCodec
+  override def from(b: B): JsonNode =
+    JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](b))
+end KafkaJsonCodec

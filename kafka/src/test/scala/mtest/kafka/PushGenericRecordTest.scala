@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJProducerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.KafkaAvroSchema
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec
 import com.sksamuel.avro4s.SchemaFor
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -26,7 +26,7 @@ class PushGenericRecordTest extends AnyFunSuite {
         ctx.schemaRegistry.fetchOptionalAvroSchema(topicName).debug()
 
     val res = schema.unsafeRunSync()
-    assert(res.key.get == KafkaAvroSchema[Foo].schema)
+    assert(res.key.get == KafkaCodec.avro[Foo].schema)
     assert(res.value.isEmpty)
   }
 }

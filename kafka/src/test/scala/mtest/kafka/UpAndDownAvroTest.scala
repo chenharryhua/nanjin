@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaAvroSchema, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.avro.generic.GenericRecord
@@ -18,7 +18,7 @@ class UpAndDownAvroTest extends AnyFunSuite {
     TopicDef(topic, Primitive[Integer], Structured[GenericRecord].become[UpAndDown])
 
   test("1.avro - schema register") {
-    val schema = summon[KafkaAvroSchema[UpAndDown]].schema
+    val schema = KafkaCodec.avro[UpAndDown].schema
     println(schema)
     ctx.schemaRegistry
       .register(topic, value = Some(schema))
