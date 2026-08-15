@@ -8,7 +8,6 @@ import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import com.github.chenharryhua.nanjin.guard.config.Domain
 import io.circe.{Codec, Decoder, Encoder}
-import monocle.macros.GenPrism
 import squants.{Quantity, UnitOfMeasure}
 
 sealed trait CategoryKind extends Product
@@ -69,6 +68,4 @@ final case class MetricLabel(label: String, domain: Domain) derives Codec.AsObje
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category)
     derives Codec.AsObject {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
-  val isMeter: Option[Category.Meter] = GenPrism[Category, Category.Meter].getOption(category)
-  val isHisto: Option[Category.Histogram] = GenPrism[Category, Category.Histogram].getOption(category)
 }
