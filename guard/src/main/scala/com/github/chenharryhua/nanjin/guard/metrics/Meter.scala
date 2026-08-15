@@ -15,12 +15,17 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Squants
 }
 import squants.{Each, Quantity, UnitOfMeasure}
+
+/** Effectful event-rate meter. */
 trait Meter[F[_]]:
+  /** Mark `num` events. */
   def mark(num: Long): F[Unit]
   final def mark(num: Int): F[Unit] = mark(num.toLong)
 end Meter
 
+/** Synchronous event-rate meter handle. */
 trait UnsafeMeter:
+  /** Mark `num` events immediately. */
   def unsafeMark(num: Long): Unit
   final def unsafeMark(num: Int): Unit = unsafeMark(num.toLong)
 end UnsafeMeter
@@ -52,9 +57,11 @@ object Meter {
 
   final class Builder private[Meter] (isEnabled: Boolean, squants: Squants) extends EnableConfig[Builder] {
 
+    /** Enable or disable metric registration; disabled meters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, squants)
 
+    /** Attach a squants unit to the reported meter. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um))
 

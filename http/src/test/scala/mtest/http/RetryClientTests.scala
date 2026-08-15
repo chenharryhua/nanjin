@@ -134,7 +134,34 @@ class RetryClientTests extends CatsEffectSuite {
     }
   }
 
-  test("7.Cookie middleware stores and replays cookies") {
+  test("7.Custom retriable predicate can gate retries by request") {
+    val counter = Ref.unsafe[IO, Int](0)
+    val client = Client[IO] { _ =>
+      Resource.eval(counter.updateAndGet(_ + 1).map(_ => Response[IO](Status.InternalServerError)))
+    }
+
+    val customRetriable = (req: Request[IO], ex: Either[Throwable, Response[IO]]) =>
+      req.method == Method.GET && ex.exists(_.status == Status.InternalServerError)
+
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(3), customRetriable)(client)
+
+    val getReq = Request[IO](Method.GET, uri"/only-get-retries")
+    val postReq = Request[IO](Method.POST, uri"/only-get-retries")
+
+    for {
+      getResp <- retryClient.run(getReq).use(IO.pure)
+      afterGet <- counter.get
+      postResp <- retryClient.run(postReq).use(IO.pure)
+      afterPost <- counter.get
+    } yield {
+      assertEquals(getResp.status, Status.InternalServerError)
+      assertEquals(afterGet, 4)
+      assertEquals(postResp.status, Status.InternalServerError)
+      assertEquals(afterPost, 5)
+    }
+  }
+
+  test("8.Cookie middleware stores and replays cookies") {
     val cookieManager = new CookieManager()
     val sawCookieHeader = Ref.unsafe[IO, Boolean](false)
     val client = Client[IO] { req =>

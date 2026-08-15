@@ -6,13 +6,16 @@ import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.EnableConfig
 
+/** Gauge reporting elapsed time since the last wake-up. */
 trait IdleGauge[F[_]]:
+  /** Reset the idle timer to the current monotonic time. */
   def wakeUp: F[Unit]
 end IdleGauge
 
 object IdleGauge:
   final class Builder private[IdleGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
 
+    /** Enable or disable idle-gauge registration. */
     override def enable(isEnabled: Boolean): Builder = new Builder(isEnabled)
 
     def build[F[_]](gp: GaugeParams[F], name: String)(using F: Async[F]): Resource[F, IdleGauge[F]] =

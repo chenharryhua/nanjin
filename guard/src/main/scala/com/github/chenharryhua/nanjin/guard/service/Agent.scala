@@ -16,64 +16,117 @@ import fs2.concurrent.Channel
 import java.time.ZoneId
 import java.util.UUID
 
-/** Agent is the primary service façade providing scoped access to metrics, batching, scheduling, and
-  * resilience primitives.
+/** Scoped service façade for metrics, batching, scheduling, logging, and resilience.
+  *
+  * An `Agent` is supplied to the callback passed to `ServiceGuard.eventStream`, `eventStreamS`, or
+  * `eventStreamR`; it is not normally constructed directly. Use its effectful resources and streams inside
+  * that callback, then compile the enclosing event stream:
+  *
+  * {{{
+  * service.eventStream { agent =>
+  *   agent.retry(identity).use(_(work)).void
+  * }.compile.drain
+  * }}}
+  *
+  * The agent shares the service's zone, event channel, metrics registry, and logging handlers. Derived agents
+  * created with `withDomain` keep those shared resources while changing the domain attached to reported
+  * events.
   */
 sealed trait Agent[F[_]] {
+
+  /** Time zone used by ticks, retry policies, and circuit-breaker policies. */
   val zoneId: ZoneId
 
+  /** Create a view that reports metrics and messages under `name`.
+    *
+    * The returned agent shares the current agent's service resources; it does not start a new service or
+    * create a new metrics registry.
+    */
   def withDomain(name: String): Agent[F]
 
-  /*
-   * batch
-   */
+  /** Create a metrics-backed batch for a named operation. */
   def batch(label: String): Batch[F]
+
+  /** Create a lightweight batch for a named operation without a metrics hub. */
   def batchLight(label: String): BatchLight[F]
 
-  /*
-   * ticks
-   */
+  /** Create a stream of scheduled ticks in the agent's time zone.
+    *
+    * Use the stream to drive work that follows the policy's schedule.
+    *
+    * @param f
+    *   Function that builds the scheduling policy.
+    */
   def tickScheduled(f: Policy.type => Policy): Stream[F, Tick]
+
+  /** Create a stream of future ticks in the agent's time zone.
+    *
+    * Use this when consumers need the next tick values without the scheduled stream's active timing behavior.
+    *
+    * @param f
+    *   Function that builds the tick policy.
+    */
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
-  /*
-   * Service Message
-   */
-
+  /** Publishes service events through the herald channel so external observers can receive them. */
   val herald: Log[F]
+
+  /** Low-overhead service logger that writes to the configured logging backend without using the herald
+    * channel.
+    */
   val logger: Log[F]
+
+  /** Logger that sends each message to both the herald channel and the configured logging backend. */
   val heraldLogger: Log[F]
 
-  /*
-   * metrics
-   */
+  /** Create a full metrics hub for a named metric label. */
   def metricsHub(label: String): MetricsHub[F]
+
+  /** Create the stream-based metrics hub for a named metric label.
+    *
+    * Use the returned `MetricsHubS` when metric registration should compose directly with `fs2.Stream`
+    * operations.
+    */
   def metricsHubS(label: String): MetricsHubS[F]
 
+  /** Facilitate creating related metric items in one place by applying `f` to a full metrics hub for `label`.
+    */
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
+
+  /** Facilitate creating related stream metrics in one place by applying `f` to the stream-based metrics hub
+    * for `label`.
+    */
   def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A
 
+  /** Direct access to ad hoc metric reporting for the current service domain. */
   val adhoc: AdhocReport[F]
 
-  /** Create a circuit breaker.
+  /** Create a scoped circuit breaker.
     *
-    * `maxFailures` is the number of consecutive failures required to transition the breaker from closed to
-    * open.
+    * Use the returned resource around the protected operation:
+    * `agent.circuitBreaker(3, _.fixedDelay(1.second)).use(_.protect(action))`. `maxFailures` is the number of
+    * consecutive failures required to transition the breaker from closed to open.
     *
-    * For example, a value of `3` opens the breaker after the third consecutive failure while in the closed
-    * state.
+    * A value of `3` opens the breaker after the third consecutive failure while in the closed state.
     *
-    * Must be greater than `0`.
+    * @param maxFailures
+    *   Number of consecutive failures required to open the breaker. Must be greater than zero.
+    * @param f
+    *   Function that builds the policy used for open-to-half-open probe timing.
     *
-    * `policy` defines the scheduling cadence used to transition the breaker from open to half-open. For
-    * long-lived breakers, the policy should be non-terminating so periodic probe attempts can continue
+    * For long-lived breakers, use a non-terminating policy so periodic probe attempts can continue
     * indefinitely.
     */
   def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]]
 
-  /*
-   * retry
-   */
+  /** Create a scoped retry interpreter.
+    *
+    * Use the returned resource around the operation to retry:
+    * `agent.retry(_.withPolicy(policy)).use(retry => retry(action))`.
+    *
+    * @param f
+    *   Function that configures the retry builder, including its policy and optional retry decision behavior.
+    */
   def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 
 }

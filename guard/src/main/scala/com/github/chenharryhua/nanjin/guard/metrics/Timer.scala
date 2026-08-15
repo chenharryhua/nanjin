@@ -17,15 +17,21 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
+/** Converts a duration-like value to nanoseconds for timer updates. */
 trait ToNanos[A]:
+  /** Convert a duration-like value to nanoseconds. */
   def apply(a: A): Long
 object ToNanos:
   given ToNanos[FiniteDuration] = _.toNanos
   given ToNanos[JavaDuration] = _.toNanos
 end ToNanos
 
+/** Effectful timer for recording durations or timing an effect. */
 trait Timer[F[_]]:
+  /** Record an elapsed duration already expressed in nanoseconds. */
   def elapsedNano(num: Long): F[Unit]
+
+  /** Run `fa` and record its elapsed time, preserving its result and error. */
   def timing[A](fa: F[A]): F[A]
 
   final def elapsedNano(num: Int): F[Unit] =
@@ -34,7 +40,9 @@ trait Timer[F[_]]:
     elapsedNano(summon[ToNanos[A]](nano))
 end Timer
 
+/** Synchronous timer handle for recording elapsed durations. */
 trait UnsafeTimer:
+  /** Record an elapsed duration in nanoseconds immediately. */
   def unsafeElapsedNano(num: Long): Unit
   final def unsafeElapsedNano[A: ToNanos](nano: A): Unit =
     unsafeElapsedNano(summon[ToNanos[A]](nano))
@@ -77,9 +85,11 @@ object Timer {
     reservoir: Option[Reservoir]
   ) extends EnableConfig[Builder] {
 
+    /** Choose the Dropwizard reservoir used to retain timing observations. */
     def withReservoir(reservoir: Reservoir): Builder =
       new Builder(isEnabled, Some(reservoir))
 
+    /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir)
 

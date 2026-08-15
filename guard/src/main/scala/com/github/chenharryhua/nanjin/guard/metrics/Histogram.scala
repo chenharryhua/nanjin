@@ -21,12 +21,16 @@ import com.github.chenharryhua.nanjin.guard.event.{
 }
 import squants.{Each, Quantity, UnitOfMeasure}
 
+/** Effectful distribution recorder for observed numeric values. */
 trait Histogram[F[_]]:
+  /** Record one observed value. */
   def update(num: Long): F[Unit]
   final def update(num: Int): F[Unit] = update(num.toLong)
 end Histogram
 
+/** Synchronous histogram handle. */
 trait UnsafeHistogram:
+  /** Record one observed value immediately. */
   def unsafeUpdate(num: Long): Unit
   final def unsafeUpdate(num: Int): Unit = unsafeUpdate(num.toLong)
 end UnsafeHistogram
@@ -66,12 +70,15 @@ object Histogram {
   final class Builder private[Histogram] (isEnabled: Boolean, squants: Squants, reservoir: Option[Reservoir])
       extends EnableConfig[Builder] {
 
+    /** Choose the Dropwizard reservoir used to retain observations. */
     def withReservoir(reservoir: Reservoir): Builder =
       new Builder(isEnabled, squants, Some(reservoir))
 
+    /** Attach a squants unit to the reported histogram. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um), reservoir)
 
+    /** Enable or disable metric registration; disabled histograms become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, squants, reservoir)
 

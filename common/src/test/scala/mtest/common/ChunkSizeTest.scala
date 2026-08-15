@@ -4,6 +4,7 @@ import cats.implicits.toShow
 import cats.syntax.order.catsSyntaxPartialOrder
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import io.circe.jawn.decode
 import io.circe.syntax.given
 
 class ChunkSizeTest extends AnyFunSuite {
@@ -20,10 +21,18 @@ class ChunkSizeTest extends AnyFunSuite {
     println((cs, cs2))
   }
 
-  test("3.chunk size - json") {
+  test("3.chunk size - json and validation") {
     val cs = ChunkSize(10)
-    val cs2: ChunkSize = -100
-    println((cs.asJson, cs2.asJson))
+    assert(cs.asJson.toString == "10")
+    assert(decode[ChunkSize]("10").map(_.value) == Right(10))
+    assert(decode[ChunkSize]("0").isLeft)
+    assert(decode[ChunkSize]("-100").isLeft)
+    assert(intercept[IllegalArgumentException](ChunkSize(0)).getMessage.contains("but was 0"))
+    assert(intercept[IllegalArgumentException](ChunkSize(-100)).getMessage.contains("but was -100"))
+    assert(intercept[IllegalArgumentException] {
+      val invalid: ChunkSize = -100
+      invalid
+    }.getMessage.contains("but was -100"))
   }
 
   test("4.order") {

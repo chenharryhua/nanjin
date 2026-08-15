@@ -15,6 +15,7 @@ import io.circe.{Encoder, Json}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.control.NonFatal
 
+/** Builder and registration support for gauges backed by an effectful value. */
 object Gauge {
 
   final class Builder private[Gauge] (
@@ -26,15 +27,19 @@ object Gauge {
     /*
      * Transformation
      */
+    /** Enable or disable gauge registration; disabled gauges become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy, kind)
 
+    /** Bound evaluation time when the registry reads the gauge value. */
     def withTimeout(timeout: FiniteDuration): Builder =
       new Builder(isEnabled, timeout, policy, kind)
 
+    /** Refresh the gauge value according to an optional policy. */
     def withPolicy(op: Option[Policy]): Builder =
       new Builder(isEnabled, timeout, op, kind)
 
+    /** Refresh the gauge value according to a policy builder. */
     def withPolicy(f: Policy.type => Policy): Builder =
       withPolicy(Some(f(Policy)))
 
@@ -42,6 +47,7 @@ object Gauge {
       new Builder(isEnabled, timeout, policy, f(GaugeKind))
 
     // transition
+    /** Register an effectful value and encode each result as JSON. */
     def register[F[_]: Functor, A: Encoder](fa: F[A]): Registered[F] =
       new Registered[F](builder = this, initial = fa.map(a => Encoder[A].apply(a)))
   }

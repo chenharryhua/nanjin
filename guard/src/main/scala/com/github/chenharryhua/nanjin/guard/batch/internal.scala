@@ -1,5 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
+import org.apache.commons.lang3.exception.ExceptionUtils
+
 final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[CompletedJob]) {
   def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
 
@@ -11,3 +15,15 @@ final private case class ExecutionState[A](eoa: Either[Throwable, A], history: L
 }
 
 final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
+
+private given [A: Encoder] => Encoder[Either[Throwable, A]] =
+  Encoder.instance {
+    case Left(ex)     => Json.fromString(ExceptionUtils.getMessage(ex))
+    case Right(value) => value.asJson
+  }
+
+private def resultTag(done: Boolean): String =
+  if done then "result" else "error"
+
+private val SeverityNonFatal: String = "nonfatal"
+private val SeverityCritical: String = "critical"

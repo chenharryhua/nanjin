@@ -64,4 +64,22 @@ class AdminApiTest extends AnyFunSuite {
     )
     assert(end.asJson.as[TopicPartitionMap[Option[Offset]]].toOption.get == end)
   }
+
+  ignore("4.acls") {
+    val run = ctx.admin(topic.topicName).use { admin =>
+      for {
+        _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+        _ <- IO.sleep(1.seconds)
+        _ <- admin.newTopic(1, 1)
+        _ <- IO.sleep(1.seconds)
+        all <- admin.acls
+        principal <- admin.acls("User:alice")
+      } yield {
+        assert(all.forall(_.principal() != null))
+        assert(principal.forall(_.principal() == "User:alice"))
+      }
+    }
+
+    run.unsafeRunSync()
+  }
 }

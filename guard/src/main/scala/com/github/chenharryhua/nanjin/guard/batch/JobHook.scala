@@ -37,10 +37,16 @@ object JobHook {
     kickoff: Job => F[Unit]
   ) extends JobHook[F, A] with Subscriber[F, A] {
 
+    /** Replace the completion callback. */
     override def onComplete(f: JobState[A] => F[Unit]): Bridge[F, A] = copy(completed = f)
+
+    /** Replace the cancellation callback. */
     override def onCancel(f: Job => F[Unit]): Bridge[F, A] = copy(canceled = f)
+
+    /** Replace the kickoff callback. */
     override def onKickoff(f: Job => F[Unit]): Bridge[F, A] = copy(kickoff = f)
 
+    /** Adapt completion payloads from `B` to this hook's `A`. */
     def contramap[B](f: B => A): Bridge[F, B] =
       new Bridge[F, B](
         completed = (jrv: JobState[B]) => this.completed(jrv.map(f)),
@@ -53,6 +59,7 @@ object JobHook {
    * Concrete, configured Bridges
    */
 
+  /** Create a hook that ignores all lifecycle notifications. */
   def noop[F[_], A](using F: Applicative[F]): Bridge[F, A] =
     new Bridge[F, A](
       completed = _ => F.unit,
@@ -60,6 +67,7 @@ object JobHook {
       kickoff = _ => F.unit
     )
 
+  /** Create logging-based hook builders. */
   def apply[F[_]](logger: Log[F]): ByLogger[F] = ByLogger[F](logger)
 
   /*
@@ -68,6 +76,7 @@ object JobHook {
 
   final class ByLogger[F[_]](log: Log[F]) {
 
+    /** Log lifecycle events using a custom JSON representation. */
     def universal[A](f: JobState[A] => Json): Bridge[F, A] =
       Bridge[F, A](
         completed = { (js: JobState[A]) =>
@@ -75,8 +84,8 @@ object JobHook {
           js.result match {
             case Left(ex) =>
               js.completed.job.kind match {
-                case BatchKind.Quasi => log.warn(Json.obj("nonfatal" -> json), ex)
-                case BatchKind.Value => log.error(Json.obj("critical" -> json), ex)
+                case BatchKind.Quasi => log.warn(Json.obj(SeverityNonFatal -> json), ex)
+                case BatchKind.Value => log.error(Json.obj(SeverityCritical -> json), ex)
               }
             case Right(_) => log.good(Json.obj("done" -> json))
           }
@@ -85,8 +94,10 @@ object JobHook {
         kickoff = (bj: Job) => log.info(Json.obj("kickoff" -> bj.asJson))
       )
 
+    /** Log lifecycle events using the value's Circe encoder. */
     def standard[A: Encoder]: Bridge[F, A] = universal[A](_.asJson)
 
+    /** Log JSON job states directly. */
     def json: Bridge[F, Json] = standard[Json]
   }
 

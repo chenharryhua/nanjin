@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter 
 import com.github.chenharryhua.nanjin.guard.event.{MetricLabel, StackTrace}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
 import java.util.UUID
@@ -21,7 +20,11 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(
   * value-batches carry the successful result values for each completed job.
   */
 enum BatchKind:
-  case Quasi, Value
+  /** Collects each job outcome, including failures, in the resulting quasi-batch. */
+  case Quasi
+
+  /** Propagates a job failure and returns only successful values. */
+  case Value
 end BatchKind
 object BatchKind:
   given Encoder[BatchKind] = Encoder.encodeString.contramap(_.productPrefix)
@@ -53,6 +56,8 @@ final case class Job(
   batchId: UUID):
   val batch: String = label.label
   val domain: String = label.domain.value
+
+  /** Human-readable name combining the job index and configured name. */
   def displayName: String = s"job-$index $name"
 end Job
 object Job {
@@ -71,19 +76,13 @@ object Job {
 /** A completed job record that captures its identity, elapsed time, and whether it finished successfully. */
 final case class CompletedJob(job: Job, took: Duration, done: Boolean)
 
-private given [A: Encoder] => Encoder[Either[Throwable, A]] =
-  Encoder.instance {
-    case Left(ex)     => Json.fromString(ExceptionUtils.getMessage(ex))
-    case Right(value) => value.asJson
-  }
-
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]) derives Functor {
   val done: Boolean = result.isRight
 }
 object JobState:
   given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
-    Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), "result" -> a.result.asJson)
+    Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), resultTag(a.done) -> a.result.asJson)
       .deepMerge(a.completed.job.asJson)
   }
 
@@ -91,16 +90,21 @@ object JobState:
 final case class JobValue[A](completed: CompletedJob, result: A) derives Functor
 object JobValue:
   given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
-    Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), "result" -> a.result.asJson)
+    Json.obj(
+      "took" -> Json.fromString(fmt.format(a.completed.took)),
+      resultTag(a.completed.done) -> a.result.asJson)
       .deepMerge(a.completed.job.asJson)
   }
 
+/** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
   jobs: List[CompletedJob]) {
+
+  /** Whether every job in the batch completed successfully. */
   def done: Boolean = jobs.forall(_.done)
 }
 object CompletedBatch:
@@ -127,12 +131,26 @@ object CompletedBatch:
     }
 
 sealed trait BatchResult[A] {
+
+  /** Batch label and domain. */
   def label: MetricLabel
+
+  /** Total elapsed execution time. */
   def spent: Duration
+
+  /** Sequential, parallel, or monadic execution mode. */
   def mode: BatchMode
+
+  /** Unique identifier for this execution. */
   def batchId: UUID
+
+  /** Per-job result values represented by this result type. */
   def jobs: List[A]
+
+  /** Whether all jobs completed successfully. */
   def done: Boolean
+
+  /** Completion-only summary suitable for reporting. */
   def completed: CompletedBatch
 }
 
@@ -164,15 +182,15 @@ object QuasiBatch:
         "batch_id" -> qb.batchId.asJson,
         "domain" -> Json.fromString(qb.label.domain.value),
         "mode" -> qb.mode.asJson,
+        "kind" -> BatchKind.Quasi.asJson,
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "done" -> Json.fromInt(done.length),
         "fail" -> Json.fromInt(fail.length),
         "jobs" -> qb.jobs.map { js =>
-          val tag: String = if (js.done) "result" else "error"
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            tag -> js.result.asJson
+            resultTag(js.done) -> js.result.asJson
           )
         }.asJson
       )
@@ -207,12 +225,13 @@ object BatchValue:
         "batch_id" -> bv.batchId.asJson,
         "domain" -> Json.fromString(bv.label.domain.value),
         "mode" -> bv.mode.asJson,
+        "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
         "jobs" -> bv.jobs.map(js =>
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            "result" -> js.result.asJson
+            resultTag(js.completed.done) -> js.result.asJson
           ))
           .asJson
       )
@@ -243,20 +262,31 @@ final case class MonadicBatch[A](
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
-      val tag: String = if (mb.done) "result" else "error"
       Json.obj(
         "batch" -> Json.fromString(mb.label.label),
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.label.domain.value),
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map(cj =>
-          Json.obj(
-            show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-            "took" -> Json.fromString(fmt.format(cj.took))
-          ))
+        "jobs" -> mb.jobs.map { cj =>
+          if (cj.done)
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(fmt.format(cj.took)))
+          else {
+            val severity = cj.job.kind match {
+              case BatchKind.Quasi => Json.fromString(SeverityNonFatal)
+              case BatchKind.Value => Json.fromString(SeverityCritical)
+            }
+            Json.obj(
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
+              "took" -> Json.fromString(fmt.format(cj.took)),
+              "failed" -> severity
+            )
+          }
+        }
           .asJson,
-        tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        resultTag(mb.done) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
 end MonadicBatch

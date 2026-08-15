@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 final case class JsonSchemaPerson(name: String, age: Int)
 
 class KafkaJsonSchemaCodecTest extends AnyFunSuite {
-  private val codec = KafkaJsonSchemaCodec[JsonSchemaPerson](objectMapper)
+  private val codec = KafkaCodec.json[JsonSchemaPerson](objectMapper)
     .updateConfig(_.jsonSchemaDraft(JsonSchemaDraft.DRAFT_07))
 
   test("generates a JSON schema for the runtime class") {

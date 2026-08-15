@@ -27,6 +27,13 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 /** Primary API for structured batch execution with lifecycle hooks, metrics, and observable progress. */
+/** Metrics-backed batch construction and execution API.
+  *
+  * Obtain a batch from `Agent.batch(label)`, choose sequential, parallel, or monadic composition, and acquire
+  * the result resource. `quasiBatch` keeps per-job failures in the result; `batchValue` raises failures and
+  * returns successful values. Metric registration, progress reporting, hooks, and cleanup are scoped to the
+  * returned `Resource`.
+  */
 object Batch:
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
@@ -144,8 +151,10 @@ object Batch:
    * Runners
    */
 
+  /** Common runner operations for sequential and parallel batches. */
   sealed abstract protected class BatchRunner[F[_], A] { outer =>
 
+    /** Reject successful values that do not satisfy `f`. */
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
 
     protected def mode: BatchMode
@@ -299,6 +308,7 @@ object Batch:
     jobHook: JobHook[F, Json],
     batchId: UUID)
 
+  /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
   final class JobBuilder[F[_]: Async] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID]):
 
     private val mode: BatchMode = BatchMode.Monadic
@@ -306,6 +316,7 @@ object Batch:
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Context[F], ExecutionState[A]]):
 
+      /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Context[F], ExecutionState[B]] =
           kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
@@ -317,8 +328,10 @@ object Batch:
         new Monadic[B](runB)
       }
 
+      /** Transform a successful monadic job value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
 
+      /** Filter a successful monadic value; a rejected value becomes a failed quasi-job. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
           kleisli.map { case unchange @ ExecutionState(eoa, history) =>
@@ -335,6 +348,7 @@ object Batch:
           }
         )
 
+      /** Execute the monadic batch with lifecycle hooks and JSON job reporting. */
       def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] =
         Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
           createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
@@ -362,6 +376,7 @@ object Batch:
 
     // job constructors
 
+    /** Lift a pure value into the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure)
@@ -389,6 +404,7 @@ object Batch:
       * @param rfa
       *   the job
       */
+    /** Add a named resource-backed value job. */
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, jobHook, batchId) =>
@@ -417,6 +433,7 @@ object Batch:
         }
       )
 
+    /** Add a named effect-backed value job. */
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
       apply[A](name, Resource.eval(fa))
 
@@ -430,6 +447,7 @@ object Batch:
       * @return
       *   true only when the job succeeds and evaluates to true; otherwise false
       */
+    /** Add a resource-backed boolean job whose failure or false result is retained as a quasi failure. */
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Context(updatePanel, jobHook, batchId) =>
@@ -459,18 +477,23 @@ object Batch:
         }
       )
 
+    /** Add an effect-backed boolean job whose failure or false result is retained as a quasi failure. */
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       failSafe(name, Resource.eval(fa))
 
   end JobBuilder
 end Batch
 
-/** Batch is intended for long-running or stateful work where callers want to observe progress, lifecycle
-  * events, and richer execution state while jobs are still in flight.
+/** Metrics-backed façade for long-running or stateful work.
+  *
+  * Use `sequential` or `parallel` for independent jobs, and `monadic` when later jobs depend on earlier
+  * results. Acquire `quasiBatch` or `batchValue` with `.use`; both execution styles report progress and
+  * lifecycle events.
   */
+/** Metrics-backed batch façade for long-running or stateful work. */
 final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {
 
-  /** Creates a sequential batch from a list of named effects. Jobs run one after another and preserve order.
+  /** Create a sequential batch from named effects; jobs run in input order.
     */
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -483,7 +506,10 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
   }
 
-  /** Creates a parallel batch from a list of named effects using the given parallelism. */
+  /** Create a parallel batch from named effects using the given parallelism.
+    *
+    * `parallelism` must be greater than zero.
+    */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -497,11 +523,12 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
   }
 
-  /** Creates a parallel batch with parallelism inferred from the number of jobs. */
+  /** Create a parallel batch with parallelism equal to the number of jobs. */
+  /** Create a parallel batch with parallelism inferred from the job count. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](fas.size)(fas*)
 
-  /** Builds a monadic batch using a fluent job builder that can sequence values and conditional steps. */
+  /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
     val builder = new Batch.JobBuilder[F](metrics, uuidGenerator)
     f(builder)

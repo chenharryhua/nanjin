@@ -3,21 +3,21 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import io.confluent.kafka.schemaregistry.avro.AvroSchema
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
@@ -262,7 +262,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("14.generic record without schema registry") {
     val ret =
       ctx
-        .consumeGenericRecord(avroTopic.topicName)
+        .consumeGenericRecord(avroTopic.topicName, Some(SchemaFor[Int].schema))
         .subscribe
         .take(1)
         .map(_.record)

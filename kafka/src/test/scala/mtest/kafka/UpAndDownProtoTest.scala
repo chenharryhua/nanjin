@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaProtobufSchema, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import com.google.protobuf.DynamicMessage
 import org.scalatest.funsuite.AnyFunSuite
@@ -22,7 +22,7 @@ class UpAndDownProtoTest extends AnyFunSuite {
     TopicDef(topic, Primitive[Integer], Structured[DynamicMessage].become[ProtoConsumerRecord])
 
   test("1.proto - schema register") {
-    val schema = summon[KafkaProtobufSchema[ProtoConsumerRecord]].schema
+    val schema = KafkaCodec.protobuf[ProtoConsumerRecord].schema
     println(schema)
     ctx.schemaRegistry
       .register(topic, value = Some(schema))
