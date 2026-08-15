@@ -52,9 +52,11 @@ object HostName {
         .attempt
         .map(_.toOption.flatMap(_.flatten))
 
-    val local_host: Option[String] =
-      Try(Option(InetAddress.getLocalHost.getHostName).filter(_.trim.nonEmpty)).toOption.flatten
+    val local_host: F[Option[String]] =
+      F.blocking {
+        Try(Option(InetAddress.getLocalHost.getHostName).filter(_.trim.nonEmpty)).toOption.flatten
+      }
 
-    aws_ec2_ipv4.map(aws => new HostName(aws, local_host))
+    F.flatMap(aws_ec2_ipv4)(aws => F.map(local_host)(local => new HostName(aws, local)))
   }
 }

@@ -100,8 +100,8 @@ trait SimpleStorageService[F[_]] {
 
   /** Create a presigned GET request from a URI host and path.
     *
-    * The URI scheme, authority details, and query components are not restricted by this adapter. The URI host is
-    * used as the bucket and the path, with its leading slash removed, is used as the object key. Request
+    * The URI scheme, authority details, and query components are not restricted by this adapter. The URI host
+    * is used as the bucket and the path, with its leading slash removed, is used as the object key. Request
     * validation and errors are delegated to the configured S3 presigner and are reported through `F`.
     */
   def presignGetObject(s3Url: String, duration: FiniteDuration = 30.minutes): F[PresignedGetObjectRequest]

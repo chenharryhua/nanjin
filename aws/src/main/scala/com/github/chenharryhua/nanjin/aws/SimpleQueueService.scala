@@ -4,7 +4,6 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
-import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
@@ -109,8 +108,9 @@ object SimpleQueueService {
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name").as(g(SqsClient.builder()).build())) { cw =>
-        shutdown(name, logger)(cw.close())
+      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(g(SqsClient.builder()).build())) {
+        cw =>
+          shutdown(name, logger)(cw.close())
       }
     } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
 

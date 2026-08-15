@@ -100,7 +100,9 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
           null.asInstanceOf[PresignedGetObjectRequest]
         }
 
-      override def presignGetObject(s3Url: String, duration: FiniteDuration): IO[PresignedGetObjectRequest] = {
+      override def presignGetObject(
+        s3Url: String,
+        duration: FiniteDuration): IO[PresignedGetObjectRequest] = {
         val uri = URI(s3Url)
         val bucket = Option(uri.getHost).getOrElse("")
         val key = uri.getPath.stripPrefix("/")
