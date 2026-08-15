@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Sync}
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -12,18 +12,19 @@ import java.nio.charset.StandardCharsets
 
 object jackson {
 
-  def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
-    val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+  def toBytes[F[_]](schema: Schema)(using F: Sync[F]): Pipe[F, GenericRecord, Byte] = {
     (sfgr: Stream[F, GenericRecord]) =>
-      sfgr.chunks.map { grs =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-        val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
-        grs.foreach(gr => datumWriter.write(gr, encoder))
-        encoder.flush()
-        baos.close()
-        baos.toByteArray // JsonEncoder use ISO_8859_1
-      }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1))
-        .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
+      Stream.eval(F.delay(new GenericDatumWriter[GenericRecord](schema))).flatMap { datumWriter =>
+        sfgr.chunks.map { grs =>
+          val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+          val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
+          grs.foreach(gr => datumWriter.write(gr, encoder))
+          encoder.flush()
+          baos.close()
+          baos.toByteArray // JsonEncoder use ISO_8859_1
+        }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1))
+          .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
+      }
   }
 
   def fromBytes[F[_]](schema: Schema)(using F: Async[F]): Pipe[F, Byte, GenericRecord] = {
