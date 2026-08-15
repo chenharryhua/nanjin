@@ -4,7 +4,8 @@ import cats.effect.IO
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, KafkaJsonCodec, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec.KafkaJsonCodec
 import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import io.circe.Json

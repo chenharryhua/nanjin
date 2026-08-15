@@ -9,7 +9,8 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, KafkaJsonCodec}
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec.KafkaJsonCodec
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec
 
 class UpAndDownJsonTest extends AnyFunSuite {
   private val ctx: KafkaContext[IO] =
