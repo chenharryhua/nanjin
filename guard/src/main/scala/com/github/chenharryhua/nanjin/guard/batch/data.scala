@@ -273,12 +273,17 @@ object MonadicBatch:
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(fmt.format(cj.took)))
-          else
+          else {
+            val severity = cj.job.kind match {
+              case BatchKind.Quasi => Json.fromString(SeverityNonFatal)
+              case BatchKind.Value => Json.fromString(SeverityCritical)
+            }
             Json.obj(
-              show"job-${cj.job.index}-failed" -> Json.fromString(cj.job.name),
+              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(fmt.format(cj.took)),
-              "kind" -> cj.job.kind.asJson
+              "failed" -> severity
             )
+          }
         }
           .asJson,
         resultTag(mb.done) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
