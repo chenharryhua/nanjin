@@ -38,9 +38,12 @@ object BiTransform:
       override def from(b: B): Json = enc(b)
   end given
 
-  given [B: {SchemaFor, Decoder, Encoder}]: BiTransform[GenericRecord, B] = KafkaCodec.avro[B]
+  given [B: {SchemaFor, Decoder, Encoder}]: BiTransform[GenericRecord, B] =
+    KafkaCodec.avro[B]
   given [B <: GeneratedMessage: GeneratedMessageCompanion]: BiTransform[DynamicMessage, B] =
     KafkaCodec.protobuf[B]
+  given [B: ClassTag](using mapper: ObjectMapper & ClassTagExtensions): BiTransform[JsonNode, B] =
+    KafkaCodec.json(mapper)
 
   /*
    * Primitive
@@ -100,9 +103,12 @@ end BiTransform
 
 /** A bidirectional codec coupled with its Confluent Schema Registry schema.
   *
-  * @tparam S the concrete Confluent schema type
-  * @tparam A the Kafka-side representation, such as `GenericRecord`, `DynamicMessage`, or `JsonNode`
-  * @tparam B the application value type
+  * @tparam S
+  *   the concrete Confluent schema type
+  * @tparam A
+  *   the Kafka-side representation, such as `GenericRecord`, `DynamicMessage`, or `JsonNode`
+  * @tparam B
+  *   the application value type
   */
 sealed trait KafkaCodec[S <: ParsedSchema, A, B] extends BiTransform[A, B]:
   def schema: S
@@ -142,23 +148,23 @@ end KafkaProtobufCodec
 
 /** A codec between a JSON Schema `JsonNode` and an application value. */
 final class KafkaJsonCodec[B: ClassTag](
-  objectMapper: ObjectMapper & ClassTagExtensions,
+  mapper: ObjectMapper & ClassTagExtensions,
   f: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder])
     extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonCodec[B]]
     with KafkaCodec[JsonSchema, JsonNode, B]:
 
   /** Generated schema for the runtime class of `B`. */
-  override val schema: JsonSchema =
+  override lazy val schema: JsonSchema =
     new JsonSchema(
-      new JsonSchemaGenerator(objectMapper, f(JsonSchemaConfig.builder()).build())
+      new JsonSchemaGenerator(mapper, f(JsonSchemaConfig.builder()).build())
         .generateJsonSchema(classTag[B].runtimeClass))
 
   override def updateConfig(g: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder]): KafkaJsonCodec[B] =
-    new KafkaJsonCodec[B](objectMapper, g.compose(f))
+    new KafkaJsonCodec[B](mapper, g.compose(f))
 
-  override def to(a: JsonNode): B = objectMapper.convertValue[B](a)
+  override def to(a: JsonNode): B = mapper.convertValue[B](a)
 
   // Confluent JSON Schema requires the schema envelope.
   override def from(b: B): JsonNode =
-    JsonSchemaUtils.envelope(schema, objectMapper.valueToTree[JsonNode](b))
+    JsonSchemaUtils.envelope(schema, mapper.valueToTree[JsonNode](b))
 end KafkaJsonCodec

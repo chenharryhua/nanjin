@@ -71,7 +71,9 @@ sealed trait Agent[F[_]] {
   /** Publishes service events through the herald channel so external observers can receive them. */
   val herald: Log[F]
 
-  /** Low-overhead service logger that writes to the configured logging backend without using the herald channel. */
+  /** Low-overhead service logger that writes to the configured logging backend without using the herald
+    * channel.
+    */
   val logger: Log[F]
 
   /** Logger that sends each message to both the herald channel and the configured logging backend. */
@@ -87,10 +89,13 @@ sealed trait Agent[F[_]] {
     */
   def metricsHubS(label: String): MetricsHubS[F]
 
-  /** Facilitate creating related metric items in one place by applying `f` to a full metrics hub for `label`. */
+  /** Facilitate creating related metric items in one place by applying `f` to a full metrics hub for `label`.
+    */
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
 
-  /** Facilitate creating related stream metrics in one place by applying `f` to the stream-based metrics hub for `label`. */
+  /** Facilitate creating related stream metrics in one place by applying `f` to the stream-based metrics hub
+    * for `label`.
+    */
   def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A
 
   /** Direct access to ad hoc metric reporting for the current service domain. */
