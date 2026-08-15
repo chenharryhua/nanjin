@@ -204,7 +204,7 @@ object Batch:
               spent = fd.toJava,
               mode = mode,
               batchId = batchId,
-              jobs = jobs.sortBy(_.completed.job.index))
+              jobs = jobs)
         }
       }
     }
@@ -227,7 +227,7 @@ object Batch:
               spent = fd.toJava,
               mode = mode,
               batchId = batchId,
-              jobs = jobs.sortBy(_.completed.job.index))
+              jobs = jobs)
         }
       }
     }
@@ -396,15 +396,16 @@ object Batch:
         case Outcome.Canceled() => Resource.eval(jobHook.canceled(job))
       }
 
-    /** Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
+    /** Add a named resource-backed value job.
+      *
+      * Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
       * the monadic chain to stop at the first failure.
       *
       * @param name
       *   name of the job
       * @param rfa
-      *   the job
+      *   the resource-backed job
       */
-    /** Add a named resource-backed value job. */
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, jobHook, batchId) =>
@@ -437,7 +438,9 @@ object Batch:
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
       apply[A](name, Resource.eval(fa))
 
-    /** Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
+    /** Add a resource-backed boolean job whose failure or false result is retained as a quasi failure.
+      *
+      * Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
       * remainder of the monadic chain to continue.
       *
       * @param name
@@ -447,7 +450,6 @@ object Batch:
       * @return
       *   true only when the job succeeds and evaluates to true; otherwise false
       */
-    /** Add a resource-backed boolean job whose failure or false result is retained as a quasi failure. */
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Context(updatePanel, jobHook, batchId) =>

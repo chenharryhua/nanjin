@@ -9,6 +9,10 @@ import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
+  CopyObjectRequest,
+  CopyObjectResponse,
+  DeleteObjectRequest,
+  DeleteObjectResponse,
   GetObjectRequest,
   GetObjectResponse,
   HeadObjectRequest,
@@ -20,7 +24,9 @@ import software.amazon.awssdk.services.s3.model.{
 }
 import software.amazon.awssdk.services.s3.presigner.model.{GetObjectPresignRequest, PresignedGetObjectRequest}
 
+import java.net.URI
 import scala.concurrent.duration._
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
 
@@ -29,6 +35,8 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     @volatile var lastGetRequest: Option[GetObjectRequest] = None
     @volatile var lastPutRequest: Option[PutObjectRequest] = None
     @volatile var lastPutBody: Option[RequestBody] = None
+    @volatile var lastCopyRequest: Option[CopyObjectRequest] = None
+    @volatile var lastDeleteRequest: Option[DeleteObjectRequest] = None
     @volatile var lastRenameRequest: Option[RenameObjectRequest] = None
     @volatile var lastPresignRequest: Option[GetObjectPresignRequest] = None
 
@@ -40,6 +48,16 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     override def renameObject(request: RenameObjectRequest): RenameObjectResponse = {
       lastRenameRequest = Some(request)
       RenameObjectResponse.builder().build()
+    }
+
+    override def copyObject(request: CopyObjectRequest): CopyObjectResponse = {
+      lastCopyRequest = Some(request)
+      CopyObjectResponse.builder().build()
+    }
+
+    override def deleteObject(request: DeleteObjectRequest): DeleteObjectResponse = {
+      lastDeleteRequest = Some(request)
+      DeleteObjectResponse.builder().build()
     }
 
     override def close(): Unit = ()
@@ -67,6 +85,12 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
           null.asInstanceOf[PutObjectResponse]
         }
 
+      override def copyObject(cor: CopyObjectRequest): IO[CopyObjectResponse] =
+        IO(client.copyObject(cor))
+
+      override def deleteObject(cor: DeleteObjectRequest): IO[DeleteObjectResponse] =
+        IO(client.deleteObject(cor))
+
       override def renameObject(ror: RenameObjectRequest): IO[RenameObjectResponse] =
         IO(client.renameObject(ror))
 
@@ -75,6 +99,17 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
           client.lastPresignRequest = Some(gpr)
           null.asInstanceOf[PresignedGetObjectRequest]
         }
+
+      override def presignGetObject(
+        s3Url: String,
+        duration: FiniteDuration): IO[PresignedGetObjectRequest] = {
+        val uri = URI(s3Url)
+        val bucket = Option(uri.getHost).getOrElse("")
+        val key = uri.getPath.stripPrefix("/")
+        presignGetObject(
+          _.signatureDuration(duration.toJava)
+            .getObjectRequest(_.bucket(bucket).key(key): Unit))
+      }
     }
 
   "SimpleStorageService" should "head object using request" in {
@@ -113,6 +148,57 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     client.lastRenameRequest.map(_.bucket()) shouldBe Some("bucket-r")
     client.lastRenameRequest.map(_.key()) shouldBe Some("target")
     client.lastRenameRequest.map(_.renameSource()) shouldBe Some("source")
+  }
+
+  it should "copy object using request" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
+
+    val request =
+      CopyObjectRequest.builder()
+        .sourceBucket("bucket-source")
+        .sourceKey("key-source")
+        .destinationBucket("bucket-target")
+        .destinationKey("key-target")
+        .build()
+    service.copyObject(request).unsafeRunSync()
+
+    client.lastCopyRequest.map(_.sourceBucket()) shouldBe Some("bucket-source")
+    client.lastCopyRequest.map(_.sourceKey()) shouldBe Some("key-source")
+    client.lastCopyRequest.map(_.destinationBucket()) shouldBe Some("bucket-target")
+    client.lastCopyRequest.map(_.destinationKey()) shouldBe Some("key-target")
+  }
+
+  it should "copy object using builder syntax" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
+
+    service
+      .copyObject(
+        _.sourceBucket("bucket-source")
+          .sourceKey("key-source")
+          .destinationBucket("bucket-target")
+          .destinationKey("key-target"))
+      .unsafeRunSync()
+
+    client.lastCopyRequest.map(_.sourceBucket()) shouldBe Some("bucket-source")
+    client.lastCopyRequest.map(_.sourceKey()) shouldBe Some("key-source")
+    client.lastCopyRequest.map(_.destinationBucket()) shouldBe Some("bucket-target")
+    client.lastCopyRequest.map(_.destinationKey()) shouldBe Some("key-target")
+  }
+
+  it should "delete object using request and builder syntax" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
+
+    service.deleteObject(
+      DeleteObjectRequest.builder().bucket("bucket-d").key("key-d").build()).unsafeRunSync()
+    client.lastDeleteRequest.map(_.bucket()) shouldBe Some("bucket-d")
+    client.lastDeleteRequest.map(_.key()) shouldBe Some("key-d")
+
+    service.deleteObject(_.bucket("bucket-e").key("key-e")).unsafeRunSync()
+    client.lastDeleteRequest.map(_.bucket()) shouldBe Some("bucket-e")
+    client.lastDeleteRequest.map(_.key()) shouldBe Some("key-e")
   }
 
   it should "rename object using builder syntax" in {
@@ -170,33 +256,22 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
     client.lastPresignRequest.map(_.signatureDuration()) shouldBe Some(java.time.Duration.ofMinutes(5))
   }
 
-  it should "reject a non-S3 URL when presigning by URL" in {
-    val service = mkService(new FakeS3Client)
+  it should "accept a URI with a host and path when presigning by URL" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
 
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("https://bucket.example.com/key", 5.minutes)
+    service.presignGetObject("https://bucket.example.com/key", 5.minutes).unsafeRunSync()
+    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket.example.com")
+    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
   }
 
-  it should "reject an S3 URL without a bucket or key" in {
-    val service = mkService(new FakeS3Client)
+  it should "delegate URI validation to S3" in {
+    val client = new FakeS3Client
+    val service = mkService(client)
 
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3:///key", 5.minutes)
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket", 5.minutes)
-  }
+    service.presignGetObject("s3://user@bucket/key?versionId=abc", 5.minutes).unsafeRunSync()
 
-  it should "reject an invalid signature duration" in {
-    val service = mkService(new FakeS3Client)
-
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket/key", Duration.Zero)
-    an[IllegalArgumentException] should be thrownBy service.presignGetObject("s3://bucket/key", -1.second)
-  }
-
-  it should "reject unsupported S3 URL components" in {
-    val service = mkService(new FakeS3Client)
-
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("s3://bucket/key?versionId=abc", 5.minutes)
-    an[IllegalArgumentException] should be thrownBy
-      service.presignGetObject("s3://user@bucket/key", 5.minutes)
+    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket")
+    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
   }
 }

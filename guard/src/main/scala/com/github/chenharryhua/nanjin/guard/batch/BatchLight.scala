@@ -198,12 +198,7 @@ object BatchLight:
               JobState(CompletedJob(job, fd.toJava, result.isRight), result)
             }
         }).map { case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-          QuasiBatch(
-            label = metricLabel,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            jobs = jobs.sortBy(_.completed.job.index))
+          QuasiBatch(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
@@ -225,12 +220,7 @@ object BatchLight:
                 }
               }
         }).map { case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-          BatchValue(
-            label = metricLabel,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            jobs = jobs.sortBy(_.completed.job.index))
+          BatchValue(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 

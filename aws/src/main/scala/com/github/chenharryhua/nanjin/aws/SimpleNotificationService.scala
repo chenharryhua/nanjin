@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.functor.given
+import cats.syntax.flatMap.given
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
@@ -70,8 +70,9 @@ object SimpleNotificationService {
   ): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name").as(f(SnsClient.builder).build())) { cw =>
-        shutdown(name, logger)(cw.close())
+      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SnsClient.builder).build())) {
+        cw =>
+          shutdown(name, logger)(cw.close())
       }
     } yield new AwsSNS[F](client, logger)
 
