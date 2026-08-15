@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.event.{
   Category,
   CounterKind,
-  Domain,
   GaugeKind,
   HistogramKind,
   MeterKind,
@@ -24,6 +23,7 @@ import squants.Each
 import squants.time.Hertz
 
 import java.time.Duration
+import com.github.chenharryhua.nanjin.guard.config.Domain
 
 class SnapshotPolyglotTest extends AnyFunSuite {
   private val label = MetricLabel("service", Domain("guard"))

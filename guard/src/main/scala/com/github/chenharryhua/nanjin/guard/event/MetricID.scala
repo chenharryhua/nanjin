@@ -6,6 +6,7 @@ import cats.effect.kernel.Clock
 import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
+import com.github.chenharryhua.nanjin.guard.config.Domain
 import io.circe.{Codec, Decoder, Encoder}
 import monocle.macros.GenPrism
 import squants.{Quantity, UnitOfMeasure}

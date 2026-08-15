@@ -10,6 +10,7 @@ import squants.Each
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
+import com.github.chenharryhua.nanjin.guard.config.Domain
 
 object MetricFixtures {
 
