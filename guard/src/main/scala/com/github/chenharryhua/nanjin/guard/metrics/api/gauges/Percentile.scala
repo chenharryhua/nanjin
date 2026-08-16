@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.gauges
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.Endo
 import cats.data.Ior

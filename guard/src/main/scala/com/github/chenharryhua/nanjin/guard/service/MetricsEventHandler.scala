@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{ScrapeMetrics, ScrapeMode}
 import fs2.Stream
 import fs2.concurrent.Channel
 

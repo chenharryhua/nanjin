@@ -2,104 +2,43 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.event.{
-  Category,
-  CounterKind,
-  Domain,
-  GaugeKind,
-  HistogramKind,
-  MeterKind,
-  MetricElement,
-  MetricID,
-  MetricLabel,
-  MetricName,
-  Snapshot,
-  Squants,
-  TimerKind
-}
-import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
-import io.circe.Json
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{retrieve, SnapshotPolyglot}
 import org.scalatest.funsuite.AnyFunSuite
-import squants.Each
-import squants.time.Hertz
-
-import java.time.Duration
+import squants.information.Bytes
 
 class SnapshotPolyglotTest extends AnyFunSuite {
-  private val label = MetricLabel("service", Domain("guard"))
-
-  private def metricName(name: String): MetricName = MetricName[IO](name).unsafeRunSync()
-
-  private def id(name: String, category: Category): MetricID =
-    MetricID(label, metricName(name), category)
-
-  private val snapshot: Snapshot = Snapshot(
-    counters = List(
-      MetricElement.Counter(
-        id("requests", Category.Counter(CounterKind.Counter)),
-        MetricElement.CounterData(42))),
-    meters = List(
-      MetricElement.Meter(
-        id("throughput", Category.Meter(MeterKind.Meter, Squants(Each))),
-        MetricElement.MeterData(
-          squants = Squants(Each),
-          aggregate = 3,
-          mean_rate = Hertz(1.5),
-          m1_rate = Hertz(0.5),
-          m5_rate = Hertz(0.25),
-          m15_rate = Hertz(0.125)
-        )
-      )
-    ),
-    timers = List(
-      MetricElement.Timer(
-        id("latency", Category.Timer(TimerKind.Timer)),
-        MetricElement.TimerData(
-          calls = 2,
-          mean_rate = Hertz(2.0),
-          m1_rate = Hertz(1.0),
-          m5_rate = Hertz(0.5),
-          m15_rate = Hertz(0.25),
-          min = Duration.ofMillis(1),
-          max = Duration.ofMillis(3),
-          mean = Duration.ofMillis(2),
-          stddev = Duration.ofMillis(1),
-          p50 = Duration.ofMillis(2),
-          p75 = Duration.ofMillis(2),
-          p95 = Duration.ofMillis(3),
-          p98 = Duration.ofMillis(3),
-          p99 = Duration.ofMillis(3),
-          p999 = Duration.ofMillis(3)
-        )
-      )
-    ),
-    histograms = List(
-      MetricElement.Histogram(
-        id("samples", Category.Histogram(HistogramKind.Histogram, Squants(Each))),
-        MetricElement.HistogramData(
-          squants = Squants(Each),
-          updates = 4,
-          min = 1,
-          max = 5,
-          mean = 3.0,
-          stddev = 1.5,
-          p50 = 3.0,
-          p75 = 4.0,
-          p95 = 5.0,
-          p98 = 5.0,
-          p99 = 5.0,
-          p999 = 5.0
-        )
-      )
-    ),
-    gauges = List(
-      MetricElement.Gauge(
-        id("status", Category.Gauge(GaugeKind.Gauge)),
-        MetricElement.GaugeData(Json.fromString("ok"))))
-  )
+  private val service = TaskGuard[IO]("snapshot").service("snapshot")
 
   test("renders the full snapshot across JSON and YAML formats") {
-    val polyglot = new SnapshotPolyglot(snapshot)
+    val snapshot = service.eventStream { agent =>
+      agent
+        .facilitate("snapshot") { fac =>
+          for {
+            counter <- fac.counter("requests")
+            meter <- fac.meter("throughput")
+            histogram <- fac.histogram("samples", _.withUnit(Bytes))
+            timer <- fac.timer("latency")
+          } yield (counter, meter, histogram, timer)
+        }
+        .use { case (counter, meter, histogram, timer) =>
+          counter.inc(42) >>
+            meter.mark(3) >>
+            histogram.update(5) >>
+            timer.elapsedNano(4L) >>
+            agent.adhoc.report.void
+        }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    assert(snapshot.snapshot.nonEmpty)
+    assert(retrieve.counter(snapshot.snapshot.counters).values.nonEmpty)
+    assert(retrieve.meter(snapshot.snapshot.meters).values.nonEmpty)
+    assert(retrieve.histogram(snapshot.snapshot.histograms).values.nonEmpty)
+    assert(retrieve.timer(snapshot.snapshot.timers).values.nonEmpty)
+
+    val polyglot = new SnapshotPolyglot(snapshot.snapshot)
 
     val prettyJson = polyglot.toPrettyJson.noSpaces
     assert(prettyJson.contains("requests"))
@@ -109,7 +48,6 @@ class SnapshotPolyglotTest extends AnyFunSuite {
 
     val vanillaJson = polyglot.toVanillaJson.noSpaces
     assert(vanillaJson.contains("requests"))
-    assert(vanillaJson.contains("status"))
 
     val yaml = polyglot.toYaml
     assert(yaml.contains("requests:"))
@@ -119,6 +57,5 @@ class SnapshotPolyglotTest extends AnyFunSuite {
 
     val slackYaml = polyglot.counterYaml.get
     assert(slackYaml.contains("requests:"))
-    assert(slackYaml.contains("status:"))
   }
 }

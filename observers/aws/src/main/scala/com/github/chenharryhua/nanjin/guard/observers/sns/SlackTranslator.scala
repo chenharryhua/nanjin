@@ -4,13 +4,13 @@ import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
   panicText,
   Attribute,
-  SnapshotPolyglot,
   TextEntry,
   Translator
 }

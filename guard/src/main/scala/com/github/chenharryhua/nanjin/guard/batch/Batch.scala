@@ -15,9 +15,8 @@ import cats.syntax.show.given
 import cats.syntax.traverse.given
 import cats.{Applicative, MonadThrow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import com.github.chenharryhua.nanjin.guard.metrics.gauges.ActiveGauge
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 

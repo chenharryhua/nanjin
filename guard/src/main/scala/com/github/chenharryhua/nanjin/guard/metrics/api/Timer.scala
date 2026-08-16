@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.api
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
@@ -11,7 +11,8 @@ import com.codahale.metrics.{
   Timer as CodahaleTimer
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, TimerKind}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.TimerKind
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricLabel, MetricName}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
@@ -58,7 +59,7 @@ object Timer {
       extends Timer[F] with UnsafeTimer {
 
     private val timerName: String =
-      MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
+      MetricID(label, name, MetricCategory.TimerC(TimerKind.Default)).identifier
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {

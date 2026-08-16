@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.gauges
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.flatMap.given
@@ -25,7 +25,7 @@ object IdleGauge:
           _ <- Gauge(
             gp,
             name,
-            _.withKind(_.Gauge)
+            _.withKind(_.Default)
               .enable(isEnabled)
               .register(
                 for {

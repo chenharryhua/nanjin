@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.guard.metrics.gauges
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.effect.std.Dispatcher
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
 
 import java.time.ZoneId
 

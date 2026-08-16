@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   htmlColoring,
   interpretServiceParams,
   panicText,
   Attribute,
-  SnapshotPolyglot,
   Translator
 }
 import io.circe.Json

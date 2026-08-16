@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.api
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
@@ -6,9 +6,9 @@ import cats.syntax.applicative.given
 import cats.syntax.functor.given
 import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{
-  Category,
-  MeterKind,
+import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.MeterKind
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  MetricCategory,
   MetricID,
   MetricLabel,
   MetricName,
@@ -43,7 +43,7 @@ object Meter {
       MetricID(
         metricLabel = label,
         metricName = name,
-        Category.Meter(kind = MeterKind.Meter, squants = squants)
+        MetricCategory.MeterC(kind = MeterKind.Default, squants = squants)
       ).identifier
 
     private val meter: CodahaleMeter = metricRegistry.meter(meterName)

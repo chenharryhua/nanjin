@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.service.{
   ReportedEventHandler,
   ServiceEventHandler
 }
-import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, prettifyJson}
+import com.github.chenharryhua.nanjin.guard.translator.interpretServiceParams
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder

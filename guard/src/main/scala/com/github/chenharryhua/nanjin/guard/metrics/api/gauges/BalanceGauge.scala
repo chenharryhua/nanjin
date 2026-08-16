@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.gauges
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 /** Effectful two-sided balance that transfers values between a source and target. */
 trait BalanceGauge[F[_], A]:

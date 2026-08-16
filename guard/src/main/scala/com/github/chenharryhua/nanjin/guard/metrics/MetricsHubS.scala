@@ -3,8 +3,17 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Endo
 import cats.effect.MonadCancel
 import cats.kernel.Group
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.metrics.gauges.{
+import com.github.chenharryhua.nanjin.guard.metrics.api.{
+  Counter,
+  Histogram,
+  Meter,
+  Timer,
+  UnsafeCounter,
+  UnsafeHistogram,
+  UnsafeMeter,
+  UnsafeTimer
+}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   ActiveGauge,
   BalanceGauge,
   Gauge,

@@ -3,15 +3,17 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
-import cats.kernel.Eq
 import cats.syntax.all.*
-import com.codahale.metrics.SlidingWindowReservoir
+import com.codahale.metrics.{MetricRegistry, SlidingWindowReservoir}
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
-import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, MetricID, MetricName}
-import com.github.chenharryhua.nanjin.guard.metrics.Meter
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{ScrapeMetrics, ScrapeMode}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
@@ -43,6 +45,33 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
     assert(mr.index.isInstanceOf[Index.Adhoc])
+  }
+
+  test("1a.metric identifier round trip") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("counter")(_.counter("counter"))
+        .use(_.inc(10) >> agent.adhoc.report.void)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val metricId = mr.snapshot.counters.head.metricId
+    assert(decode[MetricID](metricId.identifier) == Right(metricId))
+  }
+
+  test("1b.scraper ignores a metric identifier with the wrong registry type") {
+    val metricId = service.eventStream { agent =>
+      agent
+        .facilitate("counter")(_.counter("counter"))
+        .use(_.inc(10) >> agent.adhoc.report.void)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError
+      .map(_.snapshot.counters.head.metricId)
+      .unsafeRunSync()
+
+    val registry = new MetricRegistry
+    registry.meter(metricId.identifier).mark(1)
+    val snapshot = new ScrapeMetrics(registry).snapshot[IO](ScrapeMode.Full).unsafeRunSync()
+
+    assert(snapshot.meters.isEmpty)
   }
 
   test("2.counter risk") {
@@ -274,6 +303,39 @@ class MetricsTest extends AnyFunSuite {
     assert(counts.values.toList.map(_.value).contains(2L))
   }
 
+  test("13a.concurrent metric registration") {
+    val mr = service.eventStream { agent =>
+      val acquire = (1 to 128).toList.parTraverse { index =>
+        agent.facilitate(s"concurrent-$index")(_.counter("counter")).allocated
+      }
+
+      acquire.bracket { counters =>
+        counters.parTraverse_ { case (counter, _) => counter.inc(1) } >>
+          agent.adhoc.report
+      }(_.traverse_ { case (_, release) => release })
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val counts = retrieve.counter(mr.snapshot.counters).values.toList.map(_.value)
+    assert(counts.size == 128)
+    assert(counts.forall(_ == 1L))
+  }
+
+  test("13b.periodic reports stop with downstream cancellation") {
+    val reports = TaskGuard[IO]("periodic-metrics")
+      .service("periodic-metrics")
+      .updateConfig(_.withMetricsReport(_.fixedDelay(100.millis)))
+      .eventStream(_ => IO.never)
+      .map(checkJson)
+      .mapFilter(Event.metricsSnapshot.getOption)
+      .take(2)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(reports.size == 2)
+    assert(reports.forall(_.index.isInstanceOf[Index.Periodic]))
+  }
+
   test("14.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent
@@ -292,19 +354,6 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)
-  }
-
-  test("16.MetricName") {
-    val m1 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
-    val m2 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
-    val m3 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 2}""").toOption.get
-
-    val ek = Eq[MetricName]
-    assert(ek.eqv(m1, m2))
-    assert(!ek.eqv(m1, m3))
-    assert(m1 == m2)
-    assert(m1 != m3)
-    assert(m1 =!= m3)
   }
 
   test("17.meter + counter") {

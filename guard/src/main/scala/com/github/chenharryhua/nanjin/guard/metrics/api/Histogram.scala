@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.api
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
@@ -11,9 +11,9 @@ import com.codahale.metrics.{
   Reservoir
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{
-  Category,
-  HistogramKind,
+import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.HistogramKind
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  MetricCategory,
   MetricID,
   MetricLabel,
   MetricName,
@@ -49,7 +49,7 @@ object Histogram {
       MetricID(
         metricLabel = label,
         metricName = name,
-        Category.Histogram(kind = HistogramKind.Histogram, squants = squants)
+        MetricCategory.HistogramC(kind = HistogramKind.Default, squants = squants)
       ).identifier
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleHistogram] = () =>

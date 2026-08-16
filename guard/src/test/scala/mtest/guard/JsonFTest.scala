@@ -1,6 +1,6 @@
 package mtest.guard
 
-import com.github.chenharryhua.nanjin.guard.translator.JsonView
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.JsonView
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

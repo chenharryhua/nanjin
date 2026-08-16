@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricElement, MetricID, Snapshot}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 
@@ -13,20 +14,21 @@ import scala.jdk.CollectionConverters.given
 enum ScrapeMode:
   case Cheap, Full
 
-final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
+final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   /*
    *Counters
    */
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
     sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                                 => None
+        case Right(mid @ MetricID(_, _, MetricCategory.CounterC(_))) =>
           Some(
             MetricElement.Counter(
               metricId = mid,
               counter = MetricElement.CounterData(counter.getCount)
             ))
+        case _ => None
       }
     }.toList
   /*
@@ -35,8 +37,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
     sm.asScala.iterator.flatMap { case (name, meter) =>
       decode[MetricID](name) match {
-        case Left(_)                                                 => None
-        case Right(mid @ MetricID(_, _, Category.Meter(_, squants))) =>
+        case Left(_)                                                        => None
+        case Right(mid @ MetricID(_, _, MetricCategory.MeterC(_, squants))) =>
           Some(
             MetricElement.Meter(
               metricId = mid,
@@ -59,8 +61,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
     sm.asScala.iterator.flatMap { case (name, histogram) =>
       decode[MetricID](name) match {
-        case Left(_)                                                     => None
-        case Right(mid @ MetricID(_, _, Category.Histogram(_, squants))) =>
+        case Left(_)                                                            => None
+        case Right(mid @ MetricID(_, _, MetricCategory.HistogramC(_, squants))) =>
           val ss = histogram.getSnapshot
           Some(
             MetricElement.Histogram(
@@ -90,8 +92,8 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
     sm.asScala.iterator.flatMap { case (name, timer) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                               => None
+        case Right(mid @ MetricID(_, _, MetricCategory.TimerC(_))) =>
           val ss = timer.getSnapshot
           Some(
             MetricElement.Timer(
@@ -116,6 +118,7 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
                 p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
               )
             ))
+        case _ => None
       }
     }.toList
 
@@ -125,12 +128,13 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                               => None
+        case Right(mid @ MetricID(_, _, MetricCategory.GaugeC(_))) =>
           parse(gauge.getValue.toString) match {
             case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
             case Left(_)     => None
           }
+        case _ => None
       }
     }.toList
 

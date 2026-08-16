@@ -100,14 +100,3 @@ object Message:
   given Encoder[Message] = OpaqueLift.lift[Message, Json, Encoder]
   given Decoder[Message] = OpaqueLift.lift[Message, Json, Decoder]
 end Message
-
-// ---------------- Domain ----------------
-opaque type Domain = String
-object Domain:
-  def apply(value: String): Domain = value
-  extension (d: Domain) inline def value: String = d
-
-  given Show[Domain] = OpaqueLift.lift[Domain, String, Show]
-  given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
-  given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
-end Domain
