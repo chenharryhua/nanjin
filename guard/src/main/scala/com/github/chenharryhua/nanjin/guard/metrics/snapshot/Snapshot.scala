@@ -1,7 +1,8 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.OpaqueLift
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
 import io.circe.{Codec, Decoder, Encoder, Json}
 import squants.time.Frequency
 

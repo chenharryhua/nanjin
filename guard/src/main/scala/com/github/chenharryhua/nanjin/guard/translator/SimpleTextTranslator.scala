@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 
 object SimpleTextTranslator {
   import Event.*

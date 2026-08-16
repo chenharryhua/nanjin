@@ -14,21 +14,14 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStop
 }
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
-import com.github.chenharryhua.nanjin.guard.metrics.retrieve
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
-import java.text.DecimalFormat
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
-
-private val space2: String = StringUtils.SPACE * 2
-private val space4: String = StringUtils.SPACE * 4
-
-final val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
 
 def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
   ContT.pure[F, A, Event](evt).map {

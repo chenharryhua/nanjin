@@ -1,6 +1,14 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
-import com.github.chenharryhua.nanjin.guard.metrics.MetricElement
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  Category,
+  CounterKind,
+  GaugeKind,
+  HistogramKind,
+  MeterKind,
+  MetricID,
+  TimerKind
+}
 import io.circe.Decoder
 
 object retrieve {

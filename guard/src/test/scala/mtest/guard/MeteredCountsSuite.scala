@@ -10,7 +10,14 @@ import squants.Each
 import java.time.{Instant, ZoneId}
 import java.util.UUID
 import com.github.chenharryhua.nanjin.guard.config.Domain
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MeterKind, MetricID, MetricLabel, MetricName, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  Category,
+  MeterKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants
+}
 
 object MetricFixtures {
 

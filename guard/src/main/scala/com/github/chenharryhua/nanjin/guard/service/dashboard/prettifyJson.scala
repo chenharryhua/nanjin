@@ -1,14 +1,16 @@
-package com.github.chenharryhua.nanjin.guard.translator
+package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import io.circe.{Encoder, Json}
 import io.circe.optics.all.*
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import monocle.function.Plated
 
+import java.text.DecimalFormat
 import java.time.Duration
 
 object prettifyJson {
+  private val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
 
   private val pretty_json: Json => Json =
     Plated.transform[Json] { js =>

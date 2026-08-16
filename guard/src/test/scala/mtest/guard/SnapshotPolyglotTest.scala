@@ -9,8 +9,19 @@ import squants.time.Hertz
 
 import java.time.Duration
 import com.github.chenharryhua.nanjin.guard.config.Domain
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, CounterKind, GaugeKind, HistogramKind, MeterKind, MetricElement, MetricID, MetricLabel, MetricName, Snapshot, Squants, TimerKind}
-import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  Category,
+  CounterKind,
+  GaugeKind,
+  HistogramKind,
+  MeterKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants,
+  TimerKind
+}
 
 class SnapshotPolyglotTest extends AnyFunSuite {
   private val label = MetricLabel("service", Domain("guard"))

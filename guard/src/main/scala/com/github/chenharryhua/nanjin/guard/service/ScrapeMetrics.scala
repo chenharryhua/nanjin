@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricElement, MetricID, Snapshot}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot}
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 

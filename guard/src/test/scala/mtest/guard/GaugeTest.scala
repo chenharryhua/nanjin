@@ -6,7 +6,8 @@ import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, retrieve}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import io.circe.Json
 import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite

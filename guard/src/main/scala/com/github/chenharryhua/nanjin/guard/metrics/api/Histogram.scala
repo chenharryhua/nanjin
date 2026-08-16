@@ -11,7 +11,14 @@ import com.codahale.metrics.{
   Reservoir
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, HistogramKind, MetricID, MetricLabel, MetricName, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  Category,
+  HistogramKind,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants
+}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
