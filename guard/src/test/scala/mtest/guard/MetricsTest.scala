@@ -8,10 +8,11 @@ import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricElement.CounterData
+import com.github.chenharryhua.nanjin.guard.metrics.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
-import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, MetricID, MetricName}
-import com.github.chenharryhua.nanjin.guard.metrics.Meter
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, MetricName, retrieve}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite

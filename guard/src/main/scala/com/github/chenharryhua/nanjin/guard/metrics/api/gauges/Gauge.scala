@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.gauges
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.Functor
 import cats.effect.kernel.{Async, Resource}
@@ -8,7 +8,8 @@ import cats.syntax.functor.given
 import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.event.{Category, GaugeKind, MetricID, MetricName, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.StackTrace
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, GaugeKind, MetricID, MetricName}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 

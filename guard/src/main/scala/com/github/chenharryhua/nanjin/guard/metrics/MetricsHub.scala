@@ -5,8 +5,17 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.kernel.Group
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.metrics.gauges.{
+import com.github.chenharryhua.nanjin.guard.metrics.api.{
+  Counter,
+  Histogram,
+  Meter,
+  Timer,
+  UnsafeCounter,
+  UnsafeHistogram,
+  UnsafeMeter,
+  UnsafeTimer
+}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   ActiveGauge,
   BalanceGauge,
   Gauge,

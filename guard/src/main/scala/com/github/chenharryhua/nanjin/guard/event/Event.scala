@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Domain, ServiceParams, UpTime}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.metrics.Snapshot
 import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
 import monocle.{Optional, Prism}

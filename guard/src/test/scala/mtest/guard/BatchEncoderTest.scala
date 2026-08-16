@@ -1,13 +1,13 @@
 package mtest.guard
 
 import com.github.chenharryhua.nanjin.guard.batch.*
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
 import java.util.UUID
 import com.github.chenharryhua.nanjin.guard.config.Domain
+import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
 
 class BatchEncoderTest extends AnyFunSuite {
   private val batchId = UUID.fromString("00000000-0000-0000-0000-000000000001")

@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.event
+package com.github.chenharryhua.nanjin.guard.metrics
+
 import io.circe.{Decoder, Encoder, Json}
 import squants.time.{Frequency, Hertz}
 

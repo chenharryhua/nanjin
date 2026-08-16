@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
-import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event}
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.metrics.retrieve
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 

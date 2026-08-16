@@ -9,7 +9,8 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Timestamp}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, MetricLabel, Snapshot, Squants}
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}

@@ -2,15 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
-import com.github.chenharryhua.nanjin.guard.translator.{
-  eventTitle,
-  htmlColoring,
-  interpretServiceParams,
-  panicText,
-  Attribute,
-  SnapshotPolyglot,
-  Translator
-}
+import com.github.chenharryhua.nanjin.guard.translator.{Attribute, SnapshotPolyglot, Translator, eventTitle, htmlColoring, interpretServiceParams, panicText}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*

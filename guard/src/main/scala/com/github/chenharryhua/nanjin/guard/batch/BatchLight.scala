@@ -9,7 +9,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
 
 import java.time.Duration
 import java.util.UUID

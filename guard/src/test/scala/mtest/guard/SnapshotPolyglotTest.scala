@@ -2,21 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.event.{
-  Category,
-  CounterKind,
-  GaugeKind,
-  HistogramKind,
-  MeterKind,
-  MetricElement,
-  MetricID,
-  MetricLabel,
-  MetricName,
-  Snapshot,
-  Squants,
-  TimerKind
-}
-import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import squants.Each
@@ -24,6 +9,8 @@ import squants.time.Hertz
 
 import java.time.Duration
 import com.github.chenharryhua.nanjin.guard.config.Domain
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, CounterKind, GaugeKind, HistogramKind, MeterKind, MetricElement, MetricID, MetricLabel, MetricName, Snapshot, Squants, TimerKind}
+import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 
 class SnapshotPolyglotTest extends AnyFunSuite {
   private val label = MetricLabel("service", Domain("guard"))

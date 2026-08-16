@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.api
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
@@ -11,7 +11,7 @@ import com.codahale.metrics.{
   Timer as CodahaleTimer
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, TimerKind}
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricLabel, MetricName, TimerKind}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit

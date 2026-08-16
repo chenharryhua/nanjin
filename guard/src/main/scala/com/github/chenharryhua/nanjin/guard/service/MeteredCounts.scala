@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import com.github.chenharryhua.nanjin.guard.event.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 
 import java.time.Instant
 

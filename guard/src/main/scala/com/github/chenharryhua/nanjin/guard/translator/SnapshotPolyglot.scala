@@ -5,7 +5,8 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.guard.event.{MetricID, Snapshot, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Snapshot, Squants}
+import com.github.chenharryhua.nanjin.guard.translator.JsonView
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils

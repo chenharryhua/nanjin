@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.MeteredCounts
 import org.scalatest.funsuite.AnyFunSuite
 import squants.Each
@@ -11,6 +10,7 @@ import squants.Each
 import java.time.{Instant, ZoneId}
 import java.util.UUID
 import com.github.chenharryhua.nanjin.guard.config.Domain
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MeterKind, MetricID, MetricLabel, MetricName, Squants}
 
 object MetricFixtures {
 

@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricLabel}
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricsHub, MetricsHubS}
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub, MetricsHubS}
 import fs2.Stream
 import fs2.concurrent.Channel
 

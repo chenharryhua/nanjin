@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.event
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.derived.derived
 import cats.effect.Unique

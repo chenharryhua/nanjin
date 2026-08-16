@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
 import com.codahale.metrics.MetricAttribute
-import com.github.chenharryhua.nanjin.guard.event.MetricElement
+import com.github.chenharryhua.nanjin.guard.metrics.MetricElement
 
 import java.time.Duration
 

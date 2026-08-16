@@ -13,7 +13,8 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{retrieve, Event, StopReason}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
+import com.github.chenharryhua.nanjin.guard.metrics.retrieve
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics
+package com.github.chenharryhua.nanjin.guard.metrics.api
 
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
@@ -6,14 +6,7 @@ import cats.syntax.applicative.given
 import cats.syntax.functor.given
 import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.event.{
-  Category,
-  MeterKind,
-  MetricID,
-  MetricLabel,
-  MetricName,
-  Squants
-}
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MeterKind, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful event-rate meter. */

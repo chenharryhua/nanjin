@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.event
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.OpaqueLift
