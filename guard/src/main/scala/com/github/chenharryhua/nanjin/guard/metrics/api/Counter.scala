@@ -8,7 +8,8 @@ import cats.syntax.functor.given
 import com.codahale.metrics.{Counter as CodahaleCounter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, CounterKind, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.CategoryKind.CounterKind
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricLabel, MetricName}
 
 import java.time.ZoneId
 

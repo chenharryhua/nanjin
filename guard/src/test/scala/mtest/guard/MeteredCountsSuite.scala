@@ -1,32 +1,28 @@
 package mtest.guard
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.service.MeteredCounts
+import io.circe.Decoder
+import io.circe.jawn.parse
 import org.scalatest.funsuite.AnyFunSuite
-import squants.Each
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
-import com.github.chenharryhua.nanjin.guard.config.Domain
-import com.github.chenharryhua.nanjin.guard.metrics.{
-  Category,
-  MeterKind,
-  MetricID,
-  MetricLabel,
-  MetricName,
-  Squants
-}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 
 object MetricFixtures {
 
   def metric(id: String): MetricID =
-    MetricID(
-      MetricLabel(id, Domain("test")),
-      MetricName[IO](id).unsafeRunSync(),
-      Category.Meter(MeterKind.Meter, Squants(Each))
-    )
+    parse(
+      s"""{
+         |  "metricLabel": {"label": "$id", "domain": "test"},
+         |  "metricName": {"name": "$id", "age": 0, "uniqueToken": 0},
+         |  "category": {"Meter": {
+         |    "kind": {"Meter": {}},
+         |    "squants": {"unitSymbol": "1", "dimensionName": "Dimensionless"}
+         |  }}
+            |}""".stripMargin
+          ).flatMap(_.as[MetricID](using Decoder[MetricID])).fold(throw _, identity)
 
   // Predefined stable metrics (reused across all tests)
   val a: MetricID = metric("a")

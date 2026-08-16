@@ -11,7 +11,8 @@ import com.codahale.metrics.{
   Timer as CodahaleTimer
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricLabel, MetricName, TimerKind}
+import com.github.chenharryhua.nanjin.guard.metrics.CategoryKind.TimerKind
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricLabel, MetricName}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit

@@ -11,34 +11,35 @@ import io.circe.{Codec, Decoder, Encoder}
 import squants.{Quantity, UnitOfMeasure}
 
 sealed trait CategoryKind extends Product
+private object CategoryKind:
+  enum GaugeKind extends CategoryKind derives Encoder, Decoder:
+    case Gauge, HealthCheck, Ratio
 
-enum GaugeKind extends CategoryKind derives Encoder, Decoder:
-  case Gauge, HealthCheck, Ratio
+  enum CounterKind extends CategoryKind derives Encoder, Decoder:
+    case Counter, Risk
 
-enum CounterKind extends CategoryKind derives Encoder, Decoder:
-  case Counter, Risk
+  enum MeterKind extends CategoryKind derives Encoder, Decoder:
+    case Meter
 
-enum MeterKind extends CategoryKind derives Encoder, Decoder:
-  case Meter
+  enum HistogramKind extends CategoryKind derives Encoder, Decoder:
+    case Histogram
 
-enum HistogramKind extends CategoryKind derives Encoder, Decoder:
-  case Histogram
+  enum TimerKind extends CategoryKind derives Encoder, Decoder:
+    case Timer
+end CategoryKind
 
-enum TimerKind extends CategoryKind derives Encoder, Decoder:
-  case Timer
-
-final case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
-object Squants {
+final private case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
+private object Squants {
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)
 }
 
 enum Category derives Encoder, Decoder:
-  case Gauge(kind: GaugeKind)
-  case Counter(kind: CounterKind)
-  case Meter(kind: MeterKind, squants: Squants)
-  case Histogram(kind: HistogramKind, squants: Squants)
-  case Timer(kind: TimerKind)
+  case Gauge(kind: CategoryKind.GaugeKind)
+  case Counter(kind: CategoryKind.CounterKind)
+  case Meter(kind: CategoryKind.MeterKind, squants: Squants)
+  case Histogram(kind: CategoryKind.HistogramKind, squants: Squants)
+  case Timer(kind: CategoryKind.TimerKind)
 
 /** Represents a uniquely identifiable metric within a single JVM runtime.
   *

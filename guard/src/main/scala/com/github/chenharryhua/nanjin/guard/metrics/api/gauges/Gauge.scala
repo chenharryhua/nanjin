@@ -9,7 +9,8 @@ import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.event.StackTrace
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, GaugeKind, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricName}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 

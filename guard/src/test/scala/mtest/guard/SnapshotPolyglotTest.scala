@@ -1,46 +1,50 @@
 package mtest.guard
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import io.circe.Json
+import io.circe.jawn.parse
 import org.scalatest.funsuite.AnyFunSuite
-import squants.Each
 import squants.time.Hertz
 
 import java.time.Duration
-import com.github.chenharryhua.nanjin.guard.config.Domain
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot, SnapshotPolyglot}
-import com.github.chenharryhua.nanjin.guard.metrics.{
-  Category,
-  CounterKind,
-  GaugeKind,
-  HistogramKind,
-  MeterKind,
-  MetricID,
-  MetricLabel,
-  MetricName,
-  Squants,
-  TimerKind
-}
+import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID}
 
 class SnapshotPolyglotTest extends AnyFunSuite {
-  private val label = MetricLabel("service", Domain("guard"))
+  private def id(name: String, category: String): MetricID =
+    parse(
+      s"""{
+         |  "metricLabel": {"label": "service", "domain": "guard"},
+         |  "metricName": {"name": "$name", "age": 0, "uniqueToken": 0},
+         |  "category": $category
+         |}""".stripMargin
+    ).flatMap(_.as[MetricID]).fold(throw _, identity)
 
-  private def metricName(name: String): MetricName = MetricName[IO](name).unsafeRunSync()
+  private def meterSquants =
+    id("throughput", meter).category match
+      case Category.Meter(_, value) => value
+      case _                         => throw IllegalArgumentException("expected meter category")
 
-  private def id(name: String, category: Category): MetricID =
-    MetricID(label, metricName(name), category)
+  private def histogramSquants =
+    id("samples", histogram).category match
+      case Category.Histogram(_, value) => value
+      case _                            => throw IllegalArgumentException("expected histogram category")
+
+  private val counter = """{"Counter":{"kind":{"Counter":{}}}}"""
+  private val meter = """{"Meter":{"kind":{"Meter":{}},"squants":{"unitSymbol":"1","dimensionName":"Dimensionless"}}}"""
+  private val timer = """{"Timer":{"kind":{"Timer":{}}}}"""
+  private val histogram = """{"Histogram":{"kind":{"Histogram":{}},"squants":{"unitSymbol":"1","dimensionName":"Dimensionless"}}}"""
+  private val gauge = """{"Gauge":{"kind":{"Gauge":{}}}}"""
 
   private val snapshot: Snapshot = Snapshot(
     counters = List(
       MetricElement.Counter(
-        id("requests", Category.Counter(CounterKind.Counter)),
+        id("requests", counter),
         MetricElement.CounterData(42))),
     meters = List(
       MetricElement.Meter(
-        id("throughput", Category.Meter(MeterKind.Meter, Squants(Each))),
+        id("throughput", meter),
         MetricElement.MeterData(
-          squants = Squants(Each),
+          squants = meterSquants,
           aggregate = 3,
           mean_rate = Hertz(1.5),
           m1_rate = Hertz(0.5),
@@ -51,7 +55,7 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     ),
     timers = List(
       MetricElement.Timer(
-        id("latency", Category.Timer(TimerKind.Timer)),
+        id("latency", timer),
         MetricElement.TimerData(
           calls = 2,
           mean_rate = Hertz(2.0),
@@ -73,9 +77,9 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     ),
     histograms = List(
       MetricElement.Histogram(
-        id("samples", Category.Histogram(HistogramKind.Histogram, Squants(Each))),
+        id("samples", histogram),
         MetricElement.HistogramData(
-          squants = Squants(Each),
+          squants = histogramSquants,
           updates = 4,
           min = 1,
           max = 5,
@@ -92,7 +96,7 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     ),
     gauges = List(
       MetricElement.Gauge(
-        id("status", Category.Gauge(GaugeKind.Gauge)),
+        id("status", gauge),
         MetricElement.GaugeData(Json.fromString("ok"))))
   )
 
