@@ -17,7 +17,7 @@ object Squants:
 end Squants
 
 final case class MetricName private (name: String, age: Long, uniqueToken: Int) derives Eq, Codec.AsObject
-object MetricName:
+private object MetricName:
   def apply[F[_]: Applicative](name: String)(using U: Unique[F], C: Clock[F]): F[MetricName] =
     (C.monotonic, U.unique).mapN((age, token) =>
       MetricName(name, age.toNanos, Hash[Unique.Token].hash(token)))

@@ -3,19 +3,17 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
-import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, MetricName}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Information}
 import squants.market.{AUD, Money}
@@ -294,19 +292,6 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)
-  }
-
-  test("16.MetricName") {
-    val m1 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
-    val m2 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
-    val m3 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 2}""").toOption.get
-
-    val ek = Eq[MetricName]
-    assert(ek.eqv(m1, m2))
-    assert(!ek.eqv(m1, m3))
-    assert(m1 == m2)
-    assert(m1 != m3)
-    assert(m1 =!= m3)
   }
 
   test("17.meter + counter") {
