@@ -25,7 +25,7 @@ end MetricName
 
 final case class MetricLabel(label: String, domain: Domain) derives Codec.AsObject
 
-final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category)
+final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: MetricCategory)
     derives Codec.AsObject:
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
 end MetricID

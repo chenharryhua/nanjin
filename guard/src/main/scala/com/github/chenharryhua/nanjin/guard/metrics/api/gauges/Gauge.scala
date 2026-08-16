@@ -9,8 +9,8 @@ import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.event.StackTrace
-import com.github.chenharryhua.nanjin.guard.metrics.CategoryKind.GaugeKind
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricName}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
@@ -60,7 +60,7 @@ object Gauge {
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
       metricID <- Resource.eval(MetricName(name).map { metricName =>
-        MetricID(gp.label, metricName, Category.Gauge(builder.kind)).identifier
+        MetricID(gp.label, metricName, MetricCategory.GaugeC(builder.kind)).identifier
       })
       _ <- Resource.make(F.delay {
         gp.metricRegistry.gauge(
@@ -101,6 +101,6 @@ object Gauge {
     gp: GaugeParams[F],
     name: String,
     f: Builder => Registered[F]): Resource[F, Unit] =
-    f(new Builder(isEnabled = true, timeout = 5.seconds, policy = None, kind = GaugeKind.Gauge))
+    f(new Builder(isEnabled = true, timeout = 5.seconds, policy = None, kind = GaugeKind.Default))
       .build(gp, name)
 }

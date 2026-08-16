@@ -11,8 +11,14 @@ import com.codahale.metrics.{
   Reservoir
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.metrics.CategoryKind.HistogramKind
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID, MetricLabel, MetricName, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.HistogramKind
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  MetricCategory,
+  MetricID,
+  MetricLabel,
+  MetricName,
+  Squants
+}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
@@ -43,7 +49,7 @@ object Histogram {
       MetricID(
         metricLabel = label,
         metricName = name,
-        Category.Histogram(kind = HistogramKind.Histogram, squants = squants)
+        MetricCategory.HistogramC(kind = HistogramKind.Default, squants = squants)
       ).identifier
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleHistogram] = () =>

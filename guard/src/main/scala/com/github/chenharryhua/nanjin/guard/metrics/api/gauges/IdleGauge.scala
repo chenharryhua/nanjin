@@ -25,7 +25,7 @@ object IdleGauge:
           _ <- Gauge(
             gp,
             name,
-            _.withKind(_.Gauge)
+            _.withKind(_.Default)
               .enable(isEnabled)
               .register(
                 for {

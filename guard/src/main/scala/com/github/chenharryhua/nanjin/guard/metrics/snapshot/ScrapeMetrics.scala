@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
@@ -36,8 +36,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
     sm.asScala.iterator.flatMap { case (name, meter) =>
       decode[MetricID](name) match {
-        case Left(_)                                                 => None
-        case Right(mid @ MetricID(_, _, Category.Meter(_, squants))) =>
+        case Left(_)                                                        => None
+        case Right(mid @ MetricID(_, _, MetricCategory.MeterC(_, squants))) =>
           Some(
             MetricElement.Meter(
               metricId = mid,
@@ -60,8 +60,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
     sm.asScala.iterator.flatMap { case (name, histogram) =>
       decode[MetricID](name) match {
-        case Left(_)                                                     => None
-        case Right(mid @ MetricID(_, _, Category.Histogram(_, squants))) =>
+        case Left(_)                                                            => None
+        case Right(mid @ MetricID(_, _, MetricCategory.HistogramC(_, squants))) =>
           val ss = histogram.getSnapshot
           Some(
             MetricElement.Histogram(
