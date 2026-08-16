@@ -28,11 +28,4 @@ final case class MetricLabel(label: String, domain: Domain) derives Codec.AsObje
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category)
     derives Codec.AsObject:
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
-  val squants: Option[Squants] = category match {
-    case Category.Gauge(_)              => None
-    case Category.Counter(_)            => None
-    case Category.Meter(_, squants)     => Some(squants)
-    case Category.Histogram(_, squants) => Some(squants)
-    case Category.Timer(_)              => None
-  }
 end MetricID
