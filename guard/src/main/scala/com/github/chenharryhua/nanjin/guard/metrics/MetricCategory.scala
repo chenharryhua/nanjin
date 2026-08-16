@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import io.circe.{Decoder, Encoder}
 
-trait MetricCategoryKind extends Product
+sealed trait MetricCategoryKind extends Product
 object MetricCategoryKind:
   enum GaugeKind extends MetricCategoryKind derives Encoder, Decoder:
     case Default, HealthCheck, Ratio

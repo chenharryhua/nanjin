@@ -21,13 +21,14 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
     sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                                 => None
+        case Right(mid @ MetricID(_, _, MetricCategory.CounterC(_))) =>
           Some(
             MetricElement.Counter(
               metricId = mid,
               counter = MetricElement.CounterData(counter.getCount)
             ))
+        case _ => None
       }
     }.toList
   /*
@@ -91,8 +92,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
     sm.asScala.iterator.flatMap { case (name, timer) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                               => None
+        case Right(mid @ MetricID(_, _, MetricCategory.TimerC(_))) =>
           val ss = timer.getSnapshot
           Some(
             MetricElement.Timer(
@@ -117,6 +118,7 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
                 p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
               )
             ))
+        case _ => None
       }
     }.toList
 
@@ -126,12 +128,13 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
-        case Left(_)    => None
-        case Right(mid) =>
+        case Left(_)                                               => None
+        case Right(mid @ MetricID(_, _, MetricCategory.GaugeC(_))) =>
           parse(gauge.getValue.toString) match {
             case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
             case Left(_)     => None
           }
+        case _ => None
       }
     }.toList
 
