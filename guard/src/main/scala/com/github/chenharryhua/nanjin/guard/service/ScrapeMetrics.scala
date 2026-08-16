@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot}
-import com.github.chenharryhua.nanjin.guard.metrics.{Category, MetricID}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 
@@ -36,9 +36,9 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
     sm.asScala.iterator.flatMap { case (name, meter) =>
       decode[MetricID](name) match {
-        case Left(_)                                                 => None
-        case Right(mid @ MetricID(_, _, Category.Meter(_, squants))) =>
-          Some(
+        case Left(_)    => None
+        case Right(mid) =>
+          mid.squants.map(squants =>
             MetricElement.Meter(
               metricId = mid,
               MetricElement.MeterData(
@@ -50,7 +50,6 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
                 m15_rate = Hertz(meter.getFifteenMinuteRate)
               )
             ))
-        case _ => None
       }
     }.toList
 
@@ -60,10 +59,10 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
     sm.asScala.iterator.flatMap { case (name, histogram) =>
       decode[MetricID](name) match {
-        case Left(_)                                                     => None
-        case Right(mid @ MetricID(_, _, Category.Histogram(_, squants))) =>
+        case Left(_)    => None
+        case Right(mid) =>
           val ss = histogram.getSnapshot
-          Some(
+          mid.squants.map(squants =>
             MetricElement.Histogram(
               metricId = mid,
               MetricElement.HistogramData(
@@ -81,7 +80,6 @@ final private class ScrapeMetrics(val metricRegistry: MetricRegistry) {
                 p999 = ss.get999thPercentile()
               )
             ))
-        case _ => None
       }
     }.toList
 

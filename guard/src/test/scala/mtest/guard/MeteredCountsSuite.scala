@@ -21,8 +21,8 @@ object MetricFixtures {
          |    "kind": {"Meter": {}},
          |    "squants": {"unitSymbol": "1", "dimensionName": "Dimensionless"}
          |  }}
-            |}""".stripMargin
-          ).flatMap(_.as[MetricID](using Decoder[MetricID])).fold(throw _, identity)
+         |}""".stripMargin
+    ).flatMap(_.as[MetricID](using Decoder[MetricID])).fold(throw _, identity)
 
   // Predefined stable metrics (reused across all tests)
   val a: MetricID = metric("a")
