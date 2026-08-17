@@ -45,7 +45,7 @@ object Batch:
       if (b === 0) { Json.fromString(expression) }
       else {
         val rounded: Float =
-          BigDecimal(a * 100.0 / b).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
+          BigDecimal(BigInt(a) * 100)./(BigDecimal(b)).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
         Json.fromString(s"$rounded% ($expression)")
       }
   }
@@ -527,7 +527,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
   /** Create a parallel batch with parallelism equal to the number of jobs. */
   /** Create a parallel batch with parallelism inferred from the job count. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
-    parallel[A](fas.size)(fas*)
+    parallel[A](math.max(1, fas.size))(fas*)
 
   /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
