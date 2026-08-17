@@ -32,7 +32,8 @@ object DurationFormatter {
     )
 
     override def format(duration: ScalaDuration): String = {
-      val dur = if (duration < ScalaDuration.Zero) -duration else duration
+      val isNegative = duration < ScalaDuration.Zero
+      val dur = if (isNegative) -duration else duration
 
       @annotation.tailrec
       def loop(
@@ -47,12 +48,14 @@ object DurationFormatter {
           val qty = rem.toNanos / unitDur.toNanos
           if (qty > 0) {
             val plural = if (qty > 1) "s" else ""
-            loop(rem - unitDur * qty.toDouble, tail, acc :+ s"$qty $label$plural", count - 1)
+            val consumed = ScalaDuration.fromNanos(unitDur.toNanos * qty)
+            loop(rem - consumed, tail, acc :+ s"$qty $label$plural", count - 1)
           } else loop(rem, tail, acc, count)
       }
 
       val parts = loop(dur, units, Nil, maxParts)
-      if (parts.isEmpty) "0 second" else parts.mkString(" ")
+      val formatted = if (parts.isEmpty) "0 second" else parts.mkString(" ")
+      if (isNegative) s"-$formatted" else formatted
     }
   }
 
