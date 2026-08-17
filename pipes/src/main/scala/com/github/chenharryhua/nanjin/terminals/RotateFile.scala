@@ -39,8 +39,8 @@ final case class CreateRotateFile(
   *
   *   - the sum of `recordCount` equals the total number of input records
   *   - records in this file belong exclusively to the time window
-  *   - open: the moment when the file open for write
-  *   - close: the moment when the file is closed
+  *   - `create.time`: the moment when the file was opened for writing
+  *   - `closed`: the moment when the file was closed
   */
 
 final case class RotateFile(create: CreateRotateFile, closed: Instant, url: Url, recordCount: Long) {

@@ -154,7 +154,7 @@ object CircuitBreaker {
                     case Result.Succeeded if failures === failuresAtAdmission =>
                       transitionTo(ms, initClosed)
                     case Result.Failed if failures === failuresAtAdmission =>
-                      if (failures < maxFailures)
+                      if (failures + 1 < maxFailures)
                         transitionTo(ms, InternalState.Closed(failures + 1))
                       else transitionTo(ms, initOpen)
                     case _ => ms
