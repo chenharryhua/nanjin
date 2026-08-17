@@ -16,9 +16,11 @@ import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
 
-/*
- * Consumer Service
- */
+/** A Kafka consumer service providing bounded, manual-commit, and unbounded consumption modes.
+  *
+  * Implementations create consumer streams assigned to specific topic partitions and offset ranges. Use
+  * `KafkaContext.consume(topic)` to obtain a concrete instance.
+  */
 trait ConsumerService[F[_], K, V] {
   protected def assignByTime(
     kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
