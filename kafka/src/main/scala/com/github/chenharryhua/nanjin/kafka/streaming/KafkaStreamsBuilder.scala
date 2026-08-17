@@ -62,13 +62,10 @@ final class KafkaStreamsBuilder[F[_]] private (
     stop: Deferred[F, Either[Throwable, Unit]]
   ) extends KafkaStreams.StateListener {
 
-    private def isDispatcherShutdownRace(e: IllegalStateException): Boolean =
-      e.getStackTrace.exists(_.getClassName.startsWith("cats.effect.std.Dispatcher"))
-
     private def runOrIgnoreOnShutdown(fa: F[Unit]): Unit =
       try dispatcher.unsafeRunSync(fa)
       catch {
-        case e: IllegalStateException if isDispatcherShutdownRace(e) => ()
+        case _: IllegalStateException => () // dispatcher already shut down
       }
 
     override def onChange(newState: State, oldState: State): Unit = {

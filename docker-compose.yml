@@ -1,6 +1,6 @@
 services:
   kafka:
-    image: landoop/fast-data-dev:latest
+    image: lensesio/fast-data-dev:latest
     environment:
       ADV_HOST: localhost         # Change to 192.168.99.100 if using Docker Toolbox
       RUNTESTS: 0                 # Disable Running tests so the cluster starts faster

@@ -80,7 +80,8 @@ final private class RotateBySizeSink[F[_]](
         if ((dataSize + count) < sizeLimit) {
           writeChunk(as) >> doWork(getWriter, hotswap, stream, current, dataSize + count)
         } else {
-          val (first, second) = as.splitAt((sizeLimit - count).toInt)
+          val splitIndex = math.min(sizeLimit - count, dataSize.toLong).toInt
+          val (first, second) = as.splitAt(splitIndex)
 
           for {
             _ <- writeChunk(first)
