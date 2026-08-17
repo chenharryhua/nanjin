@@ -82,9 +82,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   /** @param min
     *   non-negative
     * @param max
-    *   bigger than zero
-    *
-    * max should be bigger than min
+    *   strictly bigger than min
     */
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
     require(min >= ScalaDuration.Zero, show"$min should not be negative")
@@ -93,7 +91,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   }
 
   /** @param max
-    *   bigger than zero
+    *   strictly bigger than zero
     */
   def jitter(max: FiniteDuration): Policy =
     jitter(ScalaDuration.Zero, max)
@@ -110,7 +108,7 @@ object Policy {
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
-  /** should be non-negative
+  /** All delays should be non-negative, and at least one must be strictly positive.
     */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
     val nel: NonEmptyList[FiniteDuration] = NonEmptyList.of(head, tail*)

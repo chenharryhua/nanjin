@@ -152,7 +152,22 @@ class GaugeTest extends AnyFunSuite {
     assert(second == 1)
   }
 
-  test("10.transactional gauge") {
+  test("10.percentile gauge is collected as percentile data") {
+    val snapshots = service.eventStream { agent =>
+      agent.facilitate("percentile") { fac =>
+        fac.percentile("ratio").use { percentile =>
+          percentile.incBoth(1, 2) >> agent.adhoc.report.void
+        }
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
+
+    assert(snapshots.nonEmpty)
+    val percentiles = retrieve.percentile(snapshots.head.snapshot.gauges)
+    assert(percentiles.nonEmpty)
+    assert(percentiles.values.head.asString.exists(_.contains("50")))
+  }
+
+  test("11.transactional gauge") {
     service.eventStream { agent =>
       val mtx =
         agent.facilitate("transactional") { fac =>

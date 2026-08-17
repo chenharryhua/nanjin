@@ -27,6 +27,11 @@ import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.*
 
+/** Low-level read operations on a Kafka consumer for a single topic.
+  *
+  * Provides partition discovery, offset queries (beginning, end, by timestamp), record retrieval, and
+  * synchronous offset commits. All operations run against a pre-assigned consumer.
+  */
 sealed trait KafkaConsumerOps[F[_]] {
   def partitionsFor: F[TopicPartitionList]
   def beginningOffsets: F[TopicPartitionMap[Option[Offset]]]
@@ -98,6 +103,11 @@ private object KafkaConsumerOps {
   }
 }
 
+/** Extended consumer operations for point-in-time offset queries, offset range computation, record
+  * retrieval at specific positions, and consumer group offset management.
+  *
+  * A `SnapshotConsumer` operates on a single topic and is typically obtained from `KafkaContext.admin`.
+  */
 sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
   def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
   def offsetRangeFor(start: Instant, end: Instant): F[TopicPartitionMap[Option[OffsetRange]]]

@@ -29,6 +29,10 @@ import java.net.URI
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+/** A Cats Effect wrapper for AWS S3 operations.
+  *
+  * Provides resource-safe object download, upload, copy, delete, rename, and pre-signed URL generation.
+  */
 trait SimpleStorageService[F[_]] {
 
   /** Download an object using a fully configured S3 request.

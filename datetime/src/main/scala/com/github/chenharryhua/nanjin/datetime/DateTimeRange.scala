@@ -189,7 +189,7 @@ object DateTimeRange {
         (a, b) match {
           case (None, _)          => true
           case (_, None)          => false
-          case (Some(x), Some(y)) => x > y
+          case (Some(x), Some(y)) => x >= y
         }
 
       override def partialCompare(x: DateTimeRange, y: DateTimeRange): Double =

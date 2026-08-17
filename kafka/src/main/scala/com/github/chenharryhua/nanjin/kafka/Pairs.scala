@@ -34,7 +34,7 @@ private def backwardCompatible[S <: ParsedSchema](as: Option[S], bs: Option[S]):
   }
 
 private def missingSchema(message: String): Nothing =
-  throw new IllegalStateException(message) // scalafix:ok
+  throw TopicSchemaAbsent(message) // scalafix:ok
 
 final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema])
     extends SchemaCompatibility[OptionalJsonSchemaPair] {

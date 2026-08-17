@@ -144,7 +144,7 @@ final private class RotateByPolicySink[F[_]: Async](
 
   override def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
     val get_writer: GetWriter[GenericRecord] = Reader { url =>
-      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f).map(f), url)
+      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url)
     }
 
     (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream

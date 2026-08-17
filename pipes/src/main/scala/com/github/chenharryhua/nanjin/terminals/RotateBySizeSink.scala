@@ -77,10 +77,11 @@ final private class RotateBySizeSink[F[_]](
       case Some((as, stream)) =>
         val dataSize = as.size
         // invariant: count is always < sizeLimit, therefore splitAt always consumes > 0
-        if ((dataSize + count) < sizeLimit) {
+        if ((dataSize + count) <= sizeLimit) {
           writeChunk(as) >> doWork(getWriter, hotswap, stream, current, dataSize + count)
         } else {
-          val (first, second) = as.splitAt((sizeLimit - count).toInt)
+          val splitIndex = math.min(sizeLimit - count, dataSize.toLong).toInt
+          val (first, second) = as.splitAt(splitIndex)
 
           for {
             _ <- writeChunk(first)

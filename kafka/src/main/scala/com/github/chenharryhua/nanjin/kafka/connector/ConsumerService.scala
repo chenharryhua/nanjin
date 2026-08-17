@@ -5,10 +5,9 @@ import cats.effect.kernel.Sync
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.apply.given
-import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{EmptyTopicPartitionMap, TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.CommittableConsumerRecord
 import fs2.kafka.consumer.{KafkaAssignment, KafkaOffsets, KafkaTopics}
@@ -16,9 +15,11 @@ import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
 
-/*
- * Consumer Service
- */
+/** A Kafka consumer service providing bounded, manual-commit, and unbounded consumption modes.
+  *
+  * Implementations create consumer streams assigned to specific topic partitions and offset ranges. Use
+  * `KafkaContext.consume(topic)` to obtain a concrete instance.
+  */
 trait ConsumerService[F[_], K, V] {
   protected def assignByTime(
     kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
@@ -47,7 +48,7 @@ trait ConsumerService[F[_], K, V] {
 
     tpm.nonEmptyKeySet match {
       case Some(value) => kc.assign(value) <* tpm.toList.traverse { case (p, o) => kc.seek(p, o) }
-      case None        => F.raiseError(new Exception(show"empty map of $tn"))
+      case None        => F.raiseError(EmptyTopicPartitionMap(tn))
     }
   }
 

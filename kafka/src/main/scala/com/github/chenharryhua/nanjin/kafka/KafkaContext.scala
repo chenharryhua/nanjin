@@ -50,7 +50,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     val baseUrl: String =
       settings.serdeSettings.properties.getOrElse(
         url_config,
-        throw new IllegalStateException(s"Fatal error: $url_config is absent")
+        throw SchemaRegistryUrlAbsent(url_config)
       ) // scalafix:ok
 
     val cacheCapacity: Int = settings.serdeSettings.properties

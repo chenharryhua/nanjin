@@ -321,14 +321,9 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
     new BatchLight.Parallel[F, A](metricLabel, Reader(_ => true), parallelism, jobs, uuidGenerator)
   }
 
-  /** Creates a lightweight parallel batch with parallelism inferred from the number of jobs. */
-  /** Create a parallel batch with parallelism inferred from the job count. */
-  /** Create a parallel batch with parallelism inferred from the job count. */
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =
-    parallel[A](fas.size)(fas*)
+    parallel[A](math.max(1, fas.size))(fas*)
 
-  /** Builds a lightweight monadic batch using a fluent job builder. */
-  /** Build a monadic batch for dependent steps. */
   def monadic[A](f: BatchLight.JobBuilder[F] => A): A = {
     val builder = new BatchLight.JobBuilder[F](metricLabel, uuidGenerator)
     f(builder)

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricCategoryKind, MetricID}
-import io.circe.Decoder
+import io.circe.{Decoder, Json}
 
 object retrieve {
   def healthCheck(gauges: List[MetricElement.Gauge]): Map[MetricID, Boolean] =
@@ -19,6 +19,14 @@ object retrieve {
           gg.gauge.value.as[A].toOption.map(gg.metricId -> _)
       }
     }.flatten.toMap
+
+  def percentile(gauges: List[MetricElement.Gauge]): Map[MetricID, Json] =
+    gauges.collect { gg =>
+      gg.metricId.category match {
+        case MetricCategory.GaugeC(MetricCategoryKind.GaugeKind.Percentile) =>
+          gg.metricId -> gg.gauge.value
+      }
+    }.toMap
 
   def counter(counters: List[MetricElement.Counter]): Map[MetricID, MetricElement.CounterData] =
     counters.collect { tm =>

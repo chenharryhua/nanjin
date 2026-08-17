@@ -7,6 +7,11 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.given
 
+/** A Kafka serde that is not yet registered with a Schema Registry.
+  *
+  * Implementations provide a `registerWith` method that creates a fully configured `Serde[A]` once a
+  * `SchemaRegistryClient` is available.
+  */
 trait Unregistered[A] { outer =>
   protected def registerWith(srClient: SchemaRegistryClient): Serde[A]
 

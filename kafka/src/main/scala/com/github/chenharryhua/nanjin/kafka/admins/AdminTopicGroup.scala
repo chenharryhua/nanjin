@@ -13,6 +13,11 @@ import java.time.Instant
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
+/** Consumer group administrative operations for a single Kafka topic.
+  *
+  * Provides lag computation, offset management (commit, reset, delete), and consumer group cleanup.
+  * Obtain an instance from `KafkaContext.admin(topicName, groupId)`.
+  */
 sealed trait AdminTopicGroup[F[_]] {
 
   def adminClient: KafkaAdminClient[F]

@@ -10,9 +10,11 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 
-/*
- * Stream which has a boundary
- */
+/** A bounded Kafka consumer stream that reads a fixed offset range per partition.
+  *
+  * The stream terminates automatically when all partitions have been consumed up to their configured end
+  * offsets. Call `stopConsuming` to force an early shutdown.
+  */
 trait CircumscribedStream[F[_], K, V] {
   def stopConsuming: F[Unit]
 
@@ -25,9 +27,11 @@ trait CircumscribedStream[F[_], K, V] {
     TopicPartitionMap(rangedStreams.keySet.map(pr => pr.topicPartition -> pr.offsetRange))
 }
 
-/*
- * Commit offset manually
- */
+/** A Kafka consumer stream with manual offset commit control.
+  *
+  * Records are delivered without auto-commit; the caller is responsible for committing offsets via
+  * `commitSync` or `commitAsync`.
+  */
 trait ManualCommitStream[F[_], K, V] {
   def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
   def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
@@ -38,10 +42,11 @@ trait ManualCommitStream[F[_], K, V] {
     Stream.iterable(partitionsMapStream.treeMap.values).parJoinUnbounded
 }
 
-/*
- * Producer Service
- */
-
+/** A Kafka producer with resource-managed client lifecycle and convenience sinks.
+  *
+  * Acquire the producer via `clientR` (resource) or `clientS` (stream), or pipe records directly through
+  * `sink` or `pairSink`.
+  */
 trait ProducerService[F[_], K, V] {
   def clientR: Resource[F, KafkaProducer[F, K, V]]
   def clientS: Stream[F, KafkaProducer[F, K, V]]
