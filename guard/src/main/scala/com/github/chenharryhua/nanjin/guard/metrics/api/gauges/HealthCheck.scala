@@ -15,11 +15,11 @@ object HealthCheck {
     policy: Option[Policy])
       extends EnableConfig[Builder] {
 
-    /** Enable or disable health-check registration. */
+    /** Enable or disable health check registration. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy)
 
-    /** Bound the health-check effect and report false on timeout or failure. */
+    /** Bound the health check effect and report false on timeout or failure. */
     def withTimeout(timeout: FiniteDuration): Builder =
       new Builder(isEnabled, timeout, policy)
 

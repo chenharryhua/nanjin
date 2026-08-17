@@ -5,7 +5,7 @@ import io.circe.{Decoder, Encoder}
 sealed trait MetricCategoryKind extends Product
 object MetricCategoryKind:
   enum GaugeKind extends MetricCategoryKind derives Encoder, Decoder:
-    case Default, HealthCheck, Ratio
+    case Default, HealthCheck, Percentile
 
   enum CounterKind extends MetricCategoryKind derives Encoder, Decoder:
     case Default, Risk
