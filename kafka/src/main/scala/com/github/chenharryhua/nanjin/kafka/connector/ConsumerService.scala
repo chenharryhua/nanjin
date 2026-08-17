@@ -5,10 +5,9 @@ import cats.effect.kernel.Sync
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.apply.given
-import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{EmptyTopicPartitionMap, TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.CommittableConsumerRecord
 import fs2.kafka.consumer.{KafkaAssignment, KafkaOffsets, KafkaTopics}
@@ -49,7 +48,7 @@ trait ConsumerService[F[_], K, V] {
 
     tpm.nonEmptyKeySet match {
       case Some(value) => kc.assign(value) <* tpm.toList.traverse { case (p, o) => kc.seek(p, o) }
-      case None        => F.raiseError(new Exception(show"empty map of $tn"))
+      case None        => F.raiseError(EmptyTopicPartitionMap(tn))
     }
   }
 
