@@ -25,7 +25,7 @@ end FileFormat
 object FileFormat:
   given Encoder[FileFormat] = Encoder.encodeString.contramap(_.suffix)
   given Decoder[FileFormat] = Decoder.decodeString.emap { s =>
-    FileFormat.values.find(_.suffix === s).toRight("invalid FileFormat: $s")
+    FileFormat.values.find(_.suffix === s).toRight(s"invalid FileFormat: $s")
   }
   given Show[FileFormat] = _.suffix
 end FileFormat

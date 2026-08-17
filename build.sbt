@@ -27,7 +27,7 @@ val drosteV = "0.10.0"
 val fs2KafkaV = "4.0.0"
 val fs2V = "3.13.0"
 val hadoopV = "3.5.0"
-val jacksonV = "2.22.1"
+val jacksonV = "2.22.2"
 val jettyV = "12.1.12"
 val http4sV = "0.23.36"
 val kantanV = "0.8.0"
@@ -293,7 +293,6 @@ lazy val kafka = (project in file("kafka"))
       ("org.typelevel" %% "fs2-kafka"             % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
       "io.circe" %% "circe-jawn"                  % circeV,
       "io.circe" %% "circe-optics"                % "0.15.1",
-      "io.circe" %% "circe-jawn"                  % circeV,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
@@ -405,3 +404,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
+
