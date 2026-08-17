@@ -4,9 +4,9 @@ import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.apache.commons.lang3.StringUtils
 
-sealed trait JsonView[+A]
+private sealed trait JsonView[+A]
 
-object JsonView {
+private object JsonView {
 
   final private case class NullView() extends JsonView[Nothing]
   final private case class BooleanView(bool: Boolean) extends JsonView[Nothing]

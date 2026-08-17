@@ -26,6 +26,7 @@ import org.apache.kafka.common.acl.{
 }
 import org.apache.kafka.common.resource.{PatternType, ResourcePatternFilter, ResourceType}
 
+/** Administrative operations for a single Kafka topic: creation, deletion, ACLs, and metadata. */
 trait AdminTopic[F[_]] {
   def adminClient: KafkaAdminClient[F]
 

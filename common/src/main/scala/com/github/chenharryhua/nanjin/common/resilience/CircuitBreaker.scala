@@ -13,6 +13,11 @@ import io.circe.{Encoder, Json}
 import java.time.ZoneId
 import scala.util.control.NoStackTrace
 
+/** A circuit breaker that protects effectful computations from repeated failures.
+  *
+  * The breaker transitions through Closed, Open, and HalfOpen states. While open, calls are rejected
+  * immediately with `RejectedException`.
+  */
 trait CircuitBreaker[F[_]] {
   def attempt[A](fa: F[A]): F[Either[Throwable, A]]
   def protect[A](fa: F[A]): F[A]

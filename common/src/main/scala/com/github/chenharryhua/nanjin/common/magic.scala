@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.common
 
 import scala.quoted.*
 
+/** Compile-time typeclass providing the short name of a Scala type. */
 trait TypeName[A]:
   def value: String
 end TypeName

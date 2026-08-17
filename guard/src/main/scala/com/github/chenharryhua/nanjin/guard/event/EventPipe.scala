@@ -12,7 +12,7 @@ import java.time.{Duration, Instant, LocalDateTime, LocalTime}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
-// mapFilter friendly
+/** Predicate-based event filter that can be composed and applied to event streams. */
 trait EventPipe { self =>
   def apply(event: Event): Option[Event]
 

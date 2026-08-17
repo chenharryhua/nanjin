@@ -150,7 +150,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     assert(tickedValues(9).recordCount == 1000)
     assert(tickedValues(9).create.index == 10)
 
-    assert(tickedValues.last.recordCount == 0)
+    assert(tickedValues.last.recordCount == 1000)
 
   }
 }

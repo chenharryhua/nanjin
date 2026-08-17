@@ -7,6 +7,10 @@ import java.time.{Duration as JavaDuration, Instant, ZonedDateTime}
 import scala.concurrent.duration.{Duration as ScalaDuration, DurationInt}
 import scala.jdk.DurationConverters.JavaDurationOps
 
+/** Formats a duration into a human-readable string with configurable granularity.
+  *
+  * Accepts Scala durations, Java durations, instants, zoned date-times, and squants `Time` values.
+  */
 trait DurationFormatter {
   def format(duration: ScalaDuration): String
 
