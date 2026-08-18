@@ -68,4 +68,3 @@ class StopReasonCodecTest extends AnyFunSuite {
     assert(StopReason.ByException(StackTrace(new Exception)).exitCode == 3)
   }
 }
-

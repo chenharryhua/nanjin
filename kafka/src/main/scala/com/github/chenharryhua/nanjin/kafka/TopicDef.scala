@@ -18,7 +18,6 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
   * `TopicDef` is the schema-level description of a Kafka topic. It carries unregistered serdes that become
   * fully configured once a `SchemaRegistryClient` is available. Use it to derive consumer settings, producer
   * settings, and registered `TopicSerde` instances.
-  *
   */
 final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
   def withTopicName(tn: TopicName): TopicDef[K, V] = this.copy(topicName = tn)

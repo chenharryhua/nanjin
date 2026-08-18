@@ -39,9 +39,17 @@ class ZonesTest extends AnyFunSuite {
 
   test("7.all zone IDs are recognized by java.time") {
     val all = List(
-      zones.utcTime, zones.darwinTime, zones.sydneyTime, zones.beijingTime,
-      zones.singaporeTime, zones.mumbaiTime, zones.newyorkTime, zones.londonTime,
-      zones.berlinTime, zones.cairoTime, zones.saltaTime
+      zones.utcTime,
+      zones.darwinTime,
+      zones.sydneyTime,
+      zones.beijingTime,
+      zones.singaporeTime,
+      zones.mumbaiTime,
+      zones.newyorkTime,
+      zones.londonTime,
+      zones.berlinTime,
+      zones.cairoTime,
+      zones.saltaTime
     )
     val availableZones = ZoneId.getAvailableZoneIds
     assert(all.forall(z => availableZones.contains(z.getId)))

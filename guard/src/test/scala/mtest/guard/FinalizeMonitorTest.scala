@@ -10,9 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 
-/** Tests that observer finalization produces synthetic ServiceStop events
-  * for services that were started but never stopped (simulating abrupt termination
-  * from the observer's perspective).
+/** Tests that observer finalization produces synthetic ServiceStop events for services that were started but
+  * never stopped (simulating abrupt termination from the observer's perspective).
   */
 class FinalizeMonitorTest extends AnyFunSuite {
 
@@ -67,10 +66,9 @@ class FinalizeMonitorTest extends AnyFunSuite {
         .compile
         .drain
       tracked <- ref.get
-    } yield {
+    } yield
       // After normal completion, the ServiceStop should have cleared the tracked start
       assert(tracked.isEmpty)
-    }
 
     test.unsafeRunSync()
   }

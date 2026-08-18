@@ -45,12 +45,30 @@ class LocalTimesTest extends AnyFunSuite {
 
   test("5.all constants have zero minutes and seconds") {
     val all = List(
-      localTimes.midnight, localTimes.oneAM, localTimes.twoAM, localTimes.threeAM,
-      localTimes.fourAM, localTimes.fiveAM, localTimes.sixAM, localTimes.sevenAM,
-      localTimes.eightAM, localTimes.nineAM, localTimes.tenAM, localTimes.elevenAM,
-      localTimes.noon, localTimes.onePM, localTimes.twoPM, localTimes.threePM,
-      localTimes.fourPM, localTimes.fivePM, localTimes.sixPM, localTimes.sevenPM,
-      localTimes.eightPM, localTimes.ninePM, localTimes.tenPM, localTimes.elevenPM
+      localTimes.midnight,
+      localTimes.oneAM,
+      localTimes.twoAM,
+      localTimes.threeAM,
+      localTimes.fourAM,
+      localTimes.fiveAM,
+      localTimes.sixAM,
+      localTimes.sevenAM,
+      localTimes.eightAM,
+      localTimes.nineAM,
+      localTimes.tenAM,
+      localTimes.elevenAM,
+      localTimes.noon,
+      localTimes.onePM,
+      localTimes.twoPM,
+      localTimes.threePM,
+      localTimes.fourPM,
+      localTimes.fivePM,
+      localTimes.sixPM,
+      localTimes.sevenPM,
+      localTimes.eightPM,
+      localTimes.ninePM,
+      localTimes.tenPM,
+      localTimes.elevenPM
     )
     assert(all.size == 24)
     assert(all.forall(t => t.getMinute == 0 && t.getSecond == 0 && t.getNano == 0))
@@ -58,12 +76,30 @@ class LocalTimesTest extends AnyFunSuite {
 
   test("6.constants are in ascending order from midnight to elevenPM") {
     val all = List(
-      localTimes.midnight, localTimes.oneAM, localTimes.twoAM, localTimes.threeAM,
-      localTimes.fourAM, localTimes.fiveAM, localTimes.sixAM, localTimes.sevenAM,
-      localTimes.eightAM, localTimes.nineAM, localTimes.tenAM, localTimes.elevenAM,
-      localTimes.noon, localTimes.onePM, localTimes.twoPM, localTimes.threePM,
-      localTimes.fourPM, localTimes.fivePM, localTimes.sixPM, localTimes.sevenPM,
-      localTimes.eightPM, localTimes.ninePM, localTimes.tenPM, localTimes.elevenPM
+      localTimes.midnight,
+      localTimes.oneAM,
+      localTimes.twoAM,
+      localTimes.threeAM,
+      localTimes.fourAM,
+      localTimes.fiveAM,
+      localTimes.sixAM,
+      localTimes.sevenAM,
+      localTimes.eightAM,
+      localTimes.nineAM,
+      localTimes.tenAM,
+      localTimes.elevenAM,
+      localTimes.noon,
+      localTimes.onePM,
+      localTimes.twoPM,
+      localTimes.threePM,
+      localTimes.fourPM,
+      localTimes.fivePM,
+      localTimes.sixPM,
+      localTimes.sevenPM,
+      localTimes.eightPM,
+      localTimes.ninePM,
+      localTimes.tenPM,
+      localTimes.elevenPM
     )
     assert(all.sliding(2).forall { case List(a, b) => a.isBefore(b); case _ => true })
   }

@@ -14,7 +14,8 @@ class SchemaPairsTest extends AnyFunSuite {
   private val avroKey = new AvroSchema(
     SchemaBuilder.record("Key").namespace("test").fields().requiredString("id").endRecord())
   private val avroValue = new AvroSchema(
-    SchemaBuilder.record("Value").namespace("test").fields().requiredString("name").requiredInt("age").endRecord())
+    SchemaBuilder.record("Value").namespace("test").fields().requiredString("name").requiredInt(
+      "age").endRecord())
 
   // --- AvroSchemaPair ---
 

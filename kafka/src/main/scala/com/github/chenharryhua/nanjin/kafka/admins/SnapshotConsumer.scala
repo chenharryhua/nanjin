@@ -103,8 +103,8 @@ private object KafkaConsumerOps {
   }
 }
 
-/** Extended consumer operations for point-in-time offset queries, offset range computation, record
-  * retrieval at specific positions, and consumer group offset management.
+/** Extended consumer operations for point-in-time offset queries, offset range computation, record retrieval
+  * at specific positions, and consumer group offset management.
   *
   * A `SnapshotConsumer` operates on a single topic and is typically obtained from `KafkaContext.admin`.
   */
