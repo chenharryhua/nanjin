@@ -250,4 +250,79 @@ class RetrySpec extends CatsEffectSuite {
 
     prom
   }
+
+  test("11.Retry: previousCause is None on first attempt, Some thereafter") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observed <- Ref.of[IO, List[Option[String]]](Nil)
+      attempts <- Ref.of[IO, Int](0)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(10.millis).limited(3)).withDecision { tv =>
+          observed.update(_ :+ tv.previousCause.map(_.getMessage)).as(tv.followPolicy)
+        }
+      )
+      _ <- retry {
+        attempts.updateAndGet(_ + 1).flatMap { n =>
+          IO.raiseError[String](new RuntimeException(s"err-$n"))
+        }
+      }.attempt
+      history <- observed.get
+    } yield {
+      assertEquals(history.head, None) // first attempt has no previous
+      assertEquals(history(1), Some("err-1")) // second sees first error
+      assertEquals(history(2), Some("err-2")) // third sees second error
+    }
+
+    prom
+  }
+
+  test("12.Retry: elapsed grows across attempts") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observed <- Ref.of[IO, List[FiniteDuration]](Nil)
+      attempts <- Ref.of[IO, Int](0)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(50.millis).limited(2)).withDecision { tv =>
+          observed.update(_ :+ tv.elapsed).as(tv.followPolicy)
+        })
+      _ <- retry {
+        attempts.updateAndGet(_ + 1).flatMap { n =>
+          IO.raiseError[String](new RuntimeException(s"err-$n"))
+        }
+      }.attempt
+      history <- observed.get
+    } yield {
+      // Each elapsed should be non-negative and non-decreasing
+      assert(history.forall(_ >= Duration.Zero))
+      assert(history.size == 2)
+      assert(history(1) >= history(0))
+    }
+
+    prom
+  }
+
+  test("13.Retry: reusable across multiple calls with independent elapsed") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observed <- Ref.of[IO, List[FiniteDuration]](Nil)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(10.millis).limited(1)).withDecision { tv =>
+          observed.update(_ :+ tv.elapsed).as(tv.followPolicy)
+        })
+      _ <- retry(IO.raiseError[String](new RuntimeException("a"))).attempt
+      _ <- retry(IO.raiseError[String](new RuntimeException("b"))).attempt
+      elapsed <- observed.get
+    } yield {
+      assertEquals(elapsed.size, 2)
+      assert(elapsed.forall(_.toMillis < 500))
+    }
+
+    prom
+  }
 }

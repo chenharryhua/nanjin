@@ -247,7 +247,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
     val size = bufferSize.toBytes.toInt
-    require(size >= 1, s"bufferSize($size) must be at least 1 byte")
+    require(size >= 1, s"bufferSize must be at least 1 byte, but was $size")
     HadoopReader.byteS[F](configuration, url, bufferSize)
   }
 

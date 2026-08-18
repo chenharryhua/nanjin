@@ -4,7 +4,7 @@ import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.apache.commons.lang3.StringUtils
 
-private sealed trait JsonView[+A]
+sealed private trait JsonView[+A]
 
 private object JsonView {
 

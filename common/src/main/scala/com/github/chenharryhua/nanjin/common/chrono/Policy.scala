@@ -75,7 +75,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def offset(fd: FiniteDuration): Policy = {
-    require(fd >= ScalaDuration.Zero, show"$fd should be non-negative")
+    require(fd >= ScalaDuration.Zero, show"$fd must be non-negative")
     Policy(Fix(Offset(policy, fd.toJava)))
   }
 
@@ -85,8 +85,8 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     *   strictly bigger than min
     */
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
-    require(min >= ScalaDuration.Zero, show"$min should not be negative")
-    require(max > min, show"$max should be strickly bigger than $min")
+    require(min >= ScalaDuration.Zero, show"$min must be non-negative")
+    require(max > min, show"$max must be strictly bigger than $min")
     Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
   }
 
@@ -112,8 +112,8 @@ object Policy {
     */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
     val nel: NonEmptyList[FiniteDuration] = NonEmptyList.of(head, tail*)
-    require(nel.forall(_ >= ScalaDuration.Zero), "every delay should be positive or zero")
-    require(nel.exists(_ > ScalaDuration.Zero), "at least one is positive")
+    require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
+    require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
     Policy(Fix(FixedDelay(nel.map(_.toJava))))
   }
 
@@ -121,7 +121,7 @@ object Policy {
     *   should be bigger than zero
     */
   def fixedRate(delay: FiniteDuration): Policy = {
-    require(delay > ScalaDuration.Zero, show"$delay should be bigger than zero")
+    require(delay > ScalaDuration.Zero, show"delay must be positive, but was $delay")
     Policy(Fix(FixedRate(delay.toJava)))
   }
 
