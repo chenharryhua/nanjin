@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.53.2"
+val awsV = "2.53.3"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -56,6 +56,9 @@ lazy val commonSettings = List(
       org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
 
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / fork := true,
+  Test / javaOptions += "-Dorg.apache.avro.SERIALIZABLE_PACKAGES=mtest",
+  Test / baseDirectory := (ThisBuild / baseDirectory).value,
 
   // scalafix
   semanticdbEnabled           := true,
@@ -170,6 +173,7 @@ lazy val datetime = (project in file("datetime"))
 lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin)
   .settings(name := "nj-frontend")
+  .settings(coverageEnabled := false)
   .settings(
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
@@ -311,10 +315,11 @@ lazy val kafka = (project in file("kafka"))
       "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
       "io.opentelemetry"                % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
       "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.5", // snyk by kafka-protobuf-provider
+      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.6", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
+  .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
   .settings {
     Compile / sourceGenerators += Def.task {
       val out = (Compile / sourceManaged).value / "kafka-config"
@@ -360,6 +365,9 @@ lazy val pipes = (project in file("pipes"))
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
     ) ++ testLib
   )
+  .settings(Test / PB.targets := List(
+    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+  ))
 
 // ==========================
 // Example
