@@ -24,7 +24,7 @@ class SnapshotPolyglotTest extends AnyFunSuite {
           } yield (counter, meter, histogram, timer)
         }
         .use { case (counter, meter, histogram, timer) =>
-          counter.inc(42) >>
+          counter.inc(4200) >>
             meter.mark(3) >>
             histogram.update(5) >>
             timer.elapsedNano(4L) >>
@@ -51,6 +51,7 @@ class SnapshotPolyglotTest extends AnyFunSuite {
 
     val yaml = polyglot.toYaml
     assert(yaml.contains("requests:"))
+    assert(yaml.contains("4,200"))
     assert(yaml.contains("aggregate:"))
     assert(yaml.contains("updates:"))
     assert(yaml.contains("invocations:"))

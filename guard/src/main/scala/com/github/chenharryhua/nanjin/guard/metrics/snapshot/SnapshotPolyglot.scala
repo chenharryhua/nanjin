@@ -12,7 +12,10 @@ import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
 import squants.time
 
+import java.text.DecimalFormat
+
 final class SnapshotPolyglot(snapshot: Snapshot) {
+  private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
 
   private def adaptable_mean_rate(data: Double, symbol: String): String =
     if (data > 1)

@@ -63,18 +63,38 @@ object SecretsManager {
     override def getValue(req: GetSecretValueRequest): F[GetSecretValueResponse] =
       blockingF(client.getSecretValue(req), req.toString, logger)
 
-    override def getString(secretId: String): F[String] =
+    override def getString(secretId: String): F[String] = {
+      val F = Sync[F]
       blockingF(
-        client.getSecretValue(GetSecretValueRequest.builder().secretId(secretId).build()).secretString(),
+        client.getSecretValue(GetSecretValueRequest.builder().secretId(secretId).build()),
         secretId,
         logger
-      )
+      ).flatMap { resp =>
+        Option(resp.secretString()) match {
+          case Some(s) => F.pure(s)
+          case None    =>
+            F.raiseError(
+              new IllegalStateException(
+                s"Secret '$secretId' does not contain a string value. Use getBinary instead."))
+        }
+      }
+    }
 
-    override def getBinary(secretId: String): F[SdkBytes] =
+    override def getBinary(secretId: String): F[SdkBytes] = {
+      val F = Sync[F]
       blockingF(
-        client.getSecretValue(GetSecretValueRequest.builder().secretId(secretId).build()).secretBinary(),
+        client.getSecretValue(GetSecretValueRequest.builder().secretId(secretId).build()),
         secretId,
         logger
-      )
+      ).flatMap { resp =>
+        Option(resp.secretBinary()) match {
+          case Some(b) => F.pure(b)
+          case None    =>
+            F.raiseError(
+              new IllegalStateException(
+                s"Secret '$secretId' does not contain a binary value. Use getString instead."))
+        }
+      }
+    }
   }
 }
