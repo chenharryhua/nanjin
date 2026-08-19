@@ -34,7 +34,7 @@ final case class DateTimeRange(
         DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
         DateTimeParser[ZonedDateTime].map(_.toInstant) <+>
         DateTimeParser[LocalDate].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
-        DateTimeParser[LocalTime].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalTime].map(_.atDate(LocalDate.now(zoneId)).atZone(zoneId).toInstant) <+>
         DateTimeParser[LocalDateTime].map(_.atZone(zoneId).toInstant)
 
     parser.parse(str) match {
@@ -86,7 +86,7 @@ final case class DateTimeRange(
 
   // start
   def withStartTime(ts: LocalTime): DateTimeRange =
-    copy(reprStart = Some(toLocalDateTime(ts)))
+    copy(reprStart = Some(ts.atDate(LocalDate.now(zoneId))))
   def withStartTime(ts: LocalDate): DateTimeRange =
     copy(reprStart = Some(toLocalDateTime(ts)))
   def withStartTime(ts: LocalDateTime): DateTimeRange =
@@ -106,7 +106,7 @@ final case class DateTimeRange(
 
   // end
   def withEndTime(ts: LocalTime): DateTimeRange =
-    copy(reprEnd = Some(toLocalDateTime(ts)))
+    copy(reprEnd = Some(ts.atDate(LocalDate.now(zoneId))))
   def withEndTime(ts: LocalDate): DateTimeRange =
     copy(reprEnd = Some(toLocalDateTime(ts)))
   def withEndTime(ts: LocalDateTime): DateTimeRange =

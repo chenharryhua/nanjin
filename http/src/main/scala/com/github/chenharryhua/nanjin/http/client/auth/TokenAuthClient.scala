@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
@@ -57,13 +56,17 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
         client.run(withToken(token, request))
 
       Resource.eval(authToken.get).flatMap { token =>
-        Resource.eval(runWithToken(token).allocated).flatMap { case (response, release) =>
-          if (response.status === Status.Unauthorized) {
-            // Release the 401 response connection, then retry with a fresh token
-            Resource.eval(release >> singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
-          } else
-            Resource.make(response.pure[F])(_ => release)
-        }
+        // Use bracketCase via Resource to ensure the first response is always released,
+        // even if canceled between allocation and finalizer registration.
+        Resource
+          .makeFull[F, (Response[F], F[Unit])](poll => poll(runWithToken(token).allocated))(_._2)
+          .flatMap { case (response, release) =>
+            if (response.status === Status.Unauthorized) {
+              // Release the 401 response connection, then retry with a fresh token
+              Resource.eval(release >> singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
+            } else
+              Resource.pure(response)
+          }
       }
     }
 }

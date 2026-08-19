@@ -210,7 +210,8 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
-            newToken <- refreshAccessToken(oldToken).delayBy(oldToken.expires_in.seconds)
+            newToken <- refreshAccessToken(oldToken).delayBy(
+              (oldToken.expires_in.seconds - 30.seconds).max(0.seconds))
             _ <- ref.set(newToken)
           } yield ()
 
