@@ -23,10 +23,40 @@ object Main {
   /*
    * Canvas
    */
+  private val banner: ReactiveHtmlElement[HTMLDivElement] =
+    div(
+      display.flex,
+      justifyContent.center,
+      alignItems.center,
+      padding        := "8px",
+      backgroundColor := "#e74c3c",
+      color          := "white",
+      fontWeight.bold,
+      fontSize       := "14px",
+      display <-- connector.connected.signal.map(if (_) "none" else "flex"),
+      "Disconnected — reconnecting..."
+    )
+
+  private val staleBanner: ReactiveHtmlElement[HTMLDivElement] =
+    div(
+      display.flex,
+      justifyContent.center,
+      alignItems.center,
+      padding        := "8px",
+      backgroundColor := "#f39c12",
+      color          := "white",
+      fontWeight.bold,
+      fontSize       := "14px",
+      display <-- connector.stale.signal.map(if (_) "flex" else "none"),
+      "Data stale — no updates received"
+    )
+
   private val dashboard: ReactiveHtmlElement[HTMLDivElement] =
     div(
       width  := "98%",
       height := "90vh",
+      banner,
+      staleBanner,
       h2(
         s"Service: ${config.serviceName}",
         title := s"maxPoints=${config.maxPoints}, policy=${config.policy}"
@@ -42,8 +72,9 @@ object Main {
           connector.connect(chartVar)
         },
 
-        // optional cleanup
+        // cleanup
         onUnmountCallback { _ =>
+          connector.close()
           chartVar.now().foreach(_.destroy())
           chartVar.set(None)
         }
