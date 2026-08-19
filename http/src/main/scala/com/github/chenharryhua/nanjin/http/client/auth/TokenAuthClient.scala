@@ -56,17 +56,12 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
         client.run(withToken(token, request))
 
       Resource.eval(authToken.get).flatMap { token =>
-        // Use bracketCase via Resource to ensure the first response is always released,
-        // even if canceled between allocation and finalizer registration.
-        Resource
-          .makeFull[F, (Response[F], F[Unit])](poll => poll(runWithToken(token).allocated))(_._2)
-          .flatMap { case (response, release) =>
-            if (response.status === Status.Unauthorized) {
-              // Release the 401 response connection, then retry with a fresh token
-              Resource.eval(release >> singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
-            } else
-              Resource.pure(response)
-          }
+        runWithToken(token).flatMap { response =>
+          if (response.status === Status.Unauthorized)
+            Resource.eval(singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
+          else
+            Resource.pure(response)
+        }
       }
     }
 }
