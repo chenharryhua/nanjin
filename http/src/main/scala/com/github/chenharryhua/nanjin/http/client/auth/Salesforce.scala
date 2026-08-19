@@ -50,7 +50,7 @@ object Salesforce {
 
     private case class Token(
       access_token: String,
-      instance_url: String,
+      instance_url: Uri,
       id: String,
       token_type: String,
       issued_at: String,
@@ -69,7 +69,10 @@ object Salesforce {
           // Salesforce returns a fully-qualified instance_url; it is guaranteed to be a valid absolute URI.
           override protected def withToken(token: Token, req: Request[F]): Request[F] =
             req
-              .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
+              .withUri(
+                token.instance_url
+                  .withPath(req.pathInfo)
+                  .copy(query = req.uri.query, fragment = req.uri.fragment))
               .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
         }
 

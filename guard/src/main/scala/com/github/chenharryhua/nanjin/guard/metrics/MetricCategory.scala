@@ -2,28 +2,28 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import io.circe.{Decoder, Encoder}
 
-sealed trait MetricCategoryKind extends Product
-object MetricCategoryKind:
-  enum GaugeKind extends MetricCategoryKind derives Encoder, Decoder:
+sealed trait MetricKind extends Product
+object MetricKind:
+  enum Gauge extends MetricKind derives Encoder, Decoder:
     case Default, HealthCheck, Percentile
 
-  enum CounterKind extends MetricCategoryKind derives Encoder, Decoder:
+  enum Counter extends MetricKind derives Encoder, Decoder:
     case Default, Risk
 
-  enum MeterKind extends MetricCategoryKind derives Encoder, Decoder:
+  enum Meter extends MetricKind derives Encoder, Decoder:
     case Default
 
-  enum HistogramKind extends MetricCategoryKind derives Encoder, Decoder:
+  enum Histogram extends MetricKind derives Encoder, Decoder:
     case Default
 
-  enum TimerKind extends MetricCategoryKind derives Encoder, Decoder:
+  enum Timer extends MetricKind derives Encoder, Decoder:
     case Default
-end MetricCategoryKind
+end MetricKind
 
 enum MetricCategory derives Encoder, Decoder:
-  case GaugeC(kind: MetricCategoryKind.GaugeKind)
-  case CounterC(kind: MetricCategoryKind.CounterKind)
-  case MeterC(kind: MetricCategoryKind.MeterKind, squants: Squants)
-  case HistogramC(kind: MetricCategoryKind.HistogramKind, squants: Squants)
-  case TimerC(kind: MetricCategoryKind.TimerKind)
+  case Gauge(kind: MetricKind.Gauge)
+  case Counter(kind: MetricKind.Counter)
+  case Meter(kind: MetricKind.Meter, squants: Squants)
+  case Histogram(kind: MetricKind.Histogram, squants: Squants)
+  case Timer(kind: MetricKind.Timer)
 end MetricCategory

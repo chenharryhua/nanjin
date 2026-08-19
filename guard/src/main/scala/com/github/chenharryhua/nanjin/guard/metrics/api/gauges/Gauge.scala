@@ -9,7 +9,7 @@ import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.event.StackTrace
-import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.metrics.MetricKind
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricName}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
@@ -24,7 +24,7 @@ object Gauge {
     private[Gauge] val isEnabled: Boolean,
     private[Gauge] val timeout: FiniteDuration,
     private[Gauge] val policy: Option[Policy],
-    private[Gauge] val kind: GaugeKind)
+    private[Gauge] val kind: MetricKind.Gauge)
       extends EnableConfig[Builder] {
     /*
      * Transformation
@@ -45,8 +45,8 @@ object Gauge {
     def withPolicy(f: Policy.type => Policy): Builder =
       withPolicy(Some(f(Policy)))
 
-    private[gauges] def withKind(f: GaugeKind.type => GaugeKind): Builder =
-      new Builder(isEnabled, timeout, policy, f(GaugeKind))
+    private[gauges] def withKind(f: MetricKind.Gauge.type => MetricKind.Gauge): Builder =
+      new Builder(isEnabled, timeout, policy, f(MetricKind.Gauge))
 
     // transition
     /** Register an effectful value and encode each result as JSON. */
@@ -60,7 +60,7 @@ object Gauge {
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
       metricID <- Resource.eval(MetricName(name).map { metricName =>
-        MetricID(gp.label, metricName, MetricCategory.GaugeC(builder.kind)).identifier
+        MetricID(gp.label, metricName, MetricCategory.Gauge(builder.kind)).identifier
       })
       _ <- Resource.make(F.delay {
         gp.metricRegistry.gauge(
@@ -101,6 +101,6 @@ object Gauge {
     gp: GaugeParams[F],
     name: String,
     f: Builder => Registered[F]): Resource[F, Unit] =
-    f(new Builder(isEnabled = true, timeout = 5.seconds, policy = None, kind = GaugeKind.Default))
+    f(new Builder(isEnabled = true, timeout = 5.seconds, policy = None, kind = MetricKind.Gauge.Default))
       .build(gp, name)
 }

@@ -264,18 +264,26 @@ final class Hadoop[F[_]](config: Configuration) {
       FileUtil.copy(srcFs, src, tgtFs, tgt, deleteSource, true, config)
     }
 
-  /** Copy a file or directory from one Hadoop-compatible path to another.
+  /** Convenience method to copy a file or directory from one Hadoop-compatible path to another.
     *
-    * The source is preserved and the target is created as a new path. This is a thin wrapper over Hadoop's
-    * file copy logic and uses the configured Hadoop filesystem implementation.
+    * This is a thin wrapper over Hadoop's `FileUtil.copy` and delegates entirely to the underlying filesystem
+    * implementation. The source is preserved and the target is created as a new path.
+    *
+    * On object stores such as S3, the operation is not atomic and a partial failure may leave incomplete
+    * objects at the target path. Callers requiring stronger guarantees should use the appropriate
+    * storage-specific SDK or handle cleanup externally.
     */
   def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
     copyFile(source, target, false)
 
-  /** Move a file or directory from one Hadoop-compatible path to another.
+  /** Convenience method to move a file or directory from one Hadoop-compatible path to another.
     *
-    * This is equivalent to a copy followed by deletion of the source path. The source is removed after a
-    * successful transfer, subject to the underlying Hadoop filesystem semantics.
+    * This is a thin wrapper over Hadoop's `FileUtil.copy` with source deletion and delegates entirely to the
+    * underlying filesystem implementation. The source is removed after a successful transfer.
+    *
+    * On object stores such as S3, move is not atomic — it is a copy followed by delete. A partial failure may
+    * leave orphaned objects at either location. Callers requiring stronger guarantees should use the
+    * appropriate storage-specific SDK or handle cleanup externally.
     */
   def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
     copyFile(source, target, true)

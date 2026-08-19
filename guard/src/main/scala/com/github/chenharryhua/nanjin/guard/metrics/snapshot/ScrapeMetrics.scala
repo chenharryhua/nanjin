@@ -21,8 +21,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
     sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
       decode[MetricID](name) match {
-        case Left(_)                                                 => None
-        case Right(mid @ MetricID(_, _, MetricCategory.CounterC(_))) =>
+        case Left(_)                                                => None
+        case Right(mid @ MetricID(_, _, MetricCategory.Counter(_))) =>
           Some(
             MetricElement.Counter(
               metricId = mid,
@@ -37,8 +37,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
     sm.asScala.iterator.flatMap { case (name, meter) =>
       decode[MetricID](name) match {
-        case Left(_)                                                        => None
-        case Right(mid @ MetricID(_, _, MetricCategory.MeterC(_, squants))) =>
+        case Left(_)                                                       => None
+        case Right(mid @ MetricID(_, _, MetricCategory.Meter(_, squants))) =>
           Some(
             MetricElement.Meter(
               metricId = mid,
@@ -61,8 +61,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
     sm.asScala.iterator.flatMap { case (name, histogram) =>
       decode[MetricID](name) match {
-        case Left(_)                                                            => None
-        case Right(mid @ MetricID(_, _, MetricCategory.HistogramC(_, squants))) =>
+        case Left(_)                                                           => None
+        case Right(mid @ MetricID(_, _, MetricCategory.Histogram(_, squants))) =>
           val ss = histogram.getSnapshot
           Some(
             MetricElement.Histogram(
@@ -92,8 +92,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
     sm.asScala.iterator.flatMap { case (name, timer) =>
       decode[MetricID](name) match {
-        case Left(_)                                               => None
-        case Right(mid @ MetricID(_, _, MetricCategory.TimerC(_))) =>
+        case Left(_)                                              => None
+        case Right(mid @ MetricID(_, _, MetricCategory.Timer(_))) =>
           val ss = timer.getSnapshot
           Some(
             MetricElement.Timer(
@@ -128,8 +128,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
-        case Left(_)                                               => None
-        case Right(mid @ MetricID(_, _, MetricCategory.GaugeC(_))) =>
+        case Left(_)                                              => None
+        case Right(mid @ MetricID(_, _, MetricCategory.Gauge(_))) =>
           parse(gauge.getValue.toString) match {
             case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
             case Left(_)     => None

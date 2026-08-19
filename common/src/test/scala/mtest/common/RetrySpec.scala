@@ -325,4 +325,110 @@ class RetrySpec extends CatsEffectSuite {
 
     prom
   }
+
+  test("14.Retry: Decision.accepted is true for followPolicy") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedAccepted <- Ref.of[IO, List[Boolean]](Nil)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(10.millis).limited(2)).withDecision { tv =>
+          val decision = tv.followPolicy
+          observedAccepted.update(_ :+ decision.accepted).as(decision)
+        }
+      )
+      _ <- retry {
+        IO.raiseError[String](new RuntimeException("boom"))
+      }.attempt
+      history <- observedAccepted.get
+    } yield {
+      assert(history.nonEmpty)
+      assert(history.forall(_ == true))
+    }
+
+    prom
+  }
+
+  test("15.Retry: Decision.accepted is false for giveUp") {
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedAccepted <- Ref.of[IO, Option[Boolean]](None)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(10.millis).limited(2)).withDecision { tv =>
+          val decision = tv.giveUp
+          observedAccepted.set(Some(decision.accepted)).as(decision)
+        }
+      )
+      _ <- retry(IO.raiseError[String](new RuntimeException("boom"))).attempt
+      accepted <- observedAccepted.get
+    } yield assertEquals(accepted, Some(false))
+
+    prom
+  }
+
+  test("16.Retry: Decision encoder produces correct JSON for followPolicy") {
+    import io.circe.Encoder
+
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedJson <- Ref.of[IO, Option[io.circe.Json]](None)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(25.millis).limited(2)).withDecision { tv =>
+          val decision = tv.followPolicy
+          val json = Encoder[Retry.Decision].apply(decision)
+          observedJson.set(Some(json)).as(decision)
+        }
+      )
+      _ <- retry(IO.raiseError[String](new RuntimeException("boom"))).attempt
+      json <- observedJson.get
+    } yield {
+      assert(json.nonEmpty)
+      val j = json.get
+      assertEquals(j.hcursor.get[Boolean]("retry").toOption, Some(true))
+      assert(j.hcursor.get[String]("failed_at").isRight)
+      assert(j.hcursor.get[String]("wakeup_at").isRight)
+      assert(j.hcursor.get[String]("snooze").isRight)
+      assert(j.hcursor.get[Long]("ordinal").isRight)
+      assert(j.hcursor.get[String]("zone_id").isRight)
+    }
+
+    prom
+  }
+
+  test("17.Retry: Decision encoder produces correct JSON for giveUp") {
+    import io.circe.Encoder
+
+    val zoneId = ZoneId.systemDefault()
+
+    val prom = for {
+      observedJson <- Ref.of[IO, Option[io.circe.Json]](None)
+      retry <- Retry[IO](
+        zoneId,
+        _.withPolicy(_.fixedDelay(25.millis).limited(2)).withDecision { tv =>
+          val decision = tv.giveUp
+          val json = Encoder[Retry.Decision].apply(decision)
+          observedJson.set(Some(json)).as(decision)
+        }
+      )
+      _ <- retry(IO.raiseError[String](new RuntimeException("boom"))).attempt
+      json <- observedJson.get
+    } yield {
+      assert(json.nonEmpty)
+      val j = json.get
+      assertEquals(j.hcursor.get[Boolean]("retry").toOption, Some(false))
+      assert(j.hcursor.get[String]("failed_at").isRight)
+      assert(j.hcursor.get[Long]("ordinal").isRight)
+      assert(j.hcursor.get[String]("zone_id").isRight)
+      // giveUp should NOT have wakeup_at or snooze
+      assert(j.hcursor.get[String]("wakeup_at").isLeft)
+      assert(j.hcursor.get[String]("snooze").isLeft)
+    }
+
+    prom
+  }
 }

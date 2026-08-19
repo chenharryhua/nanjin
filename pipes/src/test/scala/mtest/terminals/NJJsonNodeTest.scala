@@ -99,7 +99,31 @@ class NJJsonNodeTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("8.rotation - size") {
+  test("8.jsonNode source skips embedded empty lines") {
+    val path = fs2Root / "empty-lines"
+    val tgt = path / "with-blanks.jackson.json"
+    hdp.delete(tgt).unsafeRunSync()
+
+    // Write a file with embedded blank lines between valid JSON objects
+    val records = pandaSet.toList.flatMap(genericRecord2JsonNode(_).toOption)
+    val linesWithBlanks: List[String] =
+      records.map(objectMapper.writer().writeValueAsString(_)).flatMap(line => List(line, "", ""))
+
+    Stream
+      .emits(linesWithBlanks)
+      .covary[IO]
+      .through(hdp.sink(tgt).text)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    // Read back — should skip blank lines and return all records
+    val result = hdp.source(tgt).jsonNode(10, objectMapper.reader()).compile.toList.unsafeRunSync()
+    val roundTripped = result.flatMap(jsonNode2GenericRecord(_, pandaSchema).toOption).toSet
+    assert(roundTripped == pandaSet)
+  }
+
+  test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = JacksonFile(_.Uncompressed)

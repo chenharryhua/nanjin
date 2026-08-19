@@ -6,10 +6,10 @@ import cats.syntax.applicative.given
 import cats.syntax.functor.given
 import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
+  MetricKind,
   MetricLabel,
   MetricName,
   Squants
@@ -43,7 +43,7 @@ object Meter {
       MetricID(
         metricLabel = label,
         metricName = name,
-        MetricCategory.MeterC(kind = MeterKind.Default, squants = squants)
+        MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
       ).identifier
 
     private val meter: CodahaleMeter = metricRegistry.meter(meterName)

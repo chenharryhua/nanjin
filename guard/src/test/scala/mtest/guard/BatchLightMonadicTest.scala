@@ -346,6 +346,24 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
 
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
+
+    "batchValue should return all values on success" in {
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-sequential-value-ok")
+          .sequential("a" -> IO(10), "b" -> IO(20), "c" -> IO(30))
+          .batchValue
+          .map { bv =>
+            bv.jobs.size shouldBe 3
+            bv.jobs.map(_.result) shouldBe List(10, 20, 30)
+            bv.mode shouldBe BatchMode.Sequential
+            bv.done shouldBe true
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
   }
 
   "parallel" - {

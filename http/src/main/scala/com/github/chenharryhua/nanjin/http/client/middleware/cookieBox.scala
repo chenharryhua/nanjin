@@ -19,8 +19,9 @@ import scala.jdk.CollectionConverters.*
   *   2. **Writes cookies** to the `CookieManager` after receiving the response
   *      - Parses all `Set-Cookie` headers from the response
   *      - Converts them to `HttpCookie` and adds them to the `CookieStore` for future requests
-  *   3. **Blocking operations** (Java cookie store read/write) are shifted to `Sync[F].blocking` to avoid
-  *      blocking the Cats Effect compute pool.
+  *   3. **Side effects** (Java cookie store read/write) are suspended via `Sync[F].delay` and remain on the
+  *      compute pool since the default in-memory `CookieStore` performs only fast, synchronized map
+  *      operations.
   *   4. **Resource-safe**
   *      - The middleware preserves the `Resource` lifecycle of the wrapped client
   *      - Response finalizers are not affected
@@ -66,14 +67,14 @@ def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sy
   Client[F] { req =>
     for {
       cookies <- Resource.eval[F, List[RequestCookie]](
-        F.blocking(
+        F.delay(
           cookie_store
             .get(URI.create(req.uri.renderString))
             .asScala
             .toList
             .map(hc => RequestCookie(hc.getName, hc.getValue))))
       out <- client.run(cookies.foldLeft(req) { case (r, c) => r.addCookie(c) }).evalTap { resp =>
-        F.blocking(
+        F.delay(
           resp.headers.headers
             .filter(_.name === `Set-Cookie`.name)
             .flatMap(c => HttpCookie.parse(c.value).asScala)
