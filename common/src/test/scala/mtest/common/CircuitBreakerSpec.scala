@@ -265,5 +265,80 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           after shouldBe CircuitBreaker.State.Closed(0)
         }
       }.unsafeRunSync()
+
+    "State encoder produces correct JSON for Closed" in {
+      import io.circe.Encoder
+
+      val state: CircuitBreaker.State = CircuitBreaker.State.Closed(3)
+      val json = Encoder[CircuitBreaker.State].apply(state)
+      json.hcursor.get[String]("state").toOption.get shouldBe "Closed"
+      json.hcursor.get[Int]("failures").toOption.get shouldBe 3
+    }
+
+    "State encoder produces correct JSON for HalfOpen" in {
+      import io.circe.Encoder
+
+      val state: CircuitBreaker.State = CircuitBreaker.State.HalfOpen
+      val json = Encoder[CircuitBreaker.State].apply(state)
+      json.hcursor.get[String]("state").toOption.get shouldBe "Half-Open"
+    }
+
+    "State encoder produces correct JSON for Open" in {
+      import io.circe.Encoder
+
+      val state: CircuitBreaker.State = CircuitBreaker.State.Open
+      val json = Encoder[CircuitBreaker.State].apply(state)
+      json.hcursor.get[String]("state").toOption.get shouldBe "Open"
+    }
+
+    "reports HalfOpen state after cancel restores probe admission" in {
+      val err = new RuntimeException("fail")
+
+      breaker(
+        maxFailures = 1,
+        policy = Policy.fixedDelay(100.millis)
+      ).use { cb =>
+        for {
+          _ <- cb.attempt(IO.raiseError(err))
+          _ <- cb.attempt(IO.raiseError(err)) // open
+          _ <- IO.sleep(150.millis) // tick -> half-open
+          state1 <- cb.getState
+          probe <- cb.attempt(IO.sleep(500.millis)).start
+          _ <- IO.sleep(30.millis)
+          _ <- probe.cancel // cancel half-open probe
+          state2 <- cb.getState
+        } yield {
+          state1 shouldBe CircuitBreaker.State.HalfOpen
+          state2 shouldBe CircuitBreaker.State.HalfOpen
+        }
+      }.unsafeRunSync()
+    }
+
+    "half-open probe success from stale Closed admission is ignored" in
+      // This exercises the evolve(HalfOpenRunning, from=Closed) -> ms path
+      breaker(
+        maxFailures = 2,
+        policy = Policy.fixedDelay(80.millis)
+      ).use { cb =>
+        for {
+          gate <- Deferred[IO, Unit]
+          // Start a slow success from Closed state
+          slowFromClosed <- cb.attempt(gate.get).start
+          _ <- IO.sleep(20.millis)
+          // Trip to Open
+          _ <- cb.attempt(IO.raiseError(new RuntimeException("f1")))
+          _ <- cb.attempt(IO.raiseError(new RuntimeException("f2")))
+          _ <- IO.sleep(120.millis) // tick -> half-open
+          // Start a probe from HalfOpen
+          probeFromHalfOpen <- cb.attempt(IO.sleep(200.millis)).start
+          _ <- IO.sleep(20.millis)
+          // Now release the stale Closed-admission success
+          _ <- gate.complete(())
+          _ <- slowFromClosed.joinWithNever
+          // State should still be HalfOpen (running), not Closed
+          state <- cb.getState
+          _ <- probeFromHalfOpen.cancel
+        } yield state shouldBe CircuitBreaker.State.HalfOpen
+      }.unsafeRunSync()
   }
 }

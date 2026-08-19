@@ -22,7 +22,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
   *
   * A retry is governed by two orthogonal concerns:
   *
-  *   1. A [[com.github.chenharryhua.nanjin.common.chrono.Policy]] that defines the temporal structure of
+  *   1. A `Policy` that defines the temporal structure of
   *      retry attempts (limits, delays, backoff)
   *   2. A *decision function* that is invoked on failure and determines whether execution should continue,
   *      optionally reshaping the next retry time-frame
