@@ -2,6 +2,7 @@ package mtest.terminals
 
 import better.files.*
 import cats.effect.unsafe.implicits.global
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
 import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionStatus}
@@ -194,5 +195,28 @@ class HadoopTest extends AnyFunSuite {
     assert(!hdp.isExist(source).unsafeRunSync())
     assert(hdp.isExist(target).unsafeRunSync())
     assert(File(target.toString()).contentAsString == "moved-content")
+  }
+
+  test("17.FileSource.bytes rejects sub-byte buffer size") {
+    assertThrows[IllegalArgumentException] {
+      hdp.source(path / "any.txt").bytes(squants.information.Bytes(0))
+    }
+  }
+
+  test("18.extractDate - Year as first path segment") {
+    val p1 = Url.parse("Year=2025") / "Month=03" / "Day=15"
+    assert(extractDate(p1).get == LocalDate.of(2025, 3, 15))
+  }
+
+  test("19.rotateSink rejects size=0") {
+    assertThrows[IllegalArgumentException] {
+      hdp.rotateSink(java.time.ZoneId.systemDefault(), 0L)(_ => path)
+    }
+  }
+
+  test("20.rotateSink rejects negative size") {
+    assertThrows[IllegalArgumentException] {
+      hdp.rotateSink(java.time.ZoneId.systemDefault(), -1L)(_ => path)
+    }
   }
 }

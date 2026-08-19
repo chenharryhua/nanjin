@@ -296,5 +296,5 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
   override def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode] =
-    text(chunkSize).takeWhile(_.nonEmpty).map(or.readTree)
+    text(chunkSize).filter(_.nonEmpty).map(or.readTree)
 }
