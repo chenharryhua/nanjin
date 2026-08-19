@@ -41,7 +41,7 @@ import fs2.io.net.Network
   *
   * `TaskGuard` itself is lightweight and stateless — it only carries configuration. The actual service
   * lifecycle (restart supervision, metrics collection, event publishing) begins when the event stream
-  * returned by [[ServiceGuard.eventStream]] is compiled.
+  * returned by `ServiceGuard.eventStream` is compiled.
   *
   * Multiple services can be created from the same `TaskGuard`, sharing the same task name and base
   * configuration but running independently with their own service IDs and metrics registries.

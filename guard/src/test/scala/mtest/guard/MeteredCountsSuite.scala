@@ -17,7 +17,7 @@ object MetricFixtures {
       s"""{
          |  "metricLabel": {"label": "$id", "domain": "test"},
          |  "metricName": {"name": "$id", "age": 0, "uniqueToken": 0},
-         |  "category": {"MeterC": {
+         |  "category": {"Meter": {
          |    "kind": {"Default": {}},
          |    "squants": {"unitSymbol": "1", "dimensionName": "Dimensionless"}
          |  }}

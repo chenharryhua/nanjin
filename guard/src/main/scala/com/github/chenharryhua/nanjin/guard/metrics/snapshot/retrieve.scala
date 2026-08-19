@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricCategoryKind, MetricID}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricKind}
 import io.circe.{Decoder, Json}
 
 object retrieve {
   def healthCheck(gauges: List[MetricElement.Gauge]): Map[MetricID, Boolean] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.GaugeC(MetricCategoryKind.GaugeKind.HealthCheck) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.HealthCheck) =>
           gg.gauge.value.asBoolean.map(gg.metricId -> _)
       }
     }.flatten.toMap
@@ -15,7 +15,7 @@ object retrieve {
   def gauge[A: Decoder](gauges: List[MetricElement.Gauge]): Map[MetricID, A] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.GaugeC(MetricCategoryKind.GaugeKind.Default) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.Default) =>
           gg.gauge.value.as[A].toOption.map(gg.metricId -> _)
       }
     }.flatten.toMap
@@ -23,7 +23,7 @@ object retrieve {
   def percentile(gauges: List[MetricElement.Gauge]): Map[MetricID, Json] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.GaugeC(MetricCategoryKind.GaugeKind.Percentile) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.Percentile) =>
           gg.metricId -> gg.gauge.value
       }
     }.toMap
@@ -31,7 +31,7 @@ object retrieve {
   def counter(counters: List[MetricElement.Counter]): Map[MetricID, MetricElement.CounterData] =
     counters.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.CounterC(MetricCategoryKind.CounterKind.Default) =>
+        case MetricCategory.Counter(MetricKind.Counter.Default) =>
           tm.metricId -> tm.counter
       }
     }.toMap
@@ -39,7 +39,7 @@ object retrieve {
   def riskCounter(counters: List[MetricElement.Counter]): Map[MetricID, MetricElement.CounterData] =
     counters.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.CounterC(MetricCategoryKind.CounterKind.Risk) =>
+        case MetricCategory.Counter(MetricKind.Counter.Risk) =>
           tm.metricId -> tm.counter
       }
     }.toMap
@@ -47,7 +47,7 @@ object retrieve {
   def timer(timers: List[MetricElement.Timer]): Map[MetricID, MetricElement.TimerData] =
     timers.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.TimerC(MetricCategoryKind.TimerKind.Default) =>
+        case MetricCategory.Timer(MetricKind.Timer.Default) =>
           tm.metricId -> tm.timer
       }
     }.toMap
@@ -55,7 +55,7 @@ object retrieve {
   def meter(meters: List[MetricElement.Meter]): Map[MetricID, MetricElement.MeterData] =
     meters.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.MeterC(MetricCategoryKind.MeterKind.Default, _) =>
+        case MetricCategory.Meter(MetricKind.Meter.Default, _) =>
           tm.metricId -> tm.meter
       }
     }.toMap
@@ -63,7 +63,7 @@ object retrieve {
   def histogram(histograms: List[MetricElement.Histogram]): Map[MetricID, MetricElement.HistogramData] =
     histograms.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.HistogramC(MetricCategoryKind.HistogramKind.Default, _) =>
+        case MetricCategory.Histogram(MetricKind.Histogram.Default, _) =>
           tm.metricId -> tm.histogram
       }
     }.toMap

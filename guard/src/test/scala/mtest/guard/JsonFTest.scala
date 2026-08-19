@@ -1,6 +1,5 @@
-package mtest.guard
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.JsonView
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

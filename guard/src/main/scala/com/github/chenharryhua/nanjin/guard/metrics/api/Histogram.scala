@@ -11,10 +11,10 @@ import com.codahale.metrics.{
   Reservoir
 }
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
+  MetricKind,
   MetricLabel,
   MetricName,
   Squants
@@ -49,7 +49,7 @@ object Histogram {
       MetricID(
         metricLabel = label,
         metricName = name,
-        MetricCategory.HistogramC(kind = HistogramKind.Default, squants = squants)
+        MetricCategory.Histogram(kind = MetricKind.Histogram.Default, squants = squants)
       ).identifier
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleHistogram] = () =>

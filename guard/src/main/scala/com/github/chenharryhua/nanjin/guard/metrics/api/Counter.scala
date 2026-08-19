@@ -8,8 +8,13 @@ import cats.syntax.functor.given
 import com.codahale.metrics.{Counter as CodahaleCounter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.metrics.MetricCategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.{
+  MetricCategory,
+  MetricID,
+  MetricKind,
+  MetricLabel,
+  MetricName
+}
 
 import java.time.ZoneId
 
@@ -36,8 +41,8 @@ object Counter {
       extends Counter[F] with UnsafeCounter {
     private val counterName: String =
       if isRisk
-      then MetricID(label, name, MetricCategory.CounterC(CounterKind.Risk)).identifier
-      else MetricID(label, name, MetricCategory.CounterC(CounterKind.Default)).identifier
+      then MetricID(label, name, MetricCategory.Counter(MetricKind.Counter.Risk)).identifier
+      else MetricID(label, name, MetricCategory.Counter(MetricKind.Counter.Default)).identifier
 
     private val counter: CodahaleCounter = metricRegistry.counter(counterName)
 

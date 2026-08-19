@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
@@ -106,6 +107,7 @@ object Domain:
   extension (d: Domain) inline def value: String = d
 
   given Show[Domain] = OpaqueLift.lift[Domain, String, Show]
+  given Eq[Domain] = OpaqueLift.lift[Domain, String, Eq]
   given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
   given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
