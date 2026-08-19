@@ -1,6 +1,8 @@
 package mtest.http
 
+import cats.data.NonEmptyList
 import cats.effect.*
+import cats.syntax.parallel.given
 import com.github.chenharryhua.nanjin.http.client.auth
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
@@ -16,6 +18,8 @@ import org.http4s.client.middleware.Logger
 import org.http4s.dsl.io.*
 import org.http4s.headers.{`Content-Type`, Authorization}
 import org.http4s.implicits.*
+
+import scala.concurrent.duration.*
 
 final class AuthLoginSuite extends CatsEffectSuite {
 
@@ -279,6 +283,210 @@ final class AuthLoginSuite extends CatsEffectSuite {
 
     Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
       authed.expect[String](uri"/resource")
+    }
+  }
+
+  test("8.Salesforce password grant preserves query string") {
+    val authApp = HttpApp[IO] {
+      case POST -> Root / "token" =>
+        Ok(
+          """
+            |{
+            |  "access_token": "sf-token",
+            |  "instance_url": "https://example.my.salesforce.com",
+            |  "id": "id",
+            |  "token_type": "Bearer",
+            |  "issued_at": "0",
+            |  "signature": "sig"
+            |}
+            |""".stripMargin
+        )
+      case _ => InternalServerError()
+    }
+
+    val resourceApp = HttpApp[IO] { req =>
+      req.headers.get[Authorization] match {
+        case Some(_) =>
+          assertEquals(req.uri.host.map(_.value), Some("example.my.salesforce.com"))
+          assertEquals(req.uri.query.params.get("q"), Some("SELECT Id FROM Account"))
+          assertEquals(req.uri.path.renderString, "/services/data/v58.0/query")
+          Ok("ok")
+        case _ => Forbidden("missing auth")
+      }
+    }
+
+    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(authApp))
+    val credential = Salesforce.PasswordGrant(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = "secret",
+      username = "user",
+      password = "pass"
+    )
+
+    Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
+      authed.expect[String](Uri.unsafeFromString("/services/data/v58.0/query?q=SELECT+Id+FROM+Account"))
+    }
+  }
+
+  test("9.clientCredentials with scopes includes scope in token request") {
+    val scopeReceived = Ref.unsafe[IO, Option[String]](None)
+
+    val app = HttpApp[IO] {
+      case req @ POST -> Root / "token" =>
+        req.as[UrlForm].flatMap { form =>
+          scopeReceived.set(form.getFirst("scope")) *> Ok(
+            """
+              |{
+              |  "access_token": "scoped-token",
+              |  "token_type": "Bearer",
+              |  "expires_in": 3600
+              |}
+              |""".stripMargin
+          )
+        }
+      case _ => InternalServerError()
+    }
+
+    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret",
+      scope = Some(NonEmptyList.of("read", "write"))
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
+      for {
+        _ <- authed.expect[String](uri"/data")
+        s <- scopeReceived.get
+      } yield assertEquals(s, Some("read write"))
+    }
+  }
+
+  test("10.clientCredentials with refresh_token uses refresh on renewal") {
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+
+    val app = HttpApp[IO] {
+      case req @ POST -> Root / "token" =>
+        req.as[UrlForm].flatMap { form =>
+          tokenCalls.updateAndGet(_ + 1).flatMap { n =>
+            val grantType = form.getFirst("grant_type")
+            if (n == 1) {
+              assertEquals(grantType, Some("client_credentials"))
+              Ok(
+                """
+                  |{
+                  |  "access_token": "token-1",
+                  |  "token_type": "Bearer",
+                  |  "expires_in": 1,
+                  |  "refresh_token": "refresh-abc"
+                  |}
+                  |""".stripMargin
+              )
+            } else {
+              assertEquals(grantType, Some("refresh_token"))
+              assertEquals(form.getFirst("refresh_token"), Some("refresh-abc"))
+              Ok(
+                """
+                  |{
+                  |  "access_token": "token-2",
+                  |  "token_type": "Bearer",
+                  |  "expires_in": 3600
+                  |}
+                  |""".stripMargin
+              )
+            }
+          }
+        }
+      case _ => InternalServerError()
+    }
+
+    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
+      for {
+        _ <- authed.expect[String](uri"/a")
+        _ <- IO.sleep(2.seconds) // wait for renewal to fire
+        _ <- authed.expect[String](uri"/b")
+        n <- tokenCalls.get
+      } yield assert(n >= 2)
+    }
+  }
+
+  test("11.concurrent 401s use SingleFlight to deduplicate token refresh") {
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+    val requestCount = Ref.unsafe[IO, Int](0)
+
+    val authApp = HttpApp[IO] {
+      case POST -> Root / "token" =>
+        tokenCalls.updateAndGet(_ + 1).flatMap { n =>
+          IO.sleep(100.millis) *> Ok(
+            s"""
+               |{
+               |  "access_token": "token-$n",
+               |  "token_type": "Bearer",
+               |  "expires_in": 3600
+               |}
+               |""".stripMargin
+          )
+        }
+      case _ => InternalServerError()
+    }
+
+    val resourceApp = HttpApp[IO] { req =>
+      req.headers.get[Authorization] match {
+        case Some(authHeader) =>
+          requestCount.updateAndGet(_ + 1).flatMap { _ =>
+            val token = authHeader.value.stripPrefix("Bearer ")
+            // First token always triggers 401
+            if (token == "token-1") IO.pure(Response[IO](Status.Unauthorized))
+            else Ok("ok")
+          }
+        case _ => Forbidden("missing auth")
+      }
+    }
+
+    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(authApp))
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use {
+      authed =>
+        // Fire 5 concurrent requests — all should hit 401 on first token, but only one refresh should happen
+        val requests = List.fill(5)(authed.expect[String](uri"/data"))
+        requests.parSequence.flatMap { results =>
+          tokenCalls.get.map { n =>
+            results.foreach(r => assertEquals(r, "ok"))
+            // Initial fetch + exactly one refresh via SingleFlight = 2
+            assertEquals(n, 2)
+          }
+        }
+    }
+  }
+
+  test("12.Login.login(Resource) convenience method works") {
+    val authClient = Resource.pure[IO, Client[IO]](
+      tokenServer(expectedGrantType = "client_credentials")
+    )
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    val clientResource = Resource.pure[IO, Client[IO]](protectedResource)
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(clientResource)).use { authed =>
+      authed.expect[String](uri"/hello").map(body => assertEquals(body, "ok"))
     }
   }
 }

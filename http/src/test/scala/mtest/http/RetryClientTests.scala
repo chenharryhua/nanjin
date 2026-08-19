@@ -197,4 +197,134 @@ class RetryClientTests extends CatsEffectSuite {
       assert(saw)
     }
   }
+
+  test("9.Cookie middleware isolates cookies by domain") {
+    val cookieManager = new CookieManager()
+    val client = Client[IO] { req =>
+      Resource.eval {
+        if (req.uri.renderString == "http://a.com/login") {
+          IO.pure(
+            Response[IO](Status.Ok)
+              .withHeaders(Headers(Header.Raw(CIString(`Set-Cookie`.name.toString), "sid=aaa; Path=/"))))
+        } else if (req.uri.renderString == "http://b.com/login") {
+          IO.pure(
+            Response[IO](Status.Ok)
+              .withHeaders(Headers(Header.Raw(CIString(`Set-Cookie`.name.toString), "sid=bbb; Path=/"))))
+        } else {
+          IO.pure(Response[IO](Status.Ok))
+        }
+      }
+    }
+
+    val wrapped = cookieBox[IO](cookieManager)(client)
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://a.com/login")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://b.com/login")).use(IO.pure)
+      cookiesA <- IO(cookieManager.getCookieStore.get(URI.create("http://a.com/")).asScala.toList)
+      cookiesB <- IO(cookieManager.getCookieStore.get(URI.create("http://b.com/")).asScala.toList)
+    } yield {
+      assertEquals(cookiesA.map(_.getValue), List("aaa"))
+      assertEquals(cookiesB.map(_.getValue), List("bbb"))
+    }
+  }
+
+  test("10.Cookie middleware handles multiple Set-Cookie headers") {
+    val cookieManager = new CookieManager()
+    val client = Client[IO] { _ =>
+      Resource.eval(
+        IO.pure(
+          Response[IO](Status.Ok).withHeaders(
+            Headers(
+              Header.Raw(CIString(`Set-Cookie`.name.toString), "a=1; Path=/"),
+              Header.Raw(CIString(`Set-Cookie`.name.toString), "b=2; Path=/")
+            ))
+        ))
+    }
+
+    val wrapped = cookieBox[IO](cookieManager)(client)
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://multi.com/page")).use(IO.pure)
+      cookies <- IO(cookieManager.getCookieStore.get(URI.create("http://multi.com/page")).asScala.toList)
+    } yield {
+      val names = cookies.map(_.getName).sorted
+      assertEquals(names, List("a", "b"))
+    }
+  }
+
+  test("11.Retry respects Retry-After header (seconds)") {
+    val counter = Ref.unsafe[IO, Int](0)
+    val timestamps = Ref.unsafe[IO, List[Long]](Nil)
+
+    val client = Client[IO] { _ =>
+      Resource.eval(
+        for {
+          now <- IO.realTime.map(_.toMillis)
+          _ <- timestamps.update(_ :+ now)
+          n <- counter.updateAndGet(_ + 1)
+          resp <-
+            if (n <= 1)
+              IO.pure(Response[IO](Status.ServiceUnavailable)
+                .putHeaders(org.http4s.headers.`Retry-After`.unsafeFromDuration(1.second)))
+            else IO.pure(Response[IO](Status.Ok))
+        } yield resp
+      )
+    }
+
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val req = Request[IO](Method.GET, uri"/retry-after")
+
+    for {
+      r <- retryClient.run(req).use(IO.pure)
+      n <- counter.get
+      ts <- timestamps.get
+    } yield {
+      assertEquals(r.status, Status.Ok)
+      assertEquals(n, 2)
+      // The retry should have waited at least ~1 second (Retry-After: 1)
+      val delay = ts(1) - ts(0)
+      assert(delay >= 900, s"Expected >= 900ms delay due to Retry-After, got ${delay}ms")
+    }
+  }
+
+  test("12.recklessHttpRetry retries on retriable response status") {
+    val counter = Ref.unsafe[IO, Int](0)
+    val client = Client[IO] { _ =>
+      Resource.eval(
+        counter.updateAndGet(_ + 1).flatMap { n =>
+          if (n <= 2) IO.pure(Response[IO](Status.ServiceUnavailable))
+          else IO.pure(Response[IO](Status.Ok))
+        }
+      )
+    }
+
+    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val req = Request[IO](Method.GET, uri"/reckless-status")
+
+    for {
+      r <- retryClient.run(req).use(IO.pure)
+      n <- counter.get
+    } yield {
+      assertEquals(r.status, Status.Ok)
+      assertEquals(n, 3)
+    }
+  }
+
+  test("13.httpRetry with empty policy does not retry") {
+    val counter = Ref.unsafe[IO, Int](0)
+    val client = Client[IO] { _ =>
+      Resource.eval(
+        counter.updateAndGet(_ + 1).flatMap(_ => IO.raiseError(new RuntimeException("fail")))
+      )
+    }
+
+    val retryClient = recklessHttpRetry[IO](zoneId, _.empty)(client)
+    val req = Request[IO](Method.GET, uri"/no-retry")
+
+    retryClient.run(req).use(_ => IO.unit).attempt.flatMap {
+      case Left(_)  => counter.get.map(n => assertEquals(n, 1))
+      case Right(_) => IO(fail("Should have failed"))
+    }
+  }
 }
