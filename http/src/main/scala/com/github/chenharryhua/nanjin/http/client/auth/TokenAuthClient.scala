@@ -14,7 +14,7 @@ import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
 
 import java.util.UUID
 
-/** Wraps an HTTP client with authentication, providing Resource and Stream APIs. */
+/** Wraps an HTTP client with authentication. */
 trait Login[F[_]] {
 
   def login(client: Client[F]): Resource[F, Client[F]]
