@@ -7,12 +7,9 @@ import io.circe.{Decoder, Encoder}
 enum LogFormat:
   case Console_PlainText,
     Console_Json,
-    Console_Json_NoColor,
     Console_Json_MultiLine,
     Console_Json_Verbose,
-    Slf4j_PlainText,
-    Slf4j_Json,
-    Slf4j_Json_NoColor
+    Slf4j_Json
 end LogFormat
 
 object LogFormat:

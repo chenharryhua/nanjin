@@ -45,7 +45,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("1.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_NoColor))
+      .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
       .eventStream(info)
       .compile
       .drain
@@ -56,15 +56,6 @@ class ServiceMessageTest extends AnyFunSuite {
     service
       .updateConfig(_.withLogFormat(_.Console_Json))
       .eventStream(info)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
-  test("3.warn json space2") {
-    service
-      .updateConfig(_.withLogFormat(_.Slf4j_Json_NoColor))
-      .eventStream(warn)
       .compile
       .drain
       .unsafeRunSync()

@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.53.3"
+val awsV = "2.54.0"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -56,7 +56,7 @@ lazy val commonSettings = List(
       org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
 
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / fork := true,
+  Test / fork                        := true,
   Test / javaOptions += "-Dorg.apache.avro.SERIALIZABLE_PACKAGES=mtest",
   Test / baseDirectory := (ThisBuild / baseDirectory).value,
 
@@ -264,6 +264,28 @@ lazy val observer_database = (project in file("observers/database"))
     ) ++ testLib
   )
 
+lazy val observer_teams = (project in file("observers/teams"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-teams")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
+lazy val observer_splunk = (project in file("observers/splunk"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-splunk")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
 // ==========================
 // Database
 // ==========================
@@ -365,9 +387,10 @@ lazy val pipes = (project in file("pipes"))
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
     ) ++ testLib
   )
-  .settings(Test / PB.targets := List(
-    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
-  ))
+  .settings(
+    Test / PB.targets := List(
+      scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+    ))
 
 // ==========================
 // Example
@@ -384,6 +407,8 @@ lazy val example = (project in file("example"))
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
   .dependsOn(observer_kafka)
+  .dependsOn(observer_teams)
+  .dependsOn(observer_splunk)
   .settings(commonSettings *)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -410,5 +435,7 @@ lazy val nanjin =
       guard,
       observer_aws,
       observer_database,
-      observer_kafka
+      observer_kafka,
+      observer_teams,
+      observer_splunk
     )

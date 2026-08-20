@@ -55,37 +55,22 @@ class EventLogSinkTest extends AnyFunSuite {
     assertStartStop(events)
   }
 
-  test("4.Console_Json_NoColor") {
-    val events = stream(_.withLogFormat(_.Console_Json_NoColor))
-    assertStartStop(events)
-  }
-
-  test("5.Console_Json_MultiLine") {
+  test("4.Console_Json_MultiLine") {
     val events = stream(_.withLogFormat(_.Console_Json_MultiLine))
     assertStartStop(events)
   }
 
-  test("6.Console_Json_Verbose") {
+  test("5.Console_Json_Verbose") {
     val events = stream(_.withLogFormat(_.Console_Json_Verbose))
     assertStartStop(events)
   }
 
-  test("7.Slf4j_PlainText") {
-    val events = stream(_.withLogFormat(_.Slf4j_PlainText))
-    assertStartStop(events)
-  }
-
-  test("8.Slf4j_Json") {
+  test("6.Slf4j_Json") {
     val events = stream(_.withLogFormat(_.Slf4j_Json))
     assertStartStop(events)
   }
 
-  test("9.Slf4j_Json_NoColor") {
-    val events = stream(_.withLogFormat(_.Slf4j_Json_NoColor))
-    assertStartStop(events)
-  }
-
-  test("10.log format does not suppress events on service panic") {
+  test("7.log format does not suppress events on service panic") {
     val events = base
       .updateConfig(
         _.withLogFormat(_.Console_Json)
@@ -99,7 +84,7 @@ class EventLogSinkTest extends AnyFunSuite {
     assert(events.last.isInstanceOf[ServiceStop])
   }
 
-  test("11.reported events appear in stream under Console_Json") {
+  test("8.reported events appear in stream under Console_Json") {
     val events = base
       .updateConfig(_.withLogFormat(_.Console_Json).withInitialLogLevel(_.Info))
       .eventStream(agent => agent.herald.info("hello"))
@@ -110,7 +95,7 @@ class EventLogSinkTest extends AnyFunSuite {
     assert(events.exists(_.isInstanceOf[Event.ReportedEvent]))
   }
 
-  test("12.reported events appear in stream under Slf4j_Json") {
+  test("9.reported events appear in stream under Slf4j_Json") {
     val events = base
       .updateConfig(_.withLogFormat(_.Slf4j_Json).withInitialLogLevel(_.Info))
       .eventStream(agent => agent.herald.warn("attention"))
@@ -121,7 +106,7 @@ class EventLogSinkTest extends AnyFunSuite {
     assert(events.exists(_.isInstanceOf[Event.ReportedEvent]))
   }
 
-  test("13.metrics snapshot included when adhoc report triggered") {
+  test("10.metrics snapshot included when adhoc report triggered") {
     val events = base
       .updateConfig(_.withLogFormat(_.Console_Json))
       .eventStream(agent => agent.adhoc.report)
