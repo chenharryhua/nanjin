@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
-import cats.syntax.eq.given
+import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
@@ -117,7 +118,7 @@ private object SlackTranslator extends all {
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val color = coloring(evt)
-    SlackApp(
+    val app = SlackApp(
       username = evt.serviceParams.taskName.value,
       attachments = List(
         Attachment(
@@ -138,6 +139,11 @@ private object SlackTranslator extends all {
         Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
       )
     )
+
+    // Append CloudWatch link using serviceId and tick index as filter
+    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
+      .map(url => s"<$url|:mag: CloudWatch Logs>")
+      .fold(app)(app.appendMarkdown)
   }
 
   private def service_stop(evt: ServiceStop): SlackApp = {
@@ -183,7 +189,7 @@ private object SlackTranslator extends all {
 
   private def reported_event(evt: ReportedEvent): SlackApp = {
     val symbol: String = evt.level match {
-      case LogLevel.Error => ":warning:"
+      case LogLevel.Error => ":x:"
       case LogLevel.Warn  => ":warning:"
       case LogLevel.Info  => ""
       case LogLevel.Good  => ""
@@ -212,7 +218,13 @@ private object SlackTranslator extends all {
       }
     }
 
-    SlackApp(username = evt.serviceParams.taskName.value, attachments = List(Some(attachment), error).flatten)
+    val app = SlackApp(
+      username = evt.serviceParams.taskName.value,
+      attachments = List(Some(attachment), error).flatten)
+
+    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
+      .map(url => s"<$url|:mag: CloudWatch Logs>")
+      .fold(app)(app.appendMarkdown)
   }
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =
