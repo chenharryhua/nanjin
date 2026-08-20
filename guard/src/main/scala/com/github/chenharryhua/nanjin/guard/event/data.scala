@@ -24,7 +24,7 @@ object StackTrace:
     inline def value: List[String] = st
     def headOption: Option[String] = st.headOption
 
-  given Show[StackTrace] = _.mkString("\n\t")
+  given Show[StackTrace] = _.mkString("\n  ")
   given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
   given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
 end StackTrace

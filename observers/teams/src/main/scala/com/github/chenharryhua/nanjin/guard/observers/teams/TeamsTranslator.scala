@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.observers.teams
 
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
@@ -39,16 +38,18 @@ private[teams] object TeamsTranslator {
     TextBlock(s"$symbol ${eventTitle(evt)}", weight = Some("Bolder"), size = Some("Medium"))
   }
 
-  private def serviceInfo(sp: ServiceParams): FactSet = {
+  private def serviceInfo(evt: Event): FactSet = {
+    val sp = evt.serviceParams
     val service = Attribute(sp.serviceName).textEntry
     val host = Attribute(sp.host).textEntry
     val sid = Attribute(sp.serviceId).textEntry
-    FactSet(
-      List(
-        Fact(service.tag, service.text),
-        Fact(host.tag, host.text),
-        Fact(sid.tag, sid.text)
-      ))
+    val ts = Attribute(evt.timestamp).textEntry
+    FactSet(List(
+      Fact(ts.tag, ts.text),
+      Fact(service.tag, service.text),
+      Fact(host.tag, host.text),
+      Fact(sid.tag, sid.text)
+    ))
   }
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {
@@ -59,7 +60,7 @@ private[teams] object TeamsTranslator {
     AdaptiveCard(
       body = List(
         headerBlock(evt),
-        serviceInfo(evt.serviceParams),
+        serviceInfo(evt),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
@@ -81,7 +82,7 @@ private[teams] object TeamsTranslator {
     val card = AdaptiveCard(
       body = List(
         headerBlock(evt),
-        serviceInfo(evt.serviceParams),
+        serviceInfo(evt),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
@@ -107,7 +108,7 @@ private[teams] object TeamsTranslator {
     AdaptiveCard(
       body = List(
         headerBlock(evt),
-        serviceInfo(evt.serviceParams),
+        serviceInfo(evt),
         FactSet(
           List(
             Fact(cause.tag, cause.text),
@@ -126,7 +127,7 @@ private[teams] object TeamsTranslator {
     AdaptiveCard(
       body = List(
         headerBlock(evt),
-        serviceInfo(evt.serviceParams),
+        serviceInfo(evt),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
@@ -145,14 +146,14 @@ private[teams] object TeamsTranslator {
 
     val body = List(
       headerBlock(evt),
-      serviceInfo(evt.serviceParams),
+      serviceInfo(evt),
       FactSet(
         List(
           Fact(domain.tag, domain.text),
           Fact(correlation.tag, correlation.text)
         )),
       CodeBlock(message, language = "json")
-    )
+    ) ++ evt.stackTrace.map(st => CodeBlock(Attribute(st).textEntry.text))
 
     val card = AdaptiveCard(body = body, themeColor = coloring(evt))
 
