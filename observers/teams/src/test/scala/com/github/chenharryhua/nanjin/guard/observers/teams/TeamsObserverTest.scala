@@ -146,7 +146,7 @@ class TeamsObserverTest extends AnyFunSuite {
     val text = json.noSpaces
     assert(text.contains("info-msg"))
     assert(text.contains("Correlation"))
-    assert(text.contains("Reported Event"))
+    assert(text.contains("Info"))
   }
 
   test("9.ReportedEvent Warn card has warning color") {
