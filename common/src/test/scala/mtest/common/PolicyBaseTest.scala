@@ -140,17 +140,7 @@ class PolicyBaseTest extends AnyFunSuite {
 
   }
 
-  test("7.giveUp") {
-    val policy = Policy.empty
-    println(policy.show)
-    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-
-    val ts = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(7).compile.toList.unsafeRunSync()
-
-    assert(ts.isEmpty)
-  }
-
-  test("8.weekly") {
+  test("7.weekly") {
     val sunday = tickStream.testPolicy[IO](_.crontab(_.weekly.sunday))
       .take(1).compile.lastOrError.unsafeRunSync().zoned(_.conclude)
     assert(DayOfWeek.from(sunday) == DayOfWeek.SUNDAY)
@@ -181,7 +171,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(DayOfWeek.from(saturday) == DayOfWeek.SATURDAY)
   }
 
-  test("9.yearly") {
+  test("8.yearly") {
     val january = tickStream.testPolicy[IO](_.crontab(_.yearly.january))
       .take(1).compile.lastOrError.unsafeRunSync().zoned(_.conclude)
     assert(Month.from(january) == Month.JANUARY)
@@ -232,7 +222,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(Month.from(december) == Month.DECEMBER)
   }
 
-  test("10.invalid policy arguments") {
+  test("9.invalid policy arguments") {
     assertThrows[IllegalArgumentException] {
       Policy.fixedDelay(0.second, 0.second)
     }

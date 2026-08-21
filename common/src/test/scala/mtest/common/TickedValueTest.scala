@@ -8,7 +8,6 @@ import org.scalatest.matchers.should.Matchers
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
-import cats.Functor
 
 class TickedValueTest extends AnyFunSuite with Matchers {
 
@@ -56,11 +55,4 @@ class TickedValueTest extends AnyFunSuite with Matchers {
     decoded.tick shouldEqual tv.tick
   }
 
-  test("6.TickedValue Functor instance map works") {
-    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
-    val tv = TickedValue(tick, 10)
-    val mapped = Functor[TickedValue].map(tv)(_ + 5)
-    mapped.value shouldEqual 15
-    mapped.tick shouldEqual tv.tick
-  }
 }

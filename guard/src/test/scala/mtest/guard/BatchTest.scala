@@ -432,7 +432,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("20.empty sequential") {
+  test("19.empty sequential") {
     val se = service
       .eventStreamR(_.batch("b").sequential[Int]().batchValue(JobHook.noop))
       .compile
@@ -441,7 +441,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("21.empty parallel") {
+  test("20.empty parallel") {
     val se = service
       .eventStreamR(_.batch("b").parallel[Int](1)().batchValue(JobHook.noop))
       .compile
@@ -450,7 +450,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("22.monadic flatMap limits") {
+  test("21.monadic flatMap limits") {
     val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
         List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop) >>

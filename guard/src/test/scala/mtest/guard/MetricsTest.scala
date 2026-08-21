@@ -356,7 +356,7 @@ class MetricsTest extends AnyFunSuite {
     assert(sm.size == 1)
   }
 
-  test("17.meter + counter") {
+  test("16.meter + counter") {
     val List(report) = service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {

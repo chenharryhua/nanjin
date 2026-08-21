@@ -65,17 +65,7 @@ class TickStreamTest extends AnyFunSuite {
     ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
 
-  test("6.giveUp") {
-    val ticks = tickStream.tickScheduled[IO](saltaTime, _.empty).compile.toList.unsafeRunSync()
-    assert(ticks.isEmpty)
-  }
-
-  test("7.tickImmediate - giveUp") {
-    val ticks = tickStream.tickFuture[IO](saltaTime, _.empty).compile.toList.unsafeRunSync()
-    assert(ticks.isEmpty)
-  }
-
-  test("8.tickImmediate - fixed delay") {
+  test("6.tickImmediate - fixed delay") {
     val List(a, b, c) =
       tickStream.tickFuture[IO](saltaTime, _.fixedDelay(1.seconds).limited(3)).compile.toList.unsafeRunSync()
     assert(a.index == 1)

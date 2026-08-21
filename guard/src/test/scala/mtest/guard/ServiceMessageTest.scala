@@ -61,7 +61,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("4.warn json no spaces") {
+  test("3.warn json no spaces") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json))
       .eventStream(warn)
@@ -70,13 +70,13 @@ class ServiceMessageTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("5.warn console plain text") {
+  test("4.warn console plain text") {
     service.updateConfig(_.withLogFormat(_.Console_PlainText))
       .eventStream(warn)
       .compile.drain.unsafeRunSync()
   }
 
-  test("6.mix") {
+  test("5.mix") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
       .eventStream(mix)

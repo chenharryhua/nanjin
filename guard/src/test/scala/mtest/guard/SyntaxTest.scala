@@ -13,7 +13,7 @@ class SyntaxTest extends AnyFunSuite {
     service.eventStreamR(_.facilitate("syntax")(_.activeGauge("active")))
   }
 
-  test("2.herald") {
+  test("2.heraldLogger") {
     service.eventStream(_.heraldLogger.good("ok"))
   }
 
