@@ -27,7 +27,7 @@ class ConsoleLogTest extends AnyFunSuite {
         _ <- mtx
           .percentile("1")
           .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
-      } yield Kleisli((_: Int) => IO.unit)
+      } yield Kleisli((_: Int) => agent.heraldLogger.warn("wow", new Exception))
     }
     mtx.use(
       _.run(1) >>

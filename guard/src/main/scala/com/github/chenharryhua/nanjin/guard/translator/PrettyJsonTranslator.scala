@@ -55,10 +55,10 @@ object PrettyJsonTranslator {
   private def reported_event(evt: ReportedEvent): Json =
     Json
       .obj(
+        Attribute(evt.correlation).snakeJsonEntry,
         Attribute(evt).map(_.level.show).snakeJsonEntry,
         Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
         Attribute(evt.domain).snakeJsonEntry,
-        Attribute(evt.correlation).snakeJsonEntry,
         Attribute(evt.upTime).map(_.show).snakeJsonEntry,
         Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
         Attribute(evt.message).snakeJsonEntry,

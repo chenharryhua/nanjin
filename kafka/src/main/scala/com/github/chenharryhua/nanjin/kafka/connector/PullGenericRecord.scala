@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 import cats.implicits.catsSyntaxEither
+import cats.syntax.eq.given
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
@@ -37,8 +38,14 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
         val reader = new GenericDatumReader[Record](skm)
         (data: Array[Byte]) =>
           if data eq null then null
+          else if data.length < 5 then
+            throw new IllegalArgumentException( // scalafix:ok
+              s"Record payload too short: expected at least 5 bytes (Confluent wire format) but got ${data.length}")
+          else if data(0) =!= 0.toByte then
+            throw new IllegalArgumentException( // scalafix:ok
+              s"Invalid Confluent wire format: expected magic byte 0x00 but got 0x${String.format("%02X", data(0))}")
           else
-            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, then skip first 5 bytes
+            // Confluent wire format: 1-byte magic (0x00) + 4-byte schema ID prefix, then payload
             val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
             reader.read(null, decoder)
 

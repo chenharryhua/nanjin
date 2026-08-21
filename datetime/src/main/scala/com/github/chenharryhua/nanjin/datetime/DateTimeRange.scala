@@ -34,7 +34,7 @@ final case class DateTimeRange(
         DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
         DateTimeParser[ZonedDateTime].map(_.toInstant) <+>
         DateTimeParser[LocalDate].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
-        DateTimeParser[LocalTime].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalTime].map(_.atDate(LocalDate.now(zoneId)).atZone(zoneId).toInstant) <+>
         DateTimeParser[LocalDateTime].map(_.atZone(zoneId).toInstant)
 
     parser.parse(str) match {
@@ -65,13 +65,18 @@ final case class DateTimeRange(
       s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
     }.flatten
 
-  def subranges(interval: FiniteDuration): List[DateTimeRange] =
+  def subranges(interval: FiniteDuration): List[DateTimeRange] = {
+    val millis = interval.toMillis
+    require(millis > 0, s"interval must be at least 1 millisecond, but was $interval")
     (start, end).traverseN { (s, e) =>
-      s.toEpochMilli
-        .until(e.toEpochMilli, interval.toMillis)
+      val startMs = s.toEpochMilli
+      val endMs = e.toEpochMilli
+      startMs
+        .until(endMs, millis)
         .toList
-        .map(a => DateTimeRange(zoneId).withStartTime(a).withEndTime(a + interval.toMillis))
+        .map(a => DateTimeRange(zoneId).withStartTime(a).withEndTime(math.min(a + millis, endMs)))
     }.flatten
+  }
 
   def withZoneId(zoneId: ZoneId): DateTimeRange =
     copy(zoneId = zoneId)
@@ -81,7 +86,7 @@ final case class DateTimeRange(
 
   // start
   def withStartTime(ts: LocalTime): DateTimeRange =
-    copy(reprStart = Some(toLocalDateTime(ts)))
+    copy(reprStart = Some(ts.atDate(LocalDate.now(zoneId))))
   def withStartTime(ts: LocalDate): DateTimeRange =
     copy(reprStart = Some(toLocalDateTime(ts)))
   def withStartTime(ts: LocalDateTime): DateTimeRange =
@@ -101,7 +106,7 @@ final case class DateTimeRange(
 
   // end
   def withEndTime(ts: LocalTime): DateTimeRange =
-    copy(reprEnd = Some(toLocalDateTime(ts)))
+    copy(reprEnd = Some(ts.atDate(LocalDate.now(zoneId))))
   def withEndTime(ts: LocalDate): DateTimeRange =
     copy(reprEnd = Some(toLocalDateTime(ts)))
   def withEndTime(ts: LocalDateTime): DateTimeRange =
@@ -120,7 +125,7 @@ final case class DateTimeRange(
     copy(reprEnd = Some(ts))
 
   def withNSeconds(seconds: Long): DateTimeRange = {
-    val now = LocalDateTime.now
+    val now = LocalDateTime.now(zoneId)
     withStartTime(now.minusSeconds(seconds)).withEndTime(now)
   }
 
@@ -136,13 +141,13 @@ final case class DateTimeRange(
       case Right(day) => day
     }
 
-  def withToday: DateTimeRange = withOneDay(LocalDate.now)
-  def withYesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(1))
+  def withToday: DateTimeRange = withOneDay(LocalDate.now(zoneId))
+  def withYesterday: DateTimeRange = withOneDay(LocalDate.now(zoneId).minusDays(1))
 
   /** The day before yesterday
     * @return
     */
-  def withEreyesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(2))
+  def withEreyesterday: DateTimeRange = withOneDay(LocalDate.now(zoneId).minusDays(2))
 
   // closed start, open end
   def inBetween(ts: Instant): Boolean =

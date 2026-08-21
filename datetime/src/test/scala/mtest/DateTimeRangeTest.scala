@@ -204,4 +204,81 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       case _          => ()
     }
   }
+
+  test("12.withNSeconds uses configured zoneId, not system default") {
+    // Use a zone far from system default to detect incorrect zone usage
+    val zoneId = ZoneId.of("Pacific/Auckland")
+    val dr = DateTimeRange(zoneId).withNSeconds(60)
+    val startZoned = dr.zonedStartTime.get
+    val endZoned = dr.zonedEndTime.get
+    assert(startZoned.getZone == zoneId)
+    assert(endZoned.getZone == zoneId)
+    val diff = java.time.Duration.between(startZoned, endZoned)
+    assert(diff.getSeconds == 60)
+  }
+
+  test("13.withToday uses configured zoneId") {
+    // If it's a different date in the configured zone vs system zone, this catches the bug.
+    // We can at least verify the zone is correct on the result.
+    val zoneId = ZoneId.of("Pacific/Auckland")
+    val dr = DateTimeRange(zoneId).withToday
+    val startZoned = dr.zonedStartTime.get
+    assert(startZoned.getZone == zoneId)
+    assert(startZoned.toLocalDate == LocalDate.now(zoneId))
+  }
+
+  test("14.withYesterday uses configured zoneId") {
+    val zoneId = ZoneId.of("Pacific/Auckland")
+    val dr = DateTimeRange(zoneId).withYesterday
+    val startZoned = dr.zonedStartTime.get
+    assert(startZoned.getZone == zoneId)
+    assert(startZoned.toLocalDate == LocalDate.now(zoneId).minusDays(1))
+  }
+
+  test("15.withEreyesterday uses configured zoneId") {
+    val zoneId = ZoneId.of("Pacific/Auckland")
+    val dr = DateTimeRange(zoneId).withEreyesterday
+    val startZoned = dr.zonedStartTime.get
+    assert(startZoned.getZone == zoneId)
+    assert(startZoned.toLocalDate == LocalDate.now(zoneId).minusDays(2))
+  }
+
+  test("16.subranges rejects sub-millisecond intervals") {
+    val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-01-02")
+    assertThrows[IllegalArgumentException] {
+      dr.subranges(500.microseconds)
+    }
+  }
+
+  test("17.subranges last subrange does not exceed parent end") {
+    // 10 seconds split by 3 seconds: [0,3), [3,6), [6,9), [9,10) — last one capped
+    val dr = DateTimeRange(sydneyTime)
+      .withStartTime(Instant.ofEpochMilli(0))
+      .withEndTime(Instant.ofEpochMilli(10000))
+    val sr = dr.subranges(3.seconds)
+    assert(sr.size == 4)
+    // last subrange end should be capped at parent end
+    assert(sr.last.end.get == dr.end.get)
+    // verify no subrange exceeds parent end
+    sr.foreach(sub => assert(!sub.end.get.isAfter(dr.end.get)))
+  }
+
+  test("18.FiniteDuration decoder returns failure for huge durations instead of throwing") {
+    import io.circe.{Decoder, Json}
+    val decoder = summon[Decoder[FiniteDuration]]
+    // PT2562047788H = ~292 years which overflows Long nanoseconds
+    val result = decoder.decodeJson(Json.fromString("PT2562047789H"))
+    assert(result.isLeft)
+  }
+
+  test("19.FiniteDuration decoder round-trips for normal durations") {
+    import io.circe.{Decoder, Encoder}
+    val encoder = summon[Encoder[FiniteDuration]]
+    val decoder = summon[Decoder[FiniteDuration]]
+    val dur = 5.hours + 30.minutes
+    val json = encoder(dur)
+    val decoded = decoder.decodeJson(json)
+    assert(decoded.isRight)
+    assert(decoded.toOption.get == dur)
+  }
 }

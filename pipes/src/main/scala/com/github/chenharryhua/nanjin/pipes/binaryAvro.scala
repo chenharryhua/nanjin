@@ -33,7 +33,7 @@ object binaryAvro {
           def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
             Pull
               .functionKInstance(
-                F.delay(try Option(datumReader.read(null, avroDecoder))
+                F.blocking(try Option(datumReader.read(null, avroDecoder))
                 catch { case _: EOFException => None }))
               .flatMap {
                 case Some(a) =>

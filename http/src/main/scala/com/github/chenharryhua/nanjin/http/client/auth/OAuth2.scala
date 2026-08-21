@@ -122,10 +122,6 @@ private class ClientCredentialsAuth[F[_]: Async](
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
-        /** @note A 30-second skew is applied when scheduling token renewal to avoid race conditions. */
-        private def skewed(expire: Long): FiniteDuration = // suggested by ChatGPT
-          (expire.seconds - 30.seconds).max(0.seconds)
-
         override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
@@ -210,7 +206,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
-            newToken <- refreshAccessToken(oldToken).delayBy(oldToken.expires_in.seconds)
+            newToken <- refreshAccessToken(oldToken).delayBy(skewed(oldToken.expires_in))
             _ <- ref.set(newToken)
           } yield ()
 
@@ -221,3 +217,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
       tac.wrap(client)
     }
 }
+
+/** @note A 30-second skew is applied when scheduling token renewal to avoid race conditions. */
+private def skewed(expire: Long): FiniteDuration = // suggested by ChatGPT
+  (expire.seconds - 30.seconds).max(0.seconds)

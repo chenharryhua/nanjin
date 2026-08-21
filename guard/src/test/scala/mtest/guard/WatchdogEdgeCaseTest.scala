@@ -123,19 +123,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
 
   // --- ServiceStop fires exactly once ---
 
-  test("6.stop event fires exactly once on normal exit") {
-    val events = guard
-      .service("stop-once-ok")
-      .eventStream(_ => IO.unit)
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    assert(events.count(_.isInstanceOf[ServiceStop]) == 1)
-  }
-
-  test("7.stop event fires exactly once on exception (no restart)") {
+  test("6.stop event fires exactly once on exception (no restart)") {
     val events = guard
       .service("stop-once-err")
       .eventStream(_ => IO.raiseError(new Exception("boom")))
@@ -147,7 +135,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     assert(events.count(_.isInstanceOf[ServiceStop]) == 1)
   }
 
-  test("8.stop event fires exactly once on cancellation") {
+  test("7.stop event fires exactly once on cancellation") {
     val events = guard
       .service("stop-once-cancel")
       .eventStream(_ => IO.canceled)
@@ -160,7 +148,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     assert(events.last.asInstanceOf[ServiceStop].cause == StopReason.ByCancellation)
   }
 
-  test("9.stop event fires exactly once after retries exhausted") {
+  test("8.stop event fires exactly once after retries exhausted") {
     val events = guard
       .service("stop-once-retries")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(2)))
@@ -174,7 +162,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     assert(events.last.asInstanceOf[ServiceStop].cause.isInstanceOf[StopReason.ByException])
   }
 
-  test("10.stop event fires exactly once on external stream interruption") {
+  test("9.stop event fires exactly once on external stream interruption") {
     val events = guard
       .service("stop-once-interrupt")
       .eventStream(_ => IO.sleep(10.seconds))

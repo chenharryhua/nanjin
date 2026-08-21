@@ -349,14 +349,14 @@ class MetricsTest extends AnyFunSuite {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(ra =>
-          IO(ra.giveUp).flatTap(d => agent.herald.warn(d, ra.cause))))
+          IO(ra.giveUp).flatTap(d => agent.heraldLogger.warn(d, ra.cause))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)
   }
 
-  test("17.meter + counter") {
+  test("16.meter + counter") {
     val List(report) = service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {

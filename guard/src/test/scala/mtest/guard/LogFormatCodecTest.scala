@@ -18,12 +18,9 @@ class LogFormatCodecTest extends AnyFunSuite {
   test("2.LogFormat encodes to string matching productPrefix") {
     assert(LogFormat.Console_PlainText.asJson.asString.contains("Console_PlainText"))
     assert(LogFormat.Console_Json.asJson.asString.contains("Console_Json"))
-    assert(LogFormat.Console_Json_NoColor.asJson.asString.contains("Console_Json_NoColor"))
     assert(LogFormat.Console_Json_MultiLine.asJson.asString.contains("Console_Json_MultiLine"))
     assert(LogFormat.Console_Json_Verbose.asJson.asString.contains("Console_Json_Verbose"))
-    assert(LogFormat.Slf4j_PlainText.asJson.asString.contains("Slf4j_PlainText"))
     assert(LogFormat.Slf4j_Json.asJson.asString.contains("Slf4j_Json"))
-    assert(LogFormat.Slf4j_Json_NoColor.asJson.asString.contains("Slf4j_Json_NoColor"))
   }
 
   test("3.invalid string produces decoding failure") {
@@ -31,7 +28,7 @@ class LogFormatCodecTest extends AnyFunSuite {
     assert(result.isLeft)
   }
 
-  test("4.all enum variants are covered (8 total)") {
-    assert(LogFormat.values.length == 8)
+  test("4.all enum variants are covered (5 total)") {
+    assert(LogFormat.values.length == 5)
   }
 }

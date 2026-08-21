@@ -48,5 +48,11 @@ trait DateTimeInstances extends all {
   given Encoder[FiniteDuration] =
     Encoder.encodeDuration.contramap[FiniteDuration](_.toJava)
   given Decoder[FiniteDuration] =
-    Decoder.decodeDuration.map[FiniteDuration](_.toScala)
+    Decoder.decodeDuration.emap { d =>
+      try Right(d.toScala)
+      catch {
+        case ex: (ArithmeticException | IllegalArgumentException) =>
+          Left(s"Duration too large for FiniteDuration: ${ex.getMessage}")
+      }
+    }
 }

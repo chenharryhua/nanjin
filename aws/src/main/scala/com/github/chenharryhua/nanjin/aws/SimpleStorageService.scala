@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.catsSyntaxFlatMapOps
+import cats.syntax.applicativeError.given
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.core.ResponseInputStream
@@ -142,7 +143,10 @@ object SimpleStorageService:
       blockingF(s3.headObject(hor), hor.toString, logger)
 
     override def getObject(gor: GetObjectRequest): Resource[F, ResponseInputStream[GetObjectResponse]] =
-      Resource.make(F.blocking(s3.getObject(gor)))(stream => F.blocking(stream.close()))
+      Resource.make(
+        F.blocking(s3.getObject(gor)).onError(ex =>
+          logger.error(ex)(s"AWS operation failed: ${gor.toString}"))
+      )(stream => F.blocking(stream.close()))
 
     override def putObject(body: RequestBody, por: PutObjectRequest): F[PutObjectResponse] =
       blockingF(s3.putObject(por, body), por.toString, logger)

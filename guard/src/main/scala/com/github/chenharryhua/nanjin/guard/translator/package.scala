@@ -55,10 +55,10 @@ def eventTitle(evt: Event): String =
   evt match {
     case ss: Event.ServiceStart =>
       if (ss.tick.index === 0) "Start Service" else "Restart Service"
-    case _: Event.ServiceStop     => "Stop Service"
-    case _: Event.ServicePanic    => "Service Panic"
-    case _: Event.ReportedEvent   => "Reported Event"
-    case _: Event.MetricsSnapshot => "Metrics Report"
+    case _: Event.ServiceStop                         => "Stop Service"
+    case _: Event.ServicePanic                        => "Service Panic"
+    case Event.ReportedEvent(_, _, _, _, level, _, _) => level.productPrefix
+    case _: Event.MetricsSnapshot                     => "Metrics Report"
   }
 
 def interpretServiceParams(serviceParams: ServiceParams): Json =

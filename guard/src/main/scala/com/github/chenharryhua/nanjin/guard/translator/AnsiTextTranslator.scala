@@ -1,11 +1,23 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.Applicative
+import cats.{Applicative, Eval}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 
-object SimpleTextTranslator {
+import scala.io.AnsiColor
+
+object AnsiTextTranslator {
   import Event.*
+
+  private def coloredEventTitle(evt: Event): String =
+    eventLogLevel[Eval, String](evt).run {
+      case LogLevel.Error => Eval.now(s"${AnsiColor.RED}${eventTitle(evt)}${AnsiColor.RESET}")
+      case LogLevel.Warn  => Eval.now(s"${AnsiColor.YELLOW}${eventTitle(evt)}${AnsiColor.RESET}")
+      case LogLevel.Good  => Eval.now(s"${AnsiColor.GREEN}${eventTitle(evt)}${AnsiColor.RESET}")
+      case LogLevel.Info  => Eval.now(s"${AnsiColor.CYAN}${eventTitle(evt)}${AnsiColor.RESET}")
+      case LogLevel.Debug => Eval.now(s"${AnsiColor.MAGENTA}${eventTitle(evt)}${AnsiColor.RESET}")
+    }.value
 
   private def service_event(se: Event): String = {
     val host: String = Attribute(se.serviceParams.host).labelledText
@@ -14,7 +26,8 @@ object SimpleTextTranslator {
     val sid: String = Attribute(se.serviceParams.serviceId).labelledText
     val uptime: String = Attribute(se.upTime).labelledText
 
-    s"""|$sn, $tn, $uptime
+    s"""|${coloredEventTitle(se)}
+        |$sn, $tn, $uptime
         |  $host
         |  $sid""".stripMargin
   }
@@ -23,8 +36,7 @@ object SimpleTextTranslator {
     val idx = s"index:${evt.tick.index}"
     val snz = Attribute(Took(evt.tick.snooze)).labelledText
 
-    s"""|
-        |  ${service_event(evt)}
+    s"""|${service_event(evt)}
         |  $idx, $snz
         |${interpretServiceParams(evt.serviceParams).spaces2}
         |""".stripMargin
@@ -35,8 +47,7 @@ object SimpleTextTranslator {
     val act = Attribute(Active(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
 
-    s"""|
-        |  ${service_event(evt)}
+    s"""|${service_event(evt)}
         |  $idx, $act
         |  $policy
         |${panicText(evt)}
@@ -47,8 +58,7 @@ object SimpleTextTranslator {
   private def service_stop(evt: ServiceStop): String = {
     val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
 
-    s"""|
-        |  ${service_event(evt)}
+    s"""|${service_event(evt)}
         |  $policy
         |${Attribute(evt.cause).labelledText}
         |""".stripMargin
@@ -59,8 +69,7 @@ object SimpleTextTranslator {
     val idx = Attribute(evt.index).labelledText
     val took = Attribute(evt.took).labelledText
 
-    s"""|
-        |  ${service_event(evt)}
+    s"""|${service_event(evt)}
         |  $policy
         |  $idx, $took
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
@@ -72,8 +81,7 @@ object SimpleTextTranslator {
     val domain = Attribute(evt.domain).labelledText
     val message = evt.message.value.spaces2
 
-    s"""|
-        |  ${service_event(evt)}
+    s"""|${service_event(evt)}
         |  $domain, $correlation
         |${evt.stackTrace.fold(message) { st =>
          s"""|$message

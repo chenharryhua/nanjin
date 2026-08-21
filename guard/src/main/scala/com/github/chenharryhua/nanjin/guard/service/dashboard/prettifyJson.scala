@@ -9,14 +9,15 @@ import monocle.function.Plated
 import java.text.DecimalFormat
 import java.time.Duration
 
-object prettifyJson {
-  private val decimalFormatter: DecimalFormat = new DecimalFormat("#,###")
+private object prettifyJson {
 
   private val pretty_json: Json => Json =
     Plated.transform[Json] { js =>
       js.asNumber match {
-        case Some(value) => Json.fromString(decimalFormatter.format(value.toDouble))
-        case None        =>
+        case Some(value) =>
+          val decimalFormatter = new DecimalFormat("#,###")
+          Json.fromString(decimalFormatter.format(value.toDouble))
+        case None =>
           js.as[Duration] match {
             case Left(_)      => js
             case Right(value) => Json.fromString(defaultFormatter.format(value))

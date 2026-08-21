@@ -23,7 +23,7 @@ object jackson {
           baos.close()
           baos.toByteArray // JsonEncoder use ISO_8859_1
         }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1))
-          .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
+          .flatMap(ba => Stream.chunk(Chunk.array(ba)))
       }
   }
 

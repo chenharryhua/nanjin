@@ -4,6 +4,8 @@ import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.apache.commons.lang3.StringUtils
 
+import java.text.DecimalFormat
+
 sealed private trait JsonView[+A]
 
 private object JsonView {
@@ -25,10 +27,13 @@ private object JsonView {
       def onObject(value: JsonObject): JsonView[Json] = ObjectView(value.toList)
     }
 
-  private def format_json_umber(jn: JsonNumber): String =
+  private def format_json_umber(jn: JsonNumber): String = {
+    val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
     jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
+  }
 
-  def yml(name: String, json: Json): List[String] =
+  def yml(name: String, json: Json, space: Char): List[String] = {
+    val space4 = String.valueOf(space) * 4
     json.foldWith(unfolded) match {
       case NullView()         => Nil
       case BooleanView(bool)  => List(show"$name: $bool")
@@ -48,10 +53,11 @@ private object JsonView {
             case ObjectView(fields) => Json.obj(fields*).noSpaces
           }
           // add 4 space
-          show"$space4${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
+          show"$space4${StringUtils.rightPad(key, maxKeyLength, space)}: $jsStr"
         }
 
         // don't forget attach name
         s"$name:" :: content
     }
+  }
 }

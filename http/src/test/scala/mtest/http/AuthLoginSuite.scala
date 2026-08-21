@@ -221,6 +221,150 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
+  test("4a.unauthorized response is released exactly once before retry") {
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+    val unauthorizedReleases = Ref.unsafe[IO, Int](0)
+
+    val authClient = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          tokenCalls.updateAndGet(_ + 1).flatMap { call =>
+            val token = if (call == 1) "old-token" else "new-token"
+            Ok(
+              s"""
+                 |{
+                 |  "access_token": "$token",
+                 |  "token_type": "Bearer",
+                 |  "expires_in": 3600
+                 |}
+                 |""".stripMargin
+            )
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val resourceClient = Client[IO] { request =>
+      request.headers.get[Authorization] match {
+        case Some(header) if header.value == "Bearer old-token" =>
+          Resource.make(IO.pure(Response[IO](Status.Unauthorized)))(_ => unauthorizedReleases.update(_ + 1))
+        case Some(header) if header.value == "Bearer new-token" =>
+          Resource.pure(Response[IO](Status.Ok))
+        case _ => Resource.pure(Response[IO](Status.Forbidden))
+      }
+    }
+
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
+      authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
+        IO(assertEquals(response.status, Status.Ok))
+      }
+    } *> unauthorizedReleases.get.map(releases => assertEquals(releases, 1))
+  }
+
+  test("4b.cancellation during first request releases the connection") {
+    val released = Ref.unsafe[IO, Boolean](false)
+
+    val authClient = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          Ok("""{"access_token":"t","token_type":"Bearer","expires_in":3600}""")
+        case _ => InternalServerError()
+      })
+    )
+
+    // A client whose response is acquired successfully but tracks release
+    val slowClient = Client[IO] { _ =>
+      Resource.make(IO.pure(Response[IO](Status.Ok)))(_ => released.set(true))
+    }
+
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(slowClient)).use { authed =>
+      for {
+        fiber <- authed.run(Request[IO](Method.GET, uri"/resource")).surround(IO.never[Unit]).start
+        _ <- IO.sleep(50.millis)
+        _ <- fiber.cancel
+        r <- released.get
+      } yield assert(r, "response resource should be released on cancellation")
+    }
+  }
+
+  test("4c.second 401 after refresh is returned to caller without looping") {
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+
+    val authClient = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          tokenCalls.updateAndGet(_ + 1).flatMap { n =>
+            Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    // Always returns 401 regardless of token
+    val alwaysUnauthorized = Client.fromHttpApp(HttpApp[IO] { _ =>
+      IO.pure(Response[IO](Status.Unauthorized))
+    })
+
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(alwaysUnauthorized)).use { authed =>
+      authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
+        tokenCalls.get.map { n =>
+          // Should see initial token fetch + one refresh on 401, then the second 401 is returned
+          assertEquals(response.status, Status.Unauthorized)
+          assertEquals(n, 2)
+        }
+      }
+    }
+  }
+
+  test("4d.getToken failure during 401 recovery propagates the error") {
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+
+    val authClient = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          tokenCalls.updateAndGet(_ + 1).flatMap { n =>
+            if (n == 1) Ok("""{"access_token":"old","token_type":"Bearer","expires_in":3600}""")
+            else InternalServerError("token server down")
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val resourceClient = Client.fromHttpApp(HttpApp[IO] { _ =>
+      IO.pure(Response[IO](Status.Unauthorized))
+    })
+
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
+      authed.run(Request[IO](Method.GET, uri"/resource")).use_.attempt.map { result =>
+        assert(result.isLeft, "should propagate the token fetch error")
+      }
+    }
+  }
+
   test("5.Uri JSON codec round-trips HTTP4S URIs") {
     import UriJsonCodec.given
 

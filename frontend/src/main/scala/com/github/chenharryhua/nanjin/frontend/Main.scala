@@ -37,26 +37,11 @@ object Main {
       "Disconnected — reconnecting..."
     )
 
-  private val staleBanner: ReactiveHtmlElement[HTMLDivElement] =
-    div(
-      display.flex,
-      justifyContent.center,
-      alignItems.center,
-      padding        := "8px",
-      backgroundColor := "#f39c12",
-      color          := "white",
-      fontWeight.bold,
-      fontSize       := "14px",
-      display <-- connector.stale.signal.map(if (_) "flex" else "none"),
-      "Data stale — no updates received"
-    )
-
   private val dashboard: ReactiveHtmlElement[HTMLDivElement] =
     div(
       width  := "98%",
       height := "90vh",
       banner,
-      staleBanner,
       h2(
         s"Service: ${config.serviceName}",
         title := s"maxPoints=${config.maxPoints}, policy=${config.policy}"

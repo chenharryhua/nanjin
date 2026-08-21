@@ -23,7 +23,7 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
 
   test("1.EventPipe.identity passes all events through unchanged") {
     val events = service
-      .eventStream(agent => agent.herald.info("msg") *> agent.adhoc.report)
+      .eventStream(agent => agent.heraldLogger.info("msg") *> agent.adhoc.report)
       .map(checkJson)
       .filter(EventPipe.identity.filter)
       .compile
@@ -64,10 +64,10 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
   test("3.EventPipe.logLevel filters ReportedEvents below threshold") {
     val events = service
       .eventStream { agent =>
-        agent.herald.debug("debug-msg") *>
-          agent.herald.info("info-msg") *>
-          agent.herald.warn("warn-msg") *>
-          agent.herald.error("error-msg")
+        agent.heraldLogger.debug("debug-msg") *>
+          agent.heraldLogger.info("info-msg") *>
+          agent.heraldLogger.warn("warn-msg") *>
+          agent.heraldLogger.error("error-msg")
       }
       .map(checkJson)
       .filter(EventPipe.logLevel(_.Warn).filter)
@@ -83,7 +83,7 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
 
   test("4.EventPipe.logLevel passes non-ReportedEvent events through") {
     val events = service
-      .eventStream(agent => agent.herald.debug("debug") *> agent.adhoc.report)
+      .eventStream(agent => agent.heraldLogger.debug("debug") *> agent.adhoc.report)
       .map(checkJson)
       .filter(EventPipe.logLevel(_.Error).filter)
       .compile
