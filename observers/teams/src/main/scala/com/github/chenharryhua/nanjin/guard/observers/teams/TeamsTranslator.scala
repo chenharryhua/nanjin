@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.observers.teams
 
+import cats.syntax.traverse.given
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{IndentSpace, SnapshotPolyglot}
 import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
@@ -13,18 +14,18 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   Translator
 }
 
-private[teams] object TeamsTranslator {
+private object TeamsTranslator {
   import Event.*
 
   private case class Index(value: Long)
 
   private def coloring(evt: Event): String =
     eventLogLevel[Eval, String](evt).run {
-      case LogLevel.Good  => Eval.now("00FF00")
-      case LogLevel.Info  => Eval.now("0078D4")
-      case LogLevel.Warn  => Eval.now("FFA500")
-      case LogLevel.Error => Eval.now("FF0000")
-      case LogLevel.Debug => Eval.now("800080")
+      case LogLevel.Good  => Eval.now("Good")
+      case LogLevel.Info  => Eval.now("Default")
+      case LogLevel.Warn  => Eval.now("Warning")
+      case LogLevel.Error => Eval.now("Attention")
+      case LogLevel.Debug => Eval.now("Dark")
     }.value
 
   private def headerBlock(evt: Event): TextBlock = {
@@ -35,7 +36,11 @@ private[teams] object TeamsTranslator {
       case LogLevel.Error => Eval.now("\u274C")
       case LogLevel.Debug => Eval.now("\uD83D\uDD0D")
     }.value
-    TextBlock(s"$symbol ${eventTitle(evt)}", weight = Some("Bolder"), size = Some("Medium"))
+    TextBlock(
+      s"$symbol ${eventTitle(evt)}",
+      color = coloring(evt),
+      weight = Some("Bolder"),
+      size = Some("Medium"))
   }
 
   private def serviceInfo(evt: Event): FactSet = {
@@ -44,18 +49,20 @@ private[teams] object TeamsTranslator {
     val host = Attribute(sp.host).textEntry
     val sid = Attribute(sp.serviceId).textEntry
     val ts = Attribute(evt.timestamp).textEntry
-    FactSet(List(
-      Fact(ts.tag, ts.text),
-      Fact(service.tag, service.text),
-      Fact(host.tag, host.text),
-      Fact(sid.tag, sid.text)
-    ))
+    FactSet(
+      List(
+        Fact(ts.tag, ts.text),
+        Fact(service.tag, sp.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
+        Fact(host.tag, host.text),
+        Fact(sid.tag, sid.text)
+      ))
   }
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {
     val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val brief = Attribute(evt.serviceParams.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -66,9 +73,10 @@ private[teams] object TeamsTranslator {
             Fact(idx.tag, idx.text),
             Fact(snz.tag, snz.text),
             Fact(uptime.tag, uptime.text)
-          ))
-      ),
-      themeColor = coloring(evt)
+          )),
+        BolderTextBlock(brief),
+        JsonBlock(evt.serviceParams.brief.value)
+      )
     )
   }
 
@@ -76,8 +84,9 @@ private[teams] object TeamsTranslator {
     val active = Attribute(Active(evt.tick.active)).textEntry
     val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
-    val error = Attribute(evt.stackTrace).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val stackTrace = Attribute(evt.stackTrace).typeName
+    val brief = Attribute(evt.serviceParams.brief).typeName
 
     val card = AdaptiveCard(
       body = List(
@@ -90,10 +99,12 @@ private[teams] object TeamsTranslator {
             Fact(policy.tag, policy.text),
             Fact(uptime.tag, uptime.text)
           )),
-        TextBlock(panicText(evt), color = Some("Attention")),
-        CodeBlock(error.text)
-      ),
-      themeColor = coloring(evt)
+        TextBlock(panicText(evt), color = "Attention"),
+        BolderTextBlock(stackTrace),
+        StackTraceBlock(evt.stackTrace),
+        BolderTextBlock(brief),
+        JsonBlock(evt.serviceParams.brief.value)
+      )
     )
 
     CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
@@ -114,15 +125,15 @@ private[teams] object TeamsTranslator {
             Fact(cause.tag, cause.text),
             Fact(uptime.tag, uptime.text)
           ))
-      ),
-      themeColor = coloring(evt)
+      )
     )
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
     val policy = Attribute(evt.serviceParams.policies.report).textEntry
     val idx = Attribute(evt.index).textEntry
-    val yaml = new SnapshotPolyglot(evt.snapshot).toYaml
+    val snapshot = Attribute(evt.snapshot).typeName
+    val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml
 
     AdaptiveCard(
       body = List(
@@ -133,16 +144,20 @@ private[teams] object TeamsTranslator {
             Fact(idx.tag, idx.text),
             Fact(policy.tag, policy.text)
           )),
-        CodeBlock(yaml, language = "yaml")
-      ),
-      themeColor = coloring(evt)
+        BolderTextBlock(snapshot),
+        TextBlock(yaml)
+      )
     )
   }
 
   private def reported_event(evt: ReportedEvent): AdaptiveCard = {
     val domain = Attribute(evt.domain).textEntry
     val correlation = Attribute(evt.correlation).textEntry
-    val message = evt.message.value.spaces2
+    val message = Attribute(evt.message).typeName
+    val stackTrace = evt.stackTrace.map { st =>
+      val attr = Attribute(st).typeName
+      List(BolderTextBlock(attr), StackTraceBlock(st))
+    }.sequence.flatten
 
     val body = List(
       headerBlock(evt),
@@ -152,10 +167,11 @@ private[teams] object TeamsTranslator {
           Fact(domain.tag, domain.text),
           Fact(correlation.tag, correlation.text)
         )),
-      CodeBlock(message, language = "json")
-    ) ++ evt.stackTrace.map(st => CodeBlock(Attribute(st).textEntry.text))
+      BolderTextBlock(message),
+      JsonBlock(evt.message.value)
+    ) ++ stackTrace
 
-    val card = AdaptiveCard(body = body, themeColor = coloring(evt))
+    val card = AdaptiveCard(body)
 
     CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
       .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))

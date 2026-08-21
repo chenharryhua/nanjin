@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.syntax.foldable.given
 import com.github.chenharryhua.nanjin.guard.config.Brief
 
-import java.time.Instant
+import java.time.{Duration, Instant}
+import scala.concurrent.duration.given
+import scala.jdk.DurationConverters.given
 
 /** Extracts CloudWatch Logs configuration from the service brief's LogOptions and builds a console URL scoped
   * to the specific log stream with a time window.
@@ -52,6 +54,8 @@ object CloudWatchLogs {
   private def encode(s: String): String =
     s.replace("/", "$252F").replace(":", "$253A")
 
+  private val window: Duration = 30.seconds.toJava
+
   /** Build a CloudWatch Logs console URL scoped to the specific log stream with a ±30 second time window
     * around the event.
     *
@@ -66,8 +70,8 @@ object CloudWatchLogs {
     extract(brief).map { opts =>
       val encodedGroup = encode(opts.logGroup)
       val encodedStream = encode(opts.logStream)
-      val start = timestamp.minusSeconds(30).toEpochMilli
-      val end = timestamp.plusSeconds(30).toEpochMilli
+      val start = timestamp.minus(window).toEpochMilli
+      val end = timestamp.plus(window).toEpochMilli
       s"https://${opts.region}.console.aws.amazon.com/cloudwatch/home?region=${opts.region}" +
         s"#logsV2:log-groups/log-group/$encodedGroup/log-events/$encodedStream" +
         s"$$3Fstart$$3D$start$$26end$$3D$end"

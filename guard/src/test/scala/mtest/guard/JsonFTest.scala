@@ -5,6 +5,8 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 class JsonFTest extends AnyFunSuite {
+  private val space: Char = ' '
+
   test("1.json obj") {
     val json =
       Json.obj(
@@ -16,32 +18,32 @@ class JsonFTest extends AnyFunSuite {
         "arrStr" -> List("a", "b", "c").asJson,
         "nullType" -> Json.Null
       )
-    JsonView.yml("name", json).foreach(println)
+    JsonView.yml("name", json, space).foreach(println)
   }
 
   test("2.string") {
     val json = "string".asJson
-    assert(JsonView.yml("name", json).head == "name: string")
+    assert(JsonView.yml("name", json, space).head == "name: string")
   }
 
   test("3.number") {
     val json = Json.fromLong(1)
-    assert(JsonView.yml("name", json).head == "name: 1")
+    assert(JsonView.yml("name", json, space).head == "name: 1")
   }
 
   test("4.boolean") {
     val json = Json.fromBoolean(true)
-    assert(JsonView.yml("name", json).head == "name: true")
+    assert(JsonView.yml("name", json, space).head == "name: true")
   }
 
   test("5.array") {
     val json = List(true, true, false).asJson
-    assert(JsonView.yml("name", json).head == "name: [true, true, false]")
+    assert(JsonView.yml("name", json, space).head == "name: [true, true, false]")
   }
 
   test("6.array - json") {
     val json = List(true.asJson, Json.Null, false.asJson).asJson
-    assert(JsonView.yml("name", json).head == "name: [true, null, false]")
+    assert(JsonView.yml("name", json, space).head == "name: [true, null, false]")
   }
 
   test("7.two layers") {
@@ -52,6 +54,6 @@ class JsonFTest extends AnyFunSuite {
           "arrStr" -> List("a", "b", "c").asJson,
           "nullType" -> Json.Null
         ))
-    println(JsonView.yml("name", json))
+    println(JsonView.yml("name", json, space))
   }
 }

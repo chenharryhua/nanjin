@@ -10,7 +10,7 @@ final case class TextEntry(tag: String, text: String) {
   def toPair: (String, String) = (tag, text)
 }
 
-final class Attribute[A] @publicInBinary private (value: A, typeName: String) {
+final class Attribute[A] @publicInBinary private (value: A, val typeName: String) {
   private lazy val snakeName: String =
     typeName.replaceAll("([a-z0-9])([A-Z])", "$1_$2").replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2").toLowerCase
 

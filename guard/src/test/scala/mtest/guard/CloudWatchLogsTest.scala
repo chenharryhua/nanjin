@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers.sns
+package com.github.chenharryhua.nanjin.guard.observers
 
 import com.github.chenharryhua.nanjin.guard.config.Brief
 import io.circe.Json
@@ -38,26 +38,15 @@ class CloudWatchLogsTest extends AnyFunSuite {
     assert(CloudWatchLogs.logLink(brief, ts).nonEmpty)
   }
 
-  test("slackLink formats a clickable CloudWatch Logs link") {
-    val brief = Brief(Json.obj("LogOptions" -> logOptions))
-
-    val link = CloudWatchLogs.slackLink(brief, ts)
-    assert(link.isDefined)
-    assert(link.get.startsWith("<https://"))
-    assert(link.get.endsWith("|:mag: CloudWatch Logs>"))
-    assert(link.get.contains("$252Fecs$252Fmy-service"))
-    assert(link.get.contains("ecs$252Fkafka_spark$252F051cbde2-2ac1-4b26-b6a5-30a3c07b0adc"))
+  test("logLink returns none when LogOptions is absent") {
+    assert(CloudWatchLogs.logLink(Brief(Json.obj("other" -> Json.Null)), ts).isEmpty)
   }
 
-  test("slackLink returns none when LogOptions is absent") {
-    assert(CloudWatchLogs.slackLink(Brief(Json.obj("other" -> Json.Null)), ts).isEmpty)
-  }
-
-  test("slackLink returns none when awslogs-stream is missing") {
+  test("logLink returns none when awslogs-stream is missing") {
     val incomplete = Json.obj(
       "awslogs-group" -> Json.fromString("/ecs/my-service"),
       "awslogs-region" -> Json.fromString("ap-southeast-2")
     )
-    assert(CloudWatchLogs.slackLink(Brief(Json.obj("LogOptions" -> incomplete)), ts).isEmpty)
+    assert(CloudWatchLogs.logLink(Brief(Json.obj("LogOptions" -> incomplete)), ts).isEmpty)
   }
 }

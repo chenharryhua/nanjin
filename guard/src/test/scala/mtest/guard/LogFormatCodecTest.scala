@@ -28,7 +28,7 @@ class LogFormatCodecTest extends AnyFunSuite {
     assert(result.isLeft)
   }
 
-  test("4.all enum variants are covered (8 total)") {
-    assert(LogFormat.values.length == 8)
+  test("4.all enum variants are covered (5 total)") {
+    assert(LogFormat.values.length == 5)
   }
 }

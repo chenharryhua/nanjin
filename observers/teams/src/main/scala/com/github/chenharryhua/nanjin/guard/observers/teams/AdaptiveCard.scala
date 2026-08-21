@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.teams
 
+import com.github.chenharryhua.nanjin.guard.event.StackTrace
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
@@ -13,20 +14,57 @@ sealed trait CardElement
 
 object CardElement {
   given Encoder[CardElement] = Encoder.instance {
-    case t: TextBlock => t.asJson(using TextBlock.encoder)
-    case f: FactSet   => f.asJson(using FactSet.encoder)
-    case c: CodeBlock => c.asJson(using CodeBlock.encoder)
-    case c: ColumnSet => c.asJson(using ColumnSet.encoder)
-    case c: Container => c.asJson(using Container.encoder)
+    case t: TextBlock       => t.asJson(using TextBlock.encoder)
+    case b: BolderTextBlock => b.asJson(using BolderTextBlock.encoder)
+    case c: JsonBlock       => c.asJson(using JsonBlock.encoder)
+    case s: StackTraceBlock => s.asJson(using StackTraceBlock.encoder)
+    case f: FactSet         => f.asJson(using FactSet.encoder)
+    case c: ColumnSet       => c.asJson(using ColumnSet.encoder)
+    case c: Container       => c.asJson(using Container.encoder)
+  }
+}
+
+final case class JsonBlock(codeSnippet: Json) extends CardElement
+object JsonBlock {
+  val encoder: Encoder[JsonBlock] = (cb: JsonBlock) =>
+    Json.obj(
+      "type" -> Json.fromString("CodeBlock"),
+      "codeSnippet" -> Json.fromString(cb.codeSnippet.spaces2),
+      "language" -> Json.fromString("JSON")
+    )
+}
+
+final case class StackTraceBlock(stackTrace: StackTrace) extends CardElement
+object StackTraceBlock {
+  val encoder: Encoder[StackTraceBlock] = (stb: StackTraceBlock) =>
+    val fields = List(
+      "type" -> Json.fromString("TextBlock"),
+      "text" -> Json.fromString(stb.stackTrace.nbspIndented),
+      "wrap" -> Json.fromBoolean(true),
+      "fontType" -> Json.fromString("Monospace")
+    )
+    Json.obj(fields*)
+}
+
+final case class BolderTextBlock(text: String) extends CardElement
+object BolderTextBlock {
+  val encoder: Encoder[BolderTextBlock] = (tb: BolderTextBlock) => {
+    val fields = List(
+      "type" -> Json.fromString("TextBlock"),
+      "text" -> Json.fromString(tb.text + ":"),
+      "wrap" -> Json.fromBoolean(true),
+      "fontType" -> Json.fromString("Monospace"),
+      "weight" -> Json.fromString("Bolder")
+    )
+    Json.obj(fields*)
   }
 }
 
 final case class TextBlock(
   text: String,
+  color: String = "Default",
   weight: Option[String] = None,
-  size: Option[String] = None,
-  color: Option[String] = None,
-  wrap: Boolean = true)
+  size: Option[String] = None)
     extends CardElement
 
 object TextBlock {
@@ -34,11 +72,12 @@ object TextBlock {
     val fields = List(
       "type" -> Json.fromString("TextBlock"),
       "text" -> Json.fromString(tb.text),
-      "wrap" -> Json.fromBoolean(tb.wrap)
+      "color" -> Json.fromString(tb.color),
+      "wrap" -> Json.fromBoolean(true),
+      "fontType" -> Json.fromString("Monospace")
     ) ++
       tb.weight.map("weight" -> Json.fromString(_)) ++
-      tb.size.map("size" -> Json.fromString(_)) ++
-      tb.color.map("color" -> Json.fromString(_))
+      tb.size.map("size" -> Json.fromString(_))
 
     Json.obj(fields*)
   }
@@ -48,7 +87,7 @@ final case class Fact(title: String, value: String)
 
 object Fact {
   given Encoder[Fact] = (f: Fact) =>
-    Json.obj("title" -> Json.fromString(f.title), "value" -> Json.fromString(f.value))
+    Json.obj("title" -> Json.fromString(f.title + ":"), "value" -> Json.fromString(f.value))
 }
 
 final case class FactSet(facts: List[Fact]) extends CardElement
@@ -56,17 +95,6 @@ final case class FactSet(facts: List[Fact]) extends CardElement
 object FactSet {
   val encoder: Encoder[FactSet] = (fs: FactSet) =>
     Json.obj("type" -> Json.fromString("FactSet"), "facts" -> fs.facts.asJson)
-}
-
-final case class CodeBlock(codeSnippet: String, language: String = "text") extends CardElement
-
-object CodeBlock {
-  val encoder: Encoder[CodeBlock] = (cb: CodeBlock) =>
-    Json.obj(
-      "type" -> Json.fromString("CodeBlock"),
-      "codeSnippet" -> Json.fromString(cb.codeSnippet),
-      "language" -> Json.fromString(cb.language)
-    )
 }
 
 final case class Column(items: List[CardElement], width: String = "stretch")
@@ -100,7 +128,7 @@ object Container {
 }
 
 /** The complete Adaptive Card payload for Teams webhook. */
-final case class AdaptiveCard(body: List[CardElement], themeColor: String) {
+final case class AdaptiveCard(body: List[CardElement]) {
   def appendElement(elem: CardElement): AdaptiveCard = copy(body = body :+ elem)
 }
 
@@ -112,14 +140,13 @@ object AdaptiveCard {
         Json.obj(
           "contentType" -> Json.fromString("application/vnd.microsoft.card.adaptive"),
           "content" -> Json.obj(
-            "$schema" -> Json.fromString("http://adaptivecards.io/schemas/adaptive-card.json"),
+            "$schema" -> Json.fromString("https://adaptivecards.io/schemas/adaptive-card.json"),
             "type" -> Json.fromString("AdaptiveCard"),
             "version" -> Json.fromString("1.5"),
             "msteams" -> Json.obj("width" -> Json.fromString("Full")),
             "body" -> card.body.asJson
           )
         )
-      ),
-      "themeColor" -> Json.fromString(card.themeColor)
+      )
     )
 }

@@ -32,7 +32,8 @@ private object JsonView {
     jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
   }
 
-  def yml(name: String, json: Json): List[String] =
+  def yml(name: String, json: Json, space: Char): List[String] = {
+    val space4 = String.valueOf(space) * 4
     json.foldWith(unfolded) match {
       case NullView()         => Nil
       case BooleanView(bool)  => List(show"$name: $bool")
@@ -52,10 +53,11 @@ private object JsonView {
             case ObjectView(fields) => Json.obj(fields*).noSpaces
           }
           // add 4 space
-          show"$space4${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
+          show"$space4${StringUtils.rightPad(key, maxKeyLength, space)}: $jsStr"
         }
 
         // don't forget attach name
         s"$name:" :: content
     }
+  }
 }

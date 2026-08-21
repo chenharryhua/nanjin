@@ -5,6 +5,7 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
+import com.github.chenharryhua.nanjin.guard.event.NBSP_CHAR
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{JsonView, Snapshot}
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
 import io.circe.Json
@@ -14,7 +15,18 @@ import squants.time
 
 import java.text.DecimalFormat
 
-final class SnapshotPolyglot(snapshot: Snapshot) {
+enum IndentSpace:
+  case Nbsp, Normal
+
+private def indentSpace(is: IndentSpace): Char = is match {
+  case IndentSpace.Nbsp   => NBSP_CHAR
+  case IndentSpace.Normal => ' '
+}
+
+final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpace.Normal) {
+  private val space: Char = indentSpace(indent)
+  private val space2: String = String.valueOf(space) * 2
+  private val space4: String = space2 * 2
   private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
 
   private def adaptable_mean_rate(data: Double, symbol: String): String =
@@ -163,7 +175,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonView.yml(g.metricId.metricName.name, g.gauge.value)
+      val content = JsonView.yml(g.metricId.metricName.name, g.gauge.value, space)
       if (content.isEmpty) None
       else
         Some(g.metricId -> content)
@@ -171,7 +183,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def padded(data: NonEmptyList[(String, String)]): NonEmptyList[String] = {
     val pad = data.map(_._1.length).toList.max
-    data.map { case (k, v) => s"$space4${StringUtils.leftPad(k, pad)}: $v" }
+    data.map { case (k, v) => s"$space4${StringUtils.leftPad(k, pad, space)}: $v" }
   }
 
   private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
