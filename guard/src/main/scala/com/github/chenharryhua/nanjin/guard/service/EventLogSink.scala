@@ -35,7 +35,7 @@ private object EventLogSink:
 
   private def slf4JLogSink[F[_]: {Monad, Defer}](
     logger: MessageLogger[F],
-    translator: Translator[F, String]) =
+    translator: Translator[F, String]): LogSink[F] =
     LogSink { (event: Event) =>
       translator
         .translate(event)
@@ -51,25 +51,15 @@ private object EventLogSink:
         .void
     }
 
-  private def consoleLogSink[F[_]: {Monad, Defer}](loggerName: LoggerName, translator: Translator[F, String])(
-    using C: Console[F]) = {
+  private def consoleLogSink[F[_]: {Monad, Console}](
+    loggerName: LoggerName,
+    translator: Translator[F, String]): LogSink[F] = {
     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-
-    def stdout(ts: ZonedDateTime, level: LogLevel, message: String): F[Unit] =
-      C.println(show"${fmt.format(ts)} $level [${loggerName.value}] $message")
-
     LogSink { (event: Event) =>
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
-          val ts = event.timestamp.value
-          eventLogLevel[F, Unit](event).run {
-            case lvl @ LogLevel.Debug => stdout(ts, lvl, text)
-            case lvl @ LogLevel.Info  => stdout(ts, lvl, text)
-            case lvl @ LogLevel.Good  => stdout(ts, lvl, text)
-            case lvl @ LogLevel.Warn  => stdout(ts, lvl, text)
-            case lvl @ LogLevel.Error => stdout(ts, lvl, text)
-          }
+          Console[F].println(show"${fmt.format(event.timestamp.value)} [${loggerName.value}] $text")
         })
         .void
     }

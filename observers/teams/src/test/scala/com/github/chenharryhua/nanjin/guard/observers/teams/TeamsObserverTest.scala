@@ -91,9 +91,9 @@ class TeamsObserverTest extends AnyFunSuite {
       _.withInitialLogLevel(_.Info)
         .withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(1)))
     .eventStream { agent =>
-      agent.herald.info("info-msg") >>
-        agent.herald.warn("warn-msg") >>
-        agent.herald.error("error-msg") >>
+      agent.heraldLogger.info("info-msg") >>
+        agent.heraldLogger.warn("warn-msg") >>
+        agent.heraldLogger.error("error-msg") >>
         agent.adhoc.report >>
         IO.raiseError(new RuntimeException("panic-test"))
     }

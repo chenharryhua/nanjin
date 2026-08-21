@@ -87,7 +87,7 @@ class EventLogSinkTest extends AnyFunSuite {
   test("8.reported events appear in stream under Console_Json") {
     val events = base
       .updateConfig(_.withLogFormat(_.Console_Json).withInitialLogLevel(_.Info))
-      .eventStream(agent => agent.herald.info("hello"))
+      .eventStream(agent => agent.heraldLogger.info("hello"))
       .map(checkJson)
       .compile
       .toList
@@ -98,7 +98,7 @@ class EventLogSinkTest extends AnyFunSuite {
   test("9.reported events appear in stream under Slf4j_Json") {
     val events = base
       .updateConfig(_.withLogFormat(_.Slf4j_Json).withInitialLogLevel(_.Info))
-      .eventStream(agent => agent.herald.warn("attention"))
+      .eventStream(agent => agent.heraldLogger.warn("attention"))
       .map(checkJson)
       .compile
       .toList

@@ -15,7 +15,7 @@ class AgentDomainTest extends AnyFunSuite {
     val events = service
       .eventStream { agent =>
         val scoped = agent.withDomain("my-domain")
-        scoped.herald.info("hello from domain")
+        scoped.heraldLogger.info("hello from domain")
       }
       .map(checkJson)
       .compile
@@ -30,7 +30,7 @@ class AgentDomainTest extends AnyFunSuite {
   test("2.default domain uses default value") {
     val events = service
       .eventStream { agent =>
-        agent.herald.info("hello default")
+        agent.heraldLogger.info("hello default")
       }
       .map(checkJson)
       .compile
@@ -47,7 +47,7 @@ class AgentDomainTest extends AnyFunSuite {
       .eventStream { agent =>
         val d1 = agent.withDomain("alpha")
         val d2 = agent.withDomain("beta")
-        d1.herald.info("from alpha") *> d2.herald.info("from beta")
+        d1.heraldLogger.info("from alpha") *> d2.heraldLogger.info("from beta")
       }
       .map(checkJson)
       .compile
@@ -64,7 +64,7 @@ class AgentDomainTest extends AnyFunSuite {
     val events = service
       .eventStream { agent =>
         val scoped = agent.withDomain("scoped")
-        scoped.herald.info("scoped msg") *> agent.herald.info("original msg")
+        scoped.heraldLogger.info("scoped msg") *> agent.heraldLogger.info("original msg")
       }
       .map(checkJson)
       .compile

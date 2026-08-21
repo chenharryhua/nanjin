@@ -68,9 +68,6 @@ sealed trait Agent[F[_]] {
     */
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
-  /** Publishes service events through the herald channel so external observers can receive them. */
-  val herald: Log[F]
-
   /** Low-overhead service logger that writes to the configured logging backend without using the herald
     * channel.
     */
@@ -187,8 +184,6 @@ final private class GeneralAgent[F[_]: Async](
     Resource.eval(Retry[F](zoneId, f))
 
   override val adhoc: AdhocReport[F] = metricsEventHandler
-
-  override val herald: Log[F] = reportedEventHandler.herald
 
   override val logger: Log[F] = reportedEventHandler.logger
 

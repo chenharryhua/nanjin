@@ -47,23 +47,6 @@ final private class ReportedEventHandler[F[_]: Sync](
       channel = channel,
       logSink = logSink)
 
-  val herald: Log[F] = new Log[F] {
-    override protected type M = ReportedEvent
-
-    override protected def publish(event: ReportedEvent): F[Unit] =
-      channel.send(event) >>
-        history.add(event).whenA(event.level === LogLevel.Error)
-
-    override protected def enabled(level: LogLevel): F[Boolean] =
-      logThreshold.get.map(_.exists(_ <= level))
-
-    override protected def create[S: Encoder](
-      message: S,
-      level: LogLevel,
-      stackTrace: Option[Throwable]): F[ReportedEvent] =
-      createReportedEvent[S](message, level, stackTrace.map(StackTrace(_)))
-  }
-
   val logger: Log[F] = new Log[F] {
     override protected type M = ReportedEvent
 

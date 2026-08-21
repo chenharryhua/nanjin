@@ -14,7 +14,7 @@ class SyntaxTest extends AnyFunSuite {
   }
 
   test("2.herald") {
-    service.eventStream(_.herald.good("ok"))
+    service.eventStream(_.heraldLogger.good("ok"))
   }
 
   test("3.adhoc") {
