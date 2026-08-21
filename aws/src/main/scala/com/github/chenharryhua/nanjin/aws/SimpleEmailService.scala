@@ -26,10 +26,8 @@ import scala.jdk.CollectionConverters.*
   *   SimpleEmailService[IO](identity[SesClientBuilder])
   *
   * val email = EmailContent(
-  *   from = "sender@example.com",
-  *   to = List("recipient@example.com"),
-  *   cc = Nil,
-  *   bcc = Nil,
+  *   from = Email("sender@example.com"),
+  *   to = NonEmptyList.one(Email("recipient@example.com")),
   *   subject = "Hello",
   *   body = "<h1>Hello world</h1>"
   * )

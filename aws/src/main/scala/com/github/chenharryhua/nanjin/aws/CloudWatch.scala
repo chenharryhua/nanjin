@@ -50,7 +50,7 @@ object CloudWatch {
     * @param f
     *   function to modify a `CloudWatchClientBuilder`
     * @param F
-    *   async effect type
+    *   sync effect type
     * @return
     *   a resource wrapping `CloudWatch` implementation
     */

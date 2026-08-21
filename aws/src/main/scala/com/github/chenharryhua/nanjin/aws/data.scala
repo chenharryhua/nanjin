@@ -54,6 +54,10 @@ final case class ParameterStoreContent(value: String) derives Codec.AsObject
   *   sender email address
   * @param to
   *   primary recipients (non-empty)
+  * @param subject
+  *   email subject line
+  * @param body
+  *   email body (HTML)
   * @param cc
   *   optional carbon copy recipients
   * @param bcc

@@ -135,8 +135,10 @@ final class CloudWatchObserver[F[_]: Async] private (
 
   def observe(namespace: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
     def publish(cwc: CloudWatch[F], mds: List[MetricDatum]): F[Unit] =
-      mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
-        .grouped(20)
+      // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
+      // limit increased from 20 to 1000 metrics per request since August 2022
+      mds
+        .grouped(1000)
         .toList
         .traverse(md => cwc.putMetricData(_.namespace(namespace).metricData(md.asJava)).attempt)
         .void
