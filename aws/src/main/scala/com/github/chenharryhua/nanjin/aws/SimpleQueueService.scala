@@ -7,9 +7,9 @@ import cats.syntax.flatMap.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
-import io.circe.{Codec, Json}
 import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
+import io.circe.{Codec, Json}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.model.*
@@ -121,7 +121,6 @@ object SimpleQueueService {
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
 
       // when no data can be retrieved, the delay policy will be applied
-      // `https://cb372.github.io/cats-retry/docs/policies.html`
       def receiving(status: PolicyTick[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
           val messages: mutable.Buffer[Message] = rmr.messages.asScala
@@ -138,7 +137,7 @@ object SimpleQueueService {
             }
             Pull.output[F, SqsMessage](chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
           } else {
-            Pull.eval(F.realTimeInstant.flatMap(status.next)).flatMap {
+            Pull.eval(status.advance).flatMap {
               case None     => Pull.done
               case Some(ts) =>
                 Pull.sleep[F](ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
