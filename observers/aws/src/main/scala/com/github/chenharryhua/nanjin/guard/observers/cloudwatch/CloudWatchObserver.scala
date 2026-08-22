@@ -1,192 +1,91 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
-import cats.Endo
-import cats.effect.kernel.{Async, Concurrent, Resource}
+import cats.effect.Temporal
+import cats.effect.kernel.Resource
 import cats.syntax.applicativeError.given
-import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.aws.CloudWatch
-import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
-import com.github.chenharryhua.nanjin.guard.event.{Event, Timestamp}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, MetricLabel, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
-import fs2.{Pipe, Stream}
-import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
-import squants.time
+import fs2.{Chunk, Pipe, Stream}
+import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum}
 
-import java.util
+import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters.*
-import scala.jdk.DurationConverters.JavaDurationOps
 
 object CloudWatchObserver {
-  def apply[F[_]: Async](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](
-      client = client,
-      storageResolution = 60,
-      histogramBuilder = identity,
-      dimensionBuilder = identity
-    )
+  def apply[F[_]: Temporal](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client)
 }
 
-final class CloudWatchObserver[F[_]: Async] private (
-  client: Resource[F, CloudWatch[F]],
-  storageResolution: Int,
-  histogramBuilder: Endo[HistogramFieldBuilder],
-  dimensionBuilder: Endo[DimensionBuilder]) {
-  private val F = Concurrent[F]
+/** Publishes metered counts (meter and timer deltas) to AWS CloudWatch as custom metrics.
+  *
+  * Each [[MeteredCounts]] emission is expanded into individual `MetricDatum` entries, batched up to the
+  * CloudWatch limit of 1000 per request, and published via `PutMetricData`.
+  *
+  * ===Usage===
+  * {{{
+  * import cats.effect.IO
+  * import com.github.chenharryhua.nanjin.aws.CloudWatch
+  * import com.github.chenharryhua.nanjin.guard.TaskGuard
+  * import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
+  * import software.amazon.awssdk.regions.Region
+  *
+  * val observer = CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))
+  *
+  * TaskGuard[IO]("my-task")
+  *   .service("my-service")
+  *   .eventStreamS { agent =>
+  *     agent.adhoc.meteredCounts(_.crontab(_.minutely))
+  *       .through(observer.scrape("MyApp/Metrics"))
+  *   }
+  *   .compile.drain
+  * }}}
+  *
+  * @param client
+  *   resource managing the CloudWatch client lifecycle
+  */
+final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, CloudWatch[F]]) {
 
-  def withHighStorageResolution: CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 1, histogramBuilder, dimensionBuilder)
+  /** Pipe that converts a stream of [[MeteredCounts]] into CloudWatch `PutMetricData` calls.
+    *
+    * @param namespace
+    *   CloudWatch namespace for the published metrics
+    * @param storageResolution
+    *   storage resolution in seconds (60 for standard, 1 for high-resolution)
+    */
+  def scrape(namespace: String, storageResolution: Int = 60): Pipe[F, MeteredCounts, Unit] = {
+    (mcs: Stream[F, MeteredCounts]) =>
+      Stream.resource(client).flatMap { cwc =>
+        mcs.mapChunks(_.flatMap(mc => Chunk.from(mc.counts.map((_, _, mc.timestamp))))).map {
+          case (mid, count, timestamp) =>
+            val label = Attribute(mid.metricLabel).map(_.label).textEntry
+            val domain = Attribute(mid.metricLabel.domain).textEntry
+            val service = Attribute(mid.metricLabel.service).textEntry
 
-  def includeHistogram(f: Endo[HistogramFieldBuilder]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, f, dimensionBuilder)
+            val dimensions = java.util.List.of(
+              Dimension.builder().name(service.tag).value(service.text).build(),
+              Dimension.builder().name(domain.tag).value(domain.text).build(),
+              Dimension.builder().name(label.tag).value(label.text).build()
+            )
 
-  def includeDimensions(f: Endo[DimensionBuilder]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, histogramBuilder, f)
+            val (standardUnit, data) =
+              CloudWatchTimeUnit.toStandardUnit(
+                mid.squants.unitSymbol,
+                mid.squants.dimensionName,
+                count.toDouble)
 
-  private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
-
-  private def computeDatum(report: MetricsSnapshot, lookup: Map[MetricID, Long]): List[MetricDatum] = {
-
-    val timer_histo: List[MetricDatum] = for {
-      hf <- histogramB.build
-      timer <- report.snapshot.timers
-    } yield {
-      val (dur, category) = hf.pick(timer)
-      val (su, value) = CloudWatchTimeUnit.toStandardUnit(
-        unitSymbol = time.Microseconds.symbol,
-        dimensionName = time.Time.name,
-        data = time.Time(dur.toScala).to(time.Microseconds)
-      )
-      MetricKey(
-        timestamp = report.timestamp,
-        serviceParams = report.serviceParams,
-        metricLabel = timer.metricId.metricLabel,
-        metricName = s"${timer.metricId.metricName.name}_$category",
-        standardUnit = su
-      ).metricDatum(value)
-    }
-
-    val histograms: List[MetricDatum] = for {
-      hf <- histogramB.build
-      histo <- report.snapshot.histograms
-    } yield {
-      val (value, category) = hf.pick(histo)
-      val Squants(symbol, name) = histo.histogram.squants
-      val (su, data) = CloudWatchTimeUnit.toStandardUnit(symbol, name, data = value)
-      MetricKey(
-        timestamp = report.timestamp,
-        serviceParams = report.serviceParams,
-        metricLabel = histo.metricId.metricLabel,
-        metricName = s"${histo.metricId.metricName.name}_$category",
-        standardUnit = su
-      ).metricDatum(data)
-    }
-
-    val timer_count: List[MetricDatum] =
-      report.snapshot.timers.map { timer =>
-        val calls: Long = timer.timer.calls
-        val delta: Long = lookup.get(timer.metricId).fold(calls)(calls - _)
-        MetricKey(
-          timestamp = report.timestamp,
-          serviceParams = report.serviceParams,
-          metricLabel = timer.metricId.metricLabel,
-          metricName = timer.metricId.metricName.name,
-          standardUnit = StandardUnit.COUNT
-        ) -> delta.toDouble
-      }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
-
-    val meter_count: List[MetricDatum] =
-      report.snapshot.meters.map { meter =>
-        val aggregate: Long = meter.meter.aggregate
-        val value: Long = lookup.get(meter.metricId).fold(aggregate)(aggregate - _)
-        val Squants(symbol, name) = meter.meter.squants
-        val (su, data) =
-          CloudWatchTimeUnit.toStandardUnit(symbol, name, data = value.toDouble)
-        MetricKey(
-          timestamp = report.timestamp,
-          serviceParams = report.serviceParams,
-          metricLabel = meter.metricId.metricLabel,
-          metricName = meter.metricId.metricName.name,
-          standardUnit = su
-        ) -> data
-      }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
-
-    val histogram_count: List[MetricDatum] =
-      if (histogramB.includeUpdate)
-        report.snapshot.histograms.map { histo =>
-          val updates: Long = histo.histogram.updates
-          val delta: Long = lookup.get(histo.metricId).fold(updates)(updates - _)
-          MetricKey(
-            timestamp = report.timestamp,
-            serviceParams = report.serviceParams,
-            metricLabel = histo.metricId.metricLabel,
-            metricName = histo.metricId.metricName.name,
-            standardUnit = StandardUnit.COUNT
-          ) -> delta.toDouble
-        }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
-      else Nil
-
-    timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
-  }
-
-  def observe(namespace: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
-    def publish(cwc: CloudWatch[F], mds: List[MetricDatum]): F[Unit] =
-      // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
-      // limit increased from 20 to 1000 metrics per request since August 2022
-      mds
-        .grouped(1000)
-        .toList
-        .traverse(md => cwc.putMetricData(_.namespace(namespace).metricData(md.asJava)).attempt)
-        .void
-
-    for {
-      cwc <- Stream.resource(client)
-      // indexed by ServiceID and MetricName's uuid
-      lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
-      event <- events.evalTap {
-        case mr @ MetricsSnapshot(Periodic(_), sp, snapshot, _) =>
-          lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
-            val data = computeDatum(mr, last.getOrElse(sp.serviceId, Snapshot.empty.lookupCount))
-            publish(cwc, data)
-          }
-        case Event.ServiceStop(serviceParams, _, _) =>
-          lookup.update(_.removed(serviceParams.serviceId))
-        case _ => F.unit
+            MetricDatum
+              .builder()
+              .dimensions(dimensions)
+              .metricName(mid.metricName.name)
+              .unit(standardUnit)
+              .timestamp(timestamp)
+              .value(data)
+              .storageResolution(storageResolution)
+              .build()
+        }.groupWithin(1000, 15.seconds).evalMap { mds =>
+          cwc.putMetricData(_.namespace(namespace).metricData(mds.toList.asJava)).attempt.void
+        }
       }
-    } yield event
-  }
-
-  def scrape(namespace: String): Pipe[F, MetricsSnapshot, Unit] =
-    _.through(observe(namespace)).void
-
-  private case class MetricKey(
-    timestamp: Timestamp,
-    serviceParams: ServiceParams,
-    metricLabel: MetricLabel,
-    metricName: String,
-    standardUnit: StandardUnit) {
-
-    private val permanent: Map[String, String] =
-      Map(
-        Attribute(metricLabel).map(_.label).textEntry.toPair,
-        Attribute(metricLabel.domain).textEntry.toPair)
-
-    private val dimensions: util.List[Dimension] =
-      dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build
-
-    def metricDatum(value: Double): MetricDatum =
-      MetricDatum
-        .builder()
-        .dimensions(dimensions)
-        .metricName(metricName)
-        .unit(standardUnit)
-        .timestamp(timestamp.value.toInstant)
-        .value(value)
-        .storageResolution(storageResolution)
-        .build()
   }
 }

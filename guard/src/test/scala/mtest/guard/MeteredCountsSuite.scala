@@ -1,41 +1,40 @@
 package mtest.guard
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import io.circe.Decoder
-import io.circe.jawn.parse
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
-import com.github.chenharryhua.nanjin.guard.metrics.MetricID
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, MeteredID}
+import io.circe.jawn.decode
+import squants.Each
 
 object MetricFixtures {
 
-  def metric(id: String): MetricID =
-    parse(
+  private def metric(id: String): MeteredID = {
+    val mid = decode[MetricID](
       s"""{
-         |  "metricLabel": {"label": "$id", "domain": "test"},
+         |  "metricLabel": {"label": "$id", "domain": "test", "service": "test-service"},
          |  "metricName": {"name": "$id", "age": 0, "uniqueToken": 0},
-         |  "category": {"Meter": {
-         |    "kind": {"Default": {}},
-         |    "squants": {"unitSymbol": "1", "dimensionName": "Dimensionless"}
-         |  }}
+         |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin
-    ).flatMap(_.as[MetricID](using Decoder[MetricID])).fold(throw _, identity)
+    ).fold(throw _, identity)
+    MeteredID(mid.metricLabel, mid.metricName, Squants(Each))
+  }
 
   // Predefined stable metrics (reused across all tests)
-  val a: MetricID = metric("a")
-  val b: MetricID = metric("b")
-  val c: MetricID = metric("c")
-  val d: MetricID = metric("d")
+  val a: MeteredID = metric("a")
+  val b: MeteredID = metric("b")
+  val c: MeteredID = metric("c")
+  val d: MeteredID = metric("d")
 }
 object MeteredTestUtils {
 
   def tick(ms: Long): Tick =
     Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.ofEpochMilli(ms))
 
-  def mc(t: Long, values: (MetricID, Long)*): MeteredCounts =
+  def mc(t: Long, values: (MeteredID, Long)*): MeteredCounts =
     MeteredCounts(
       tick(t),
       values.toMap

@@ -106,20 +106,6 @@ final case class Snapshot(
     val stable = metricIDs.map(id => (id.metricLabel, id.metricName.name))
     stable.distinct.size =!= stable.size
   }
-
-  def lookupCount: Map[MetricID, Long] = {
-    meters.map(m => m.metricId -> m.meter.aggregate) :::
-      timers.map(t => t.metricId -> t.timer.calls) :::
-      histograms.map(h => h.metricId -> h.histogram.updates)
-  }.toMap
-
-  def sorted: Snapshot = Snapshot(
-    counters = counters.sortBy(_.metricId.metricName.age),
-    meters = meters.sortBy(_.metricId.metricName.age),
-    timers = timers.sortBy(_.metricId.metricName.age),
-    histograms = histograms.sortBy(_.metricId.metricName.age),
-    gauges = gauges.sortBy(_.metricId.metricName.age)
-  )
 }
 
 object Snapshot:

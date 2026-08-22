@@ -64,21 +64,25 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("5.cloudwatch") {
-    val service = TaskGuard[IO]("aws")
+    val cloudwatch = CloudWatchObserver(cloudwatch_client)
+
+    TaskGuard[IO]("aws")
       .service("cloudwatch")
-      .eventStream { agent =>
-        agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
-          m.mark(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.mark(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.mark(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.mark(10) >> agent.adhoc.report
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .eventStreamS { agent =>
+        val work = agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
+          m.mark(1) >> IO.sleep(1.second) >>
+            m.mark(2) >> IO.sleep(1.second) >>
+            m.mark(2) >> IO.sleep(1.second) >>
+            m.mark(10)
         }
+        fs2.Stream.eval(work).concurrently(
+          agent.adhoc.meteredCounts(_.crontab(_.secondly)).through(cloudwatch.scrape("cloudwatch", storageResolution = 1))
+        )
       }
-      .debug()
-
-    val cloudwatch = CloudWatchObserver(cloudwatch_client).withHighStorageResolution
-
-    service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("6.email observer - limited should terminate") {

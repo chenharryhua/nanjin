@@ -30,8 +30,6 @@ object observers {
 
   val cloudwatch: CloudWatchObserver[IO] =
     CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))
-      .includeHistogram(_.withP50.withP95.withMax)
-      .includeDimensions(_.withServiceID.withServiceName)
 
   val sqsObserver: SqsObserver[IO] =
     SqsObserver(SimpleQueueService[IO](sydneyTime, _.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
