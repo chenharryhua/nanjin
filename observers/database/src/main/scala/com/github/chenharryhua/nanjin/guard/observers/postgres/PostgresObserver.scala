@@ -36,7 +36,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
 
   private val name: String = "Postgres Observer"
 
-  override def updateTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F] =
     new PostgresObserver[F](session, f(translator))
 
   private def execute(pg: PreparedCommand[F, Json], msg: Json): F[Unit] =

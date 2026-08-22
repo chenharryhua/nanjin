@@ -16,7 +16,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class GaugeTest extends AnyFunSuite {
   private val service =
-    TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withLogFormat(_.Console_PlainText))
+    TaskGuard[IO]("gauge").service("gauge")
 
   test("1.gauge") {
     val mr = service.eventStream { agent =>
@@ -113,10 +113,9 @@ class GaugeTest extends AnyFunSuite {
   test("8.expensive") {
     def compute(fd: FiniteDuration) =
       for {
-        s <- IO.realTimeInstant.flatTap(IO.println)
+        s <- IO.realTimeInstant
         _ <- IO.sleep(fd)
-        e <- IO.realTimeInstant.flatTap(IO.println)
-        _ <- IO.println(s"--${fd.toSeconds}--")
+        e <- IO.realTimeInstant
       } yield (fd.toSeconds, s, e)
 
     service.eventStream { agent =>
@@ -128,7 +127,7 @@ class GaugeTest extends AnyFunSuite {
         } yield ()
         mtx.surround(agent.adhoc.report.void)
       }
-    }.debug().compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
   }
 
   test("9.policy gauge should return cached value between refresh ticks") {

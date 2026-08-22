@@ -11,11 +11,11 @@ import java.time.Duration
 
 private object prettifyJson {
 
-  private val pretty_json: Json => Json =
+  private val pretty_json: Json => Json = {
+    val decimalFormatter = new DecimalFormat("#,###")
     Plated.transform[Json] { js =>
       js.asNumber match {
         case Some(value) =>
-          val decimalFormatter = new DecimalFormat("#,###")
           Json.fromString(decimalFormatter.format(value.toDouble))
         case None =>
           js.as[Duration] match {
@@ -24,6 +24,7 @@ private object prettifyJson {
           }
       }
     }
+  }
 
   def apply[A: Encoder](a: A): Json = pretty_json(a.asJson)
 

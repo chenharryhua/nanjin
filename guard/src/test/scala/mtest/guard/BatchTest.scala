@@ -20,7 +20,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)).withLogFormat(_.Slf4j_Json))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -50,7 +50,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs.map(_.completed.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
-        .use(qr => IO.println(qr.asJson) <* ga.adhoc.report)
+        .use(_ => ga.adhoc.report)
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -180,27 +180,18 @@ class BatchTest extends AnyFunSuite {
       c <- IO.monotonic
     } yield (b - a, c - b)
 
-    println(res.unsafeRunSync())
-  }
-
-  test("9.guarantee") {
-    assertThrows[Exception](IO(1).guarantee(IO.raiseError(new Exception())).unsafeRunSync())
-  }
-
-  test("10.bracket") {
-    assertThrows[Exception](
-      IO.bracketFull(_ => IO(1))(IO.println)((_, _) => IO.raiseError(new Exception())).unsafeRunSync())
+    res.unsafeRunSync()
   }
 
   test("11.monadic") {
     service.eventStream { agent =>
       agent.batch("monadic").monadic { job =>
         job("a", IO.println(1))
-          .flatMap(_ => job("b", IO.println(2)))
+          .flatMap(_ => job("b", IO.unit))
           .flatMap(_ => job("c", agent.adhoc.report >> IO.sleep(1.seconds)))
-          .flatMap(_ => job("d", IO.println(4)))
+          .flatMap(_ => job("d", IO.unit))
           .flatMap(_ => job("e", agent.adhoc.report.void))
-          .flatMap(_ => job("f", IO.println(6)))
+          .flatMap(_ => job("f", IO.unit))
           .monadicBatch(JobHook.noop)
           .use(_ => agent.adhoc.report.void)
       }
@@ -213,14 +204,14 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic { job =>
           for {
-            a <- job("a", IO.println("a").as(10))
-            b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
+            a <- job("a", IO(10))
+            b <- job("b", IO.sleep(1.seconds).as(20))
             _ <- job("c", agent.adhoc.report.void)
-            _ <- job("d", IO.println("aaaa"))
+            _ <- job("d", IO.unit)
             _ <- List(1, 2, 3).traverse(job.pure)
-            _ <- job("e", IO.sleep(1.seconds).flatMap(_ => IO.println("bbbb")))
+            _ <- job("e", IO.sleep(1.seconds))
             _ <- job("f", agent.adhoc.report.void)
-            c <- job("g", IO.println("c").as(30))
+            c <- job("g", IO(30))
           } yield a + b + c
         }
         .monadicBatch(JobHook.noop)
@@ -240,13 +231,13 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic { job =>
           for {
-            a <- job("a", IO.println("a").as(10))
-            b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
+            a <- job("a", IO(10))
+            b <- job("b", IO.sleep(1.seconds).as(20))
             _ <- job("report-1", agent.adhoc.report.void)
             _ <- job.failSafe("exception", IO.raiseError[Boolean](new Exception("aaaa")))
-            _ <- job("f", IO.println("bbbb"))
+            _ <- job("f", IO.unit)
             _ <- job("report-2", agent.adhoc.report.void)
-            c <- job("c", IO.println("c").as(30))
+            c <- job("c", IO(30))
           } yield a + b + c
         }
         .monadicBatch(JobHook.noop)

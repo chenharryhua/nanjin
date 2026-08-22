@@ -8,7 +8,7 @@ import cats.syntax.functor.given
 import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.event.StackTrace
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricKind
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricName}
 import io.circe.syntax.given

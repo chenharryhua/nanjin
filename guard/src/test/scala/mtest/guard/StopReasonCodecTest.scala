@@ -1,6 +1,7 @@
 package mtest.guard
 
-import com.github.chenharryhua.nanjin.guard.event.{StackTrace, StopReason}
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.event.StopReason
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

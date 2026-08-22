@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.ScrapeMode
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMode}
 import fs2.Stream
 
 /** adhoc metrics report and reset

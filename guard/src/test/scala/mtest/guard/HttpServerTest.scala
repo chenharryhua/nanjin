@@ -24,8 +24,7 @@ class HttpServerTest extends AnyFunSuite {
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withDashboard(100, _.crontab(_.secondly))
-      .withHistoryCapacity(32, 32, 32)
-      .withLogFormat(_.Slf4j_Json))
+      .withHistoryCapacity(32, 32, 32))
 
   test("1.stop service") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/stop")

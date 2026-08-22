@@ -67,10 +67,10 @@ class TeamsObserverTest extends AnyFunSuite {
     assert(events.exists(_.isInstanceOf[ServiceStop]))
   }
 
-  test("3.updateTranslator allows skipping event types") {
+  test("3.withTranslator allows skipping event types") {
     val received = Ref.unsafe[IO, List[Json]](Nil)
     val client = Resource.pure[IO, Client[IO]](mockClient(received))
-    val observer = TeamsObserver[IO](client).updateTranslator(_.skipMetricsSnapshot)
+    val observer = TeamsObserver[IO](client).withTranslator(_.skipMetricsSnapshot)
 
     val events = service
       .eventStream(agent => agent.adhoc.report)
@@ -146,7 +146,7 @@ class TeamsObserverTest extends AnyFunSuite {
     val text = json.noSpaces
     assert(text.contains("info-msg"))
     assert(text.contains("Correlation"))
-    assert(text.contains("Reported Event"))
+    assert(text.contains("Info"))
   }
 
   test("9.ReportedEvent Warn card has warning color") {

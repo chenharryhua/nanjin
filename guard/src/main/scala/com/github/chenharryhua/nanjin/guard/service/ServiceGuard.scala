@@ -49,9 +49,9 @@ import java.util.UUID
   *       .withMetricsReport(_.crontab(_.hourly))
   *   )
   *   .eventStream { agent =>
-  *     // application logic using agent.batch, agent.retry, agent.herald, etc.
+  *     // application logic using agent.batch, agent.retry, agent.heraldLogger, etc.
   *     agent.tickScheduled(_.fixedDelay(1.minute)).evalMap { tick =>
-  *       agent.herald.info(s"heartbeat at \${tick.index}")
+  *       agent.heraldLogger.info(s"heartbeat at \${tick.index}")
   *     }.compile.drain
   *   }
   *

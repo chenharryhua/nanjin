@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
-import com.github.chenharryhua.nanjin.guard.service.{History, MeteredCounts}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
+import com.github.chenharryhua.nanjin.guard.service.History
 import fs2.concurrent.Topic
 import fs2.{Pipe, Stream}
 import io.circe.Json
@@ -60,13 +61,7 @@ final private class HttpWsRouter[F[_]: Async](
       case GET -> Root / "ws" =>
         val preserved = Stream.eval(history.value).flatMap(Stream.emits)
         val send: Stream[F, WebSocketFrame] =
-          (preserved ++ topic.subscribe(5))
-            .zipWithPrevious
-            .map {
-              case (Some(prev), curr) => curr.delta(prev)
-              case (None, curr)       => curr
-            }
-            .map(text)
+          (preserved ++ topic.subscribe(5)).map(text)
 
         val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => ().pure[F])
 

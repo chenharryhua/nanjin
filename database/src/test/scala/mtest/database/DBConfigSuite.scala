@@ -53,5 +53,4 @@ class DBConfigSuite extends CatsEffectSuite {
       assertEquals(result, false) // should fail to connect
     }
   }
-
 }

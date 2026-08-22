@@ -42,7 +42,7 @@ sealed trait Agent[F[_]] {
     * The returned agent shares the current agent's service resources; it does not start a new service or
     * create a new metrics registry.
     */
-  def withDomain(name: String): Agent[F]
+  def withDomain(domain: String): Agent[F]
 
   /** Create a metrics-backed batch for a named operation. */
   def batch(label: String): Batch[F]
@@ -139,14 +139,14 @@ final private class GeneralAgent[F[_]: Async](
 
   override val zoneId: ZoneId = serviceParams.zoneId
 
-  override def withDomain(name: String): Agent[F] =
+  override def withDomain(domain: String): Agent[F] =
     new GeneralAgent[F](
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
       metricsEventHandler = metricsEventHandler,
-      reportedEventHandler = reportedEventHandler.withDomain(name)
+      reportedEventHandler = reportedEventHandler.withDomain(domain)
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -156,7 +156,7 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickFuture[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain)
+    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceName)
     MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId)
   }
 
@@ -173,7 +173,7 @@ final private class GeneralAgent[F[_]: Async](
     new Batch[F](metricsHub(label), uuidGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain)
+    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceName)
     new BatchLight[F](metricLabel, uuidGenerator)
   }
 

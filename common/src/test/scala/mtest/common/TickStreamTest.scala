@@ -51,7 +51,7 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(_.betweenLong(0, 500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
-    ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
+    ticks.evalTap(_ => sleep).compile.toList.unsafeRunSync()
   }
   test("5.fixed rate") {
     val policy = Policy.fixedRate(2.second).limited(5)
@@ -62,7 +62,7 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(_.betweenLong(0, 2500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
-    ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
+    ticks.evalTap(_ => sleep).compile.toList.unsafeRunSync()
   }
 
   test("6.tickImmediate - fixed delay") {

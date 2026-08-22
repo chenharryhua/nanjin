@@ -6,7 +6,7 @@ import cats.effect.kernel.Clock
 import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
-import com.github.chenharryhua.nanjin.guard.config.Domain
+import com.github.chenharryhua.nanjin.guard.config.{Domain, Service}
 import io.circe.{Codec, Decoder, Encoder}
 import squants.{Quantity, UnitOfMeasure}
 
@@ -23,7 +23,7 @@ private object MetricName:
       MetricName(name, age.toNanos, Hash[Unique.Token].hash(token)))
 end MetricName
 
-final case class MetricLabel(label: String, domain: Domain) derives Codec.AsObject
+final case class MetricLabel(label: String, domain: Domain, service: Service) derives Codec.AsObject
 
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: MetricCategory)
     derives Codec.AsObject:

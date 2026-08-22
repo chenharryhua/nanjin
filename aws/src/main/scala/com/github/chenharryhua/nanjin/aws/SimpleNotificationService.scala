@@ -21,7 +21,7 @@ import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
   * import software.amazon.awssdk.services.sns.model.PublishRequest
   *
   * val snsResource: Resource[IO, SimpleNotificationService[IO]] =
-  *   SimpleNotificationService[IO](identity[SesClientBuilder])
+  *   SimpleNotificationService[IO](identity[SnsClientBuilder])
   *
   * val message: PublishRequest = PublishRequest.builder()
   *   .topicArn("arn:aws:sns:us-east-1:123456789012:MyTopic")
@@ -60,7 +60,7 @@ object SimpleNotificationService {
     * import software.amazon.awssdk.services.sns.SnsClientBuilder
     *
     * val snsResource: Resource[IO, SimpleNotificationService[IO]] =
-    *   SimpleNotificationService[IO](identity[SesClientBuilder])
+    *   SimpleNotificationService[IO](identity[SnsClientBuilder])
     *
     * val sendIO = snsResource.use(_.publish(_.topicArn("arn:aws:sns:us-east-1:123:topic").message("Hello!")))
     * }}}

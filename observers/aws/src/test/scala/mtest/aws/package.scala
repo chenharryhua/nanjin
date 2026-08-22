@@ -67,8 +67,8 @@ package object aws {
 
       override def delete(msg: SqsMessage): IO[DeleteMessageResponse] =
         IO.pure(DeleteMessageResponse.builder().build())
-      override def sendMessage(msg: SendMessageRequest): IO[SendMessageResponse] =
-        IO.println(msg.messageBody())
+      override def send(request: SendMessageRequest): IO[SendMessageResponse] =
+        IO.println(request.messageBody())
           .map(_ =>
             SendMessageResponse
               .builder()

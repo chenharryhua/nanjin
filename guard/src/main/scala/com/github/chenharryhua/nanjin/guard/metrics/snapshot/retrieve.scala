@@ -47,7 +47,7 @@ object retrieve {
   def timer(timers: List[MetricElement.Timer]): Map[MetricID, MetricElement.TimerData] =
     timers.collect { tm =>
       tm.metricId.category match {
-        case MetricCategory.Timer(MetricKind.Timer.Default) =>
+        case MetricCategory.Timer(MetricKind.Timer.Default, _) =>
           tm.metricId -> tm.timer
       }
     }.toMap

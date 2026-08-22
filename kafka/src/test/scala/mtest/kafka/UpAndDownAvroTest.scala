@@ -19,19 +19,17 @@ class UpAndDownAvroTest extends AnyFunSuite {
 
   test("1.avro - schema register") {
     val schema = KafkaCodec.avro[UpAndDown].schema
-    println(schema)
     ctx.schemaRegistry
       .register(topic, value = Some(schema))
-      .debug()
       .unsafeRunSync()
   }
 
   test("2.avro - produce") {
-    ctx.produce(avro).produceOne(1, UpAndDown(1, "a")).flatMap(IO.println).unsafeRunSync()
+    ctx.produce(avro).produceOne(1, UpAndDown(1, "a")).void.unsafeRunSync()
   }
 
   test("3.avro - consume") {
-    ctx.consume(avro).subscribe.take(1).debug().timeout(3.seconds).compile.drain.unsafeRunSync()
+    ctx.consume(avro).subscribe.take(1).timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
 }

@@ -37,7 +37,7 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}](
   private def send(sqs: SimpleQueueService[F], builder: SendMessageRequest.Builder, json: Json): F[Unit] =
     UUIDGen[F].randomUUID.flatMap(uuid =>
       sqs
-        .sendMessage(builder.messageBody(json.noSpaces).messageDeduplicationId(uuid.show).build())
+        .send(builder.messageBody(json.noSpaces).messageDeduplicationId(uuid.show).build())
         .attempt
         .void)
 
@@ -59,6 +59,6 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}](
   def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
     internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
 
-  override def updateTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))
 }

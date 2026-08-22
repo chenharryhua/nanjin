@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 
 trait UpdateTranslator[F[_], A, B] {
-  def updateTranslator(f: Endo[Translator[F, A]]): B
+  def withTranslator(f: Endo[Translator[F, A]]): B
 }
 
 final case class Translator[F[_], A](

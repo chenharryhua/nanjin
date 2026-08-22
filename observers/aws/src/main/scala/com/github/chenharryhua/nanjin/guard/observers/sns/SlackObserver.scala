@@ -22,7 +22,7 @@ object SlackObserver {
     new SlackObserver[F](client, SlackTranslator[F])
 }
 
-/** Notes: Slack messages `https://api.slack.com/docs/messages/builder`
+/** Notes: Slack messages `https://app.slack.com/block-kit-builder`
   */
 
 final class SlackObserver[F[_]: Clock](
@@ -30,7 +30,7 @@ final class SlackObserver[F[_]: Clock](
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
-  override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))
 
   private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[Unit] = {

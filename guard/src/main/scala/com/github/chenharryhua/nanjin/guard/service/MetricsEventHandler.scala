@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{ScrapeMetrics, ScrapeMode}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -82,6 +82,10 @@ final private class MetricsEventHandler[F[_]] private (
   override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
     tickStream.tickScheduled(serviceParams.zoneId, f)
       .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
+      .zipWithPrevious.map {
+        case (Some(prev), curr) => curr.delta(prev)
+        case (None, curr)       => curr
+      }
 }
 
 private object MetricsEventHandler {
