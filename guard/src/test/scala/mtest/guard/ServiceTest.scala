@@ -24,7 +24,6 @@ class ServiceTest extends AnyFunSuite {
     _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
-      .withLogFormat(_.Slf4j_Json)
       .withInitialLogLevel(_.Debug)
       .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))

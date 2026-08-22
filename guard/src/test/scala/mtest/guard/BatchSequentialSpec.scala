@@ -90,7 +90,6 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .batch("exception")
           .sequential(jobs*)
           .batchValue(tracer.onComplete { jo =>
-            println(jo)
             IO {
               assert(jo.result.isLeft)
               assert(!jo.completed.done)

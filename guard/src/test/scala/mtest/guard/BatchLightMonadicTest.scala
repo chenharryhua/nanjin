@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.syntax.given
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,7 +36,6 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           }
           .monadicBatch
           .map { monadicValue =>
-            println(monadicValue.asJson)
             monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
             monadicValue.jobs.map(_.job.name) shouldBe List("a", "b", "c")

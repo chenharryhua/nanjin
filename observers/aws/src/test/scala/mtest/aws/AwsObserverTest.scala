@@ -46,7 +46,6 @@ class AwsObserverTest extends AnyFunSuite {
 
     service
       .through(mail.observe(Email("abc@google.com"), NonEmptyList.one(Email("efg@tek.com")), "title"))
-      .debug()
       .compile
       .drain
       .unsafeRunSync()

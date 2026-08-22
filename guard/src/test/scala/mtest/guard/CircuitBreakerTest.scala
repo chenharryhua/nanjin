@@ -60,8 +60,8 @@ class CircuitBreakerTest extends AnyFunSuite {
   test("3.race") {
     var i = 0
     var j = 0
-    val io1 = IO.println("start io-1") *> IO.sleep(3.seconds) *> IO { i = 1 } *> IO.println("end io-1")
-    val io2 = IO.println("start io-2") *> IO.sleep(1.seconds) *> IO { j = 1 } *> IO.println("end io-2")
+    val io1 = IO.sleep(3.seconds) *> IO { i = 1 }
+    val io2 = IO.sleep(1.seconds) *> IO { j = 1 }
 
     val ss = service
       .eventStream(_.circuitBreaker(maxFailures = 5, _.fixedDelay(1.seconds)).use { cb =>
