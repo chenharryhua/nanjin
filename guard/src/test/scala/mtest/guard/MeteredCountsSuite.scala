@@ -19,7 +19,10 @@ object MetricFixtures {
          |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin
     ).fold(throw _, identity)
-    MeteredID(mid.metricLabel, mid.metricName, mid.category.asInstanceOf[MetricCategory.Meter].squants)
+    MeteredID(mid.metricLabel, mid.metricName, mid.category match {
+      case MetricCategory.Meter(_, squants) => squants
+      case other => throw new IllegalArgumentException(s"expected Meter category, got: $other")
+    })
   }
 
   // Predefined stable metrics (reused across all tests)
