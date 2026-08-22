@@ -82,6 +82,10 @@ final private class MetricsEventHandler[F[_]] private (
   override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
     tickStream.tickScheduled(serviceParams.zoneId, f)
       .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
+      .zipWithPrevious.map {
+        case (Some(prev), curr) => curr.delta(prev)
+        case (None, curr)       => curr
+      }
 }
 
 private object MetricsEventHandler {

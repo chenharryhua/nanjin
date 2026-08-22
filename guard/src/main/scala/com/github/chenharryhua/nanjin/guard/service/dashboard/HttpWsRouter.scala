@@ -61,13 +61,7 @@ final private class HttpWsRouter[F[_]: Async](
       case GET -> Root / "ws" =>
         val preserved = Stream.eval(history.value).flatMap(Stream.emits)
         val send: Stream[F, WebSocketFrame] =
-          (preserved ++ topic.subscribe(5))
-            .zipWithPrevious
-            .map {
-              case (Some(prev), curr) => curr.delta(prev)
-              case (None, curr)       => curr
-            }
-            .map(text)
+          (preserved ++ topic.subscribe(5)).map(text)
 
         val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => ().pure[F])
 
