@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import io.circe.{Decoder, Encoder}
+import squants.Each
 
 sealed trait MetricKind extends Product
 object MetricKind:
@@ -25,5 +26,5 @@ enum MetricCategory derives Encoder, Decoder:
   case Counter(kind: MetricKind.Counter)
   case Meter(kind: MetricKind.Meter, squants: Squants)
   case Histogram(kind: MetricKind.Histogram, squants: Squants)
-  case Timer(kind: MetricKind.Timer)
+  case Timer(kind: MetricKind.Timer, squants: Squants = Squants(Each))
 end MetricCategory

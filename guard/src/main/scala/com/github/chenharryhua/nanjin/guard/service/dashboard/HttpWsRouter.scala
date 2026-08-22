@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
-import com.github.chenharryhua.nanjin.guard.service.{History, MeteredCounts}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
+import com.github.chenharryhua.nanjin.guard.service.History
 import fs2.concurrent.Topic
 import fs2.{Pipe, Stream}
 import io.circe.Json

@@ -6,9 +6,9 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.config.Capacity
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
 import com.github.chenharryhua.nanjin.guard.service.{
   History,
-  MeteredCounts,
   MetricsEventHandler,
   ReportedEventHandler,
   ServiceEventHandler

@@ -3,8 +3,9 @@ package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
+import com.github.chenharryhua.nanjin.guard.metrics
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MetricElement, Snapshot}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 
@@ -89,7 +90,7 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
     sm.asScala.iterator.flatMap { case (name, timer) =>
       decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Timer(_))) =>
+        case Right(mid @ MetricID(_, _, MetricCategory.Timer(_, _))) =>
           val ss = timer.getSnapshot
           Some(
             MetricElement.Timer(
@@ -171,12 +172,20 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
     }
 
   // Counts from Meter and Timer metrics only
-  def meteredCounts: Map[MetricID, Long] = {
+  def meteredCounts: Map[MeteredID, Long] = {
     val meters: java.util.SortedMap[String, Meter] = metricRegistry.getMeters
     val timers: java.util.SortedMap[String, Timer] = metricRegistry.getTimers
 
     (meters.asScala ++ timers.asScala).flatMap { case (name, meter) =>
-      decode[MetricID](name).toOption.map(_ -> meter.getCount)
+      decode[MetricID](name).toOption.flatMap { mid =>
+        mid.category match {
+          case metrics.MetricCategory.Meter(_, squants) =>
+            Some(MeteredID(mid.metricLabel, mid.metricName, squants) -> meter.getCount)
+          case metrics.MetricCategory.Timer(_, squants) =>
+            Some(MeteredID(mid.metricLabel, mid.metricName, squants) -> meter.getCount)
+          case _ => None
+        }
+      }
     }.toMap
   }
 }

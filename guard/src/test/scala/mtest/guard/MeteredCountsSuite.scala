@@ -1,7 +1,6 @@
 package mtest.guard
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.service.MeteredCounts
 import io.circe.Decoder
 import io.circe.jawn.parse
 import org.scalatest.funsuite.AnyFunSuite
@@ -9,6 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.{Instant, ZoneId}
 import java.util.UUID
 import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
 
 object MetricFixtures {
 

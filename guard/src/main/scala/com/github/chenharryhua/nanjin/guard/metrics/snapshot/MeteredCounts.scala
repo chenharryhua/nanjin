@@ -1,19 +1,21 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricName, Squants}
 
 import java.time.Instant
 
-opaque type MeteredCounts = TickedValue[Map[MetricID, Long]]
+final case class MeteredID(metricLabel: MetricLabel, metricName: MetricName, squants: Squants)
+
+opaque type MeteredCounts = TickedValue[Map[MeteredID, Long]]
 
 object MeteredCounts {
-  def apply(tick: Tick, value: Map[MetricID, Long]): MeteredCounts = TickedValue(tick, value)
+  def apply(tick: Tick, value: Map[MeteredID, Long]): MeteredCounts = TickedValue(tick, value)
 
   extension (mc: MeteredCounts)
     def timestamp: Instant = mc.tick.conclude
-    def counts: Map[MetricID, Long] = mc.value
+    def counts: Map[MeteredID, Long] = mc.value
 
     def delta(prev: MeteredCounts): MeteredCounts = {
       val prevMap = prev.value
