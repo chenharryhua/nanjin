@@ -27,10 +27,10 @@ private object JsonView {
       def onObject(value: JsonObject): JsonView[Json] = ObjectView(value.toList)
     }
 
-  private def format_json_umber(jn: JsonNumber): String = {
-    val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
+  private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
+
+  private def format_json_umber(jn: JsonNumber): String =
     jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
-  }
 
   def yml(name: String, json: Json, space: Char): List[String] = {
     val space4 = String.valueOf(space) * 4

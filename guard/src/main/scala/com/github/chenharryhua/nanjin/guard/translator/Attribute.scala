@@ -4,7 +4,9 @@ import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.TypeName
 import io.circe.{Encoder, Json}
 
+import java.util.regex.Pattern
 import scala.annotation.publicInBinary
+import scala.util.chaining.given
 
 final case class TextEntry(tag: String, text: String) {
   def toPair: (String, String) = (tag, text)
@@ -12,7 +14,8 @@ final case class TextEntry(tag: String, text: String) {
 
 final class Attribute[A] @publicInBinary private (value: A, val typeName: String) {
   private lazy val snakeName: String =
-    typeName.replaceAll("([a-z0-9])([A-Z])", "$1_$2").replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2").toLowerCase
+    Attribute.camelToSnake1.matcher(typeName).replaceAll("$1_$2").pipe(s =>
+      Attribute.camelToSnake2.matcher(s).replaceAll("$1_$2").toLowerCase)
 
   private lazy val camelName: String = s"${typeName.head.toLower}${typeName.tail}"
 
@@ -30,6 +33,8 @@ final class Attribute[A] @publicInBinary private (value: A, val typeName: String
 }
 
 object Attribute:
+  private val camelToSnake1: Pattern = Pattern.compile("([a-z0-9])([A-Z])")
+  private val camelToSnake2: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
 
   def apply[A](oa: Option[A])(using tn: TypeName[A]): Attribute[Option[A]] =
     new Attribute(oa, tn.value)
