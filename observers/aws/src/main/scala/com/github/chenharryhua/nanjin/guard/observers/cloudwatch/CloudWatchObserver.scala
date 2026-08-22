@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Chunk, Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum}
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
@@ -52,8 +52,13 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
     *   CloudWatch namespace for the published metrics
     * @param storageResolution
     *   storage resolution in seconds (60 for standard, 1 for high-resolution)
+    * @param interval
+    *   maximum time to buffer metric data before flushing to CloudWatch
     */
-  def scrape(namespace: String, storageResolution: Int = 60): Pipe[F, MeteredCounts, Unit] = {
+  def scrape(
+    namespace: String,
+    storageResolution: Int = 60,
+    interval: FiniteDuration = 15.seconds): Pipe[F, MeteredCounts, Unit] = {
     (mcs: Stream[F, MeteredCounts]) =>
       Stream.resource(client).flatMap { cwc =>
         mcs.mapChunks(_.flatMap(mc => Chunk.from(mc.counts.map((_, _, mc.timestamp))))).map {
@@ -68,7 +73,7 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
               Dimension.builder().name(label.tag).value(label.text).build()
             )
 
-            val (standardUnit, data) =
+            val (unit, value) =
               CloudWatchTimeUnit.toStandardUnit(
                 mid.squants.unitSymbol,
                 mid.squants.dimensionName,
@@ -78,12 +83,12 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
               .builder()
               .dimensions(dimensions)
               .metricName(mid.metricName.name)
-              .unit(standardUnit)
+              .unit(unit)
               .timestamp(timestamp)
-              .value(data)
+              .value(value)
               .storageResolution(storageResolution)
               .build()
-        }.groupWithin(1000, 15.seconds).evalMap { mds =>
+        }.groupWithin(1000, interval).evalMap { mds =>
           cwc.putMetricData(_.namespace(namespace).metricData(mds.toList.asJava)).attempt.void
         }
       }
