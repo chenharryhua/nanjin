@@ -180,7 +180,7 @@ class BatchTest extends AnyFunSuite {
       c <- IO.monotonic
     } yield (b - a, c - b)
 
-    (res.unsafeRunSync())
+    res.unsafeRunSync()
   }
 
   test("11.monadic") {

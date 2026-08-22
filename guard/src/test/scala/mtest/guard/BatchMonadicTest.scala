@@ -89,7 +89,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
     val sorted = completedJob.reverse
 
-    println(sorted)
+    assert(sorted.nonEmpty)
 
     assert(sorted.head.completed.done)
     assert(sorted.head.completed.job.index == 1)

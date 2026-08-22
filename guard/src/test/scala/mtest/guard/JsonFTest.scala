@@ -18,7 +18,7 @@ class JsonFTest extends AnyFunSuite {
         "arrStr" -> List("a", "b", "c").asJson,
         "nullType" -> Json.Null
       )
-    JsonView.yml("name", json, space).foreach(println)
+    JsonView.yml("name", json, space).foreach(_ => ())
   }
 
   test("2.string") {
@@ -54,6 +54,6 @@ class JsonFTest extends AnyFunSuite {
           "arrStr" -> List("a", "b", "c").asJson,
           "nullType" -> Json.Null
         ))
-    println(JsonView.yml("name", json, space))
+    assert(JsonView.yml("name", json, space).nonEmpty)
   }
 }

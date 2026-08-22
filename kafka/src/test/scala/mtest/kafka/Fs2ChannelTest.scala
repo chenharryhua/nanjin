@@ -74,7 +74,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("1.register") {
     val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
-    ctx.schemaRegistry.register(avroTopic.topicName, value = v).flatMap(IO.println).unsafeRunSync()
+    ctx.schemaRegistry.register(avroTopic.topicName, value = v).void.unsafeRunSync()
   }
 
   test("2.should be able to consume avro topic") {
@@ -198,7 +198,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
-      .flatMap(_.stream.map(_.record.value).debug())
+      .flatMap(_.stream.map(_.record.value))
       .compile
       .drain
       .as(true)
@@ -211,7 +211,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(DateTimeRange(sydneyTime).withToday)
-      .flatMap(_.stream.map(_.record).take(5).debug())
+      .flatMap(_.stream.map(_.record).take(5))
       .compile
       .drain
       .as(true)
@@ -226,7 +226,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
       .take(5)
-      .debug()
       .compile
       .drain
       .as(true)
@@ -238,7 +237,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 1L)))
-      .flatMap(_.stream.map(_.record.value).debug())
+      .flatMap(_.stream.map(_.record.value))
       .compile
       .drain
       .as(true)
@@ -252,7 +251,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
       .take(1)
-      .debug()
       .compile
       .drain
       .as(true)
@@ -266,7 +264,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         .subscribe
         .take(1)
         .map(_.record)
-        .debug()
         .timeout(3.seconds)
         .compile
         .toList
@@ -276,7 +273,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("15.attempt consume") {
-    val ret = ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record).debug()
+    val ret = ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record)
       .timeout(3.seconds).compile.toList.unsafeRunSync()
     assert(ret.size == 1)
     assert(ret.head.value.isRight)

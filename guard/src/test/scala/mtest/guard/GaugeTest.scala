@@ -127,7 +127,7 @@ class GaugeTest extends AnyFunSuite {
         } yield ()
         mtx.surround(agent.adhoc.report.void)
       }
-    }.debug().compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
   }
 
   test("9.policy gauge should return cached value between refresh ticks") {

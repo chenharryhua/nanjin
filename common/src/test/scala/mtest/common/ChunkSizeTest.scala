@@ -1,6 +1,5 @@
 package mtest.common
 
-import cats.implicits.toShow
 import cats.syntax.order.catsSyntaxPartialOrder
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.common.ChunkSize
@@ -8,7 +7,7 @@ import io.circe.jawn.decode
 import io.circe.syntax.given
 
 class ChunkSizeTest extends AnyFunSuite {
-  def fun(cs: ChunkSize): Unit = println(cs.show)
+  def fun(cs: ChunkSize): Unit = assert(cs.value > 0): Unit
 
   test("1.chunk size - function") {
     fun(ChunkSize(10))
@@ -18,7 +17,7 @@ class ChunkSizeTest extends AnyFunSuite {
   test("2.chunk size - assignment") {
     val cs = ChunkSize(10)
     val cs2: ChunkSize = 100
-    println((cs, cs2))
+    assert(cs.value > 0 && cs2.value > 0)
   }
 
   test("3.chunk size - json and validation") {

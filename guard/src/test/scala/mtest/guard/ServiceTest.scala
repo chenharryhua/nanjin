@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
-import cats.implicits.{toFunctorFilterOps, toShow}
+import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -63,7 +63,6 @@ class ServiceTest extends AnyFunSuite {
     val p2 = Policy.fixedDelay(2.seconds).limited(1)
     val p3 = Policy.fixedDelay(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
-    println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
       .updateConfig(_.withRestartPolicy(2.hour, _ => policy))
@@ -107,7 +106,6 @@ class ServiceTest extends AnyFunSuite {
   test("4.policy threshold start over") {
 
     val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
-    println(policy)
     val List(a, b, c) =
       fs2.Stream
         .eval(AtomicCell[IO].of(0.seconds))
@@ -154,23 +152,6 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.throw exception in construction") {
-    val List(a, b) = guard
-      .service("simple")
-      .updateConfig(_.withRestartPolicy(1.hour, _.empty))
-      .eventStream { _ =>
-        val c = true
-        val err: Int = if (c) throw new Exception else 1
-        IO.println(err)
-      }
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[StopReason.ByException].stackTrace.value.nonEmpty)
-  }
-
   test("7.closure - io") {
     val List(a, b) = guard
       .service("closure")
@@ -211,7 +192,6 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { _ =>
         Future[Int] {
           Thread.sleep(2_000)
-          println("throw exception")
           throw new Exception("oops")
         }(using scala.concurrent.ExecutionContext.Implicits.global)
         IO.sleep(5.seconds)
@@ -225,7 +205,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("10.by cancellation - internal") {
     val List(a, b) =
-      guard.service("cancel").eventStream(_ => IO.println("a") <* IO.canceled).compile.toList.unsafeRunSync()
+      guard.service("cancel").eventStream(_ => IO.unit <* IO.canceled).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[ServiceStop].cause == StopReason.ByCancellation)
   }

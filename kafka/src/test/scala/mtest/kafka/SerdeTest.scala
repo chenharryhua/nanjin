@@ -13,14 +13,12 @@ final case class Foo(a: Int, b: String) derives Codec.AsObject
 class SerdeTest extends AnyFunSuite {
   test("1.avro primitive") {
     val avro: Registered[Key, GenericRecord] = ctx.asKey(Structured[GenericRecord])
-    println(avro)
+    assert(avro.toString.nonEmpty)
   }
 
   test("2.GenericDeserializer") {
-    val k: GenericDeserializer[Key, IO, Array[Byte]] = GenericDeserializer.identity[IO]
-    val v: GenericDeserializer[Value, IO, Array[Byte]] = GenericDeserializer.identity[IO]
-
-    println((k, v))
+    val _: GenericDeserializer[Key, IO, Array[Byte]] = GenericDeserializer.identity[IO]
+    val _: GenericDeserializer[Value, IO, Array[Byte]] = GenericDeserializer.identity[IO]
   }
 
   test("3.null - deserialize") {
@@ -50,6 +48,6 @@ class SerdeTest extends AnyFunSuite {
       ctx.asValue(s1).serializer[IO].use(_.serialize("a", Headers.empty, Some(10))).unsafeRunSync().toList
     assert(x === 10)
     val y = ctx.asValue(s1).serializer[IO].use(_.serialize("a", Headers.empty, None)).unsafeRunSync()
-    println(y === null)
+    assert(y == null)
   }
 }

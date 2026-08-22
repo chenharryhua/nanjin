@@ -14,23 +14,18 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TopicSyntaxTest extends AnyFunSuite {
   test("1.topic name") {
-    val tn: TopicName = "abc.unsafe"
-    val tn2 = TopicName("abc.checked")
-    println((tn, tn2))
+    val _: TopicName = "abc.unsafe"
+    val _ = TopicName("abc.checked")
   }
 
   test("2.consume") {
-    val k = ctx.asKey(Primitive[Integer]).deserializer[IO].map(_.attempt)
-    val v = ctx.asValue(Primitive[Integer]).deserializer[IO].map(_.option)
-
-    println((k, v))
+    val _ = ctx.asKey(Primitive[Integer]).deserializer[IO].map(_.attempt)
+    val _ = ctx.asValue(Primitive[Integer]).deserializer[IO].map(_.option)
   }
 
   test("3.producer") {
-    val k = ctx.asKey(Primitive[Integer].emap(identity)(identity)).serializer[IO]
-    val v = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
-
-    println((k, v))
+    val _ = ctx.asKey(Primitive[Integer].emap(identity)(identity)).serializer[IO]
+    val _ = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
   }
 
   test("4.scala primitive") {
@@ -58,9 +53,8 @@ class TopicSyntaxTest extends AnyFunSuite {
   }
 
   test("7.nj consumer record foo") {
-    val s = summon[SchemaFor[NJConsumerRecord[Int, Foo]]]
+    val _ = summon[SchemaFor[NJConsumerRecord[Int, Foo]]]
     summon[Decoder[NJConsumerRecord[Int, Foo]]]
     summon[Encoder[NJConsumerRecord[Int, Foo]]]
-    println(s.schema)
   }
 }

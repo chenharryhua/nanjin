@@ -23,7 +23,7 @@ class TransientConsumerTest extends AnyFunSuite {
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, Map.empty)
     val consumer = mkConsumer(pcs).map(SnapshotConsumer[IO](topicName, _))
     val res = consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime))).unsafeRunSync()
-    println(res)
+    assert(res.nonEmpty)
     assert(res.treeMap.size == 3)
     assert(res.treeMap.forall(_._2.forall(_.distance == 10)))
   }
@@ -70,7 +70,7 @@ class TransientConsumerTest extends AnyFunSuite {
       consumer
         .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
         .unsafeRunSync()
-    println(res)
+    assert(res.nonEmpty)
     assert(res.treeMap.size == 3)
     assert(res.treeMap.forall(_._2.exists(_.distance == 10)))
   }
@@ -89,7 +89,7 @@ class TransientConsumerTest extends AnyFunSuite {
       consumer
         .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
         .unsafeRunSync()
-    println(res)
+    assert(res.nonEmpty)
     assert(res.treeMap.size == 3)
     assert(res.treeMap.forall(_._2.exists(_.distance == 5)))
   }
