@@ -57,7 +57,7 @@ final class EmailObserver[F[_]] private (
     translator: Translator[F, Text.TypedTag[String]] = this.translator): EmailObserver[F] =
     new EmailObserver[F](client, translator, isNewestFirst, capacity, policy, zoneId)
 
-  override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
   def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)

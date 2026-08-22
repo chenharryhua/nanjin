@@ -66,6 +66,6 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
       } yield event
   }
 
-  override def updateTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =
     new KafkaObserver(ctx, f(translator))
 }

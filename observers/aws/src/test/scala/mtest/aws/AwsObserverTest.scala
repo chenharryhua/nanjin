@@ -53,7 +53,7 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("3.syntax") {
-    EmailObserver(ses_client).updateTranslator {
+    EmailObserver(ses_client).withTranslator {
       _.skipMetricsSnapshot.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
@@ -77,7 +77,8 @@ class AwsObserverTest extends AnyFunSuite {
             m.mark(10)
         }
         fs2.Stream.eval(work).concurrently(
-          agent.adhoc.meteredCounts(_.crontab(_.secondly)).through(cloudwatch.scrape("cloudwatch", storageResolution = 1))
+          agent.adhoc.meteredCounts(_.crontab(_.secondly)).through(
+            cloudwatch.scrape("cloudwatch", storageResolution = 1))
         )
       }
       .compile

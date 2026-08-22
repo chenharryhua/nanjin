@@ -69,7 +69,7 @@ final class SplunkObserver[F[_]](client: Resource[F, Client[F]], translator: Tra
   F: Concurrent[F])
     extends UpdateTranslator[F, Json, SplunkObserver[F]] with Http4sClientDsl[F] {
 
-  override def updateTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F] =
     new SplunkObserver[F](client, f(translator))
 
   private def buildEnvelope(event: Event, json: Json, config: HecConfig): Json = {

@@ -19,7 +19,7 @@ object CloudWatchObserver {
 
 /** Publishes metered counts (meter and timer deltas) to AWS CloudWatch as custom metrics.
   *
-  * Each [[MeteredCounts]] emission is expanded into individual `MetricDatum` entries, batched up to the
+  * Each `MeteredCounts` emission is expanded into individual `MetricDatum` entries, batched up to the
   * CloudWatch limit of 1000 per request, and published via `PutMetricData`.
   *
   * ===Usage===
@@ -46,7 +46,7 @@ object CloudWatchObserver {
   */
 final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, CloudWatch[F]]) {
 
-  /** Pipe that converts a stream of [[MeteredCounts]] into CloudWatch `PutMetricData` calls.
+  /** Pipe that converts a stream of `MeteredCounts` into CloudWatch `PutMetricData` calls.
     *
     * @param namespace
     *   CloudWatch namespace for the published metrics

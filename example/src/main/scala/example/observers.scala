@@ -20,7 +20,7 @@ import com.github.chenharryhua.nanjin.common.chrono.crontabs
 object observers {
   val slackObserver: SlackObserver[IO] =
     SlackObserver(SimpleNotificationService[IO](_.region(Region.AP_SOUTHEAST_2)))
-      .updateTranslator(_.filter(EventPipe.cronFilter(crontabs.businessHour)))
+      .withTranslator(_.filter(EventPipe.cronFilter(crontabs.businessHour)))
 
   def emailObserver: EmailObserver[IO] =
     EmailObserver(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))

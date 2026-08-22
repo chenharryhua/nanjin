@@ -39,9 +39,9 @@ final private class ReportedEventHandler[F[_]: Sync](
       )
     }
 
-  def withDomain(name: String): ReportedEventHandler[F] =
+  def withDomain(domain: String): ReportedEventHandler[F] =
     new ReportedEventHandler[F](
-      domain = Domain(name),
+      domain = Domain(domain),
       logThreshold = logThreshold,
       history = history,
       serviceParams = serviceParams,

@@ -39,7 +39,7 @@ final class TeamsObserver[F[_]: Clock](
   translator: Translator[F, AdaptiveCard])(using F: Concurrent[F])
     extends UpdateTranslator[F, AdaptiveCard, TeamsObserver[F]] with Http4sClientDsl[F] {
 
-  override def updateTranslator(f: Endo[Translator[F, AdaptiveCard]]): TeamsObserver[F] =
+  override def withTranslator(f: Endo[Translator[F, AdaptiveCard]]): TeamsObserver[F] =
     new TeamsObserver[F](client, f(translator))
 
   private def publish(httpClient: Client[F], webhook: Uri, card: AdaptiveCard): F[Unit] = {
