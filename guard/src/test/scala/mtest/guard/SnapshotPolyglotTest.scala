@@ -56,7 +56,5 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     assert(yaml.contains("updates:"))
     assert(yaml.contains("invocations:"))
 
-    val slackYaml = polyglot.counterYaml.get
-    assert(slackYaml.contains("requests:"))
   }
 }

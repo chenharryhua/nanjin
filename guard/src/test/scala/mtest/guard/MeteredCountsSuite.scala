@@ -5,10 +5,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, MeteredID}
 import io.circe.jawn.decode
-import squants.Each
 
 object MetricFixtures {
 
@@ -20,7 +19,7 @@ object MetricFixtures {
          |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin
     ).fold(throw _, identity)
-    MeteredID(mid.metricLabel, mid.metricName, Squants(Each))
+    MeteredID(mid.metricLabel, mid.metricName, mid.category.asInstanceOf[MetricCategory.Meter].squants)
   }
 
   // Predefined stable metrics (reused across all tests)
