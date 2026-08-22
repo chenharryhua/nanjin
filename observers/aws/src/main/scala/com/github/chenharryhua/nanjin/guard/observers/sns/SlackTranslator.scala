@@ -3,8 +3,8 @@ import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze, StackTrace}
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
 import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{

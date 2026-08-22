@@ -10,7 +10,8 @@ import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message, StackTrace, Timestamp}
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message, Timestamp}
 import com.github.chenharryhua.nanjin.guard.service.History
 import fs2.Stream
 import fs2.concurrent.Channel

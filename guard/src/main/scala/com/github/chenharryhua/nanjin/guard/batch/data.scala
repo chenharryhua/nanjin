@@ -4,7 +4,7 @@ import cats.derived.derived
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.guard.event.StackTrace
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}

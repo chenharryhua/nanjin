@@ -5,10 +5,33 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.zoneidInstances
 
 import java.time.{Duration, ZoneId}
 import java.util.UUID
+import scala.jdk.CollectionConverters.ListHasAsScala
+
+/** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
+  * Adaptive Cards).
+  */
+final val NBSP_CHAR: Char = '\u00A0'
+
+// ---------------- StackTrace ----------------
+opaque type StackTrace = List[String]
+object StackTrace:
+  final private val NBSP_INDENT: String = String.valueOf(NBSP_CHAR) * 2
+  def apply(ex: Throwable): StackTrace =
+    ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
+  extension (st: StackTrace)
+    inline def value: List[String] = st
+    def headOption: Option[String] = st.headOption
+    def nbspIndented: String = st.mkString(s"\n$NBSP_INDENT")
+
+  given Show[StackTrace] = _.mkString("\n  ")
+  given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
+  given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
+end StackTrace
 
 opaque type Task = String
 object Task:

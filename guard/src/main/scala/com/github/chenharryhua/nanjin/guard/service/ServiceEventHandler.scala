@@ -7,7 +7,8 @@ import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason, Timestamp}
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
 import fs2.Stream
 import fs2.concurrent.Channel
 

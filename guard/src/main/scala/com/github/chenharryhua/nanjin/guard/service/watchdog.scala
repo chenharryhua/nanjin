@@ -9,7 +9,8 @@ import cats.syntax.monadError.given
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.RestartPolicy
-import com.github.chenharryhua.nanjin.guard.event.{StackTrace, StopReason}
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.event.StopReason
 import fs2.Stream
 import org.typelevel.cats.time.instances.duration.given
 

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.teams
 
-import com.github.chenharryhua.nanjin.guard.event.StackTrace
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
