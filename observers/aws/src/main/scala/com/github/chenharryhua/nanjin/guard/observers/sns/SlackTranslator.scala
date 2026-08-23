@@ -3,7 +3,7 @@ import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{StackTrace}
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
 import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
@@ -18,7 +18,6 @@ import com.github.chenharryhua.nanjin.guard.translator.{
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
-import com.github.chenharryhua.nanjin.guard.config.ServiceIdentity
 
 private object SlackTranslator extends all {
   import Event.*
@@ -73,10 +72,10 @@ private object SlackTranslator extends all {
     } else KeyValueSection(ss.tag, """`not available`""")
   }
 
-  // private def brief(sb: Brief): KeyValueSection = {
-  //   val service_brief = Attribute(sb).textEntry
-  //   KeyValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
-  // }
+  private def brief(sb: Brief): KeyValueSection = {
+    val service_brief = Attribute(sb).textEntry
+    KeyValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
+  }
 
   // events
   private def service_start(evt: ServiceStart): SlackApp = {
@@ -105,7 +104,7 @@ private object SlackTranslator extends all {
             mark_down(policy, service_id)
           )
         ),
-      // todo   Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
   }
@@ -137,15 +136,14 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(KeyValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
-       // todo Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
 
     // Append CloudWatch link using serviceId and tick index as filter
-    // todo CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-    //  .map(url => s"<$url|:mag: CloudWatch Logs>")
-    //  .fold(app)(app.appendMarkdown)
-    app    
+    CloudWatchLogs.logLink(evt.brief, evt.timestamp.value.toInstant)
+      .map(url => s"<$url|:mag: CloudWatch Logs>")
+      .fold(app)(app.appendMarkdown)
   }
 
   private def service_stop(evt: ServiceStop): SlackApp = {
@@ -162,9 +160,10 @@ private object SlackTranslator extends all {
             HeaderSection(s":octagonal_sign: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
             uptime_section(evt),
-            mark_down(service_id, stop_cause))
+            mark_down(service_id, stop_cause)
+          )
         ),
-       // todo Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
   }

@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{
+  Brief,
   Domain,
   ServiceIdentity,
   ServiceParams,
@@ -26,14 +27,17 @@ sealed trait Event extends Product derives Codec.AsObject {
 
 object Event {
 
-  final case class ServiceStart(serviceIdentity: ServiceIdentity, policy: Policy, tick: Tick) extends Event {
+  final case class ServiceStart(serviceIdentity: ServiceIdentity, policy: Policy, brief: Brief, tick: Tick)
+      extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
   }
 
   final case class ServicePanic(
     serviceIdentity: ServiceIdentity,
     policy: Policy,
+    brief: Brief,
     tick: Tick,
+
     stackTrace: StackTrace)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
@@ -42,6 +46,7 @@ object Event {
   final case class ServiceStop(
     serviceIdentity: ServiceIdentity,
     policy: Policy,
+    brief: Brief,
     timestamp: Timestamp,
     cause: StopReason)
       extends Event

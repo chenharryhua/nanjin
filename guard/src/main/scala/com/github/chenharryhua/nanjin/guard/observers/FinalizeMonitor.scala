@@ -31,6 +31,7 @@ final private class FinalizeMonitor[F[_]: {Clock, Monad}, A](
               ServiceStop(
                 ss.serviceIdentity,
                 ss.policy,
+                ss.brief,
                 ss.serviceIdentity.toTimestamp(ts),
                 StopReason.ByCancellation))))
   } yield messages

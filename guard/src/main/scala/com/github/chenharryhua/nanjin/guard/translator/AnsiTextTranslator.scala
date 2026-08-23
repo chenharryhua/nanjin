@@ -35,10 +35,10 @@ object AnsiTextTranslator {
   private def service_start(evt: ServiceStart): String = {
     val idx = s"index:${evt.tick.index}"
     val snz = Attribute(Took(evt.tick.snooze)).labelledText
-     // todo ${interpretServiceParams(evt.serviceParams).spaces2}
 
     s"""|${service_event(evt)}
         |  $idx, $snz
+        |  ${evt.brief.value.spaces2}
         |""".stripMargin
   }
 

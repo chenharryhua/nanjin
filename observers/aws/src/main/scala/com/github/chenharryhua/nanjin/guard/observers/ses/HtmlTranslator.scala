@@ -27,8 +27,8 @@ private object HtmlTranslator extends all {
     val si = evt.serviceIdentity
     val task_name = Attribute(si.task).textEntry
     val host = Attribute(si.host).textEntry
-    val (service_tag, service) = Attribute(si.service).entry(s =>
-      si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
+    val (service_tag, service) =
+      Attribute(si.service).entry(s => si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
     val service_id = Attribute(si.serviceId).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val timestamp = Attribute(evt.timestamp).textEntry
@@ -63,7 +63,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      // todo json_text(interpretServiceParams(evt.serviceParams))
+      json_text(evt.brief.value)
     )
   }
 
@@ -91,7 +91,7 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt)),
       p(b(s"${stop_cause.tag}: "), stop_cause.text),
-     //todo  json_text(evt.serviceParams.brief.value)
+      json_text(evt.brief.value)
     )
   }
 

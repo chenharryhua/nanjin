@@ -17,7 +17,7 @@ object PrettyJsonTranslator {
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-     // todo "params" -> interpretServiceParams(evt.serviceParams)
+      "params" -> evt.brief.value
     )
 
   private def service_panic(evt: ServicePanic): Json =

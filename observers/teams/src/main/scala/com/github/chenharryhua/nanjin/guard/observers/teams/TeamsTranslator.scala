@@ -62,7 +62,7 @@ private object TeamsTranslator {
     val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val brief = Attribute(evt.serviceParams.brief).typeName
+    val brief = Attribute(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -75,18 +75,18 @@ private object TeamsTranslator {
             Fact(uptime.tag, uptime.text)
           )),
         BolderTextBlock(brief),
-        JsonBlock(evt.serviceParams.brief.value)
+        JsonBlock(evt.brief.value)
       )
     )
   }
 
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
-    val brief = Attribute(evt.serviceParams.brief).typeName
+    val brief = Attribute(evt.brief).typeName
 
     val card = AdaptiveCard(
       body = List(
@@ -103,11 +103,11 @@ private object TeamsTranslator {
         BolderTextBlock(stackTrace),
         StackTraceBlock(evt.stackTrace),
         BolderTextBlock(brief),
-        JsonBlock(evt.serviceParams.brief.value)
+        JsonBlock(evt.brief.value)
       )
     )
 
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
+    CloudWatchLogs.logLink(evt.brief, evt.timestamp.value.toInstant)
       .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))
       .fold(card)(card.appendElement)
   }
