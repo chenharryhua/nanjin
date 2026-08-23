@@ -21,17 +21,32 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     channel.send(event) >> logSink.write(event)
 
   def serviceStart(tick: Tick): F[Unit] =
-    publish(ServiceStart(serviceParams.serviceIdentity, serviceParams.policies.restart.policy, serviceParams.brief, tick))
+    publish(
+      ServiceStart(
+        serviceParams.serviceIdentity,
+        serviceParams.policies.restart.policy,
+        serviceParams.serviceDescription,
+        tick))
 
   def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
-    val panic: ServicePanic = ServicePanic(serviceParams.serviceIdentity, serviceParams.policies.restart.policy, serviceParams.brief, tick, stackTrace)
+    val panic: ServicePanic = ServicePanic(
+      serviceParams.serviceIdentity,
+      serviceParams.policies.restart.policy,
+      serviceParams.serviceDescription,
+      tick,
+      stackTrace)
     publish(panic) >> history.add(panic)
   }
 
   def serviceStop(cause: StopReason): F[Unit] =
     for {
       now <- serviceParams.zonedNow
-      event = ServiceStop(serviceParams.serviceIdentity, serviceParams.policies.restart.policy, serviceParams.brief, Timestamp(now), cause)
+      event = ServiceStop(
+        serviceParams.serviceIdentity,
+        serviceParams.policies.restart.policy,
+        serviceParams.serviceDescription,
+        Timestamp(now),
+        cause)
       _ <- logSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()

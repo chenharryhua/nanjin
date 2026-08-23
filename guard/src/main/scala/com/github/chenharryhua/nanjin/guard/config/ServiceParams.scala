@@ -4,7 +4,7 @@ import cats.effect.kernel.Clock
 import cats.syntax.functor.given
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.{TimeZone}
+import com.github.chenharryhua.nanjin.guard.config.TimeZone
 import io.circe.jawn.parse
 import io.circe.{Codec, Encoder, Json}
 
@@ -61,6 +61,8 @@ final case class ServiceParams(
     host = host,
     launchTime = launchTime
   )
+
+  val serviceDescription: Brief = Brief(interpretServiceParams(this))
 }
 
 object ServiceParams {

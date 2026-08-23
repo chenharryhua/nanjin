@@ -5,12 +5,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.StopReason
-import com.github.chenharryhua.nanjin.guard.service.{
-  MetricsEventHandler,
-  ReportedEventHandler,
-  ServiceEventHandler
-}
-import com.github.chenharryhua.nanjin.guard.translator.interpretServiceParams
+import com.github.chenharryhua.nanjin.guard.service.{MetricsEventHandler, ReportedEventHandler, ServiceEventHandler}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
@@ -63,7 +58,7 @@ final private class HttpDataRouter[F[_]](
       Ok(json)
 
     case GET -> Root / "params" =>
-      Ok(interpretServiceParams(serviceParams))
+      Ok(serviceParams.serviceDescription.value)
 
     case POST -> Root / "stop" =>
       Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
