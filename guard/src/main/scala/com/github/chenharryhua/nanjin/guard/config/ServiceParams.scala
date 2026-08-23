@@ -56,6 +56,14 @@ final case class ServiceParams(
   def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.instant, ts))
 
   def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
+  val serviceIdentity: ServiceIdentity = ServiceIdentity(
+    task = taskName,
+    service = serviceName,
+    serviceId = serviceId,
+    homepage = homepage,
+    host = host,
+    launchTime = launchTime
+  )
 }
 
 object ServiceParams {

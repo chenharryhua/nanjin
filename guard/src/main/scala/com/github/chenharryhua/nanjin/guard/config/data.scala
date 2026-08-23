@@ -149,11 +149,11 @@ object LaunchTime:
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
 end LaunchTime
 
-final case class ServiceInstance(
+final case class ServiceIdentity(
   task: Task,
   service: Service,
   serviceId: ServiceId,
-  homePage: Option[Homepage],
+  homepage: Option[Homepage],
   host: Host,
   launchTime: LaunchTime
 ) derives Codec.AsObject
