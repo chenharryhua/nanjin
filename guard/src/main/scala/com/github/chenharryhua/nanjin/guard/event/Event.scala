@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{
   Domain,
@@ -19,7 +19,6 @@ import monocle.{Optional, Prism}
 
 sealed trait Event extends Product derives Codec.AsObject {
   def timestamp: Timestamp // event timestamp - when the event occurs
-  def serviceParams: ServiceParams
   def serviceIdentity: ServiceIdentity
 
   final def upTime: UpTime = serviceIdentity.launchTime.upTime(timestamp)
@@ -27,14 +26,13 @@ sealed trait Event extends Product derives Codec.AsObject {
 
 object Event {
 
-  final case class ServiceStart(serviceIdentity: ServiceIdentity, serviceParams: ServiceParams, tick: Tick)
-      extends Event {
+  final case class ServiceStart(serviceIdentity: ServiceIdentity, policy: Policy, tick: Tick) extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
   }
 
   final case class ServicePanic(
     serviceIdentity: ServiceIdentity,
-    serviceParams: ServiceParams,
+    policy: Policy,
     tick: Tick,
     stackTrace: StackTrace)
       extends Event {
@@ -43,7 +41,7 @@ object Event {
 
   final case class ServiceStop(
     serviceIdentity: ServiceIdentity,
-    serviceParams: ServiceParams,
+    policy: Policy,
     timestamp: Timestamp,
     cause: StopReason)
       extends Event

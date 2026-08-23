@@ -159,7 +159,7 @@ object LaunchTime:
     def zoned: ZonedDateTime = lt
     def instant: Instant = lt.toInstant
     def zoneId: ZoneId = lt.getZone
-    
+
     def upTime(ts: Timestamp): UpTime = UpTime(Duration.between(zoned, ts))
 
   given Encoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Encoder]
@@ -175,4 +175,5 @@ final case class ServiceIdentity(
   launchTime: LaunchTime
 ) derives Codec.AsObject {
   def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
+  def timeZone: TimeZone = TimeZone(launchTime.zoneId)
 }

@@ -44,15 +44,15 @@ private object TeamsTranslator {
   }
 
   private def serviceInfo(evt: Event): FactSet = {
-    val sp = evt.serviceParams
-    val service = Attribute(sp.serviceName).textEntry
-    val host = Attribute(sp.host).textEntry
-    val sid = Attribute(sp.serviceId).textEntry
+    val si = evt.serviceIdentity
+    val service = Attribute(si.service).textEntry
+    val host = Attribute(si.host).textEntry
+    val sid = Attribute(si.serviceId).textEntry
     val ts = Attribute(evt.timestamp).textEntry
     FactSet(
       List(
         Fact(ts.tag, ts.text),
-        Fact(service.tag, sp.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
+        Fact(service.tag, si.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
         Fact(host.tag, host.text),
         Fact(sid.tag, sid.text)
       ))

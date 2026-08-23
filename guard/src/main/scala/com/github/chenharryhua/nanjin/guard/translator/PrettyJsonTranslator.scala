@@ -13,31 +13,31 @@ object PrettyJsonTranslator {
   private def service_start(evt: ServiceStart): Json =
     Json.obj(
       Attribute(evt).map(_.tick.index).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      "params" -> interpretServiceParams(evt.serviceParams)
+      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
+     // todo "params" -> interpretServiceParams(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       Attribute(evt).map(_.tick.index).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
+      Attribute(evt.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry
     )
 
   private def service_stop(evt: ServiceStop): Json =
     Json.obj(
       Attribute(evt).map(_.cause.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
+      Attribute(evt.policy).map(_.show).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry
     )
 

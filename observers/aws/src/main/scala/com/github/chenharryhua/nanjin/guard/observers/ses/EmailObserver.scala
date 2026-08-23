@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, tickStream}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{ServiceId, Timestamp}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceId}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator, eventLogLevel}
@@ -128,8 +128,8 @@ final class EmailObserver[F[_]] private (
             translate(
               ServiceStop(
                 ss.serviceIdentity,
-                ss.serviceParams,
-                Timestamp(ss.serviceParams.toZonedDateTime(ts)),
+                ss.policy,
+                (ss.serviceIdentity.toTimestamp(ts)),
                 StopReason.ByCancellation))
           }
         (cache.get, stop).mapN(_ ++ _)
@@ -174,8 +174,8 @@ final class EmailObserver[F[_]] private (
         state <- Stream.eval(F.ref(Map.empty[ServiceId, ServiceStart]))
         cache <- Stream.eval(F.ref(Chunk.empty[ColoredTag]))
         monitor = events.evalTap {
-          case ss: ServiceStart => state.update(_.updated(ss.serviceParams.serviceId, ss))
-          case ss: ServiceStop  => state.update(_.removed(ss.serviceParams.serviceId))
+          case ss: ServiceStart => state.update(_.updated(ss.serviceIdentity.serviceId, ss))
+          case ss: ServiceStop  => state.update(_.removed(ss.serviceIdentity.serviceId))
           case _                => F.unit
         }.map(Left(_))
         ticks = tickStream.tickScheduled[F](zoneId, policy).map(Right(_))
