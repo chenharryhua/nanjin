@@ -4,11 +4,11 @@ import cats.Show
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.{Codec, Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.zoneidInstances
 
-import java.time.{Duration, ZoneId}
+import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters.ListHasAsScala
 
@@ -134,3 +134,26 @@ object Domain:
   given Encoder[Domain] = OpaqueLift.lift[Domain, String, Encoder]
   given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
+
+// ---------------- LaunchTime ----------------
+opaque type LaunchTime = ZonedDateTime
+object LaunchTime:
+  def apply(value: ZonedDateTime): LaunchTime = value
+  extension (lt: LaunchTime)
+    def zoned: ZonedDateTime = lt
+    def instant: Instant = lt.toInstant
+    def zoneId: ZoneId = lt.getZone
+    def upTime(ts: Instant): UpTime = UpTime(Duration.between(instant, ts))
+
+  given Encoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Encoder]
+  given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
+end LaunchTime
+
+final case class ServiceInstance(
+  task: Task,
+  service: Service,
+  serviceId: ServiceId,
+  homePage: Option[Homepage],
+  host: Host,
+  launchTime: LaunchTime
+) derives Codec.AsObject

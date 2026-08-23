@@ -131,7 +131,7 @@ private[guard] object ServiceGuard {
           val params: ServiceParams = config.evalConfig(
             serviceName = serviceName,
             serviceId = ServiceId(serviceId),
-            launchTime = launchTime.atZone(config.zoneId),
+            launchTime = LaunchTime(launchTime.atZone(config.zoneId)),
             brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
             host = Host(hostName, esb.map(_.port.value).map(Port(_)))
           )

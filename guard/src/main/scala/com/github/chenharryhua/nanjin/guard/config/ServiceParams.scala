@@ -38,22 +38,22 @@ final case class ServiceParams(
   homepage: Option[Homepage],
   serviceName: Service,
   serviceId: ServiceId,
-  launchTime: ZonedDateTime,
+  launchTime: LaunchTime,
   policies: ServicePolicies,
   history: Option[HistoryCapacity],
   logFormat: Option[LogFormat],
   nanjin: Option[Json],
   brief: Brief
 ) derives Codec.AsObject {
-  val zoneId: ZoneId = launchTime.getZone
+  val zoneId: ZoneId = launchTime.zoneId
   val timeZone: TimeZone = TimeZone(zoneId)
 
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
-  def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime, ts))
-  def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.toInstant, ts))
+  def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime.zoned, ts))
+  def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.instant, ts))
 
   def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
@@ -63,7 +63,7 @@ object ServiceParams {
     taskName: Task,
     serviceName: Service,
     serviceId: ServiceId,
-    launchTime: ZonedDateTime,
+    launchTime: LaunchTime,
     brief: Brief,
     host: Host
   ): ServiceParams =

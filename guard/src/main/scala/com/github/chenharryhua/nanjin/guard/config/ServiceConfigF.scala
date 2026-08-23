@@ -38,7 +38,7 @@ private object ServiceConfigF {
   def algebra(
     serviceName: Service,
     brief: Brief,
-    launchTime: ZonedDateTime,
+    launchTime: LaunchTime,
     serviceId: ServiceId,
     host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -114,7 +114,7 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] def evalConfig(
     serviceName: Service,
     serviceId: ServiceId,
-    launchTime: ZonedDateTime,
+    launchTime: LaunchTime,
     brief: Brief,
     host: Host): ServiceParams =
     scheme
