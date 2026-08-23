@@ -19,28 +19,9 @@ import monocle.{Optional, Prism}
 
 /** The service event model.
   *
-  * All events share a stable [[ServiceIdentity]] that identifies the running service instance, and a
-  * [[Timestamp]] indicating when the event occurred. The `upTime` is derived from the difference between
-  * launch time and event timestamp.
-  *
-  * ===Event Types===
-  *
-  *   - '''ServiceStart''' — emitted when the service starts (or restarts after a panic). Carries the restart
-  *     `policy`, `brief` metadata, and the `tick` that triggered the start.
-  *
-  *   - '''ServicePanic''' — emitted when the service crashes but will be retried. Carries the restart
-  *     `policy`, `brief`, the `tick` (with snooze duration until next retry), and the `stackTrace` of the
-  *     failure.
-  *
-  *   - '''ServiceStop''' — emitted when the service terminates (successfully, by exception after exhausting
-  *     retries, or by cancellation). Carries the restart `policy`, `brief`, and the `cause` of termination.
-  *
-  *   - '''MetricsSnapshot''' — periodic or ad-hoc scrape of all registered metrics. Carries the report
-  *     `policy`, an `index` (periodic tick or ad-hoc timestamp), the full `snapshot` of metric values, and
-  *     how long the scrape `took`.
-  *
-  *   - '''ReportedEvent''' — a user-emitted log message via `heraldLogger` or `logger`. Carries the
-  *     `domain`, a unique `correlation` id, the `level`, optional `stackTrace`, and the JSON `message`.
+  * All events share a stable `ServiceIdentity` that identifies the running service instance, and a
+  * `Timestamp` indicating when the event occurred. The `upTime` is derived from the difference between launch
+  * time and event timestamp.
   */
 sealed trait Event extends Product derives Codec.AsObject {
   def timestamp: Timestamp // event timestamp - when the event occurs
