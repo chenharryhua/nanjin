@@ -54,8 +54,8 @@ private object ServiceConfigF {
 
       case WithRestartPolicy(p, t, c)      => c.focus(_.policies.restart).replace(RestartPolicy(p, t))
       case WithMetricsReport(p, c)         => c.focus(_.policies.report).replace(p)
-      case WithHomepage(v, c)              => c.focus(_.homepage).replace(v)
-      case WithTaskName(v, c)              => c.focus(_.taskName).replace(v)
+      case WithHomepage(v, c)              => c.focus(_.serviceIdentity.homepage).replace(v)
+      case WithTaskName(v, c)              => c.focus(_.serviceIdentity.task).replace(v)
       case WithLogFormat(v, c)             => c.focus(_.logFormat).replace(Some(v))
       case WithHistoryCapacity(p, e, m, c) => c.focus(_.history).replace(Some(HistoryCapacity(p, e, m)))
       case WithDashboardPolicy(p, m, c) => c.focus(_.policies.dashboard).replace(Some(DashboardPolicy(p, m)))

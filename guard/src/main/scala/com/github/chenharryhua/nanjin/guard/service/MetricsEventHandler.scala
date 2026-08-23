@@ -47,12 +47,14 @@ final private class MetricsEventHandler[F[_]] private (
    * Report
    */
   def httpReport: F[MetricsSnapshot] =
-    serviceParams.zonedNow.flatMap { ts =>
+    serviceParams.serviceIdentity.timestamp[F].flatMap { ts =>
       buildFullSnapshot(Adhoc(ts))
     }
 
   def reportPeriodically: Stream[F, Nothing] =
-    tickStream.tickScheduled[F](serviceParams.zoneId, _.fresh(serviceParams.policies.report))
+    tickStream.tickScheduled[F](
+      serviceParams.serviceIdentity.timeZone.value,
+      _.fresh(serviceParams.policies.report))
       .evalMap(tick => publish(Periodic(tick)))
       .drain
 
@@ -68,14 +70,14 @@ final private class MetricsEventHandler[F[_]] private (
 
   override def report: F[Unit] =
     for {
-      ts <- serviceParams.zonedNow
+      ts <- serviceParams.serviceIdentity.timestamp[F]
       _ <- publish(Adhoc(ts))
     } yield ()
 
   override def snapshots(
     f: Policy.type => Policy,
     g: ScrapeMode.type => ScrapeMode): Stream[F, MetricsSnapshot] =
-    tickStream.tickScheduled(serviceParams.zoneId, f).evalMap(tick =>
+    tickStream.tickScheduled(serviceParams.serviceIdentity.timeZone.value, f).evalMap(tick =>
       scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
         MetricsSnapshot(
           serviceIdentity = serviceParams.serviceIdentity,
@@ -86,7 +88,7 @@ final private class MetricsEventHandler[F[_]] private (
       })
 
   override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
-    tickStream.tickScheduled(serviceParams.zoneId, f)
+    tickStream.tickScheduled(serviceParams.serviceIdentity.timeZone.value, f)
       .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
       .zipWithPrevious.map {
         case (Some(prev), curr) => curr.delta(prev)

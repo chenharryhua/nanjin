@@ -1,15 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.effect.kernel.Clock
-import cats.syntax.functor.given
-import cats.{Functor, Show}
+import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.TimeZone
 import io.circe.jawn.parse
 import io.circe.{Codec, Encoder, Json}
 
 import java.time.*
-import scala.concurrent.duration.FiniteDuration
 
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
 final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject
@@ -33,38 +29,13 @@ object Host {
 }
 
 final case class ServiceParams(
-  taskName: Task,
-  host: Host,
-  homepage: Option[Homepage],
-  serviceName: Service,
-  serviceId: ServiceId,
-  launchTime: LaunchTime,
+  serviceIdentity: ServiceIdentity,
   policies: ServicePolicies,
   history: Option[HistoryCapacity],
   logFormat: Option[LogFormat],
   nanjin: Option[Json],
   brief: Brief
-) derives Codec.AsObject {
-  val zoneId: ZoneId = launchTime.zoneId
-  val timeZone: TimeZone = TimeZone(zoneId)
-
-  def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
-  def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
-    Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
-
-  def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
-  val serviceIdentity: ServiceIdentity = ServiceIdentity(
-    task = taskName,
-    service = serviceName,
-    serviceId = serviceId,
-    homepage = homepage,
-    host = host,
-    launchTime = launchTime,
-    logLink = CloudWatchLogs.logLink(brief)
-  )
-
-  val serviceDescription: Brief = Brief(interpretServiceParams(this))
-}
+) derives Codec.AsObject
 
 object ServiceParams {
   def apply(
@@ -76,12 +47,15 @@ object ServiceParams {
     host: Host
   ): ServiceParams =
     ServiceParams(
-      taskName = taskName,
-      host = host,
-      homepage = None,
-      serviceName = serviceName,
-      serviceId = serviceId,
-      launchTime = launchTime,
+      serviceIdentity = ServiceIdentity(
+        task = taskName,
+        service = serviceName,
+        serviceId = serviceId,
+        homepage = None,
+        host = host,
+        launchTime = launchTime,
+        logLink = CloudWatchLogs.logLink(brief)
+      ),
       policies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
         dashboard = None,

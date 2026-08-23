@@ -56,7 +56,7 @@ object Event {
     snapshot: Snapshot,
     took: Took)
       extends Event {
-    override val timestamp: Timestamp = Timestamp(index.scrapeTime)
+    override val timestamp: Timestamp = index.scrapeTime
   }
 
   final case class ReportedEvent(

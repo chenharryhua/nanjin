@@ -1,18 +1,19 @@
-package com.github.chenharryhua.nanjin.guard.config
+package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import io.circe.Json
 import io.circe.syntax.given
 
 private def interpretServiceParams(serviceParams: ServiceParams): Json =
   Json.obj(
-    Attribute(serviceParams.taskName).snakeJsonEntry,
-    Attribute(serviceParams.serviceName).snakeJsonEntry,
-    Attribute(serviceParams.serviceId).snakeJsonEntry,
-    Attribute(serviceParams.homepage).snakeJsonEntry,
-    Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.task).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.homepage).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.host).map(_.show).snakeJsonEntry,
     "service_policies" -> Json.obj(
       "restart" -> Json.obj(
         Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
@@ -29,7 +30,7 @@ private def interpretServiceParams(serviceParams: ServiceParams): Json =
     ),
     Attribute(serviceParams.logFormat).snakeJsonEntry,
     "history_capacity" -> serviceParams.history.asJson,
-    "launch_time" -> serviceParams.launchTime.asJson,
+    "launch_time" -> serviceParams.serviceIdentity.launchTime.asJson,
     "nanjin" -> serviceParams.nanjin.asJson,
     Attribute(serviceParams.brief).snakeJsonEntry
   )

@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Show
+import cats.effect.kernel.Clock
+import cats.implicits.toFunctorOps
 import cats.kernel.Eq
 import cats.syntax.show.given
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Codec, Decoder, Encoder, Json}
@@ -193,6 +195,10 @@ final case class ServiceIdentity(
   homepage: Option[Homepage],
   logLink: Option[LogLink]
 ) derives Codec.AsObject {
+  val timeZone: TimeZone = TimeZone(launchTime.zoneId)
+
+  def timestamp[F[_]: {Clock, Functor}]: F[Timestamp] =
+    Clock[F].realTimeInstant.map(ts => Timestamp(ts.atZone(launchTime.zoneId)))
+
   def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
-  def timeZone: TimeZone = TimeZone(launchTime.zoneId)
 }

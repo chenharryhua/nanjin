@@ -49,20 +49,20 @@ final private class HttpDataRouter[F[_]](
      */
     case GET -> Root / "panics" =>
       val json = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         panics <- serviceEventHandler.panicHistory
       } yield documents.service_panic_history(serviceParams, panics, now)
       Ok(json)
 
     case GET -> Root / "errors" =>
       val json = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         panics <- reportedEventHandler.errorHistory
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
 
     case GET -> Root / "params" =>
-      Ok(serviceParams.serviceDescription.value)
+      Ok(interpretServiceParams(serviceParams))
 
     case POST -> Root / "stop" =>
       Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
@@ -71,8 +71,8 @@ final private class HttpDataRouter[F[_]](
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory
-        now <- serviceParams.zonedNow
-      } yield documents.service_health_check(panics, snapshots, now.toInstant)
+        now <- serviceParams.serviceIdentity.timestamp[F]
+      } yield documents.service_health_check(panics, snapshots, now.value.toInstant)
 
       or.flatMap {
         case Left(value)  => ServiceUnavailable(value)
@@ -93,9 +93,9 @@ final private class HttpDataRouter[F[_]](
 
     case GET -> Root / "metrics" / "history" =>
       val text = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         metrics <- metricsEventHandler.snapshotHistory
-      } yield documents.metrics_history(serviceParams, metrics, now)
+      } yield documents.metrics_history(serviceParams, metrics, now.value)
       Ok(text)
 
     /*

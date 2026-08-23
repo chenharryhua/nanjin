@@ -29,7 +29,9 @@ private object EventLogSink:
   def apply[F[_]: {Console, Sync}](serviceParams: ServiceParams): LogSink[F] =
     serviceParams.logFormat match {
       case Some(format) =>
-        eventLogSink[F](logFormat = format, loggerName = LoggerName(serviceParams.serviceName.value))
+        eventLogSink[F](
+          logFormat = format,
+          loggerName = LoggerName(serviceParams.serviceIdentity.service.value))
       case None => LogSink(_ => ().pure[F])
     }
 

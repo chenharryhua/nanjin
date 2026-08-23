@@ -32,23 +32,23 @@ private object documents {
   def service_panic_history(
     serviceParams: ServiceParams,
     panics: Vector[Event.ServicePanic],
-    now: ZonedDateTime): Json = {
-    val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
+    now: Timestamp): Json = {
+    val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.value.toInstant))
 
     Json.obj(
-      Attribute(serviceParams.serviceName).snakeJsonEntry,
-      Attribute(serviceParams.serviceId).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
       "active" -> Json.fromBoolean(active),
-      Attribute(Present(now)).map(_.json).snakeJsonEntry,
+      Attribute(Present(now.value)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
-      Attribute(serviceParams.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
       "history" ->
         panics.reverse.map { sp =>
           Json.obj(
             "index" -> Json.fromLong(sp.tick.index),
-            Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
+            Attribute(Age(Duration.between(sp.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
             "up_rouse_at" -> sp.tick.local(_.commence).asJson,
             Attribute(Active(sp.tick.active)).map(_.show).snakeJsonEntry,
             "panic_at" -> sp.tick.local(_.acquires).asJson,
@@ -63,19 +63,19 @@ private object documents {
   def service_error_history(
     serviceParams: ServiceParams,
     reportedEvents: Vector[ReportedEvent],
-    now: ZonedDateTime): Json =
+    now: Timestamp): Json =
     Json.obj(
-      Attribute(serviceParams.serviceName).snakeJsonEntry,
-      Attribute(serviceParams.serviceId).snakeJsonEntry,
-      Attribute(Present(now)).map(_.json).snakeJsonEntry,
-      Attribute(serviceParams.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
+      Attribute(Present(now.value)).map(_.json).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
       "errors" -> reportedEvents.size.asJson,
       "history" -> reportedEvents.reverse.map { sm =>
         Json.obj(
           Attribute(sm.domain).snakeJsonEntry,
           Attribute(sm.correlation).snakeJsonEntry,
-          Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
+          Attribute(Age(Duration.between(sm.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
           Attribute(sm.timestamp).map(_.value.toLocalDateTime).snakeJsonEntry,
           Attribute(sm.message).snakeJsonEntry,
           Attribute(sm.stackTrace).snakeJsonEntry
@@ -125,9 +125,9 @@ private object documents {
     serviceParams: ServiceParams,
     now: ZonedDateTime,
     took: Option[Duration]): Text.TypedTag[String] = {
-    val service_name = Attribute(serviceParams.serviceName).textEntry
+    val service_name = Attribute(serviceParams.serviceIdentity.service).textEntry
     val policy = Attribute(serviceParams.policies.report).textEntry
-    val timezone = Attribute(serviceParams.timeZone).textEntry
+    val timezone = Attribute(serviceParams.serviceIdentity.timeZone).textEntry
     val uptime = Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).textEntry
     val present = Attribute(Present(now)).map(_.text).textEntry
     took.fold(
@@ -186,6 +186,6 @@ private object documents {
     val histories =
       div(table_title_section(serviceParams, now, None), h3("Metrics History"), list)
 
-    html(html_header(s"History-${serviceParams.serviceName.value}"), body(div(histories)))
+    html(html_header(s"History-${serviceParams.serviceIdentity.service.value}"), body(div(histories)))
   }
 }

@@ -22,7 +22,12 @@ object gendata {
   val tick: Tick = PolicyTick.seed[IO](sydneyTime, Policy.empty).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[Event] =
     ExhaustiveCheck.instance(
-      List(ServiceStart(null.asInstanceOf[ServiceIdentity], null.asInstanceOf[Policy], null.asInstanceOf[Brief], tick)))
+      List(
+        ServiceStart(
+          null.asInstanceOf[ServiceIdentity],
+          null.asInstanceOf[Policy],
+          null.asInstanceOf[Brief],
+          tick)))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], Event => Option[Option[Int]]](_.translate)

@@ -51,8 +51,8 @@ private[service] object HttpServer {
             Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
           case Some(rm) =>
             val bc = BackendConfig(
-              serviceName = metricsEventHandler.serviceParams.serviceName.value,
-              zoneId = metricsEventHandler.serviceParams.zoneId,
+              serviceName = metricsEventHandler.serviceParams.serviceIdentity.service.value,
+              zoneId = metricsEventHandler.serviceParams.serviceIdentity.launchTime.zoneId,
               maxPoints = rm.maxPoints,
               policy = rm.policy
             )
