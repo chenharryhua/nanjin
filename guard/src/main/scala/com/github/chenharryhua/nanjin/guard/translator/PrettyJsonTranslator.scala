@@ -44,11 +44,11 @@ object PrettyJsonTranslator {
   private def metrics_snapshot(evt: MetricsSnapshot): Json =
     Json.obj(
       Attribute(evt).map(_.index.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
       Attribute(evt.took).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.policies.report).map(_.show).snakeJsonEntry,
+      Attribute(evt.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 

@@ -5,7 +5,11 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.StopReason
-import com.github.chenharryhua.nanjin.guard.service.{MetricsEventHandler, ReportedEventHandler, ServiceEventHandler}
+import com.github.chenharryhua.nanjin.guard.service.{
+  MetricsEventHandler,
+  ReportedEventHandler,
+  ServiceEventHandler
+}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
@@ -84,7 +88,7 @@ final private class HttpDataRouter[F[_]](
       Ok(json)
 
     case GET -> Root / "metrics" / "report" =>
-      val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report"))
+      val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report", serviceParams))
       Ok(text)
 
     case GET -> Root / "metrics" / "history" =>

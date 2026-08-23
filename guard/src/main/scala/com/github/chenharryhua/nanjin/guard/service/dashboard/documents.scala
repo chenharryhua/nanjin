@@ -156,11 +156,11 @@ private object documents {
     }
   }
 
-  def snapshot_to_yaml_html(title: String)(ms: MetricsSnapshot): Text.TypedTag[String] = {
+  def snapshot_to_yaml_html(title: String,serviceParams: ServiceParams)(ms: MetricsSnapshot): Text.TypedTag[String] = {
     val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
     html(
-      html_header(s"$title-${ms.serviceParams.serviceName.value}"),
-      body(div(table_title_section(ms.serviceParams, ms.timestamp.value, Some(ms.took.value)), pre(yaml)))
+      html_header(s"$title-${ms.serviceIdentity.service.value}"),
+      body(div(table_title_section(serviceParams, ms.timestamp.value, Some(ms.took.value)), pre(yaml)))
     )
   }
 

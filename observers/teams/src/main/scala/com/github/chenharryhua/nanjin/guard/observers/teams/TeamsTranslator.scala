@@ -130,7 +130,7 @@ private object TeamsTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
-    val policy = Attribute(evt.serviceParams.policies.report).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(evt.index).textEntry
     val snapshot = Attribute(evt.snapshot).typeName
     val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml

@@ -169,11 +169,11 @@ private object SlackTranslator extends all {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
-    val policy = Attribute(evt.serviceParams.policies.report).textEntry
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val policy = Attribute(evt.policy).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
-      username = evt.serviceParams.taskName.value,
+      username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
           color = color,

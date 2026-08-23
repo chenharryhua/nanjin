@@ -53,8 +53,8 @@ object Event {
 
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
+    policy: Policy,
     index: Index,
-    serviceParams: ServiceParams,
     snapshot: Snapshot,
     took: Took)
       extends Event {

@@ -65,7 +65,7 @@ object AnsiTextTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
-    val policy = Attribute(evt.serviceParams.policies.report).labelledText
+    val policy = Attribute(evt.policy).labelledText
     val idx = Attribute(evt.index).labelledText
     val took = Attribute(evt.took).labelledText
 
