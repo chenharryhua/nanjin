@@ -184,7 +184,7 @@ object LogLink:
 
   private val window: Duration = 30.seconds.toJava
   extension (ll: LogLink)
-    def cloudWatch(timestamp: Timestamp): String = {
+    def locate(timestamp: Timestamp): String = {
       val start = timestamp.minus(window).toInstant.toEpochMilli
       val end = timestamp.plus(window).toInstant.toEpochMilli
       ll + s"$$3Fstart$$3D$start$$26end$$3D$end"

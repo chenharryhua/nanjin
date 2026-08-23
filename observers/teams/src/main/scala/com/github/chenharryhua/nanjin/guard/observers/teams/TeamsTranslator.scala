@@ -105,7 +105,7 @@ private object TeamsTranslator {
     )
 
     evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
       card.appendElement(url)
     }
@@ -169,7 +169,7 @@ private object TeamsTranslator {
     val card = AdaptiveCard(body)
 
     evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
       card.appendElement(url)
     }
