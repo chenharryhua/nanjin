@@ -29,7 +29,6 @@ final private class ReportedEventHandler[F[_]: Sync](
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ReportedEvent(
         serviceIdentity = serviceParams.serviceIdentity,
-        serviceParams = serviceParams,
         domain = domain,
         timestamp = Timestamp(ts),
         correlation = Correlation(token),

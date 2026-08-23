@@ -1,11 +1,7 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.config
 
 import cats.syntax.foldable.given
 import com.github.chenharryhua.nanjin.guard.config.Brief
-
-import java.time.{Duration, Instant}
-import scala.concurrent.duration.given
-import scala.jdk.DurationConverters.given
 
 /** Extracts CloudWatch Logs configuration from the service brief's LogOptions and builds a console URL scoped
   * to the specific log stream with a time window.
@@ -21,7 +17,7 @@ import scala.jdk.DurationConverters.given
   * }
   * }}}
   */
-object CloudWatchLogs {
+private object CloudWatchLogs {
 
   final private case class LogOptions(logGroup: String, region: String, logStream: String)
 
@@ -54,26 +50,20 @@ object CloudWatchLogs {
   private def encode(s: String): String =
     s.replace("/", "$252F").replace(":", "$253A")
 
-  private val window: Duration = 30.seconds.toJava
-
   /** Build a CloudWatch Logs console URL scoped to the specific log stream with a ±30 second time window
     * around the event.
     *
     * @param brief
     *   service brief containing LogOptions
-    * @param timestamp
-    *   event timestamp used to compute the time window
     * @return
     *   None if LogOptions is absent from the brief
     */
-  def logLink(brief: Brief, timestamp: Instant): Option[String] =
+  def logLink(brief: Brief): Option[LogLink] =
     extract(brief).map { opts =>
       val encodedGroup = encode(opts.logGroup)
       val encodedStream = encode(opts.logStream)
-      val start = timestamp.minus(window).toEpochMilli
-      val end = timestamp.plus(window).toEpochMilli
-      s"https://${opts.region}.console.aws.amazon.com/cloudwatch/home?region=${opts.region}" +
-        s"#logsV2:log-groups/log-group/$encodedGroup/log-events/$encodedStream" +
-        s"$$3Fstart$$3D$start$$26end$$3D$end"
+      LogLink(
+        s"https://${opts.region}.console.aws.amazon.com/cloudwatch/home?region=${opts.region}" +
+          s"#logsV2:log-groups/log-group/$encodedGroup/log-events/$encodedStream")
     }
 }

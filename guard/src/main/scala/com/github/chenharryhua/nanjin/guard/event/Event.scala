@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
   ServiceIdentity,
-  ServiceParams,
   StackTrace,
   Timestamp,
   UpTime
@@ -63,7 +62,6 @@ object Event {
 
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
-    serviceParams: ServiceParams,
     domain: Domain,
     timestamp: Timestamp,
     correlation: Correlation,

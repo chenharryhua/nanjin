@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import com.github.chenharryhua.nanjin.guard.config.Brief
+import com.github.chenharryhua.nanjin.guard.config.{Brief, CloudWatchLogs}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 

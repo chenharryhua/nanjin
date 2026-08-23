@@ -30,7 +30,7 @@ def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
         case StopReason.ByCancellation => LogLevel.Warn
         case StopReason.ByException(_) => LogLevel.Error
         case StopReason.Maintenance    => LogLevel.Info
-    case ReportedEvent(_, _, _, _, _, level, _, _) => level
+    case ReportedEvent(_, _, _,  _, level, _, _) => level
     case MetricsSnapshot(_, _, _, snapshot, _)     =>
       val health = retrieve.healthCheck(snapshot.gauges).forall(_._2)
       val risk = retrieve.riskCounter(snapshot.counters).forall(_._2.value === 0)
@@ -54,7 +54,7 @@ def eventTitle(evt: Event): String =
       if (ss.tick.index === 0) "Start Service" else "Restart Service"
     case _: Event.ServiceStop                            => "Stop Service"
     case _: Event.ServicePanic                           => "Service Panic"
-    case Event.ReportedEvent(_, _, _, _, _, level, _, _) => level.productPrefix
+    case Event.ReportedEvent(_, _, _,  _, level, _, _) => level.productPrefix
     case _: Event.MetricsSnapshot                        => "Metrics Report"
   }
 

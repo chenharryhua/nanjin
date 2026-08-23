@@ -59,7 +59,8 @@ final case class ServiceParams(
     serviceId = serviceId,
     homepage = homepage,
     host = host,
-    launchTime = launchTime
+    launchTime = launchTime,
+    logLink = CloudWatchLogs.logLink(brief)
   )
 
   val serviceDescription: Brief = Brief(interpretServiceParams(this))

@@ -5,7 +5,6 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{IndentSpace, SnapshotPolyglot}
-import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
@@ -107,9 +106,12 @@ private object TeamsTranslator {
       )
     )
 
-    CloudWatchLogs.logLink(evt.brief, evt.timestamp.value.toInstant)
-      .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))
-      .fold(card)(card.appendElement)
+    evt.serviceIdentity.logLink.fold(card) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
+      card.appendElement(url)
+    }
+
   }
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
@@ -173,9 +175,12 @@ private object TeamsTranslator {
 
     val card = AdaptiveCard(body)
 
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-      .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))
-      .fold(card)(card.appendElement)
+    evt.serviceIdentity.logLink.fold(card) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
+      card.appendElement(url)
+    }
+
   }
 
   def apply[F[_]: Applicative]: Translator[F, AdaptiveCard] =

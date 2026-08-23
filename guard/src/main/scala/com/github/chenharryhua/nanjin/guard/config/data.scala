@@ -13,7 +13,9 @@ import org.typelevel.cats.time.zoneidInstances
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
+import scala.concurrent.duration.given
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.DurationConverters.given
 
 /** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
   * Adaptive Cards).
@@ -166,13 +168,30 @@ object LaunchTime:
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
 end LaunchTime
 
+opaque type LogLink = String
+object LogLink:
+  def apply(str: String): LogLink = str
+
+  private val window: Duration = 30.seconds.toJava
+  extension (ll: LogLink)
+    def cloudWatch(timestamp: Timestamp): String = {
+      val start = timestamp.minus(window).toInstant.toEpochMilli
+      val end = timestamp.plus(window).toInstant.toEpochMilli
+      ll + s"$$3Fstart$$3D$start$$26end$$3D$end"
+    }
+
+  given Encoder[LogLink] = OpaqueLift.lift[LogLink, String, Encoder]
+  given Decoder[LogLink] = OpaqueLift.lift[LogLink, String, Decoder]
+end LogLink
+
 final case class ServiceIdentity(
   task: Task,
   service: Service,
-  serviceId: ServiceId,
-  homepage: Option[Homepage],
   host: Host,
-  launchTime: LaunchTime
+  serviceId: ServiceId,
+  launchTime: LaunchTime,
+  homepage: Option[Homepage],
+  logLink: Option[LogLink]
 ) derives Codec.AsObject {
   def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
   def timeZone: TimeZone = TimeZone(launchTime.zoneId)
