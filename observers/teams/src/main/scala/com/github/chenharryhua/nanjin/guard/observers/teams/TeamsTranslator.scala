@@ -48,12 +48,14 @@ private object TeamsTranslator {
     val host = Attribute(si.host).textEntry
     val sid = Attribute(si.serviceId).textEntry
     val ts = Attribute(evt.timestamp).textEntry
+    val uptime = Attribute(evt.upTime).textEntry
     FactSet(
       List(
         Fact(ts.tag, ts.text),
         Fact(service.tag, si.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
         Fact(host.tag, host.text),
-        Fact(sid.tag, sid.text)
+        Fact(sid.tag, sid.text),
+        Fact(uptime.tag, uptime.text)
       ))
   }
 

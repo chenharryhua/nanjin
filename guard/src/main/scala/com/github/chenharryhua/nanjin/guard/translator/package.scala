@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 import cats.data.ContT
 import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.order.given
 import cats.syntax.show.given
 import cats.{Defer, Eval}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
@@ -19,7 +20,6 @@ import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
-
 def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
   ContT.pure[F, A, Event](evt).map {
     case _: ServiceStart => LogLevel.Info
@@ -32,9 +32,15 @@ def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
         case StopReason.Maintenance    => LogLevel.Info
     case ReportedEvent(_, _, _, _, level, _, _) => level
     case MetricsSnapshot(_, _, _, snapshot, _)  =>
-      val health = retrieve.healthCheck(snapshot.gauges).forall(_._2)
-      val risk = retrieve.riskCounter(snapshot.counters).forall(_._2.value === 0)
-      if health && risk then LogLevel.Info else LogLevel.Warn
+      val health: LogLevel =
+        if retrieve.healthCheck(snapshot.gauges).forall(_._2) then LogLevel.Info else LogLevel.Error
+      val risk: LogLevel =
+        if retrieve.riskCounter(snapshot.counters).forall(_._2.value === 0) then LogLevel.Info
+        else LogLevel.Warn
+      val nonEmpty: LogLevel =
+        if snapshot.nonEmpty then LogLevel.Info else LogLevel.Warn
+
+      health.max(risk).max(nonEmpty)
   }
 
 def htmlColoring(evt: Event): String =
