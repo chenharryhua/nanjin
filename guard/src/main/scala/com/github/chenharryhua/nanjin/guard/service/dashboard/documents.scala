@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Timestamp, Took}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{retrieve, SnapshotPolyglot}
-import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Took}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{SnapshotPolyglot, retrieve}
+import com.github.chenharryhua.nanjin.guard.translator.{Attribute, htmlColoring}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
@@ -42,7 +42,7 @@ private object documents {
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
+    //todo  Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
       "history" ->
         panics.reverse.map { sp =>
@@ -69,7 +69,7 @@ private object documents {
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
+    //todo  Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
       "errors" -> reportedEvents.size.asJson,
       "history" -> reportedEvents.reverse.map { sm =>
         Json.obj(
@@ -128,7 +128,7 @@ private object documents {
     val service_name = Attribute(serviceParams.serviceName).textEntry
     val policy = Attribute(serviceParams.policies.report).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
-    val uptime = Attribute(serviceParams.upTime(now)).textEntry
+    val uptime = Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).textEntry
     val present = Attribute(Present(now)).map(_.text).textEntry
     took.fold(
       table(

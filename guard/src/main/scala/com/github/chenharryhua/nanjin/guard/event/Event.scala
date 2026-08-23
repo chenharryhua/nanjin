@@ -2,7 +2,14 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{Domain, ServiceParams, StackTrace, UpTime}
+import com.github.chenharryhua.nanjin.guard.config.{
+  Domain,
+  ServiceIdentity,
+  ServiceParams,
+  StackTrace,
+  Timestamp,
+  UpTime
+}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
@@ -13,30 +20,46 @@ import monocle.{Optional, Prism}
 sealed trait Event extends Product derives Codec.AsObject {
   def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceParams: ServiceParams
+  def serviceIdentity: ServiceIdentity
 
-  final def upTime: UpTime = serviceParams.upTime(timestamp.value)
+  final def upTime: UpTime = serviceIdentity.launchTime.upTime(timestamp)
 }
 
 object Event {
 
-  final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends Event {
+  final case class ServiceStart(serviceIdentity: ServiceIdentity, serviceParams: ServiceParams, tick: Tick)
+      extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, stackTrace: StackTrace)
+  final case class ServicePanic(
+    serviceIdentity: ServiceIdentity,
+    serviceParams: ServiceParams,
+    tick: Tick,
+    stackTrace: StackTrace)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
   }
 
-  final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: StopReason)
+  final case class ServiceStop(
+    serviceIdentity: ServiceIdentity,
+    serviceParams: ServiceParams,
+    timestamp: Timestamp,
+    cause: StopReason)
       extends Event
 
-  final case class MetricsSnapshot(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
+  final case class MetricsSnapshot(
+    serviceIdentity: ServiceIdentity,
+    index: Index,
+    serviceParams: ServiceParams,
+    snapshot: Snapshot,
+    took: Took)
       extends Event {
     override val timestamp: Timestamp = Timestamp(index.scrapeTime)
   }
 
   final case class ReportedEvent(
+    serviceIdentity: ServiceIdentity,
     serviceParams: ServiceParams,
     domain: Domain,
     timestamp: Timestamp,

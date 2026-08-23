@@ -27,7 +27,7 @@ final private class MetricsEventHandler[F[_]] private (
 
   private def buildFullSnapshot(index: Index): F[MetricsSnapshot] =
     scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
-      MetricsSnapshot(index = index, serviceParams = serviceParams, snapshot = snapshot, took = Took(took))
+      MetricsSnapshot(serviceIdentity = serviceParams.serviceIdentity, index = index, serviceParams = serviceParams, snapshot = snapshot, took = Took(took))
     }
 
   private def publish(index: Index): F[MetricsSnapshot] =
@@ -73,6 +73,7 @@ final private class MetricsEventHandler[F[_]] private (
     tickStream.tickScheduled(serviceParams.zoneId, f).evalMap(tick =>
       scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
         MetricsSnapshot(
+          serviceIdentity = serviceParams.serviceIdentity,
           index = Periodic(tick),
           serviceParams = serviceParams,
           snapshot = snapshot,

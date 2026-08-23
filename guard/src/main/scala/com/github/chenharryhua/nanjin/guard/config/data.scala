@@ -2,12 +2,15 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.kernel.Eq
+import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Codec, Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.cats.time.instances.localtime.localtimeInstances
 import org.typelevel.cats.time.zoneidInstances
 
+import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -135,6 +138,19 @@ object Domain:
   given Decoder[Domain] = OpaqueLift.lift[Domain, String, Decoder]
 end Domain
 
+// ---------------- Timestamp ----------------
+opaque type Timestamp = ZonedDateTime
+object Timestamp:
+  def apply(value: ZonedDateTime): Timestamp = value
+  extension (ts: Timestamp) inline def value: ZonedDateTime = ts
+
+  given Show[Timestamp] =
+    _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+
+  given Encoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Encoder]
+  given Decoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Decoder]
+end Timestamp
+
 // ---------------- LaunchTime ----------------
 opaque type LaunchTime = ZonedDateTime
 object LaunchTime:
@@ -143,7 +159,8 @@ object LaunchTime:
     def zoned: ZonedDateTime = lt
     def instant: Instant = lt.toInstant
     def zoneId: ZoneId = lt.getZone
-    def upTime(ts: Instant): UpTime = UpTime(Duration.between(instant, ts))
+    
+    def upTime(ts: Timestamp): UpTime = UpTime(Duration.between(zoned, ts))
 
   given Encoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Encoder]
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
@@ -156,4 +173,6 @@ final case class ServiceIdentity(
   homepage: Option[Homepage],
   host: Host,
   launchTime: LaunchTime
-) derives Codec.AsObject
+) derives Codec.AsObject {
+  def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
+}

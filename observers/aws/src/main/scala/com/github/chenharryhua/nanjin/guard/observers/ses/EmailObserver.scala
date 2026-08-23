@@ -10,12 +10,12 @@ import cats.syntax.functor.given
 import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, tickStream}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.config.{ServiceId, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
-import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
+import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator, eventLogLevel}
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -127,6 +127,7 @@ final class EmailObserver[F[_]] private (
           Chunk.from(sm.values).traverseFilter { ss =>
             translate(
               ServiceStop(
+                ss.serviceIdentity,
                 ss.serviceParams,
                 Timestamp(ss.serviceParams.toZonedDateTime(ts)),
                 StopReason.ByCancellation))

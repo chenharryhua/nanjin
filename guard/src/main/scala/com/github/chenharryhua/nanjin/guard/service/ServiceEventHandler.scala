@@ -5,10 +5,9 @@ import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, StackTrace, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.config.StackTrace
-import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -22,17 +21,17 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     channel.send(event) >> logSink.write(event)
 
   def serviceStart(tick: Tick): F[Unit] =
-    publish(ServiceStart(serviceParams, tick))
+    publish(ServiceStart(serviceParams.serviceIdentity, serviceParams, tick))
 
   def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
-    val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
+    val panic: ServicePanic = ServicePanic(serviceParams.serviceIdentity, serviceParams, tick, stackTrace)
     publish(panic) >> history.add(panic)
   }
 
   def serviceStop(cause: StopReason): F[Unit] =
     for {
       now <- serviceParams.zonedNow
-      event = ServiceStop(serviceParams, Timestamp(now), cause)
+      event = ServiceStop(serviceParams.serviceIdentity, serviceParams, Timestamp(now), cause)
       _ <- logSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()

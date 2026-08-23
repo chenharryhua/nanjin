@@ -1,15 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.Unique
-import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
-import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
-import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -60,19 +57,6 @@ object Snooze:
   given Encoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Encoder]
   given Decoder[Snooze] = OpaqueLift.lift[Snooze, Duration, Decoder]
 end Snooze
-
-// ---------------- Timestamp ----------------
-opaque type Timestamp = ZonedDateTime
-object Timestamp:
-  def apply(value: ZonedDateTime): Timestamp = value
-  extension (t: Timestamp) inline def value: ZonedDateTime = t
-
-  given Show[Timestamp] =
-    _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
-
-  given Encoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Encoder]
-  given Decoder[Timestamp] = OpaqueLift.lift[Timestamp, ZonedDateTime, Decoder]
-end Timestamp
 
 // ---------------- Message ----------------
 opaque type Message = Json

@@ -4,7 +4,7 @@ import cats.effect.kernel.Clock
 import cats.syntax.functor.given
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.{TimeZone, UpTime}
+import com.github.chenharryhua.nanjin.guard.config.{TimeZone}
 import io.circe.jawn.parse
 import io.circe.{Codec, Encoder, Json}
 
@@ -51,9 +51,6 @@ final case class ServiceParams(
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
-
-  def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime.zoned, ts))
-  def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.instant, ts))
 
   def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
   val serviceIdentity: ServiceIdentity = ServiceIdentity(
