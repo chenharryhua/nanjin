@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   htmlColoring,
-  interpretServiceParams,
   panicText,
   Attribute,
   Translator
@@ -25,11 +24,12 @@ private object HtmlTranslator extends all {
   private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
-    val task_name = Attribute(evt.serviceParams.taskName).textEntry
-    val host = Attribute(evt.serviceParams.host).textEntry
-    val (service_tag, service) = Attribute(evt.serviceParams.serviceName).entry(s =>
-      evt.serviceParams.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val si = evt.serviceIdentity
+    val task_name = Attribute(si.task).textEntry
+    val host = Attribute(si.host).textEntry
+    val (service_tag, service) =
+      Attribute(si.service).entry(s => si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
+    val service_id = Attribute(si.serviceId).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val timestamp = Attribute(evt.timestamp).textEntry
 
@@ -63,12 +63,12 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(interpretServiceParams(evt.serviceParams))
+      json_text(evt.brief.value)
     )
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
@@ -91,13 +91,13 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt)),
       p(b(s"${stop_cause.tag}: "), stop_cause.text),
-      json_text(evt.serviceParams.brief.value)
+      json_text(evt.brief.value)
     )
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
     val idx = Attribute(evt.index).textEntry
-    val policy = Attribute(evt.serviceParams.policies.report).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val took = Attribute(evt.took).textEntry
     val fg = frag(
       tr(th(idx.tag), th(policy.tag), th(took.tag)),

@@ -46,7 +46,7 @@ private def watchdog[F[_]](theService: F[Unit], handler: ServiceEventHandler[F])
       }
     }
 
-  Stream.eval(PolicyTick.seed[F](handler.serviceParams.zoneId, rp.policy))
+  Stream.eval(PolicyTick.seed[F](handler.serviceParams.serviceIdentity.launchTime.zoneId, rp.policy))
     .flatMap {
       Stream
         .unfoldEval[F, PolicyTick[F], Unit](_) { status =>

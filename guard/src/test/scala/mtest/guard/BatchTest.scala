@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.{catsSyntaxFlatMapOps, catsSyntaxTuple2Semigroupal}
+import cats.implicits.catsSyntaxFlatMapOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -171,34 +171,7 @@ class BatchTest extends AnyFunSuite {
     (j1 >> j2).unsafeRunSync()
   }
 
-  test("8.monotonic") {
-    val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
-    assert(diff.toNanos > 0)
-    val res = for {
-      a <- IO.monotonic
-      b <- IO.monotonic
-      c <- IO.monotonic
-    } yield (b - a, c - b)
-
-    res.unsafeRunSync()
-  }
-
-  test("11.monadic") {
-    service.eventStream { agent =>
-      agent.batch("monadic").monadic { job =>
-        job("a", IO.println(1))
-          .flatMap(_ => job("b", IO.unit))
-          .flatMap(_ => job("c", agent.adhoc.report >> IO.sleep(1.seconds)))
-          .flatMap(_ => job("d", IO.unit))
-          .flatMap(_ => job("e", agent.adhoc.report.void))
-          .flatMap(_ => job("f", IO.unit))
-          .monadicBatch(JobHook.noop)
-          .use(_ => agent.adhoc.report.void)
-      }
-    }.compile.drain.unsafeRunSync()
-  }
-
-  test("12.monadic for comprehension") {
+  test("8.monadic for comprehension") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -225,7 +198,7 @@ class BatchTest extends AnyFunSuite {
 
   }
 
-  test("13.invincible monadic error ") {
+  test("9.invincible monadic error") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -256,7 +229,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("14.monadic one") {
+  test("10.monadic one") {
     service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -266,7 +239,7 @@ class BatchTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("15.monadic many") {
+  test("11.monadic many") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -318,7 +291,7 @@ class BatchTest extends AnyFunSuite {
     "5" -> IO(5).delayBy(0.1.second)
   )
 
-  test("16.sorted parallel") {
+  test("12.sorted parallel") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).batchValue(JobHook.noop).use {
         case BatchValue(_, _, _, _, jobs) =>
@@ -345,7 +318,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("17.sorted sequential") {
+  test("13.sorted sequential") {
     val se = service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).batchValue(JobHook.noop).use {
         case BatchValue(_, _, _, _, jobs) =>
@@ -372,7 +345,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("18.all batch types preserve job order") {
+  test("14.all batch types preserve job order") {
     var sequentialResult: List[(Int, String)] = Nil
     var parallelResult: List[(Int, String)] = Nil
     var monadicResult: List[(Int, String)] = Nil
@@ -423,7 +396,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("19.empty sequential") {
+  test("15.empty sequential") {
     val se = service
       .eventStreamR(_.batch("b").sequential[Int]().batchValue(JobHook.noop))
       .compile
@@ -432,7 +405,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("20.empty parallel") {
+  test("16.empty parallel") {
     val se = service
       .eventStreamR(_.batch("b").parallel[Int](1)().batchValue(JobHook.noop))
       .compile
@@ -441,7 +414,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("21.monadic flatMap limits") {
+  test("17.monadic flatMap limits") {
     val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
         List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop) >>

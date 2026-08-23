@@ -4,12 +4,27 @@ import cats.effect.kernel.Clock
 import cats.syntax.functor.given
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.{TimeZone, UpTime}
 import io.circe.jawn.parse
 import io.circe.{Codec, Encoder, Json}
 
 import java.time.*
-import scala.concurrent.duration.FiniteDuration
+
+final case class ServiceIdentity(
+  task: Task,
+  service: Service,
+  host: Host,
+  serviceId: ServiceId,
+  launchTime: LaunchTime,
+  homepage: Option[Homepage],
+  logLink: Option[LogLink]
+) derives Codec.AsObject {
+  val timeZone: TimeZone = TimeZone(launchTime.zoneId)
+
+  def timestamp[F[_]: {Clock, Functor}]: F[Timestamp] =
+    Clock[F].realTimeInstant.map(ts => Timestamp(ts.atZone(launchTime.zoneId)))
+
+  def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
+}
 
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
 final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject
@@ -33,47 +48,33 @@ object Host {
 }
 
 final case class ServiceParams(
-  taskName: Task,
-  host: Host,
-  homepage: Option[Homepage],
-  serviceName: Service,
-  serviceId: ServiceId,
-  launchTime: ZonedDateTime,
+  serviceIdentity: ServiceIdentity,
   policies: ServicePolicies,
   history: Option[HistoryCapacity],
   logFormat: Option[LogFormat],
   nanjin: Option[Json],
   brief: Brief
-) derives Codec.AsObject {
-  val zoneId: ZoneId = launchTime.getZone
-  val timeZone: TimeZone = TimeZone(zoneId)
-
-  def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
-  def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
-    Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
-
-  def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime, ts))
-  def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.toInstant, ts))
-
-  def zonedNow[F[_]: {Clock, Functor}]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
-}
+) derives Codec.AsObject
 
 object ServiceParams {
   def apply(
     taskName: Task,
     serviceName: Service,
     serviceId: ServiceId,
-    launchTime: ZonedDateTime,
+    launchTime: LaunchTime,
     brief: Brief,
     host: Host
   ): ServiceParams =
     ServiceParams(
-      taskName = taskName,
-      host = host,
-      homepage = None,
-      serviceName = serviceName,
-      serviceId = serviceId,
-      launchTime = launchTime,
+      serviceIdentity = ServiceIdentity(
+        task = taskName,
+        service = serviceName,
+        serviceId = serviceId,
+        homepage = None,
+        host = host,
+        launchTime = launchTime,
+        logLink = CloudWatchLogs.logLink(brief)
+      ),
       policies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
         dashboard = None,

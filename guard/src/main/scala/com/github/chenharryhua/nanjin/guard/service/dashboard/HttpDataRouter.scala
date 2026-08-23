@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.service.{
   ReportedEventHandler,
   ServiceEventHandler
 }
-import com.github.chenharryhua.nanjin.guard.translator.interpretServiceParams
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
@@ -50,14 +49,14 @@ final private class HttpDataRouter[F[_]](
      */
     case GET -> Root / "panics" =>
       val json = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         panics <- serviceEventHandler.panicHistory
       } yield documents.service_panic_history(serviceParams, panics, now)
       Ok(json)
 
     case GET -> Root / "errors" =>
       val json = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         panics <- reportedEventHandler.errorHistory
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
@@ -72,8 +71,8 @@ final private class HttpDataRouter[F[_]](
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory
-        now <- serviceParams.zonedNow
-      } yield documents.service_health_check(panics, snapshots, now.toInstant)
+        now <- serviceParams.serviceIdentity.timestamp[F]
+      } yield documents.service_health_check(panics, snapshots, now.value.toInstant)
 
       or.flatMap {
         case Left(value)  => ServiceUnavailable(value)
@@ -89,14 +88,14 @@ final private class HttpDataRouter[F[_]](
       Ok(json)
 
     case GET -> Root / "metrics" / "report" =>
-      val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report"))
+      val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report", serviceParams))
       Ok(text)
 
     case GET -> Root / "metrics" / "history" =>
       val text = for {
-        now <- serviceParams.zonedNow
+        now <- serviceParams.serviceIdentity.timestamp[F]
         metrics <- metricsEventHandler.snapshotHistory
-      } yield documents.metrics_history(serviceParams, metrics, now)
+      } yield documents.metrics_history(serviceParams, metrics, now.value)
       Ok(text)
 
     /*

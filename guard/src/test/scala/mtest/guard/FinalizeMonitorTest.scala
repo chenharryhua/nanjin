@@ -31,8 +31,8 @@ class FinalizeMonitorTest extends AnyFunSuite {
       events <- service
         .eventStream(_ => IO.sleep(10.seconds))
         .evalTap {
-          case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
-          case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
+          case ss: ServiceStart => ref.update(_.updated(ss.serviceIdentity.serviceId, ss))
+          case ss: ServiceStop  => ref.update(_.removed(ss.serviceIdentity.serviceId))
           case _                => IO.unit
         }
         .take(1) // only take ServiceStart, then interrupt
@@ -59,8 +59,8 @@ class FinalizeMonitorTest extends AnyFunSuite {
       _ <- service
         .eventStream(_ => IO.unit)
         .evalTap {
-          case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
-          case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
+          case ss: ServiceStart => ref.update(_.updated(ss.serviceIdentity.serviceId, ss))
+          case ss: ServiceStop  => ref.update(_.removed(ss.serviceIdentity.serviceId))
           case _                => IO.unit
         }
         .compile

@@ -7,15 +7,15 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import fs2.Chunk
 
 final private class FinalizeMonitor[F[_]: {Clock, Monad}, A](
   translate: Event => F[Option[A]],
   ref: Ref[F, Map[ServiceId, ServiceStart]]) {
   def monitoring(event: Event): F[Unit] = event match {
-    case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
-    case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
+    case ss: ServiceStart => ref.update(_.updated(ss.serviceIdentity.serviceId, ss))
+    case ss: ServiceStop  => ref.update(_.removed(ss.serviceIdentity.serviceId))
     case _                => ().pure[F]
   }
 
@@ -29,8 +29,10 @@ final private class FinalizeMonitor[F[_]: {Clock, Monad}, A](
           .traverseFilter(ss =>
             translate(
               ServiceStop(
-                ss.serviceParams,
-                Timestamp(ss.serviceParams.toZonedDateTime(ts)),
+                ss.serviceIdentity,
+                ss.policy,
+                ss.brief,
+                ss.serviceIdentity.toTimestamp(ts),
                 StopReason.ByCancellation))))
   } yield messages
 }

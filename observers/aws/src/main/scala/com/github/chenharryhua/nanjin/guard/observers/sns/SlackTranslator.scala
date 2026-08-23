@@ -3,10 +3,9 @@ import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceParams, StackTrace}
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
-import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
@@ -45,17 +44,17 @@ private object SlackTranslator extends all {
     MarkdownSection(s"""|*${first.tag}:* ${first.text}
                         |*${second.tag}:* ${second.text}""".stripMargin)
 
-  private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
+  private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
     val service =
-      Attribute(sp.serviceName).map(name =>
+      Attribute(sp.service).map(name =>
         sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>")).textEntry
     JuxtaposeSection(TextField(service), TextField(host))
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
-    val zone = Attribute(evt.serviceParams.timeZone).textEntry
+    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
     JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
   }
 
@@ -79,7 +78,7 @@ private object SlackTranslator extends all {
 
   // events
   private def service_start(evt: ServiceStart): SlackApp = {
-    val zone = Attribute(evt.serviceParams.timeZone).textEntry
+    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
@@ -90,42 +89,42 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val policy = Attribute(evt.policy).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     SlackApp(
-      username = evt.serviceParams.taskName.value,
+      username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
-            host_service_section(evt.serviceParams),
+            host_service_section(evt.serviceIdentity),
             index_section,
             mark_down(policy, service_id)
           )
         ),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
   }
 
   private def service_panic(evt: ServicePanic): SlackApp = {
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val error = Attribute(evt.stackTrace).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val color = coloring(evt)
     val app = SlackApp(
-      username = evt.serviceParams.taskName.value,
+      username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
-            host_service_section(evt.serviceParams),
+            host_service_section(evt.serviceIdentity),
             JuxtaposeSection(first = TextField(active), second = TextField(index)),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
@@ -136,49 +135,51 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(KeyValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
 
-    // Append CloudWatch link using serviceId and tick index as filter
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-      .map(url => s"<$url|:mag: CloudWatch Logs>")
-      .fold(app)(app.appendMarkdown)
+    evt.serviceIdentity.logLink.fold(app) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = s"<$link|:mag: CloudWatch Logs>"
+      app.appendMarkdown(url)
+    }
   }
 
   private def service_stop(evt: ServiceStop): SlackApp = {
     val color = coloring(evt)
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val stop_cause = Attribute(evt.cause).textEntry
 
     SlackApp(
-      username = evt.serviceParams.taskName.value,
+      username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
             HeaderSection(s":octagonal_sign: ${eventTitle(evt)}"),
-            host_service_section(evt.serviceParams),
+            host_service_section(evt.serviceIdentity),
             uptime_section(evt),
-            mark_down(service_id, stop_cause))
+            mark_down(service_id, stop_cause)
+          )
         ),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
-    val policy = Attribute(evt.serviceParams.policies.report).textEntry
-    val service_id = Attribute(evt.serviceParams.serviceId).textEntry
+    val policy = Attribute(evt.policy).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
-      username = evt.serviceParams.taskName.value,
+      username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
             HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
+            host_service_section(evt.serviceIdentity),
             metrics_index_section(evt),
             mark_down(policy, service_id),
             metrics_section(evt.snapshot)
@@ -198,14 +199,14 @@ private object SlackTranslator extends all {
 
     val color = coloring(evt)
     val domain = Attribute(evt.domain).textEntry
-    val service = Attribute(evt.serviceParams.serviceId).textEntry
+    val service = Attribute(evt.serviceIdentity.serviceId).textEntry
     val correlation = Attribute(evt.correlation).textEntry
 
     val attachment = Attachment(
       color = color,
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
-        host_service_section(evt.serviceParams),
+        host_service_section(evt.serviceIdentity),
         JuxtaposeSection(TextField(domain), TextField(correlation)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
         MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
@@ -218,13 +219,14 @@ private object SlackTranslator extends all {
       }
     }
 
-    val app = SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(Some(attachment), error).flatten)
+    val app =
+      SlackApp(username = evt.serviceIdentity.task.value, attachments = List(Some(attachment), error).flatten)
 
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-      .map(url => s"<$url|:mag: CloudWatch Logs>")
-      .fold(app)(app.appendMarkdown)
+    evt.serviceIdentity.logLink.fold(app) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = s"<$link|:mag: CloudWatch Logs>"
+      app.appendMarkdown(url)
+    }
   }
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =

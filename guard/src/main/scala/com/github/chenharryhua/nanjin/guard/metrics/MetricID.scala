@@ -8,10 +8,36 @@ import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service}
 import io.circe.{Codec, Decoder, Encoder}
-import squants.{Quantity, UnitOfMeasure}
+import squants.{Each, Quantity, UnitOfMeasure}
+
+sealed trait MetricKind extends Product
+object MetricKind:
+  enum Gauge extends MetricKind derives Encoder, Decoder:
+    case Default, HealthCheck, Percentile
+
+  enum Counter extends MetricKind derives Encoder, Decoder:
+    case Default, Risk
+
+  enum Meter extends MetricKind derives Encoder, Decoder:
+    case Default
+
+  enum Histogram extends MetricKind derives Encoder, Decoder:
+    case Default
+
+  enum Timer extends MetricKind derives Encoder, Decoder:
+    case Default
+end MetricKind
+
+enum MetricCategory derives Encoder, Decoder:
+  case Gauge(kind: MetricKind.Gauge)
+  case Counter(kind: MetricKind.Counter)
+  case Meter(kind: MetricKind.Meter, squants: Squants)
+  case Histogram(kind: MetricKind.Histogram, squants: Squants)
+  case Timer(kind: MetricKind.Timer, squants: Squants = Squants(Each))
+end MetricCategory
 
 final case class Squants private (unitSymbol: String, dimensionName: String) derives Codec.AsObject
-object Squants:
+private object Squants:
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)
 end Squants

@@ -5,7 +5,6 @@ import cats.syntax.show.given
 import cats.{Defer, Eval}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsSnapshot,
   ReportedEvent,
@@ -15,8 +14,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 }
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
-import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
@@ -34,7 +31,7 @@ def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
         case StopReason.ByException(_) => LogLevel.Error
         case StopReason.Maintenance    => LogLevel.Info
     case ReportedEvent(_, _, _, _, level, _, _) => level
-    case MetricsSnapshot(_, _, snapshot, _)     =>
+    case MetricsSnapshot(_, _, _, snapshot, _)  =>
       val health = retrieve.healthCheck(snapshot.gauges).forall(_._2)
       val risk = retrieve.riskCounter(snapshot.counters).forall(_._2.value === 0)
       if health && risk then LogLevel.Info else LogLevel.Warn
@@ -60,34 +57,6 @@ def eventTitle(evt: Event): String =
     case Event.ReportedEvent(_, _, _, _, level, _, _) => level.productPrefix
     case _: Event.MetricsSnapshot                     => "Metrics Report"
   }
-
-def interpretServiceParams(serviceParams: ServiceParams): Json =
-  Json.obj(
-    Attribute(serviceParams.taskName).snakeJsonEntry,
-    Attribute(serviceParams.serviceName).snakeJsonEntry,
-    Attribute(serviceParams.serviceId).snakeJsonEntry,
-    Attribute(serviceParams.homepage).snakeJsonEntry,
-    Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
-    "service_policies" -> Json.obj(
-      "restart" -> Json.obj(
-        Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
-        "threshold" -> serviceParams.policies.restart.threshold.map(defaultFormatter.format).asJson
-      ),
-      "dashboard" ->
-        serviceParams.policies.dashboard.map { tm =>
-          Json.obj(
-            Attribute(tm.policy).map(_.show).snakeJsonEntry,
-            Attribute(tm.maxPoints).snakeJsonEntry
-          )
-        }.asJson,
-      "metrics_report" -> serviceParams.policies.report.show.asJson
-    ),
-    Attribute(serviceParams.logFormat).snakeJsonEntry,
-    "history_capacity" -> serviceParams.history.asJson,
-    "launch_time" -> serviceParams.launchTime.asJson,
-    "nanjin" -> serviceParams.nanjin.asJson,
-    Attribute(serviceParams.brief).snakeJsonEntry
-  )
 
 private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
   val duration = Duration.between(start, end)

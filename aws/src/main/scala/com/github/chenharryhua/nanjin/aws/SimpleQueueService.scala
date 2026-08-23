@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 
 import java.net.URLDecoder
 import java.time.ZoneId
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.DurationConverters.JavaDurationOps
 
@@ -28,7 +27,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
   * @param response
   *   the raw `Message` object from AWS SQS
   * @param batchIndex
-  *   zero-based index of the batch in which this message was received
+  *   one-based index of the batch in which this message was received
   * @param messageIndex
   *   one-based index of the message within its batch
   * @param batchSize
@@ -123,7 +122,7 @@ object SimpleQueueService {
       // when no data can be retrieved, the delay policy will be applied
       def receiving(status: PolicyTick[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
-          val messages: mutable.Buffer[Message] = rmr.messages.asScala
+          val messages: List[Message] = rmr.messages.asScala.toList
           val size: Int = messages.size
           if (size > 0) {
             val chunk: Chunk[SqsMessage] = Chunk.from(messages).zipWithIndex.map { case (msg, idx) =>
@@ -145,7 +144,7 @@ object SimpleQueueService {
           }
         }
 
-      Stream.eval(PolicyTick.seed[F](zoneId, policy)).flatMap(seed => receiving(seed, 0L).stream)
+      Stream.eval(PolicyTick.seed[F](zoneId, policy)).flatMap(seed => receiving(seed, 1L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

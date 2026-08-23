@@ -41,7 +41,7 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
           _.map(evt =>
             ProducerRecord(
               topicName.value,
-              EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value).asJson,
+              EventKey(evt.serviceIdentity.task.value, evt.serviceIdentity.service.value).asJson,
               evt.asJson)))
     val topic = TopicDef(topicName, Structured[Json], Structured[Json])
     (ss: Stream[F, Event]) =>

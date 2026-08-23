@@ -227,11 +227,4 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       counter_str ::: gauge_str ::: meter_str ::: histogram_str ::: timer_str
     group_yaml(lst).mkString("\n")
   }
-
-  // for slack
-  def counterYaml: Option[String] =
-    group_yaml(gauge_str ::: counter_str) match {
-      case Nil => None
-      case lst => Some(lst.mkString("\n"))
-    }
 }

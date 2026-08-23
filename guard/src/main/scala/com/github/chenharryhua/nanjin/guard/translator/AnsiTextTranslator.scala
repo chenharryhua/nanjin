@@ -20,10 +20,10 @@ object AnsiTextTranslator {
     }.value
 
   private def service_event(se: Event): String = {
-    val host: String = Attribute(se.serviceParams.host).labelledText
-    val sn: String = Attribute(se.serviceParams.serviceName).labelledText
-    val tn: String = Attribute(se.serviceParams.taskName).labelledText
-    val sid: String = Attribute(se.serviceParams.serviceId).labelledText
+    val host: String = Attribute(se.serviceIdentity.host).labelledText
+    val sn: String = Attribute(se.serviceIdentity.service).labelledText
+    val tn: String = Attribute(se.serviceIdentity.task).labelledText
+    val sid: String = Attribute(se.serviceIdentity.serviceId).labelledText
     val uptime: String = Attribute(se.upTime).labelledText
 
     s"""|${coloredEventTitle(se)}
@@ -38,14 +38,14 @@ object AnsiTextTranslator {
 
     s"""|${service_event(evt)}
         |  $idx, $snz
-        |${interpretServiceParams(evt.serviceParams).spaces2}
+        |  ${evt.brief.value.spaces2}
         |""".stripMargin
   }
 
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"index:${evt.tick.index}"
     val act = Attribute(Active(evt.tick.active)).labelledText
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
+    val policy = Attribute(evt.policy).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $act
@@ -56,7 +56,7 @@ object AnsiTextTranslator {
   }
 
   private def service_stop(evt: ServiceStop): String = {
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).labelledText
+    val policy = Attribute(evt.policy).labelledText
 
     s"""|${service_event(evt)}
         |  $policy
@@ -65,7 +65,7 @@ object AnsiTextTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
-    val policy = Attribute(evt.serviceParams.policies.report).labelledText
+    val policy = Attribute(evt.policy).labelledText
     val idx = Attribute(evt.index).labelledText
     val took = Attribute(evt.took).labelledText
 

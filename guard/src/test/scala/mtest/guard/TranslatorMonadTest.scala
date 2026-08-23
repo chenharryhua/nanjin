@@ -8,7 +8,7 @@ import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, Tick}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -21,7 +21,13 @@ object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
   val tick: Tick = PolicyTick.seed[IO](sydneyTime, Policy.empty).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[Event] =
-    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
+    ExhaustiveCheck.instance(
+      List(
+        ServiceStart(
+          null.asInstanceOf[ServiceIdentity],
+          null.asInstanceOf[Policy],
+          null.asInstanceOf[Brief],
+          tick)))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], Event => Option[Option[Int]]](_.translate)

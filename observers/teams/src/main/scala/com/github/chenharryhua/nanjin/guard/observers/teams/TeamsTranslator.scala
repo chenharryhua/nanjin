@@ -5,7 +5,6 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{IndentSpace, SnapshotPolyglot}
-import com.github.chenharryhua.nanjin.guard.observers.CloudWatchLogs
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
@@ -44,15 +43,15 @@ private object TeamsTranslator {
   }
 
   private def serviceInfo(evt: Event): FactSet = {
-    val sp = evt.serviceParams
-    val service = Attribute(sp.serviceName).textEntry
-    val host = Attribute(sp.host).textEntry
-    val sid = Attribute(sp.serviceId).textEntry
+    val si = evt.serviceIdentity
+    val service = Attribute(si.service).textEntry
+    val host = Attribute(si.host).textEntry
+    val sid = Attribute(si.serviceId).textEntry
     val ts = Attribute(evt.timestamp).textEntry
     FactSet(
       List(
         Fact(ts.tag, ts.text),
-        Fact(service.tag, sp.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
+        Fact(service.tag, si.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
         Fact(host.tag, host.text),
         Fact(sid.tag, sid.text)
       ))
@@ -62,7 +61,7 @@ private object TeamsTranslator {
     val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val brief = Attribute(evt.serviceParams.brief).typeName
+    val brief = Attribute(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -75,18 +74,18 @@ private object TeamsTranslator {
             Fact(uptime.tag, uptime.text)
           )),
         BolderTextBlock(brief),
-        JsonBlock(evt.serviceParams.brief.value)
+        JsonBlock(evt.brief.value)
       )
     )
   }
 
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val policy = Attribute(evt.serviceParams.policies.restart.policy).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
-    val brief = Attribute(evt.serviceParams.brief).typeName
+    val brief = Attribute(evt.brief).typeName
 
     val card = AdaptiveCard(
       body = List(
@@ -103,13 +102,16 @@ private object TeamsTranslator {
         BolderTextBlock(stackTrace),
         StackTraceBlock(evt.stackTrace),
         BolderTextBlock(brief),
-        JsonBlock(evt.serviceParams.brief.value)
+        JsonBlock(evt.brief.value)
       )
     )
 
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-      .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))
-      .fold(card)(card.appendElement)
+    evt.serviceIdentity.logLink.fold(card) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
+      card.appendElement(url)
+    }
+
   }
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
@@ -130,7 +132,7 @@ private object TeamsTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
-    val policy = Attribute(evt.serviceParams.policies.report).textEntry
+    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(evt.index).textEntry
     val snapshot = Attribute(evt.snapshot).typeName
     val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml
@@ -173,9 +175,12 @@ private object TeamsTranslator {
 
     val card = AdaptiveCard(body)
 
-    CloudWatchLogs.logLink(evt.serviceParams.brief, evt.timestamp.value.toInstant)
-      .map(url => TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($url)"))
-      .fold(card)(card.appendElement)
+    evt.serviceIdentity.logLink.fold(card) { ll =>
+      val link = ll.cloudWatch(evt.timestamp)
+      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
+      card.appendElement(url)
+    }
+
   }
 
   def apply[F[_]: Applicative]: Translator[F, AdaptiveCard] =
