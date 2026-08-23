@@ -134,8 +134,8 @@ object Event {
     */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
-    domain: Domain,
     timestamp: Timestamp,
+    domain: Domain,
     correlation: Correlation,
     level: LogLevel,
     stackTrace: Option[StackTrace],
