@@ -1,11 +1,30 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Show
+import cats.effect.kernel.Clock
+import cats.syntax.functor.given
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import io.circe.jawn.parse
 import io.circe.{Codec, Encoder, Json}
 
 import java.time.*
+
+final case class ServiceIdentity(
+  task: Task,
+  service: Service,
+  host: Host,
+  serviceId: ServiceId,
+  launchTime: LaunchTime,
+  homepage: Option[Homepage],
+  logLink: Option[LogLink]
+) derives Codec.AsObject {
+  val timeZone: TimeZone = TimeZone(launchTime.zoneId)
+
+  def timestamp[F[_]: {Clock, Functor}]: F[Timestamp] =
+    Clock[F].realTimeInstant.map(ts => Timestamp(ts.atZone(launchTime.zoneId)))
+
+  def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
+}
 
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
 final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject

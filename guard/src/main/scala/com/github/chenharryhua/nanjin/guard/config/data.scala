@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.effect.kernel.Clock
-import cats.implicits.toFunctorOps
+import cats.Show
 import cats.kernel.Eq
 import cats.syntax.show.given
-import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import io.circe.{Codec, Decoder, Encoder, Json}
+import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 import org.typelevel.cats.time.zoneidInstances
@@ -40,6 +38,7 @@ object StackTrace:
   given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]
 end StackTrace
 
+// ---------------- Task ----------------
 opaque type Task = String
 object Task:
   def apply(value: String): Task = value
@@ -50,6 +49,7 @@ object Task:
   given Decoder[Task] = OpaqueLift.lift[Task, String, Decoder]
 end Task
 
+// ---------------- Service ----------------
 opaque type Service = String
 object Service:
   def apply(value: String): Service = value
@@ -60,6 +60,7 @@ object Service:
   given Decoder[Service] = OpaqueLift.lift[Service, String, Decoder]
 end Service
 
+// ---------------- ServiceId ----------------
 opaque type ServiceId = UUID
 object ServiceId:
   def apply(value: UUID): ServiceId = value
@@ -70,6 +71,7 @@ object ServiceId:
   given Decoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Decoder]
 end ServiceId
 
+// ---------------- Homepage ----------------
 opaque type Homepage = String
 object Homepage:
   def apply(value: String): Homepage = value
@@ -79,6 +81,7 @@ object Homepage:
   given Decoder[Homepage] = OpaqueLift.lift[Homepage, String, Decoder]
 end Homepage
 
+// ---------------- Port ----------------
 opaque type Port = Int
 object Port:
   def apply(value: Int): Port = value
@@ -89,6 +92,7 @@ object Port:
   given Decoder[Port] = OpaqueLift.lift[Port, Int, Decoder]
 end Port
 
+// ---------------- Brief ----------------
 opaque type Brief = Json
 object Brief:
   def apply(value: Json): Brief = value
@@ -99,6 +103,7 @@ object Brief:
   given Decoder[Brief] = OpaqueLift.lift[Brief, Json, Decoder]
 end Brief
 
+// ---------------- TimeZone ----------------
 opaque type TimeZone = ZoneId
 object TimeZone:
   def apply(zoneId: ZoneId): TimeZone = zoneId
@@ -109,6 +114,7 @@ object TimeZone:
   given Decoder[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Decoder]
 end TimeZone
 
+// ---------------- UpTime ----------------
 opaque type UpTime = Duration
 object UpTime:
   def apply(duration: Duration): UpTime = duration
@@ -119,6 +125,7 @@ object UpTime:
   given Decoder[UpTime] = OpaqueLift.lift[UpTime, Duration, Decoder]
 end UpTime
 
+// ---------------- Capacity ----------------
 opaque type Capacity = Int
 object Capacity:
   def apply(value: Int): Capacity = value
@@ -170,6 +177,7 @@ object LaunchTime:
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
 end LaunchTime
 
+// ---------------- LogLink ----------------
 opaque type LogLink = String
 object LogLink:
   def apply(str: String): LogLink = str
@@ -185,20 +193,3 @@ object LogLink:
   given Encoder[LogLink] = OpaqueLift.lift[LogLink, String, Encoder]
   given Decoder[LogLink] = OpaqueLift.lift[LogLink, String, Decoder]
 end LogLink
-
-final case class ServiceIdentity(
-  task: Task,
-  service: Service,
-  host: Host,
-  serviceId: ServiceId,
-  launchTime: LaunchTime,
-  homepage: Option[Homepage],
-  logLink: Option[LogLink]
-) derives Codec.AsObject {
-  val timeZone: TimeZone = TimeZone(launchTime.zoneId)
-
-  def timestamp[F[_]: {Clock, Functor}]: F[Timestamp] =
-    Clock[F].realTimeInstant.map(ts => Timestamp(ts.atZone(launchTime.zoneId)))
-
-  def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
-}
