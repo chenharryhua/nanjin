@@ -21,7 +21,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     assert(arr.contains(Json.fromString("hello")))
   }
@@ -36,7 +36,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     assert(arr.contains(Json.fromString("first")))
     assert(arr.contains(Json.fromString("second")))
@@ -54,7 +54,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     // Nulls should be filtered out
     assert(!arr.contains(Json.Null))
@@ -72,7 +72,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     // "same" should appear only once due to .distinct
     assert(arr.count(_ == Json.fromString("same")) == 1)
@@ -93,7 +93,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     val meta = arr.head
     assert(meta.hcursor.get[String]("version").toOption.contains("1.0.0"))
@@ -109,7 +109,7 @@ class AddBriefTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    val brief = events.head.asInstanceOf[ServiceStart].serviceParams.brief.value
+    val brief = events.head.asInstanceOf[ServiceStart].brief.value
     val arr = brief.asArray.get
     assert(arr.isEmpty)
   }

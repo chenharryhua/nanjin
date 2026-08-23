@@ -36,7 +36,6 @@ object Event {
     policy: Policy,
     brief: Brief,
     tick: Tick,
-
     stackTrace: StackTrace)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))

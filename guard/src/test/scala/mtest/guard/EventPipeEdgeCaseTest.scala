@@ -159,8 +159,8 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
 
     // Applying indexFilter(0) to a periodic MetricsSnapshot should throw ArithmeticException (/ by zero)
     val periodicEvent = events.find {
-      case MetricsSnapshot(_, index, _, _, _) => index.isInstanceOf[Periodic]
-      case _                               => false
+      case MetricsSnapshot(_, _, index, _, _) => index.isInstanceOf[Periodic]
+      case _                                  => false
     }
     assert(periodicEvent.isDefined)
     assertThrows[ArithmeticException] {
@@ -191,8 +191,8 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
       .unsafeRunSync()
 
     val adhocEvent = events.find {
-      case MetricsSnapshot(_, index, _, _, _) => index.isInstanceOf[Adhoc]
-      case _                               => false
+      case MetricsSnapshot(_, _, index, _, _) => index.isInstanceOf[Adhoc]
+      case _                                  => false
     }
     assert(adhocEvent.isDefined)
     // Adhoc snapshots should pass through regardless of divisor
