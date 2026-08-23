@@ -5,8 +5,8 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Took}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{SnapshotPolyglot, retrieve}
-import com.github.chenharryhua.nanjin.guard.translator.{Attribute, htmlColoring}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{retrieve, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
@@ -42,7 +42,7 @@ private object documents {
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
-    //todo  Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
       "history" ->
         panics.reverse.map { sp =>
@@ -69,7 +69,7 @@ private object documents {
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
-    //todo  Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).map(_.show).snakeJsonEntry,
       "errors" -> reportedEvents.size.asJson,
       "history" -> reportedEvents.reverse.map { sm =>
         Json.obj(
@@ -156,7 +156,8 @@ private object documents {
     }
   }
 
-  def snapshot_to_yaml_html(title: String,serviceParams: ServiceParams)(ms: MetricsSnapshot): Text.TypedTag[String] = {
+  def snapshot_to_yaml_html(title: String, serviceParams: ServiceParams)(
+    ms: MetricsSnapshot): Text.TypedTag[String] = {
     val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
     html(
       html_header(s"$title-${ms.serviceIdentity.service.value}"),
