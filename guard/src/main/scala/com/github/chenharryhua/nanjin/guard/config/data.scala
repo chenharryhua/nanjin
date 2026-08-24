@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 import org.typelevel.cats.time.zoneidInstances
 
@@ -23,6 +24,11 @@ import scala.jdk.DurationConverters.given
 final val NBSP_CHAR: Char = '\u00A0'
 
 // ---------------- StackTrace ----------------
+
+/** Root-cause stack trace captured from a `Throwable`. Stored as a list of individual frame strings (with tab
+  * indentation stripped) rather than a single blob, enabling translators to format and truncate per-line.
+  * Extraction uses `ExceptionUtils.getRootCauseStackTraceList` so the deepest cause appears first.
+  */
 opaque type StackTrace = List[String]
 object StackTrace:
   final private val NBSP_INDENT: String = String.valueOf(NBSP_CHAR) * 2
@@ -61,6 +67,10 @@ object Service:
 end Service
 
 // ---------------- ServiceId ----------------
+
+/** A unique identifier generated for each service instance at launch time. A new UUID is minted on every JVM
+  * start; it does not change across panic-triggered restarts within the same process lifetime.
+  */
 opaque type ServiceId = UUID
 object ServiceId:
   def apply(value: UUID): ServiceId = value
@@ -93,6 +103,12 @@ object Port:
 end Port
 
 // ---------------- Brief ----------------
+
+/** A service brief is a JSON document carrying user-provided metadata that travels with every service
+  * lifecycle event (start, panic, stop). Typical content includes deployment context such as ECS task
+  * definitions, CloudWatch log options, build info, or any custom annotations added via
+  * `ServiceConfig.addBrief`. The name derives from the noun meaning: "a concise informational document."
+  */
 opaque type Brief = Json
 object Brief:
   def apply(value: Json): Brief = value
@@ -150,6 +166,10 @@ object Domain:
 end Domain
 
 // ---------------- Timestamp ----------------
+
+/** The moment an event occurred, expressed as a `ZonedDateTime` in the service's configured time zone. This
+  * is the authoritative "when" for all event types and is used to derive `UpTime`.
+  */
 opaque type Timestamp = ZonedDateTime
 object Timestamp:
   def apply(value: ZonedDateTime): Timestamp = value
@@ -163,6 +183,11 @@ object Timestamp:
 end Timestamp
 
 // ---------------- LaunchTime ----------------
+
+/** The instant the service was first launched. This value is fixed for the lifetime of a service instance —
+  * it does not reset on panic-triggered restarts. Combined with an event's `Timestamp`, it yields the
+  * service's `UpTime`.
+  */
 opaque type LaunchTime = ZonedDateTime
 object LaunchTime:
   def apply(value: ZonedDateTime): LaunchTime = value
@@ -173,11 +198,17 @@ object LaunchTime:
 
     def upTime(ts: Timestamp): UpTime = UpTime(Duration.between(zoned, ts))
 
+  given Show[LaunchTime] = _.zoned.toLocalDateTime.show
   given Encoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Encoder]
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
 end LaunchTime
 
 // ---------------- LogLink ----------------
+
+/** A partial CloudWatch Logs console URL pointing to the service's log stream. The `locate` extension method
+  * appends a time-window query parameter (±30 seconds around an event timestamp) so that observers can
+  * deep-link directly to the relevant log entries.
+  */
 opaque type LogLink = String
 object LogLink:
   def apply(str: String): LogLink = str

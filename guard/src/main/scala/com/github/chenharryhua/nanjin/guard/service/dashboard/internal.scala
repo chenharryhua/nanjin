@@ -30,7 +30,8 @@ private def interpretServiceParams(serviceParams: ServiceParams): Json =
     ),
     Attribute(serviceParams.logFormat).snakeJsonEntry,
     "history_capacity" -> serviceParams.history.asJson,
-    "launch_time" -> serviceParams.serviceIdentity.launchTime.asJson,
+    Attribute(serviceParams.serviceIdentity.launchTime).map(_.show).snakeJsonEntry,
+    Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
     "nanjin" -> serviceParams.nanjin.asJson,
     Attribute(serviceParams.brief).snakeJsonEntry
   )

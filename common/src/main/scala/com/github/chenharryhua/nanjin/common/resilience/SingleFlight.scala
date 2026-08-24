@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common.resilience
 
+import cats.Applicative
 import cats.effect.kernel.{Async, Deferred, Ref}
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
@@ -8,6 +9,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.monadError.given
 import cats.syntax.option.{none, given}
+
 import scala.util.control.NoStackTrace
 
 /** A single-flight abstraction. Ensures that for a given effect, at most one computation runs at a time, and
@@ -21,6 +23,11 @@ trait SingleFlight[F[_], A] {
 }
 
 object SingleFlight {
+  def noop[F[_]: Applicative, A]: SingleFlight[F, A] = new SingleFlight[F, A] {
+    override def isBusy: F[Boolean] = false.pure[F]
+    override def apply(fa: F[A]): F[A] = fa
+    override def tryApply(fa: F[A]): F[Option[A]] = fa.map(Some(_))
+  }
 
   // Internal control signal used to unblock followers when the leader fiber is canceled.
   private case object LeaderCancelledException

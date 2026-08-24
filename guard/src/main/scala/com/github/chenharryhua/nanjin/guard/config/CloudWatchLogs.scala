@@ -50,8 +50,7 @@ private object CloudWatchLogs {
   private def encode(s: String): String =
     s.replace("/", "$252F").replace(":", "$253A")
 
-  /** Build a CloudWatch Logs console URL scoped to the specific log stream with a ±30 second time window
-    * around the event.
+  /** Build a CloudWatch Logs console URL scoped to the specific log stream
     *
     * @param brief
     *   service brief containing LogOptions
