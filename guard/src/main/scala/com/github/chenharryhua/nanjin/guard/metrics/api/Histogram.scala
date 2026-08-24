@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
@@ -36,6 +36,11 @@ trait UnsafeHistogram:
 end UnsafeHistogram
 
 object Histogram {
+
+  def noop[F[_]: Applicative]: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
+    override def update(num: Long): F[Unit] = ().pure
+    override def unsafeUpdate(num: Long): Unit = ()
+  }
 
   private class Impl[F[_]](
     label: MetricLabel,
@@ -93,11 +98,6 @@ object Histogram {
             reservoir = reservoir,
             name = metricName)
         })(_.unregister)
-
-      def noop: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
-        override def update(num: Long): F[Unit] = ().pure
-        override def unsafeUpdate(num: Long): Unit = ()
-      }
 
       if isEnabled then histogram else noop.pure
     }

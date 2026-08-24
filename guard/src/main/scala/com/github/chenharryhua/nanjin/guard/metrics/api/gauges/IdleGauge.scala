@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
+import cats.Applicative
 import cats.effect.kernel.{Async, Resource}
+import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
@@ -13,6 +15,11 @@ trait IdleGauge[F[_]]:
 end IdleGauge
 
 object IdleGauge:
+
+  def noop[F[_]: Applicative]: IdleGauge[F] = new IdleGauge[F] {
+    override def wakeUp: F[Unit] = ().pure
+  }
+
   final class Builder private[IdleGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
 
     /** Enable or disable idle-gauge registration. */
@@ -36,10 +43,7 @@ object IdleGauge:
         } yield new IdleGauge[F] {
           override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
         }
-      else
-        Resource.pure(new IdleGauge[F] {
-          override def wakeUp: F[Unit] = F.unit
-        })
+      else Resource.pure(noop)
   }
 
   def apply[F[_]: Async](gp: GaugeParams[F], name: String, f: Builder => Builder): Resource[F, IdleGauge[F]] =

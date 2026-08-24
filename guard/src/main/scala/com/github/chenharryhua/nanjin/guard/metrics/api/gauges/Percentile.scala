@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.applicative.given
@@ -48,6 +48,13 @@ trait Percentile[F[_]] {
 }
 
 object Percentile {
+
+  def noop[F[_]: Applicative]: Percentile[F] = new Percentile[F] {
+    override def incNumerator(numerator: Long): F[Unit] = ().pure
+    override def incDenominator(denominator: Long): F[Unit] = ().pure
+    override def incBoth(numerator: Long, denominator: Long): F[Unit] = ().pure
+  }
+
   private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
 
     private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
@@ -93,13 +100,6 @@ object Percentile {
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Percentile).register(ref.get.map(translator)))
       } yield new Impl[F](ref)
-
-      def noop: Percentile[F] =
-        new Percentile[F] {
-          override def incNumerator(numerator: Long): F[Unit] = F.unit
-          override def incDenominator(denominator: Long): F[Unit] = F.unit
-          override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
-        }
 
       if (isEnabled) impl else noop.pure
     }
