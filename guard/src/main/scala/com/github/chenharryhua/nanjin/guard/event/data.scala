@@ -11,6 +11,11 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 // ---------------- Correlation ----------------
+
+/** A deterministic, 10-digit correlation identifier derived from a `Unique.Token`. Used to trace a single
+  * `ReportedEvent` across translators and observers. The value is stable for a given token instance, making
+  * it suitable for log correlation without requiring external ID generators.
+  */
 opaque type Correlation = String
 object Correlation:
   private def iso(s: String): Correlation = s
@@ -25,6 +30,10 @@ object Correlation:
 end Correlation
 
 // ---------------- Took ----------------
+
+/** Wall-clock duration of an operation, typically how long a metrics scrape took to complete. Displayed in
+  * human-readable format via `DurationFormatter`.
+  */
 opaque type Took = Duration
 object Took:
   def apply(value: Duration): Took = value
@@ -37,6 +46,10 @@ object Took:
 end Took
 
 // ---------------- Active ----------------
+
+/** The duration a service has been actively running (excluding time spent sleeping between panic-triggered
+  * restarts). Contrast with `UpTime`, which measures total elapsed time since launch.
+  */
 opaque type Active = Duration
 object Active:
   def apply(value: Duration): Active = value
@@ -48,6 +61,11 @@ object Active:
 end Active
 
 // ---------------- Snooze ----------------
+
+/** The delay between a panic and the next restart attempt, as determined by the restart policy. Corresponds
+  * to the `tick.snooze` value on a `ServicePanic` event — i.e., how long the service will sleep before
+  * retrying.
+  */
 opaque type Snooze = Duration
 object Snooze:
   def apply(value: Duration): Snooze = value
@@ -59,6 +77,11 @@ object Snooze:
 end Snooze
 
 // ---------------- Message ----------------
+
+/** The JSON-encoded payload of a `ReportedEvent`, carrying the user-supplied log message. Wrapping in an
+  * opaque type separates the message content from other JSON fields in the event model and provides a
+  * dedicated `Show` instance for formatted display.
+  */
 opaque type Message = Json
 object Message:
   def apply(value: Json): Message = value

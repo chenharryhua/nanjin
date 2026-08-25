@@ -61,6 +61,10 @@ trait Retry[F[_]] {
 }
 
 object Retry {
+  def noop[F[_]]: Retry[F] = new Retry[F] {
+    override def apply[A](fa: F[A]): F[A] = fa
+  }
+
   final private case class AttemptData(
     tick: Tick,
     cause: Throwable,

@@ -48,18 +48,19 @@ private object TeamsTranslator {
     val host = Attribute(si.host).textEntry
     val sid = Attribute(si.serviceId).textEntry
     val ts = Attribute(evt.timestamp).textEntry
+    val uptime = Attribute(evt.upTime).textEntry
     FactSet(
       List(
         Fact(ts.tag, ts.text),
         Fact(service.tag, si.homepage.fold(service.text)(hp => s"[${service.text}]($hp)")),
         Fact(host.tag, host.text),
-        Fact(sid.tag, sid.text)
+        Fact(sid.tag, sid.text),
+        Fact(uptime.tag, uptime.text)
       ))
   }
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {
     val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
-    val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val brief = Attribute(evt.brief).typeName
 
@@ -70,8 +71,7 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(snz.tag, snz.text),
-            Fact(uptime.tag, uptime.text)
+            Fact(snz.tag, snz.text)
           )),
         BolderTextBlock(brief),
         JsonBlock(evt.brief.value)
@@ -82,7 +82,6 @@ private object TeamsTranslator {
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
     val active = Attribute(Active(evt.tick.active)).textEntry
     val policy = Attribute(evt.policy).textEntry
-    val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
     val brief = Attribute(evt.brief).typeName
@@ -95,8 +94,7 @@ private object TeamsTranslator {
           List(
             Fact(idx.tag, idx.text),
             Fact(active.tag, active.text),
-            Fact(policy.tag, policy.text),
-            Fact(uptime.tag, uptime.text)
+            Fact(policy.tag, policy.text)
           )),
         TextBlock(panicText(evt), color = "Attention"),
         BolderTextBlock(stackTrace),
@@ -107,7 +105,7 @@ private object TeamsTranslator {
     )
 
     evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
       card.appendElement(url)
     }
@@ -116,17 +114,12 @@ private object TeamsTranslator {
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
     val cause = Attribute(evt.cause).textEntry
-    val uptime = Attribute(evt.upTime).textEntry
 
     AdaptiveCard(
       body = List(
         headerBlock(evt),
         serviceInfo(evt),
-        FactSet(
-          List(
-            Fact(cause.tag, cause.text),
-            Fact(uptime.tag, uptime.text)
-          ))
+        FactSet(List(Fact(cause.tag, cause.text)))
       )
     )
   }
@@ -176,7 +169,7 @@ private object TeamsTranslator {
     val card = AdaptiveCard(body)
 
     evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
       card.appendElement(url)
     }

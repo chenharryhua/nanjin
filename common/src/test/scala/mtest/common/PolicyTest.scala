@@ -12,7 +12,7 @@ class PolicyTest extends AnyFunSuite {
 
   test("1.policy") {
     val policy =
-      Policy.crontab(_.every5Minutes).jitter(30.seconds)
+      Policy.crontab(_.every5Minutes).repeat.jitter(30.seconds)
 
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 

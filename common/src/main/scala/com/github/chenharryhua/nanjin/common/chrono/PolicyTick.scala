@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.MonadThrow
+import cats.Monad
 import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.{Random, SecureRandom}
 import cats.syntax.applicative.given
@@ -13,9 +13,7 @@ import java.time.{Instant, ZoneId}
 /** PolicyTick wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
   * according to the policy.
   */
-final class PolicyTick[F[_]: {Random, MonadThrow}] private (
-  val tick: Tick,
-  steppers: LazyList[TickStepper[F]]) {
+final class PolicyTick[F[_]: {Random, Monad}] private (val tick: Tick, steppers: LazyList[TickStepper[F]]) {
 
   def renewPolicy(policy: Policy): PolicyTick[F] =
     new PolicyTick(tick, EvalPolicy(policy.policy))
@@ -26,11 +24,10 @@ final class PolicyTick[F[_]: {Random, MonadThrow}] private (
   def next(now: Instant): F[Option[PolicyTick[F]]] =
     steppers match {
       case head #:: tail =>
-        if (now.isBefore(tick.conclude)) { // pretend it concludes on time
-          head.step(tick, tick.conclude).map(tk => Some(new PolicyTick(tk, tail)))
-        } else
-          head.step(tick, now).map(tk => Some(new PolicyTick(tk, tail)))
-
+        if (now.isBefore(tick.conclude))
+          head.step(tick, tick.conclude).map(_.map(tk => new PolicyTick(tk, tail)))
+        else
+          head.step(tick, now).map(_.map(tk => new PolicyTick(tk, tail)))
       case _ => none[PolicyTick[F]].pure[F]
     }
 

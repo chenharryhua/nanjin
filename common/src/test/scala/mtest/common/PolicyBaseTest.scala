@@ -34,7 +34,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("3.fixed delay") {
-    val policy = Policy.fixedDelay(1.second, 0.second)
+    val policy = Policy.fixedDelay(1.second, 0.second).repeat
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5) =
@@ -62,7 +62,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("4.fixed rate") {
-    val policy = Policy.fixedRate(1.second)
+    val policy = Policy.fixedRate(1.second).repeat
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5) =
@@ -90,7 +90,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("5.fixed delays") {
-    val policy = Policy.fixedDelay(1.second, 2.seconds, 3.seconds)
+    val policy = Policy.fixedDelay(1.second, 2.seconds, 3.seconds).repeat
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6, a7) =
@@ -115,7 +115,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("6.cron") {
-    val policy = Policy.crontab(_.hourly)
+    val policy = Policy.crontab(_.hourly).repeat
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val List(a1, a2, a3, a4, a5, a6) =
       tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()

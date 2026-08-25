@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
@@ -55,6 +55,13 @@ trait UnsafeTimer:
 end UnsafeTimer
 
 object Timer {
+
+  def noop[F[_]: Applicative]: Timer[F] & UnsafeTimer = new Timer[F] with UnsafeTimer {
+    override def elapsedNano(num: Long): F[Unit] = ().pure
+    override def timing[A](fa: F[A]): F[A] = fa
+    override def unsafeElapsedNano(num: Long): Unit = ()
+  }
+
   private class Impl[F[_]](
     label: MetricLabel,
     metricRegistry: MetricRegistry,
@@ -103,13 +110,6 @@ object Timer {
       F: Sync[F]): Resource[F, Timer[F] & UnsafeTimer] = {
       def timer: Resource[F, Timer[F] & UnsafeTimer] =
         Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
-
-      def noop: Timer[F] & UnsafeTimer =
-        new Timer[F] with UnsafeTimer {
-          override def elapsedNano(num: Long): F[Unit] = ().pure
-          override def timing[A](fa: F[A]): F[A] = fa
-          override def unsafeElapsedNano(num: Long): Unit = ()
-        }
 
       if isEnabled then timer else noop.pure
     }

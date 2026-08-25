@@ -91,8 +91,8 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     builder.properties.contains("k2") shouldBe false
   }
 
-  test("4.withStartUpTimeout should return a distinct builder instance") {
-    val updated = builder.withStartUpTimeout(FiniteDuration(1234, TimeUnit.MILLISECONDS))
+  test("4.withStartupTimeout should return a distinct builder instance") {
+    val updated = builder.withStartupTimeout(FiniteDuration(1234, TimeUnit.MILLISECONDS))
 
     assert(updated.ne(builder))
   }
@@ -143,7 +143,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
           override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
           override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
         }
-        testBuilder = builder.onStateTransition(recordingLog)
+        testBuilder = builder.withTransitionLog(recordingLog)
         stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
         _ <- IO {
           stateChange.getClass
@@ -194,7 +194,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
     }.unsafeRunSync()
   }
 
-  test("9.onStateTransition should log the correct level per state") {
+  test("9.withLog should log the correct level per state") {
     Dispatcher.sequential[IO].use { dispatcher =>
       for {
         startup <- IO.deferred[Unit]
@@ -207,7 +207,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
           override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
           override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
         }
-        testBuilder = builder.onStateTransition(recordingLog)
+        testBuilder = builder.withTransitionLog(recordingLog)
         stateChange = newStateChange(testBuilder, dispatcher, startup, stop)
         _ <- IO {
           val m = stateChange.getClass.getMethod("onChange", classOf[State], classOf[State])
@@ -222,7 +222,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   test("10.kafkaStreams should fail when startup does not complete before the timeout") {
     val failingBuilder = builder
       .withProperty(_.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
-      .withStartUpTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
+      .withStartupTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
 
     val result = failingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
 

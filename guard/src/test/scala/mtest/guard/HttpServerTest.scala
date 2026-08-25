@@ -22,8 +22,8 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
-      .withDashboard(100, _.crontab(_.secondly))
+      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
+      .withDashboard(100, _.crontab(_.secondly).repeat)
       .withHistoryCapacity(32, 32, 32))
 
   test("1.stop service") {
@@ -48,7 +48,7 @@ class HttpServerTest extends AnyFunSuite {
     val run =
       guard
         .service("http stop")
-        .updateConfig(_.withMetricsReport(_.crontab(_.secondly))
+        .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat)
           .withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
@@ -88,7 +88,7 @@ class HttpServerTest extends AnyFunSuite {
     val res = TaskGuard[IO]("panic")
       .service("history")
       .updateConfig(
-        _.withRestartPolicy(1.hour, _.fixedDelay(1.second))
+        _.withRestartPolicy(1.hour, _.fixedDelay(1.second).repeat)
           .withHttpServer(_.withPort(port"9997"))
           .withHistoryCapacity(3, 3, 3))
       .eventStream(_ => IO.raiseError(new Exception))

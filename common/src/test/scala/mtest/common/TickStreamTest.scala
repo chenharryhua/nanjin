@@ -13,7 +13,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 class TickStreamTest extends AnyFunSuite {
   test("1.tick") {
-    val ticks = tickStream.tickScheduled[IO](londonTime, _.crontab(_.secondly).limited(5))
+    val ticks = tickStream.tickScheduled[IO](londonTime, _.crontab(_.secondly).repeat.limited(5))
 
     val res = ticks.map(_.window.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
@@ -21,7 +21,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("2.process longer than 1 second") {
-    val ticks = tickStream.tickScheduled[IO](berlinTime, _.crontab(_.secondly))
+    val ticks = tickStream.tickScheduled[IO](berlinTime, _.crontab(_.secondly).repeat)
 
     val fds =
       ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
@@ -32,7 +32,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("3.process less than 1 second") {
-    val ticks = tickStream.tickScheduled[IO](cairoTime, _.crontab(_.secondly))
+    val ticks = tickStream.tickScheduled[IO](cairoTime, _.crontab(_.secondly).repeat)
 
     val fds =
       ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
@@ -43,7 +43,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("4.constant") {
-    val policy = Policy.fixedDelay(1.second).limited(5)
+    val policy = Policy.fixedDelay(1.second).repeat.limited(5)
     val ticks = tickStream.tickScheduled[IO](saltaTime, (_: Policy.type) => policy)
     val sleep: IO[JavaDuration] =
       Random
@@ -54,7 +54,7 @@ class TickStreamTest extends AnyFunSuite {
     ticks.evalTap(_ => sleep).compile.toList.unsafeRunSync()
   }
   test("5.fixed rate") {
-    val policy = Policy.fixedRate(2.second).limited(5)
+    val policy = Policy.fixedRate(2.second).repeat.limited(5)
     val ticks = tickStream.tickScheduled[IO](darwinTime, (_: Policy.type) => policy)
     val sleep: IO[JavaDuration] =
       Random
@@ -67,7 +67,9 @@ class TickStreamTest extends AnyFunSuite {
 
   test("6.tickImmediate - fixed delay") {
     val List(a, b, c) =
-      tickStream.tickFuture[IO](saltaTime, _.fixedDelay(1.seconds).limited(3)).compile.toList.unsafeRunSync()
+      tickStream.tickFuture[IO](
+        saltaTime,
+        _.fixedDelay(1.seconds).repeat.limited(3)).compile.toList.unsafeRunSync()
     assert(a.index == 1)
     assert(b.index == 2)
     assert(c.index == 3)

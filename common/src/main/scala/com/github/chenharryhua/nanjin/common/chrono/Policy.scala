@@ -57,29 +57,45 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
   override def toString: String = ShowPolicy(policy)
 
-  /** @param num
-    *   non-positive num essentially disable the policy
+  /** Limit the policy to at most `num` ticks. Non-positive values produce an empty policy.
     */
   def limited(num: Int): Policy =
     Policy(Fix(Limited(policy, num)))
 
+  /** Append another policy after this one is exhausted.
+    *
+    * Once this policy produces no more ticks, the follower takes over.
+    */
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def followedBy(f: Policy.type => Policy): Policy = followedBy(f(Policy))
 
+  /** Repeat this policy indefinitely. When the policy is exhausted, it restarts from the beginning.
+    */
   def repeat: Policy = Policy(Fix(Repeat(policy)))
 
+  /** Combine with another policy, taking the shorter snooze at each step.
+    *
+    * Terminates when either policy is exhausted.
+    */
   def meet(other: Policy): Policy = Policy(Fix(Meet(policy, other.policy)))
   def meet(f: Policy.type => Policy): Policy = meet(f(Policy))
 
+  /** Skip the tick whose conclude time matches the given local time, stretching the snooze to reach the next
+    * tick instead.
+    */
   def except(localTime: LocalTime): Policy = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
+  /** Add a fixed non-negative duration to each tick's snooze.
+    */
   def offset(fd: FiniteDuration): Policy = {
     require(fd >= ScalaDuration.Zero, show"$fd must be non-negative")
     Policy(Fix(Offset(policy, fd.toJava)))
   }
 
-  /** @param min
+  /** Add a random duration between `min` and `max` to each tick's snooze.
+    *
+    * @param min
     *   non-negative
     * @param max
     *   strictly bigger than min
@@ -90,7 +106,9 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
   }
 
-  /** @param max
+  /** Add a random duration between zero and `max` to each tick's snooze.
+    *
+    * @param max
     *   strictly bigger than zero
     */
   def jitter(max: FiniteDuration): Policy =
@@ -105,20 +123,32 @@ object Policy {
   given Decoder[Policy] = (c: HCursor) => CodecPolicy.decoder(c).map(Policy(_))
   given Eq[Policy] = Eq.fromUniversalEquals[Policy]
 
+  /** Schedule based on a cron expression. Produces a single tick at the next matching time. Use `.repeat` for
+    * continuous scheduling.
+    */
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
-  /** All delays should be non-negative, and at least one must be strictly positive.
+  /** Fixed-delay scheduling. Produces one tick per delay in the list, then exhausts. Use `.repeat` to cycle
+    * through the delays indefinitely.
+    *
+    * All delays must be non-negative, and at least one must be strictly positive.
     */
-  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
-    val nel: NonEmptyList[FiniteDuration] = NonEmptyList.of(head, tail*)
+  def fixedDelay(nel: NonEmptyList[FiniteDuration]): Policy = {
     require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
     require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
     Policy(Fix(FixedDelay(nel.map(_.toJava))))
   }
 
-  /** @param delay
-    *   should be bigger than zero
+  /** Varargs convenience for `fixedDelay`. */
+  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
+    fixedDelay(NonEmptyList.of(head, tail*))
+
+  /** Fixed-rate scheduling. Produces a single tick that maintains a constant period from the previous
+    * conclude time. Use `.repeat` for continuous fixed-rate scheduling.
+    *
+    * @param delay
+    *   must be positive
     */
   def fixedRate(delay: FiniteDuration): Policy = {
     require(delay > ScalaDuration.Zero, show"delay must be positive, but was $delay")

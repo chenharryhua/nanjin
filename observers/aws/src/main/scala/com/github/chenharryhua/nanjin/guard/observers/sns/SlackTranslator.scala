@@ -140,7 +140,7 @@ private object SlackTranslator extends all {
     )
 
     evt.serviceIdentity.logLink.fold(app) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = s"<$link|:mag: CloudWatch Logs>"
       app.appendMarkdown(url)
     }
@@ -223,7 +223,7 @@ private object SlackTranslator extends all {
       SlackApp(username = evt.serviceIdentity.task.value, attachments = List(Some(attachment), error).flatten)
 
     evt.serviceIdentity.logLink.fold(app) { ll =>
-      val link = ll.cloudWatch(evt.timestamp)
+      val link = ll.locate(evt.timestamp)
       val url = s"<$link|:mag: CloudWatch Logs>"
       app.appendMarkdown(url)
     }

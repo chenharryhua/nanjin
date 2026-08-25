@@ -14,12 +14,26 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import java.nio.charset.StandardCharsets
 
+/** Kafka serdes for structured data formats.
+  *
+  * Unlike `Primitive` (which handles scalar Kafka types such as String, Integer, or byte arrays), `Structured`
+  * covers formats whose payloads carry internal structure: fields, nesting, and (optionally) schema metadata.
+  *
+  * Available instances:
+  *   - `avro` – Avro `GenericRecord`, using Confluent's Schema Registry.
+  *   - `jsonSchema` – Jackson `JsonNode`, using Confluent's JSON Schema support.
+  *   - `protobuf` – Protobuf `DynamicMessage`, using Confluent's Protobuf support.
+  *   - `circe` – Circe `Json`, serialized as compact UTF-8 JSON without schema registry interaction.
+  *
+  * Each instance can be further transformed via `.become[B]`, `.option`, or `.emap` inherited from `Unregistered`.
+  */
 sealed trait Structured[A] extends Unregistered[A]
 
 object Structured:
   inline def apply[A](using ev: Structured[A]): Structured[A] = ev
 
-  given Structured[GenericRecord] = new Structured[GenericRecord]:
+  /** Avro serde backed by Confluent's Schema Registry. Serializes and deserializes `GenericRecord`. */
+  given avro: Structured[GenericRecord] = new Structured[GenericRecord]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[GenericRecord] =
       new Serde[GenericRecord] {
         override lazy val serializer: Serializer[GenericRecord] =
@@ -59,9 +73,10 @@ object Structured:
             override def close(): Unit = deSer.close()
         end deserializer
       }
-  end given
+  end avro
 
-  given Structured[JsonNode] = new Structured[JsonNode]:
+  /** JSON Schema serde backed by Confluent's Schema Registry. Serializes and deserializes Jackson `JsonNode`. */
+  given jsonSchema: Structured[JsonNode] = new Structured[JsonNode]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[JsonNode] =
       new Serde[JsonNode]:
         override lazy val serializer: Serializer[JsonNode] =
@@ -69,9 +84,10 @@ object Structured:
 
         override lazy val deserializer: Deserializer[JsonNode] =
           new KafkaJsonSchemaDeserializer[JsonNode](srClient)
-  end given
+  end jsonSchema
 
-  given Structured[DynamicMessage] = new Structured[DynamicMessage]:
+  /** Protobuf serde backed by Confluent's Schema Registry. Serializes and deserializes `DynamicMessage`. */
+  given protobuf: Structured[DynamicMessage] = new Structured[DynamicMessage]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[DynamicMessage] =
       new Serde[DynamicMessage]:
         override lazy val serializer: Serializer[DynamicMessage] =
@@ -80,9 +96,10 @@ object Structured:
         override lazy val deserializer: Deserializer[DynamicMessage] =
           new KafkaProtobufDeserializer[DynamicMessage](srClient)
 
-  end given
+  end protobuf
 
-  given Structured[Json] = new Structured[Json]:
+  /** Circe JSON serde. Serializes `Json` as compact UTF-8 text without schema registry interaction. */
+  given circe: Structured[Json] = new Structured[Json]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[Json] =
       new Serde[Json]:
         override lazy val serializer: Serializer[Json] =
@@ -112,4 +129,4 @@ object Structured:
 
             override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit = ()
             override def close(): Unit = ()
-  end given
+  end circe

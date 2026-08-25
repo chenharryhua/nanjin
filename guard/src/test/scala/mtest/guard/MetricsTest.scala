@@ -323,7 +323,7 @@ class MetricsTest extends AnyFunSuite {
   test("13b.periodic reports stop with downstream cancellation") {
     val reports = TaskGuard[IO]("periodic-metrics")
       .service("periodic-metrics")
-      .updateConfig(_.withMetricsReport(_.fixedDelay(100.millis)))
+      .updateConfig(_.withMetricsReport(_.fixedDelay(100.millis).repeat))
       .eventStream(_ => IO.never)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
@@ -348,7 +348,7 @@ class MetricsTest extends AnyFunSuite {
   test("15.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
       agent
-        .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(ra =>
+        .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
           IO(ra.giveUp).flatTap(d => agent.heraldLogger.warn(d, ra.cause))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()

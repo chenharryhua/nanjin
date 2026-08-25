@@ -25,7 +25,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("3.follow by") {
     val policy =
-      Policy.fixedDelay(1.second).limited(3).followedBy(Policy.fixedDelay(2.seconds).limited(2))
+      Policy.fixedDelay(1.second).repeat.limited(3).followedBy(Policy.fixedDelay(2.seconds).repeat.limited(2))
 
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val List(a1, a2, a3, a4, a5) =
@@ -46,10 +46,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy =
       Policy
         .fixedDelay(1.second)
-        .limited(1)
         .repeat
         .limited(3)
-        .followedBy(_.fixedDelay(2.seconds).limited(2))
+        .followedBy(_.fixedDelay(2.seconds).repeat.limited(2))
         .repeat
 
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -75,7 +74,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("5.meet") {
     val policy =
-      Policy.fixedRate(1.second).meet(_.fixedDelay(1.seconds))
+      Policy.fixedRate(1.second).repeat.meet(_.fixedDelay(1.seconds).repeat)
 
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -99,7 +98,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("6.meet - 2") {
-    val policy = Policy.fixedDelay(1.seconds).meet(_.fresh(Policy.fixedRate(1.second)))
+    val policy = Policy.fixedDelay(1.seconds).repeat.meet(_.fresh(Policy.fixedRate(1.second).repeat))
 
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -203,7 +202,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("9.except") {
-    val policy = Policy.crontab(_.hourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
+    val policy = Policy.crontab(_.hourly).repeat.except(_.midnight).except(_.elevenPM).except(_.midnight)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val wakeup = tickStream
@@ -230,7 +229,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("10.offset") {
-    val policy = Policy.crontab(_.hourly).offset(3.seconds)
+    val policy = Policy.crontab(_.hourly).repeat.offset(3.seconds)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(32).compile.toList.unsafeRunSync()
     assert(ticks.forall(t => t.acquires.plus(t.snooze) == t.conclude))
@@ -239,27 +238,28 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("11.jitter") {
-    val policy = Policy.crontab(_.hourly).jitter(3.seconds)
+    val policy = Policy.crontab(_.hourly).repeat.jitter(3.seconds)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
   }
 
   test("12.limited") {
-    val policy = Policy.crontab(_.hourly).limited(3)
+    val policy = Policy.crontab(_.hourly).repeat.limited(3)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(60).compile.toList.unsafeRunSync()
     assert(ticks.size == 3)
   }
 
   test("13.limited 0") {
-    val policy = Policy.crontab(_.hourly).limited(0)
+    val policy = Policy.crontab(_.hourly).repeat.limited(0)
     val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 
   test("14.limited neg") {
-    val policy = Policy.crontab(_.hourly).limited(-1)
+    val policy = Policy.crontab(_.hourly).repeat.limited(-1)
     val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
+
 }

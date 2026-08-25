@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-/** Builder for boolean health-check gauges. */
+/** Builder for boolean health check gauges. */
 object HealthCheck {
   final class Builder private[HealthCheck] (
     isEnabled: Boolean,

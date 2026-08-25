@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.Monad
 import cats.effect.std.Random
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.option.given
 import cats.syntax.order.given
-import cats.syntax.show.showInterpolator
-import cats.{MonadThrow, Show}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
 import higherkindness.droste.data.Fix
@@ -29,31 +29,24 @@ private object EvalPolicy {
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
 
-  private def algebra[F[_]: MonadThrow](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
+  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
     Algebra[PolicyF, LazyList[TickStepper[F]]] {
 
       case Empty() => LazyList.empty
 
       case Crontab(cronExpr) =>
-        val seed: TickStepper[F] = TickStepper { case TickRequest(tick, now) =>
-          cronExpr.next(now.atZone(tick.zoneId)) match {
-            case Some(value) => tick.nextTick(now, value.toInstant).pure[F]
-            case None        =>
-              val message = show"$cronExpr returned None at $now. This should never happen."
-              MonadThrow[F].raiseError(new IllegalStateException(message))
-          }
-        }
-        LazyList.continually(seed)
+        LazyList(TickStepper { case TickRequest(tick, now) =>
+          cronExpr.next(now.atZone(tick.zoneId)).map(zdt => tick.nextTick(now, zdt.toInstant)).pure[F]
+        })
 
       case FixedDelay(delays) =>
-        val seed: LazyList[TickStepper[F]] = LazyList.from(delays.toList).map[TickStepper[F]] { delay =>
-          TickStepper { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).pure[F] }
+        LazyList.from(delays.toList).map { delay =>
+          TickStepper { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).some.pure[F] }
         }
-        LazyList.continually(seed).flatten
 
       case FixedRate(delay) =>
-        LazyList.continually(TickStepper { case TickRequest(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).pure[F]
+        LazyList(TickStepper { case TickRequest(tick, now) =>
+          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).some.pure[F]
         })
 
       // ops
@@ -63,45 +56,47 @@ private object EvalPolicy {
 
       case Repeat(policy) => LazyList.continually(policy).flatten
 
-      // https://en.wikipedia.org/wiki/Join_and_meet
       case Meet(first, second) =>
-        first.zip(second).map { case (sa: TickStepper[F], sb: TickStepper[F]) =>
+        first.zip(second).map { case (sa, sb) =>
           TickStepper { (req: TickRequest) =>
-            (sa(req), sb(req)).mapN { (ra, rb) =>
-              if (ra.snooze < rb.snooze) ra else rb // shorter win
+            (sa(req), sb(req)).mapN {
+              case (Some(ra), Some(rb)) => Some(if (ra.snooze < rb.snooze) ra else rb)
+              case _                    => None
             }
           }
         }
 
       case Except(policy, except) =>
-        policy.map { (stepper: TickStepper[F]) =>
+        policy.map { stepper =>
           TickStepper { (req: TickRequest) =>
-            stepper(req).flatMap { tick =>
-              if (tick.local(_.conclude).toLocalTime === except) {
-                stepper.step(tick, tick.conclude).map(nt => tick.withSnoozeStretch(nt.snooze))
-              } else tick.pure[F]
+            stepper(req).flatMap {
+              case Some(tick) =>
+                if (tick.local(_.conclude).toLocalTime === except)
+                  stepper.step(tick, tick.conclude).map(_.map(nt => tick.withSnoozeStretch(nt.snooze)))
+                else tick.some.pure[F]
+              case None => None.pure[F]
             }
           }
         }
 
       case Offset(policy, offset) =>
-        policy.map { (stepper: TickStepper[F]) =>
+        policy.map { stepper =>
           TickStepper { (req: TickRequest) =>
-            stepper(req).map(_.withSnoozeStretch(offset))
+            stepper(req).map(_.map(_.withSnoozeStretch(offset)))
           }
         }
 
       case Jitter(policy, min, max) =>
-        policy.map { (stepper: TickStepper[F]) =>
+        policy.map { stepper =>
           TickStepper { (req: TickRequest) =>
             rng.betweenLong(min.toNanos, max.toNanos).flatMap { delay =>
-              stepper(req).map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS)))
+              stepper(req).map(_.map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS))))
             }
           }
         }
     }
 
-  def apply[F[_]: {Random, MonadThrow}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
+  def apply[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =
     scheme.cata(algebra(Random[F])).apply(policy)
 
 }

@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.Endo
 import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics.{Counter as CodahaleCounter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
@@ -55,6 +55,11 @@ object Counter {
 
   }
 
+  def noop[F[_]: Applicative]: Counter[F] & UnsafeCounter = new Counter[F] with UnsafeCounter {
+    override def inc(num: Long): F[Unit] = ().pure
+    override def unsafeInc(num: Long): Unit = ()
+  }
+
   final class Builder private[Counter] (isEnabled: Boolean, isRisk: Boolean, policy: Policy)
       extends EnableConfig[Builder] {
 
@@ -89,11 +94,6 @@ object Counter {
             .drain
             .background
         } yield counter
-
-      def noop: Counter[F] & UnsafeCounter = new Counter[F] with UnsafeCounter {
-        override def inc(num: Long): F[Unit] = ().pure
-        override def unsafeInc(num: Long): Unit = ()
-      }
 
       if isEnabled then counter else noop.pure
     }

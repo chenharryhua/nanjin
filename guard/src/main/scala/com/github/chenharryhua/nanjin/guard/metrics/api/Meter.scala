@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.functor.given
@@ -31,6 +31,11 @@ trait UnsafeMeter:
 end UnsafeMeter
 
 object Meter {
+
+  def noop[F[_]: Applicative]: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
+    override def mark(num: Long): F[Unit] = ().pure
+    override def unsafeMark(num: Long): Unit = ()
+  }
 
   private class Impl[F[_]](
     label: MetricLabel,
@@ -71,11 +76,6 @@ object Meter {
         Resource.make(MetricName(name).map { metricName =>
           new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
         })(_.unregister)
-
-      def noop: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
-        override def mark(num: Long): F[Unit] = ().pure
-        override def unsafeMark(num: Long): Unit = ()
-      }
 
       if isEnabled then meter else noop.pure
     }

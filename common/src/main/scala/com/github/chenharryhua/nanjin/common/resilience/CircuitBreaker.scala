@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.common.resilience
 
+import cats.MonadThrow
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.effect.syntax.spawn.given
+import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
@@ -25,6 +27,12 @@ trait CircuitBreaker[F[_]] {
 }
 
 object CircuitBreaker {
+  def noop[F[_]: MonadThrow]: CircuitBreaker[F] = new CircuitBreaker[F] {
+    override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = fa.attempt
+    override def protect[A](fa: F[A]): F[A] = fa
+    override def getState: F[State] = State.Closed(0).pure[F]
+  }
+
   enum State:
     case Closed(failures: Int)
     case HalfOpen

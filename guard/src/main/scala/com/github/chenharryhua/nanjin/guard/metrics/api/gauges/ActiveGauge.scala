@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
+import cats.Applicative
 import cats.effect.kernel.{Async, Resource}
+import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.option.{none, given}
@@ -14,6 +16,11 @@ trait ActiveGauge[F[_]]:
 end ActiveGauge
 
 object ActiveGauge:
+
+  def noop[F[_]: Applicative]: ActiveGauge[F] = new ActiveGauge[F] {
+    override def deactivate: F[Unit] = ().pure
+  }
+
   final class Builder(isEnabled: Boolean) extends EnableConfig[Builder] {
 
     /** Enable or disable active-gauge registration. */
@@ -38,10 +45,7 @@ object ActiveGauge:
         } yield new ActiveGauge[F] {
           override val deactivate: F[Unit] = active.set(false)
         }
-      else
-        Resource.pure(new ActiveGauge[F] {
-          override def deactivate: F[Unit] = F.unit
-        })
+      else Resource.pure(noop)
   }
 
   def apply[F[_]: Async](
