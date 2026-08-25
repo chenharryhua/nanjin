@@ -25,7 +25,7 @@ class RetrySpec extends CatsEffectSuite {
       else "success"
     }
 
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(100.millis).limited(maxAttempts)))
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(100.millis).repeat.limited(maxAttempts)))
 
     retryIO.flatMap { retry =>
       retry(riskyOp).map { result =>
@@ -45,7 +45,7 @@ class RetrySpec extends CatsEffectSuite {
       throw new RuntimeException(s"fail $counter")
     }
 
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(50.millis).limited(maxAttempts)))
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(50.millis).repeat.limited(maxAttempts)))
 
     retryIO.flatMap { retry =>
       retry(riskyOp).attempt.map {
@@ -110,7 +110,7 @@ class RetrySpec extends CatsEffectSuite {
       decisionCalls <- Ref.of[IO, Int](0)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(20.millis).limited(3)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(20.millis).repeat.limited(3)).withDecision { tv =>
           decisionCalls.update(_ + 1).as(tv.followPolicy)
         })
       result <- retry(IO.pure("ok"))
@@ -131,7 +131,7 @@ class RetrySpec extends CatsEffectSuite {
       observed <- Ref.of[IO, List[Long]](Nil)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(10.millis).limited(3)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(3)).withDecision { tv =>
           observed.update(_ :+ tv.ordinal).as(tv.followPolicy)
         })
       _ <- retry(
@@ -151,7 +151,7 @@ class RetrySpec extends CatsEffectSuite {
 
     val retryIO = Retry[IO](
       zoneId,
-      _.withPolicy(_.fixedDelay(10.millis).limited(1)).withDecision { _ =>
+      _.withPolicy(_.fixedDelay(10.millis).repeat.limited(1)).withDecision { _ =>
         IO.raiseError(new RuntimeException("decision boom"))
       })
 
@@ -173,7 +173,7 @@ class RetrySpec extends CatsEffectSuite {
       attempts <- Ref.of[IO, Int](0)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(2.seconds).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(2.seconds).repeat.limited(2)).withDecision { tv =>
           IO.pure(tv.retryAfter(20.millis))
         })
       result <- retry {
@@ -205,7 +205,7 @@ class RetrySpec extends CatsEffectSuite {
       observedSnooze <- Ref.of[IO, FiniteDuration](Duration.Zero)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(25.millis).limited(3)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(25.millis).repeat.limited(3)).withDecision { tv =>
           observedCause.set(tv.cause.getMessage) >>
             observedRetries.set(tv.ordinal) >>
             observedSnooze.set(tv.snooze) >>
@@ -234,7 +234,7 @@ class RetrySpec extends CatsEffectSuite {
       start <- IO.realTimeInstant
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(20.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(20.millis).repeat.limited(2)).withDecision { tv =>
           observedFailedAt.set(Some(tv.failedAt.toInstant)) >> IO.pure(tv.giveUp)
         }
       )
@@ -259,7 +259,7 @@ class RetrySpec extends CatsEffectSuite {
       attempts <- Ref.of[IO, Int](0)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(10.millis).limited(3)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(3)).withDecision { tv =>
           observed.update(_ :+ tv.previousCause.map(_.getMessage)).as(tv.followPolicy)
         }
       )
@@ -286,7 +286,7 @@ class RetrySpec extends CatsEffectSuite {
       attempts <- Ref.of[IO, Int](0)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(50.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(50.millis).repeat.limited(2)).withDecision { tv =>
           observed.update(_ :+ tv.elapsed).as(tv.followPolicy)
         })
       _ <- retry {
@@ -312,7 +312,7 @@ class RetrySpec extends CatsEffectSuite {
       observed <- Ref.of[IO, List[FiniteDuration]](Nil)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(10.millis).limited(1)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(1)).withDecision { tv =>
           observed.update(_ :+ tv.elapsed).as(tv.followPolicy)
         })
       _ <- retry(IO.raiseError[String](new RuntimeException("a"))).attempt
@@ -333,7 +333,7 @@ class RetrySpec extends CatsEffectSuite {
       observedAccepted <- Ref.of[IO, List[Boolean]](Nil)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(10.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(2)).withDecision { tv =>
           val decision = tv.followPolicy
           observedAccepted.update(_ :+ decision.accepted).as(decision)
         }
@@ -357,7 +357,7 @@ class RetrySpec extends CatsEffectSuite {
       observedAccepted <- Ref.of[IO, Option[Boolean]](None)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(10.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(2)).withDecision { tv =>
           val decision = tv.giveUp
           observedAccepted.set(Some(decision.accepted)).as(decision)
         }
@@ -378,7 +378,7 @@ class RetrySpec extends CatsEffectSuite {
       observedJson <- Ref.of[IO, Option[io.circe.Json]](None)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(25.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(25.millis).repeat.limited(2)).withDecision { tv =>
           val decision = tv.followPolicy
           val json = Encoder[Retry.Decision].apply(decision)
           observedJson.set(Some(json)).as(decision)
@@ -409,7 +409,7 @@ class RetrySpec extends CatsEffectSuite {
       observedJson <- Ref.of[IO, Option[io.circe.Json]](None)
       retry <- Retry[IO](
         zoneId,
-        _.withPolicy(_.fixedDelay(25.millis).limited(2)).withDecision { tv =>
+        _.withPolicy(_.fixedDelay(25.millis).repeat.limited(2)).withDecision { tv =>
           val decision = tv.giveUp
           val json = Encoder[Retry.Decision].apply(decision)
           observedJson.set(Some(json)).as(decision)

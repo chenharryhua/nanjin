@@ -39,14 +39,13 @@ class TickStreamSpec extends AnyFunSuite {
   }
 
   test("3.tickScheduled fails on impossible cron schedule") {
-    assertThrows[IllegalStateException] {
-      tickStream
-        .tickScheduled[IO](zoneId, _.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
-        .take(1)
-        .compile
-        .drain
-        .unsafeRunSync()
-    }
+    val ticks = tickStream
+      .tickScheduled[IO](zoneId, _.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
+      .take(1)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(ticks.isEmpty)
   }
 
   test("4.empty policy produces no ticks") {
