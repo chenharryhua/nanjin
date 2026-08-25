@@ -22,7 +22,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("1.sampling - FiniteDuration") {
     val List(a, b, c, d) = service
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(EventPipe.windowFilter(3.seconds).filter)
@@ -38,7 +38,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("2.sampling - divisor") {
     val List(a, b, c, d) = service
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(EventPipe.indexFilter(3).filter)
@@ -53,7 +53,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("3.sampling - cron") {
     val policy = Policy.crontab(_.secondly)
-    val align = tickStream.tickScheduled[IO](sydneyTime, _.crontab(_.every3Seconds).limited(1))
+    val align = tickStream.tickScheduled[IO](sydneyTime, _.crontab(_.every3Seconds))
     val run = service
       .updateConfig(_.withMetricsReport(_ => policy))
       .eventStream(_ => IO.sleep(7.seconds))
@@ -71,7 +71,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("4.sampling - local time") {
     val run: Stream[IO, Event] = service
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(

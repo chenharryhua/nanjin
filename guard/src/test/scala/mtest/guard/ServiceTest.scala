@@ -23,7 +23,7 @@ class ServiceTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("service-level-guard").updateConfig(
     _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
+      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
       .withInitialLogLevel(_.Debug)
       .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))
@@ -225,7 +225,7 @@ class ServiceTest extends AnyFunSuite {
   test("11.watchdog retries a failing service according to restart policy") {
     val events = guard
       .service("watchdog")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(2)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(2)))
       .eventStream(_ => IO.raiseError(new Exception("boom")).void)
       .map(checkJson)
       .compile
