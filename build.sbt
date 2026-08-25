@@ -71,7 +71,7 @@ lazy val commonSettings = List(
 
 val testLib = List(
   "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
-  "org.typelevel" %% "cats-effect-testkit"           % "3.7.0",
+  "org.typelevel" %% "cats-effect-testkit"           % "3.7.1",
   "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
   "org.typelevel" %% "discipline-munit"              % "2.0.0",
