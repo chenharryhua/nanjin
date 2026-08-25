@@ -141,10 +141,8 @@ object Policy {
   }
 
   /** Varargs convenience for `fixedDelay`. */
-  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
-    val nel: NonEmptyList[FiniteDuration] = NonEmptyList.of(head, tail*)
-    fixedDelay(nel)
-  }
+  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
+    fixedDelay(NonEmptyList.of(head, tail*))
 
   /** Fixed-rate scheduling. Produces a single tick that maintains a constant period from the previous
     * conclude time. Use `.repeat` for continuous fixed-rate scheduling.
