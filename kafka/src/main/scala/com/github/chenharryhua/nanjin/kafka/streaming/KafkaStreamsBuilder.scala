@@ -50,7 +50,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   streamSettings: KafkaStreamSettings,
   srClient: SchemaRegistryClient,
   serdeSettings: SerdeSettings,
-  top: (StreamsBuilder, StreamsSerde) => Unit,
+  buildTopology: (StreamsBuilder, StreamsSerde) => Unit,
   startupTimeout: Duration,
   closeTimeout: FiniteDuration,
   log: Log[F])(using F: Async[F])
@@ -97,7 +97,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     streamSettings.withProperty(StreamsConfig.APPLICATION_ID_CONFIG, applicationId).properties
 
   /** Stream the managed KafkaStreams instance for interactive state-store inspection. */
-  lazy val kafkaStreams: Stream[F, KafkaStreams] = {
+  def kafkaStreams: Stream[F, KafkaStreams] = {
     val sc: StreamsConfig = new StreamsConfig(properties.asJava)
     for { // Create and manage the Kafka Streams instance, including listener registration and startup.
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
@@ -115,7 +115,7 @@ final class KafkaStreamsBuilder[F[_]] private (
           for {
             _ <- F.blocking(kss.setStateListener(listener))
             _ <- F.blocking(kss.start())
-            _ <- F.timeoutTo(
+            _ <- F.timeoutTo( // Duration.Inf means no timeout (cats-effect treats it as identity)
               startup.get,
               startupTimeout,
               F.raiseError(KafkaStreamsStartupTimeout(applicationId, startupTimeout)))
@@ -125,7 +125,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     } yield kafkaStreams
   }
 
-  lazy val runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never[F]
+  def runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never[F]
 
   private def copy(
     streamSettings: KafkaStreamSettings = this.streamSettings,
@@ -137,20 +137,20 @@ final class KafkaStreamsBuilder[F[_]] private (
     streamSettings = streamSettings,
     srClient = this.srClient,
     serdeSettings = this.serdeSettings,
-    top = this.top,
+    buildTopology = this.buildTopology,
     startupTimeout = startupTimeout,
     closeTimeout = closeTimeout,
     log = log
   )
 
-  def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
+  def withStartupTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     copy(startupTimeout = value)
 
   def withCloseTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     copy(closeTimeout = value)
 
-  /** Registers a callback invoked after a Kafka Streams transition is published. */
-  def onStateTransition(log: Log[F]): KafkaStreamsBuilder[F] =
+  /** Replace the logger used for state transition notifications. */
+  def withTransitionLog(log: Log[F]): KafkaStreamsBuilder[F] =
     copy(log = log)
 
   def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamsBuilder[F] =
@@ -162,7 +162,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   lazy val topology: Topology = {
     val streamsBuilder: StreamsBuilder = new StreamsBuilder()
     val streamsSerde: StreamsSerde = new StreamsSerde(srClient, serdeSettings)
-    top(streamsBuilder, streamsSerde)
+    buildTopology(streamsBuilder, streamsSerde)
 
     streamsBuilder.build(toProperties(properties))
   }
@@ -174,13 +174,13 @@ object KafkaStreamsBuilder {
     streamSettings: KafkaStreamSettings,
     srClient: SchemaRegistryClient,
     serdeSettings: SerdeSettings,
-    top: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
+    buildTopology: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings,
       srClient = srClient,
       serdeSettings = serdeSettings,
-      top = top,
+      buildTopology = buildTopology,
       startupTimeout = Duration.Inf,
       closeTimeout = FiniteDuration(30, scala.concurrent.duration.SECONDS),
       log = Log.noop[F]
