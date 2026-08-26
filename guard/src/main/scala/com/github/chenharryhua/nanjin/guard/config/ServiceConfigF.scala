@@ -148,6 +148,6 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
-      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Info)
+      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn)
     )
 }
