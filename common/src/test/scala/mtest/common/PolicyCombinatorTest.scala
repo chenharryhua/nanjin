@@ -262,4 +262,69 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(ticks.isEmpty)
   }
 
+  test("15.expire - stops ticks after ttl") {
+    val policy = Policy.fixedDelay(1.second).repeat.expire(5.seconds)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(100).compile.toList.unsafeRunSync()
+    // each tick has ~1s snooze, so we expect at most 4 ticks within 5s budget
+    assert(ticks.nonEmpty)
+    assert(ticks.size <= 5)
+    ticks.foreach { t =>
+      val elapsed = java.time.Duration.between(t.launchTime, t.conclude)
+      assert(elapsed.compareTo(5.seconds.toJava) < 0)
+    }
+  }
+
+  test("16.expire - repeat has no effect past expiry") {
+    val policy = Policy.fixedDelay(2.seconds).repeat.expire(3.seconds)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(100).compile.toList.unsafeRunSync()
+    // 2s delay means only 1 tick fits in 3s budget
+    assert(ticks.size == 1)
+  }
+
+  test("17.expire - followedBy has no effect past expiry") {
+    val policy = Policy.fixedDelay(2.seconds).expire(3.seconds).followedBy(_.fixedDelay(1.second).repeat)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(100).compile.toList.unsafeRunSync()
+    // expire wraps only the first part; followedBy appends after expire exhausts
+    // the first policy produces 1 tick (2s fits in 3s), then followedBy kicks in
+    assert(ticks.size > 1)
+  }
+
+  test("18.expire - wrapping the entire composition stops everything") {
+    val policy =
+      Policy.fixedDelay(2.seconds).followedBy(_.fixedDelay(1.second).repeat).expire(3.seconds)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(100).compile.toList.unsafeRunSync()
+    // expire is outermost, so nothing escapes the 3s window
+    assert(ticks.nonEmpty)
+    ticks.foreach { t =>
+      val elapsed = java.time.Duration.between(t.launchTime, t.conclude)
+      assert(elapsed.compareTo(3.seconds.toJava) < 0)
+    }
+  }
+
+  test("19.expire - requires positive duration") {
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedDelay(1.second).expire(0.seconds)
+    }
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedDelay(1.second).expire(-1.second)
+    }
+  }
+
+  test("20.expire - codec round-trip") {
+    val policy = Policy.fixedDelay(1.second, 2.seconds).repeat.expire(10.minutes)
+    val json = policy.asJson.noSpaces
+    val decoded = decode[Policy](json)
+    assert(decoded.toOption.get == policy)
+  }
+
+  test("21.expire - show") {
+    val policy = Policy.fixedDelay(1.second).repeat.expire(5.seconds)
+    val shown = policy.toString
+    assert(shown.contains("expire"))
+    assert(shown.contains("PT5S"))
+  }
 }

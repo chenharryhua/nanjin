@@ -42,6 +42,8 @@ private object CodecPolicy {
       Json.obj(OFFSET -> offset.asJson, POLICY -> policy)
     case Jitter(policy, min, max) =>
       Json.obj(JITTER -> Json.obj(JITTER_MIN -> min.asJson, JITTER_MAX -> max.asJson, POLICY -> policy))
+    case Expire(policy, ttl) =>
+      Json.obj(EXPIRE -> ttl.asJson, POLICY -> policy)
   }
 
   val encoder: Encoder[Fix[PolicyF]] =
@@ -71,7 +73,8 @@ private object CodecPolicy {
       MEET,
       EXCEPT,
       OFFSET,
-      REPEAT
+      REPEAT,
+      EXPIRE
     )
 
     def empty(hc: HCursor): Result[Empty[HCursor]] =
@@ -130,6 +133,12 @@ private object CodecPolicy {
       (plc, ost).mapN(Offset[HCursor])
     }
 
+    def expire(hc: HCursor): Result[Expire[HCursor]] = {
+      val ttl = readField[Duration](hc, EXPIRE)
+      val plc = readNestedCursor(hc, POLICY)
+      (plc, ttl).mapN(Expire[HCursor])
+    }
+
     def decodeVariant(hc: HCursor): Result[PolicyF[HCursor]] = {
       val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variantKeys)
       present.toList match {
@@ -146,6 +155,7 @@ private object CodecPolicy {
             case EXCEPT      => except(hc)
             case OFFSET      => offset(hc)
             case REPEAT      => repeat(hc)
+            case EXPIRE      => expire(hc)
             case other       =>
               Left(DecodingFailure(s"Unsupported policy variant key: $other", hc.history))
           }
