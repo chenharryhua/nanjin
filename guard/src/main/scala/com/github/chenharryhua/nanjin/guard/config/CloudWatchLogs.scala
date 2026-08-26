@@ -21,8 +21,7 @@ private object CloudWatchLogs {
 
   final private case class LogOptions(logGroup: String, region: String, logStream: String)
 
-  private def extract(brief: Brief): Option[LogOptions] = {
-    val cursor = brief.value.hcursor
+  private def extract(brief: Brief): Option[LogOptions] =
     // search in the top-level array (brief is a JSON array of config objects)
     brief.value.asArray
       .flatMap { arr =>
@@ -37,14 +36,13 @@ private object CloudWatchLogs {
       }
       .orElse {
         // fallback: brief itself might be a single object
-        val c = cursor.downField("LogOptions")
+        val c = brief.value.hcursor.downField("LogOptions")
         for {
           group <- c.get[String]("awslogs-group").toOption
           region <- c.get[String]("awslogs-region").toOption
           stream <- c.get[String]("awslogs-stream").toOption
         } yield LogOptions(group, region, stream)
       }
-  }
 
   // CloudWatch console uses double URL-encoding: / -> %2F -> $252F
   private def encode(s: String): String =

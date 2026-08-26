@@ -83,7 +83,7 @@ class NJProtobufTest extends AnyFunSuite {
       .emits(animals)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).protobuf)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t)).protobuf)
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError

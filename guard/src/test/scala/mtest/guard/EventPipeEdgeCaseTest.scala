@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import cats.syntax.order.catsSyntaxPartialOrder
 import org.scalatest.funsuite.AnyFunSuite
@@ -17,13 +17,13 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
   private val service =
     TaskGuard[IO]("pipe.edge")
       .service("pipe.edge")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)).withInitialLogLevel(_.Debug))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat).withLogThreshold(_.Debug, _.Debug))
 
   // --- identity ---
 
   test("1.EventPipe.identity passes all events through unchanged") {
     val events = service
-      .eventStream(agent => agent.heraldLogger.info("msg") *> agent.adhoc.report)
+      .eventStream(agent => agent.logger.info("msg") *> agent.adhoc.report)
       .map(checkJson)
       .filter(EventPipe.identity.filter)
       .compile
@@ -64,10 +64,10 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
   test("3.EventPipe.logLevel filters ReportedEvents below threshold") {
     val events = service
       .eventStream { agent =>
-        agent.heraldLogger.debug("debug-msg") *>
-          agent.heraldLogger.info("info-msg") *>
-          agent.heraldLogger.warn("warn-msg") *>
-          agent.heraldLogger.error("error-msg")
+        agent.logger.debug("debug-msg") *>
+          agent.logger.info("info-msg") *>
+          agent.logger.warn("warn-msg") *>
+          agent.logger.error("error-msg")
       }
       .map(checkJson)
       .filter(EventPipe.logLevel(_.Warn).filter)
@@ -83,7 +83,7 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
 
   test("4.EventPipe.logLevel passes non-ReportedEvent events through") {
     val events = service
-      .eventStream(agent => agent.heraldLogger.debug("debug") *> agent.adhoc.report)
+      .eventStream(agent => agent.logger.debug("debug") *> agent.adhoc.report)
       .map(checkJson)
       .filter(EventPipe.logLevel(_.Error).filter)
       .compile

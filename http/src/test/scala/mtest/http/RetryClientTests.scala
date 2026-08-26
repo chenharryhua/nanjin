@@ -40,7 +40,7 @@ class RetryClientTests extends CatsEffectSuite {
   test("1.Successful request without retries") {
     val resp = Response[IO](Status.Ok)
     val client = okClient(resp)
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(1.second).limited(3))(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(1.second).repeat.limited(3))(client)
 
     val req = Request[IO](Method.GET, uri"/ok")
 
@@ -53,7 +53,7 @@ class RetryClientTests extends CatsEffectSuite {
     val counter = Ref.unsafe[IO, Int](0)
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 2, resp)
-    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(5))(client)
 
     val req = Request[IO](Method.GET, uri"/retry")
     for {
@@ -69,7 +69,7 @@ class RetryClientTests extends CatsEffectSuite {
     val counter = Ref.unsafe[IO, Int](0)
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 3, resp)
-    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(5))(client)
 
     val req = Request[IO](Method.GET, uri"/reckless")
     for {
@@ -84,7 +84,7 @@ class RetryClientTests extends CatsEffectSuite {
   test("4.Exhausting policy stops retries with failure") {
     val counter = Ref.unsafe[IO, Int](0)
     val client = failingClient(counter, failTimes = 5, Response[IO](Status.Ok))
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(3))(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(3))(client)
 
     val req = Request[IO](Method.GET, uri"/fail")
     retryClient.run(req).use(_ => IO.unit).attempt.map {
@@ -103,7 +103,7 @@ class RetryClientTests extends CatsEffectSuite {
         }
       )
     }
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(5))(client)
 
     val req = Request[IO](Method.GET, uri"/retry-status")
     for {
@@ -122,7 +122,7 @@ class RetryClientTests extends CatsEffectSuite {
         counter.updateAndGet(_ + 1).map(_ => Response[IO](Status.BadRequest))
       )
     }
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(3))(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(3))(client)
 
     val req = Request[IO](Method.GET, uri"/bad-request")
     for {
@@ -143,7 +143,7 @@ class RetryClientTests extends CatsEffectSuite {
     val customRetriable = (req: Request[IO], ex: Either[Throwable, Response[IO]]) =>
       req.method == Method.GET && ex.exists(_.status == Status.InternalServerError)
 
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(3), customRetriable)(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(3), customRetriable)(client)
 
     val getReq = Request[IO](Method.GET, uri"/only-get-retries")
     val postReq = Request[IO](Method.POST, uri"/only-get-retries")
@@ -272,7 +272,7 @@ class RetryClientTests extends CatsEffectSuite {
       )
     }
 
-    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(5))(client)
     val req = Request[IO](Method.GET, uri"/retry-after")
 
     for {
@@ -299,7 +299,7 @@ class RetryClientTests extends CatsEffectSuite {
       )
     }
 
-    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).limited(5))(client)
+    val retryClient = recklessHttpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(5))(client)
     val req = Request[IO](Method.GET, uri"/reckless-status")
 
     for {

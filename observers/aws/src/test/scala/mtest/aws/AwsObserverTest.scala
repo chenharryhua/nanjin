@@ -19,7 +19,7 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
-    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).limited(1)))
+    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).repeat.limited(1)))
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter("meter", _.withUnit(Bytes)))
@@ -39,7 +39,7 @@ class AwsObserverTest extends AnyFunSuite {
   test("2.ses mail") {
     val mail =
       EmailObserver(ses_client)
-        .withPolicy(_.fixedDelay(5.seconds))
+        .withPolicy(_.fixedDelay(5.seconds).repeat)
         .withZoneId(sydneyTime)
         .withCapacity(200)
         .withOldestFirst
@@ -67,7 +67,7 @@ class AwsObserverTest extends AnyFunSuite {
 
     TaskGuard[IO]("aws")
       .service("cloudwatch")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStreamS { agent =>
         val work = agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
           m.mark(1) >> IO.sleep(1.second) >>
@@ -88,13 +88,13 @@ class AwsObserverTest extends AnyFunSuite {
   test("6.email observer - limited should terminate") {
     val mail =
       EmailObserver(ses_client)
-        .withPolicy(_.fixedDelay(2.seconds).limited(3))
+        .withPolicy(_.fixedDelay(2.seconds).repeat.limited(3))
         .withZoneId(sydneyTime)
         .observe(Email("a@b.c"), NonEmptyList.one(Email("b@c.d")), "email")
 
     TaskGuard[IO]("email")
       .service("email")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStream(_ => IO.never)
       .through(mail)
       .compile

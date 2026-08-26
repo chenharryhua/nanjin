@@ -70,7 +70,159 @@ class HttpServerTest extends AnyFunSuite {
     assert(res.last.asInstanceOf[ServiceStop].cause === Maintenance)
   }
 
-  test("2.panic history") {
+  test("2.log threshold - set both via POST /log/{level}") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { c =>
+        val setWarn = Request[IO](method = POST, uri = uri"http://localhost:9998/log/Warn")
+        val getLevel = uri"http://localhost:9998/log/level"
+        for {
+          before <- c.expect[String](getLevel)
+          _ = assert(
+            jawn.parse(before).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Info"))
+          resp <- c.expect[String](setWarn)
+          parsed = jawn.parse(resp).toOption.get
+          _ = assert(
+            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Warn"))
+          _ = assert(
+            parsed.hcursor.downField("current").downField("channel").as[String].toOption.contains("Warn"))
+          after <- c.expect[String](getLevel)
+          _ = assert(
+            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Warn"))
+          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9998/stop"))
+        } yield stop
+      }
+      .delayBy(3.seconds)
+
+    val res = guard
+      .service("log-both")
+      .updateConfig(_.withHttpServer(_.withPort(port"9998")))
+      .eventStream(_ => IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain <& client
+    res.unsafeRunSync()
+  }
+
+  test("3.log threshold - POST /log/logger/{level} changes only logger") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { c =>
+        val setLoggerDebug = Request[IO](method = POST, uri = uri"http://localhost:9996/log/logger/Debug")
+        val getLevel = uri"http://localhost:9996/log/level"
+        for {
+          resp <- c.expect[String](setLoggerDebug)
+          parsed = jawn.parse(resp).toOption.get
+          _ = assert(
+            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Debug"))
+          _ = assert(
+            parsed.hcursor.downField("current").downField("channel").as[String].toOption.contains("Info"))
+          after <- c.expect[String](getLevel)
+          _ = assert(
+            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Debug"))
+          _ = assert(
+            jawn.parse(after).toOption.get.hcursor.downField("channel").as[String].toOption.contains("Info"))
+          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9996/stop"))
+        } yield stop
+      }
+      .delayBy(3.seconds)
+
+    val res = guard
+      .service("log-logger")
+      .updateConfig(_.withHttpServer(_.withPort(port"9996")))
+      .eventStream(_ => IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain <& client
+    res.unsafeRunSync()
+  }
+
+  test("4.log threshold - POST /log/channel/{level} changes only channel") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { c =>
+        val setChannelError = Request[IO](method = POST, uri = uri"http://localhost:9995/log/channel/Error")
+        val getLevel = uri"http://localhost:9995/log/level"
+        for {
+          resp <- c.expect[String](setChannelError)
+          parsed = jawn.parse(resp).toOption.get
+          _ = assert(
+            parsed.hcursor.downField("current").downField("channel").as[String].toOption.contains("Error"))
+          _ = assert(
+            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Info"))
+          after <- c.expect[String](getLevel)
+          _ = assert(
+            jawn.parse(after).toOption.get.hcursor.downField("channel").as[String].toOption.contains("Error"))
+          _ = assert(
+            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Info"))
+          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9995/stop"))
+        } yield stop
+      }
+      .delayBy(3.seconds)
+
+    val res = guard
+      .service("log-channel")
+      .updateConfig(_.withHttpServer(_.withPort(port"9995")))
+      .eventStream(_ => IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain <& client
+    res.unsafeRunSync()
+  }
+
+  test("5.log threshold - POST /log/logger/Disabled disables logging") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { c =>
+        val disable = Request[IO](method = POST, uri = uri"http://localhost:9994/log/logger/Disabled")
+        val getLevel = uri"http://localhost:9994/log/level"
+        for {
+          resp <- c.expect[String](disable)
+          parsed = jawn.parse(resp).toOption.get
+          _ = assert(parsed.hcursor.downField("current").as[String].toOption.contains("Disabled"))
+          after <- c.expect[String](getLevel)
+          _ = assert(jawn.parse(after).toOption.get.as[String].toOption.contains("Disabled"))
+          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9994/stop"))
+        } yield stop
+      }
+      .delayBy(3.seconds)
+
+    val res = guard
+      .service("log-disable")
+      .updateConfig(_.withHttpServer(_.withPort(port"9994")))
+      .eventStream(_ => IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain <& client
+    res.unsafeRunSync()
+  }
+
+  test("6.log threshold - invalid level returns BadRequest") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { c =>
+        val bad = Request[IO](method = POST, uri = uri"http://localhost:9993/log/logger/Nonsense")
+        c.status(bad).map(s => assert(s.code == 400)) >>
+          c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9993/stop"))
+      }
+      .delayBy(3.seconds)
+
+    val res = guard
+      .service("log-bad")
+      .updateConfig(_.withHttpServer(_.withPort(port"9993")))
+      .eventStream(_ => IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain <& client
+    res.unsafeRunSync()
+  }
+
+  test("7.panic history") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9997/stop")
     val client = EmberClientBuilder
       .default[IO]

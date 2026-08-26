@@ -67,7 +67,7 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] val zoneId: ZoneId,
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]],
-  private[guard] val logLevel: LogLevel) {
+  private[guard] val logThreshold: LogThreshold) {
   import ServiceConfigF.*
 
   private def copy(
@@ -75,8 +75,8 @@ final class ServiceConfig[F[_]: Applicative] private (
     zoneId: ZoneId = this.zoneId,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs,
-    logLevel: LogLevel = this.logLevel): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logLevel)
+    logThreshold: LogThreshold = this.logThreshold): ServiceConfig[F] =
+    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logThreshold)
 
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
@@ -105,8 +105,17 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
 
-  def withInitialLogLevel(f: LogLevel.type => LogLevel): ServiceConfig[F] =
-    copy(logLevel = f(LogLevel))
+  /** Set the minimum log levels for the two logging paths.
+    *
+    * @param logger
+    *   threshold for the local log sink (e.g. console/file). Messages below this level are not written.
+    * @param channel
+    *   threshold for the event channel (observers, alerts). Messages below this level are not published.
+    */
+  def withLogThreshold(
+    logger: LogLevel.type => LogLevel,
+    channel: LogLevel.type => LogLevel): ServiceConfig[F] =
+    copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
 
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
@@ -137,6 +146,6 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
-      logLevel = LogLevel.Info
+      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Info)
     )
 }

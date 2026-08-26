@@ -50,7 +50,8 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     // Policy should progress linearly without reset: 1s, 2s, 3s
     val events = guard
       .service("large-threshold")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis, 200.millis, 300.millis).limited(3)))
+      .updateConfig(
+        _.withRestartPolicy(1.hour, _.fixedDelay(100.millis, 200.millis, 300.millis).repeat.limited(3)))
       .eventStream(_ => IO.raiseError(new Exception("fail")))
       .map(checkJson)
       .compile
@@ -76,7 +77,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     var attempt = 0
     val events = guard
       .service("small-threshold")
-      .updateConfig(_.withRestartPolicy(200.millis, _.fixedDelay(100.millis, 500.millis).limited(3)))
+      .updateConfig(_.withRestartPolicy(200.millis, _.fixedDelay(100.millis, 500.millis).repeat.limited(3)))
       .eventStream { _ =>
         attempt += 1
         IO.sleep(300.millis) *> IO.raiseError(new Exception(s"fail #$attempt"))
@@ -105,7 +106,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
     var attempt = 0
     val events = guard
       .service("boundary")
-      .updateConfig(_.withRestartPolicy(500.millis, _.fixedDelay(100.millis, 200.millis).limited(2)))
+      .updateConfig(_.withRestartPolicy(500.millis, _.fixedDelay(100.millis, 200.millis).repeat.limited(2)))
       .eventStream { _ =>
         attempt += 1
         IO.sleep(400.millis) *> IO.raiseError(new Exception(s"fail #$attempt"))
@@ -151,7 +152,7 @@ class WatchdogEdgeCaseTest extends AnyFunSuite {
   test("8.stop event fires exactly once after retries exhausted") {
     val events = guard
       .service("stop-once-retries")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(2)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(2)))
       .eventStream(_ => IO.raiseError(new Exception("fail")))
       .map(checkJson)
       .compile

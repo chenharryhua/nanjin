@@ -3,38 +3,34 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 import java.time.Duration
 import io.circe.Codec
 
-final private[dashboard] case class ClassLoadGauge(loaded: Int, unloaded: Long, total: Long)
-    derives Codec.AsObject
+final private case class ClassLoadGauge(loaded: Int, unloaded: Long, total: Long) derives Codec.AsObject
 
-final case class ThreadDeadlocks(
+final private case class ThreadDeadlocks(
   thread: String,
   lock: Option[String],
   owner: Option[String],
   stack: List[String])
     derives Codec.AsObject
 
-final private[dashboard] case class HeapMemory(init: Long, used: Long, max: Long, committed: Long)
+final private case class HeapMemory(init: Long, used: Long, max: Long, committed: Long) derives Codec.AsObject
+
+final private case class NonHeapMemory(init: Long, used: Long, max: Long, committed: Long)
     derives Codec.AsObject
 
-final private[dashboard] case class NonHeapMemory(init: Long, used: Long, max: Long, committed: Long)
+final private case class GarbageCollector(name: String, count: Long, took: Duration) derives Codec.AsObject
+
+final private case class ThreadState(live: Int, daemon: Int, peak: Int, started: Long) derives Codec.AsObject
+
+final private case class OperatingSystem(architecture: String, available_processors: Int)
     derives Codec.AsObject
 
-final private[dashboard] case class GarbageCollector(name: String, count: Long, took: Duration)
-    derives Codec.AsObject
-
-final private[dashboard] case class ThreadState(live: Int, daemon: Int, peak: Int, started: Long)
-    derives Codec.AsObject
-
-final private[dashboard] case class OperatingSystem(architecture: String, available_processors: Int)
-    derives Codec.AsObject
-
-final private[dashboard] case class RuntimeMX(
+final private case class RuntimeMX(
   pid: Long,
   virtual_machine: String,
   input_arguments: List[String]
 ) derives Codec.AsObject
 
-final private[dashboard] case class AllJvmGauge(
+final private case class AllJvmGauge(
   operating_system: OperatingSystem,
   runtime: RuntimeMX,
   classloader: ClassLoadGauge,

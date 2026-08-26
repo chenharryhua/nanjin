@@ -112,9 +112,9 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("8.performance herald") {
+  test("8.performance channel") {
     val (fd, i) = service
-      .eventStreamS(agent => fs2.Stream.repeatEval(agent.heraldLogger.info("hello")).take(3_000_000))
+      .eventStreamS(agent => fs2.Stream.repeatEval(agent.logger.info("hello")).take(3_000_000))
       .compile
       .fold(0)((s, _) => s + 1)
       .timed

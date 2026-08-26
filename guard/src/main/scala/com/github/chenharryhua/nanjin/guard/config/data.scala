@@ -2,10 +2,12 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.kernel.Eq
+import cats.syntax.order.given
 import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import io.circe.{Decoder, Encoder, Json}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import io.circe.{Codec, Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -224,3 +226,24 @@ object LogLink:
   given Encoder[LogLink] = OpaqueLift.lift[LogLink, String, Encoder]
   given Decoder[LogLink] = OpaqueLift.lift[LogLink, String, Decoder]
 end LogLink
+
+/** Controls the minimum severity at which log messages are processed.
+  *
+  * The guard distinguishes two logging paths:
+  *
+  *   - '''logger''' writes messages to the log sink (typically the application log file or console).
+  *   - '''channel''' publishes messages to the event channel (for observers, alerting, and downstream
+  *     consumers).
+  *
+  * Each path has an independent threshold: messages below a path's threshold are discarded for that path. The
+  * `min` field is the lower of the two, used by `logger.enabled` so that a message is created whenever either
+  * path would accept it.
+  *
+  * @param logger
+  *   minimum level for writing to the log sink
+  * @param channel
+  *   minimum level for publishing to the event channel
+  */
+final case class LogThreshold(logger: LogLevel, channel: LogLevel) derives Codec.AsObject {
+  val min: LogLevel = logger.min(channel)
+}

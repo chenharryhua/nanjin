@@ -26,13 +26,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 /** Primary API for structured batch execution with lifecycle hooks, metrics, and observable progress. */
-/** Metrics-backed batch construction and execution API.
-  *
-  * Obtain a batch from `Agent.batch(label)`, choose sequential, parallel, or monadic composition, and acquire
-  * the result resource. `quasiBatch` keeps per-job failures in the result; `batchValue` raises failures and
-  * returns successful values. Metric registration, progress reporting, hooks, and cleanup are scoped to the
-  * returned `Resource`.
-  */
 object Batch:
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
@@ -491,7 +484,6 @@ end Batch
   * results. Acquire `quasiBatch` or `batchValue` with `.use`; both execution styles report progress and
   * lifecycle events.
   */
-/** Metrics-backed batch façade for long-running or stateful work. */
 final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {
 
   /** Create a sequential batch from named effects; jobs run in input order.
@@ -524,7 +516,6 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       uuidGenerator = uuidGenerator)
   }
 
-  /** Create a parallel batch with parallelism equal to the number of jobs. */
   /** Create a parallel batch with parallelism inferred from the job count. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)

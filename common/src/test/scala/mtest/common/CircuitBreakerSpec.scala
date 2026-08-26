@@ -36,7 +36,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
   "CircuitBreaker" - {
 
     "allows successful effects" in
-      breaker(1, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         cb.protect(IO.pure(42)).map { result =>
           result shouldBe 42
         }
@@ -45,7 +45,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "opens after exceeding maxFailures" in {
       val err = new RuntimeException("boom")
 
-      breaker(2, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(2, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err))
@@ -58,7 +58,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "rejects immediately when open" in {
       val err = new RuntimeException("fail")
 
-      breaker(1, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err))
@@ -70,7 +70,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "exposes Open state without counter" in {
       val err = new RuntimeException("fail")
 
-      breaker(1, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err))
@@ -84,7 +84,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -100,7 +100,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -125,7 +125,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -142,7 +142,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -156,11 +156,11 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
     "rejects non-positive maxFailures at configuration time" in {
       assertThrows[IllegalArgumentException] {
-        breaker(0, Policy.fixedDelay(10.seconds)).use(_ => IO.unit).unsafeRunSync()
+        breaker(0, Policy.fixedDelay(10.seconds).repeat).use(_ => IO.unit).unsafeRunSync()
       }
 
       assertThrows[IllegalArgumentException] {
-        breaker(-1, Policy.fixedDelay(10.seconds)).use(_ => IO.unit).unsafeRunSync()
+        breaker(-1, Policy.fixedDelay(10.seconds).repeat).use(_ => IO.unit).unsafeRunSync()
       }
     }
 
@@ -169,7 +169,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -185,7 +185,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "stays closed when a closed-state call is canceled" in
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           run <- cb.attempt(IO.sleep(500.millis)).start
@@ -196,7 +196,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
       }.unsafeRunSync()
 
     "reuses singleton rejection throwable" in
-      breaker(1, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(new RuntimeException("fail")))
           _ <- cb.attempt(IO.raiseError(new RuntimeException("fail")))
@@ -212,7 +212,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
       }.unsafeRunSync()
 
     "does not let stale success overwrite newer closed failures" in
-      breaker(3, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(3, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           gate <- Deferred[IO, Unit]
           slowSuccess <- cb.attempt(gate.get.as(())).start
@@ -230,7 +230,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
       }.unsafeRunSync()
 
     "does not let stale failure increment newer closed failures" in
-      breaker(3, Policy.fixedDelay(10.seconds)).use { cb =>
+      breaker(3, Policy.fixedDelay(10.seconds).repeat).use { cb =>
         for {
           gate <- Deferred[IO, Unit]
           slowFailure <- cb.attempt(gate.get >> IO.raiseError(new RuntimeException("slow"))).start
@@ -247,7 +247,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
       }.unsafeRunSync()
 
     "does not let stale failure write after closed count cycles" in
-      breaker(2, Policy.fixedDelay(80.millis)).use { cb =>
+      breaker(2, Policy.fixedDelay(80.millis).repeat).use { cb =>
         for {
           gate <- Deferred[IO, Unit]
           slowFailure <- cb.attempt(gate.get >> IO.raiseError(new RuntimeException("slow"))).start
@@ -296,7 +296,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
 
       breaker(
         maxFailures = 1,
-        policy = Policy.fixedDelay(100.millis)
+        policy = Policy.fixedDelay(100.millis).repeat
       ).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
@@ -318,7 +318,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
       // This exercises the evolve(HalfOpenRunning, from=Closed) -> ms path
       breaker(
         maxFailures = 2,
-        policy = Policy.fixedDelay(80.millis)
+        policy = Policy.fixedDelay(80.millis).repeat
       ).use { cb =>
         for {
           gate <- Deferred[IO, Unit]

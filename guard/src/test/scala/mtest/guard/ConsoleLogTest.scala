@@ -27,7 +27,7 @@ class ConsoleLogTest extends AnyFunSuite {
         _ <- mtx
           .percentile("1")
           .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
-      } yield Kleisli((_: Int) => agent.heraldLogger.warn("wow", new Exception))
+      } yield Kleisli((_: Int) => agent.logger.warn("wow", new Exception))
     }
     mtx.use(
       _.run(1) >>
@@ -39,7 +39,9 @@ class ConsoleLogTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .updateConfig(
-        _.addBrief(Json.fromString("brief")).withRestartPolicy(10.hour, _.fixedRate(2.second).limited(1)))
+        _.addBrief(Json.fromString("brief")).withRestartPolicy(
+          10.hour,
+          _.fixedRate(2.second).repeat.limited(1)))
 
   test("1.console - verbose json") {
     val mr = service

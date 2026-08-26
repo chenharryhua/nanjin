@@ -68,13 +68,12 @@ sealed trait Agent[F[_]] {
     */
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
-  /** Low-overhead service logger that writes to the configured logging backend without using the herald
-    * channel.
+  /** Logger that writes messages to the log sink and publishes to the event channel.
+    *
+    * The log sink write is gated by `logThreshold.logger`; the channel publication is gated by
+    * `logThreshold.channel`.
     */
   val logger: Log[F]
-
-  /** Logger that sends each message to both the herald channel and the configured logging backend. */
-  val heraldLogger: Log[F]
 
   /** Create a full metrics hub for a named metric label. */
   def metricsHub(label: String): MetricsHub[F]
@@ -186,7 +185,5 @@ final private class GeneralAgent[F[_]: Async](
   override val adhoc: AdhocReport[F] = metricsEventHandler
 
   override val logger: Log[F] = reportedEventHandler.logger
-
-  override val heraldLogger: Log[F] = reportedEventHandler.heraldLogger
 
 }

@@ -15,11 +15,11 @@ class ServiceMessageTest extends AnyFunSuite {
     TaskGuard[IO]("Messaging System")
       .service("Forward")
       .updateConfig(
-        _.withInitialLogLevel(_.Debug)
-          .withMetricsReport(_.fixedRate(100.milliseconds)))
+        _.withLogThreshold(_.Debug, _.Debug)
+          .withMetricsReport(_.fixedRate(100.milliseconds).repeat))
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    val log = agent.heraldLogger
+    val log = agent.logger
     log.info("a") >>
       log.info(1) >>
       log.info(List(1, 2, 3)) >>
@@ -28,14 +28,14 @@ class ServiceMessageTest extends AnyFunSuite {
       log.info(Json.Null)
 
   private def warn(agent: Agent[IO]): IO[Unit] =
-    val log = agent.heraldLogger
+    val log = agent.logger
     log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
       log.warn(Json.Null) >>
       log.warn("oops", new Exception()) >>
       log.warn(Json.Null, new Exception())
 
   private def mix(agent: Agent[IO]): IO[Unit] =
-    val log = agent.heraldLogger
+    val log = agent.logger
     agent.adhoc.report >>
       log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
       log.info(Json.Null) >>

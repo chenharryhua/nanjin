@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.guard.config.{
   Timestamp,
   UpTime
 }
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
 import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
@@ -108,7 +108,7 @@ object Event {
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
     policy: Policy,
-    index: Index,
+    index: MetricsIndex,
     snapshot: Snapshot,
     took: Took)
       extends Event {
@@ -155,11 +155,11 @@ object Event {
   val adhocSnapshot: Optional[Event, Adhoc] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[Index, Adhoc])
+      .andThen(GenPrism[MetricsIndex, Adhoc])
 
   val reportTick: Optional[Event, Tick] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[Index, Periodic])
+      .andThen(GenPrism[MetricsIndex, Periodic])
       .andThen(GenLens[Periodic](_.tick))
 }

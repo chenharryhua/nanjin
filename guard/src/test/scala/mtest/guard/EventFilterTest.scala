@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Duration, LocalTime}
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import fs2.Stream
 
@@ -52,7 +52,7 @@ class EventFilterTest extends AnyFunSuite {
   }
 
   test("3.sampling - cron") {
-    val policy = Policy.crontab(_.secondly)
+    val policy = Policy.crontab(_.secondly).repeat
     val align = tickStream.tickScheduled[IO](sydneyTime, _.crontab(_.every3Seconds))
     val run = service
       .updateConfig(_.withMetricsReport(_ => policy))

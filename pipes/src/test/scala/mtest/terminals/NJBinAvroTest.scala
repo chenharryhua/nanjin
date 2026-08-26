@@ -79,7 +79,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
+      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
         path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
@@ -135,7 +135,7 @@ class NJBinAvroTest extends AnyFunSuite {
   test("11.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
+    val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
       path / BinAvroFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>

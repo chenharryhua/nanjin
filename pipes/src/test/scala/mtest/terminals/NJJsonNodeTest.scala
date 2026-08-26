@@ -83,7 +83,7 @@ class NJJsonNodeTest extends AnyFunSuite {
       .emits(pandaSet.toList.flatMap(genericRecord2JsonNode(_).toOption))
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second))(t => path / file.fileName(t))
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second).repeat)(t => path / file.fileName(t))
         .jsonNode(objectMapper.writer()))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile

@@ -37,7 +37,7 @@ class GaugeTest extends AnyFunSuite {
           _.healthCheck(
             "health",
             _.withTimeout(1.second)
-              .withPolicy(_.crontab(_.secondly))
+              .withPolicy(_.crontab(_.secondly).repeat)
               .enable(true)
               .register(IO(true))))
         .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
@@ -121,9 +121,9 @@ class GaugeTest extends AnyFunSuite {
     service.eventStream { agent =>
       agent.facilitate("expensive") { fac =>
         val mtx = for {
-          _ <- fac.gauge("3", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(3.second)))
-          _ <- fac.gauge("2", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(2.second)))
-          _ <- fac.gauge("1", _.withPolicy(_.fixedDelay(15.minutes)).register(compute(1.second)))
+          _ <- fac.gauge("3", _.withPolicy(_.fixedDelay(15.minutes).repeat).register(compute(3.second)))
+          _ <- fac.gauge("2", _.withPolicy(_.fixedDelay(15.minutes).repeat).register(compute(2.second)))
+          _ <- fac.gauge("1", _.withPolicy(_.fixedDelay(15.minutes).repeat).register(compute(1.second)))
         } yield ()
         mtx.surround(agent.adhoc.report.void)
       }
@@ -137,7 +137,7 @@ class GaugeTest extends AnyFunSuite {
         _ <- agent.facilitate("cached-counter")(
           _.gauge(
             "counter",
-            _.withPolicy(_.fixedDelay(24.hours))
+            _.withPolicy(_.fixedDelay(24.hours).repeat)
               .register(ref.modify(i => (i + 1, i + 1)))))
       } yield ()
 
