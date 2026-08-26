@@ -78,32 +78,72 @@ final class ServiceConfig[F[_]: Applicative] private (
     logThreshold: LogThreshold = this.logThreshold): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logThreshold)
 
+  /** Set the restart policy for the service.
+    *
+    * When the service crashes, the policy governs retry delays. If the service has been running longer than
+    * `threshold` since the last panic, the policy resets to its initial state.
+    *
+    * @param threshold
+    *   duration of successful running after which the policy resets
+    * @param f
+    *   builder for the restart scheduling policy
+    */
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
 
+  /** Set the periodic metrics reporting policy.
+    *
+    * The policy drives how often metrics snapshots are collected and published as events. Use `.repeat` to
+    * keep reporting indefinitely.
+    *
+    * @param f
+    *   builder for the reporting schedule
+    */
   def withMetricsReport(f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricsReport(f(Policy), cont)))
 
+  /** Set the service homepage URL, shown in dashboard and observer output. */
   def withHomepage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
 
+  /** Override the task name for this service configuration. */
   def withTaskName(tn: String): ServiceConfig[F] =
     copy(cont = Fix(WithTaskName(Task(tn), cont)))
 
+  /** Set the time zone used by ticks, policies, and timestamp formatting. */
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
     copy(zoneId = zoneId)
+
+  /** Set the time zone using a builder function over the predefined `zones` object. */
   def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
     withZoneId(f(zones))
 
+  /** Enable the embedded HTTP dashboard server with a custom Ember server builder.
+    *
+    * The server exposes REST endpoints for metrics, params, health checks, log level control, and optionally
+    * a WebSocket-based live chart.
+    */
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
     copy(httpBuilder = Some(f))
 
+  /** Attach an effectful brief to the service metadata.
+    *
+    * Briefs are JSON documents that travel with every lifecycle event (start, panic, stop). Use them for
+    * deployment context, build info, or custom annotations.
+    */
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
+
+  /** Attach a by-name brief to the service metadata. */
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
 
+  /** Set the bounded history capacity for panics, errors, and metrics snapshots.
+    *
+    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers.
+    */
   def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
     copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
 
+  /** Set the log output format (console plain text, JSON, SLF4J, etc.). */
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
 
@@ -119,6 +159,13 @@ final class ServiceConfig[F[_]: Applicative] private (
     channel: LogLevel.type => LogLevel): ServiceConfig[F] =
     copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
 
+  /** Enable the live WebSocket dashboard with a chart showing metered counts over time.
+    *
+    * @param maxPoints
+    *   maximum data points retained per series (controls chart density)
+    * @param f
+    *   policy controlling how often data points are sampled
+    */
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
 

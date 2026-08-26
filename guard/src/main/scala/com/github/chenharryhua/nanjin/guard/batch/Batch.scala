@@ -374,6 +374,16 @@ object Batch:
         StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure)
       })
 
+    /** Lift an effectful value into the monadic batch without creating a job.
+      *
+      * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
+      * crashes the batch.
+      */
+    def pureF[A](fa: F[A]): Monadic[A] =
+      new Monadic[A](Kleisli { _ =>
+        StateT(idx => Resource.eval(fa).map(a => idx -> ExecutionState(Right(a), Nil)))
+      })
+
     private def handleOutcome[A](
       job: Job,
       jobHook: JobHook[F, Json],

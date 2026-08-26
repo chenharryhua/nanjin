@@ -423,4 +423,69 @@ class BatchTest extends AnyFunSuite {
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
+
+  test("18.monadic pureF - Batch") {
+    val se = service.eventStreamR { agent =>
+      agent.batch("pureF").monadic { job =>
+        val result = for {
+          config <- job.pureF(IO("hello"))
+          len <- job("length", IO(config.length))
+        } yield len
+        result.monadicBatch(JobHook.noop).map { mb =>
+          assert(mb.done)
+          assert(mb.result == Right(5))
+          // pureF does not create a job entry; only "length" appears
+          assert(mb.jobs.size == 1)
+          assert(mb.jobs.head.job.name == "length")
+        }
+      }
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("19.monadic pureF - BatchLight") {
+    val result = service.eventStreamR { agent =>
+      agent.batchLight("pureF-light").monadic { job =>
+        val batch = for {
+          x <- job.pureF(IO(42))
+          y <- job("double", IO(x * 2))
+        } yield y
+        cats.effect.Resource.eval(batch.monadicBatch).map { mb =>
+          assert(mb.done)
+          assert(mb.result == Right(84))
+          assert(mb.jobs.size == 1)
+          assert(mb.jobs.head.job.name == "double")
+        }
+      }
+    }.compile.lastOrError.unsafeRunSync()
+    assert(result.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("20.monadic pureF - Batch - exception crashes the batch") {
+    val se = service.eventStream { agent =>
+      agent.batch("pureF-error").monadic { job =>
+        val result = for {
+          _ <- job.pureF(IO.raiseError[Int](new Exception("boom")))
+          _ <- job("should-not-run", IO(1))
+        } yield ()
+        result.monadicBatch(JobHook.noop).use_
+      }
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
+    // pureF exception is unhandled — it crashes the service (ByException)
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
+
+  test("21.monadic pureF - BatchLight - exception crashes the batch") {
+    val result = service.eventStream { agent =>
+      agent.batchLight("pureF-light-error").monadic { job =>
+        val batch = for {
+          _ <- job.pureF(IO.raiseError[String](new Exception("oops")))
+          _ <- job("unreachable", IO(99))
+        } yield ()
+        batch.monadicBatch.void
+      }
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
+    // pureF exception is unhandled — it crashes the service
+    assert(result.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
 }

@@ -4,7 +4,6 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.port
-import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
@@ -21,10 +20,11 @@ import scala.concurrent.duration.*
 class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomepage("https://abc.com/efg")
-      .withZoneId(londonTime)
+      .withZoneId(_.londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
       .withDashboard(100, _.crontab(_.secondly).repeat)
-      .withHistoryCapacity(32, 32, 32))
+      .withHistoryCapacity(32, 32, 32)
+      .withLogThreshold(_.Info, _.Info))
 
   test("1.stop service") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/stop")

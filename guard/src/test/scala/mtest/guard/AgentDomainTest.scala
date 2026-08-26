@@ -9,7 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class AgentDomainTest extends AnyFunSuite {
 
-  private val service = TaskGuard[IO]("domain").service("domain")
+  private val service =
+    TaskGuard[IO]("domain").service("domain").updateConfig(_.withLogThreshold(_.Info, _.Info))
 
   test("1.withDomain propagates domain to ReportedEvent") {
     val events = service
