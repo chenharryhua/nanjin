@@ -78,7 +78,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(200.millis))(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(200.millis).repeat)(t => path / file.fileName(t)).jackson)
       .debug(_.asJson.noSpaces)
       .compile
       .toList
@@ -165,7 +165,8 @@ class NJJacksonTest extends AnyFunSuite {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink =
-      hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / JacksonFile(_.Uncompressed).fileName(t))
+      hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t =>
+        path / JacksonFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.jackson).compile.drain).unsafeRunSync()
@@ -180,7 +181,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(3.seconds))(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(3.seconds).repeat)(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.recordCount)
       .timeout(4.seconds)
       .compile

@@ -8,8 +8,8 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
 import fs2.Stream
@@ -25,7 +25,7 @@ final private class MetricsEventHandler[F[_]] private (
     extends AdhocReport[F] {
   val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
 
-  private def buildFullSnapshot(index: Index): F[MetricsSnapshot] =
+  private def buildFullSnapshot(index: MetricsIndex): F[MetricsSnapshot] =
     scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
       MetricsSnapshot(
         serviceIdentity = serviceParams.serviceIdentity,
@@ -35,7 +35,7 @@ final private class MetricsEventHandler[F[_]] private (
         took = Took(took))
     }
 
-  private def publish(index: Index): F[MetricsSnapshot] =
+  private def publish(index: MetricsIndex): F[MetricsSnapshot] =
     for {
       ms <- buildFullSnapshot(index)
       _ <- channel.send(ms)

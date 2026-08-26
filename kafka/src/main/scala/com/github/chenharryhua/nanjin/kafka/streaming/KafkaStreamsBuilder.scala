@@ -118,7 +118,8 @@ final class KafkaStreamsBuilder[F[_]] private (
             _ <- F.timeoutTo( // Duration.Inf means no timeout (cats-effect treats it as identity)
               startup.get,
               startupTimeout,
-              F.raiseError(KafkaStreamsStartupTimeout(applicationId, startupTimeout)))
+              F.raiseError(KafkaStreamsStartupTimeout(applicationId, startupTimeout))
+            )
           } yield ()
         }
         .interruptWhen(stop)

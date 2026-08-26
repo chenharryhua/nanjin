@@ -8,7 +8,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
-import com.github.chenharryhua.nanjin.guard.config.{Domain, ServiceParams, StackTrace}
+import com.github.chenharryhua.nanjin.guard.config.{Domain, LogThreshold, ServiceParams, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message}
 import com.github.chenharryhua.nanjin.guard.service.History
@@ -18,7 +18,7 @@ import io.circe.Encoder
 
 final private class ReportedEventHandler[F[_]: Sync](
   val domain: Domain,
-  val logThreshold: Ref[F, Option[LogLevel]],
+  val logThreshold: Ref[F, Option[LogThreshold]],
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
@@ -47,6 +47,12 @@ final private class ReportedEventHandler[F[_]: Sync](
       channel = channel,
       logSink = logSink)
 
+  /** Logger that writes to the log sink and publishes to the event channel.
+    *
+    * The log sink write is gated by `logThreshold.logger`; the channel publication is gated by
+    * `logThreshold.channel`. The `enabled` check uses the minimum of the two so that a message is constructed
+    * whenever either path would accept it.
+    */
   val logger: Log[F] = new Log[F] {
     override protected type M = ReportedEvent
 
@@ -57,28 +63,14 @@ final private class ReportedEventHandler[F[_]: Sync](
       createReportedEvent[S](message, level, stackTrace.map(StackTrace(_)))
 
     override protected def publish(event: ReportedEvent): F[Unit] =
-      logSink.write(event)
+      logThreshold.get.flatMap { threshold =>
+        logSink.write(event).whenA(threshold.exists(_.logger <= event.level)) >>
+          channel.send(event).whenA(threshold.exists(_.channel <= event.level)) >>
+          history.add(event).whenA(event.level === LogLevel.Error)
+      }
 
     override protected def enabled(level: LogLevel): F[Boolean] =
-      logThreshold.get.map(_.exists(_ <= level))
-  }
-
-  val heraldLogger: Log[F] = new Log[F] {
-    override protected type M = ReportedEvent
-
-    override protected def create[S: Encoder](
-      message: S,
-      level: LogLevel,
-      stackTrace: Option[Throwable]): F[ReportedEvent] =
-      createReportedEvent[S](message, level, stackTrace.map(StackTrace(_)))
-
-    override protected def publish(event: ReportedEvent): F[Unit] =
-      logSink.write(event) >>
-        channel.send(event) >>
-        history.add(event).whenA(event.level === LogLevel.Error)
-
-    override protected def enabled(level: LogLevel): F[Boolean] =
-      logThreshold.get.map(_.exists(_ <= level))
+      logThreshold.get.map(_.exists(_.min <= level))
   }
 
   def errorHistory: F[Vector[ReportedEvent]] = history.value
@@ -89,13 +81,13 @@ private object ReportedEventHandler:
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
     logSink: LogSink[F],
-    logLevel: LogLevel
+    logThreshold: LogThreshold
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =
       History[F, ReportedEvent](serviceParams.history.map(_.errors))
 
-    val initial: F[Ref[F, Option[LogLevel]]] =
-      Ref.of[F, Option[LogLevel]](Some(logLevel))
+    val initial: F[Ref[F, Option[LogThreshold]]] =
+      Ref.of[F, Option[LogThreshold]](Some(logThreshold))
 
     val reh = (history, initial).mapN { (errorHistory, logThreshold) =>
       new ReportedEventHandler(

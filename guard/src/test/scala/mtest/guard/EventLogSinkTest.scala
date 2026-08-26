@@ -16,7 +16,7 @@ class EventLogSinkTest extends AnyFunSuite {
   private val base =
     TaskGuard[IO]("nanjin")
       .service("event-log-sink")
-      .updateConfig(_.withRestartPolicy(10.hour, _.fixedDelay(2.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(10.hour, _.fixedDelay(2.seconds).repeat.limited(1)))
 
   private def assertStartStop(events: List[Event]): Unit = {
     assert(events.size == 2)
@@ -36,7 +36,7 @@ class EventLogSinkTest extends AnyFunSuite {
 
   test("2.log format does not suppress events on service panic") {
     val events = base
-      .updateConfig(_.withRestartPolicy(10.hour, _.fixedDelay(100.millis).limited(1)))
+      .updateConfig(_.withRestartPolicy(10.hour, _.fixedDelay(100.millis).repeat.limited(1)))
       .eventStream(_ => IO.raiseError(new Exception("boom")))
       .map(checkJson)
       .compile

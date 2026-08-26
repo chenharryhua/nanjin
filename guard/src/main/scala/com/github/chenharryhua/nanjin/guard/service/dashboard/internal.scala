@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import io.circe.Json
 import io.circe.syntax.given
 
-private def interpretServiceParams(serviceParams: ServiceParams): Json =
+private def interpretServiceParams(serviceParams: ServiceParams, logThreshold: Json): Json =
   Json.obj(
     Attribute(serviceParams.serviceIdentity.task).snakeJsonEntry,
     Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
@@ -29,6 +29,7 @@ private def interpretServiceParams(serviceParams: ServiceParams): Json =
       "metrics_report" -> serviceParams.policies.report.show.asJson
     ),
     Attribute(serviceParams.logFormat).snakeJsonEntry,
+    "log_threshold" -> logThreshold,
     "history_capacity" -> serviceParams.history.asJson,
     Attribute(serviceParams.serviceIdentity.launchTime).map(_.show).snakeJsonEntry,
     Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,

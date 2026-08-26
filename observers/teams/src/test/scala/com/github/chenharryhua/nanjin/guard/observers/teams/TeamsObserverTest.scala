@@ -19,7 +19,7 @@ class TeamsObserverTest extends AnyFunSuite {
 
   private val service = TaskGuard[IO]("teams-test")
     .service("teams-observer-test")
-    .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(1)))
+    .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
 
   private def mockClient(received: Ref[IO, List[Json]]): Client[IO] =
     Client.fromHttpApp(HttpApp[IO] { req =>
@@ -88,12 +88,12 @@ class TeamsObserverTest extends AnyFunSuite {
 
   private lazy val allEvents: List[com.github.chenharryhua.nanjin.guard.event.Event] = service
     .updateConfig(
-      _.withInitialLogLevel(_.Info)
-        .withRestartPolicy(1.hour, _.fixedDelay(100.millis).limited(1)))
+      _.withLogThreshold(_.Info, _.Info)
+        .withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
     .eventStream { agent =>
-      agent.heraldLogger.info("info-msg") >>
-        agent.heraldLogger.warn("warn-msg") >>
-        agent.heraldLogger.error("error-msg") >>
+      agent.logger.info("info-msg") >>
+        agent.logger.warn("warn-msg") >>
+        agent.logger.error("error-msg") >>
         agent.adhoc.report >>
         IO.raiseError(new RuntimeException("panic-test"))
     }

@@ -24,11 +24,11 @@ class ServiceTest extends AnyFunSuite {
     _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
-      .withInitialLogLevel(_.Debug)
+      .withLogThreshold(_.Debug, _.Debug)
       .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))
 
-  val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
+  val policy: Policy = Policy.fixedDelay(0.1.seconds).repeat.limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val List(a, b) = guard.service("exit").eventStream(_ => IO(())).compile.toList.unsafeRunSync()
@@ -39,10 +39,10 @@ class ServiceTest extends AnyFunSuite {
   test("2.escalate to up level if retry failed") {
     val List(a, b, c, d, e, f, g, h) = guard
       .service("retry")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat.limited(1)))
       .eventStream { ga =>
-        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
-          .use(_(ga.heraldLogger.info("info") *> IO.raiseError(new Exception)))
+        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).repeat.limited(1)))
+          .use(_(ga.logger.info("info") *> IO.raiseError(new Exception)))
       }
       .compile
       .toList
@@ -59,9 +59,9 @@ class ServiceTest extends AnyFunSuite {
 
   test("3.policy start over") {
 
-    val p1 = Policy.fixedDelay(1.seconds).limited(1)
-    val p2 = Policy.fixedDelay(2.seconds).limited(1)
-    val p3 = Policy.fixedDelay(3.seconds).limited(1)
+    val p1 = Policy.fixedDelay(1.seconds).repeat.limited(1)
+    val p2 = Policy.fixedDelay(2.seconds).repeat.limited(1)
+    val p3 = Policy.fixedDelay(3.seconds).repeat.limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
@@ -105,7 +105,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.policy threshold start over") {
 
-    val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
+    val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds).repeat
     val List(a, b, c) =
       fs2.Stream
         .eval(AtomicCell[IO].of(0.seconds))
@@ -143,8 +143,8 @@ class ServiceTest extends AnyFunSuite {
   test("5.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
-      .updateConfig(_.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
-        .withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withRestartPolicy(2.seconds, _.fixedDelay(1.second).repeat)
+        .withMetricsReport(_.crontab(_.secondly).repeat))
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
       .compile
@@ -155,10 +155,10 @@ class ServiceTest extends AnyFunSuite {
   test("6.closure - io") {
     val List(a, b) = guard
       .service("closure")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat.limited(1)))
       .eventStream { agent =>
         val a = UUID.randomUUID()
-        agent.heraldLogger.warn(a.toString) *> IO.raiseError(new Exception)
+        agent.logger.warn(a.toString) *> IO.raiseError(new Exception)
       }
       .mapFilter(Event.reportedEvent.getOption)
       .compile
@@ -170,12 +170,11 @@ class ServiceTest extends AnyFunSuite {
   test("7.closure - stream") {
     val List(a, b) = guard
       .service("closure")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat.limited(1)))
       .eventStreamS { agent =>
         val a = UUID.randomUUID()
 
-        fs2.Stream(0).covary[IO].evalMap(_ =>
-          agent.heraldLogger.info(a.toString) *> IO.raiseError(new Exception))
+        fs2.Stream(0).covary[IO].evalMap(_ => agent.logger.info(a.toString) *> IO.raiseError(new Exception))
 
       }
       .mapFilter(Event.reportedEvent.getOption)
@@ -188,7 +187,7 @@ class ServiceTest extends AnyFunSuite {
   test("8.exception thrown elsewhere") {
     val res = guard
       .service("ex")
-      .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).limited(1)))
+      .updateConfig(_.withRestartPolicy(1.hour, _.fixedRate(1.seconds).repeat.limited(1)))
       .eventStream { _ =>
         Future[Int] {
           Thread.sleep(2_000)
@@ -214,7 +213,7 @@ class ServiceTest extends AnyFunSuite {
     val res: List[Event] =
       guard
         .service("cancel")
-        .eventStream(_.heraldLogger.error("oops").delayBy(1.seconds).replicateA_(1000))
+        .eventStream(_.logger.error("oops").delayBy(1.seconds).replicateA_(1000))
         .take(5)
         .compile
         .toList

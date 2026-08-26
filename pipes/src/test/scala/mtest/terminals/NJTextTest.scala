@@ -87,7 +87,7 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(100.milliseconds))(t => path / fk.fileName(t)).text)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(100.milliseconds).repeat)(t => path / fk.fileName(t)).text)
       .evalTap(tv => IO.println(tv.window))
       .debug(_.asJson.noSpaces)
       .fold(0L)((sum, v) => sum + v.recordCount)
@@ -138,7 +138,8 @@ class NJTextTest extends AnyFunSuite {
     val fk = TextFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String])
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).text)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t =>
+        path / fk.fileName(t)).text)
       .compile
       .drain
       .unsafeRunSync()

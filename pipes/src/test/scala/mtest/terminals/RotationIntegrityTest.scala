@@ -150,7 +150,8 @@ class RotationIntegrityTest extends AnyFunSuite {
 
     val totalElements = 100
     val sink =
-      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(50.millis))(t => path / s"${t.index}.circe").circe
+      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(50.millis).repeat)(t =>
+        path / s"${t.index}.circe").circe
 
     val rotateFiles = Stream
       .emits(tigers(totalElements))
@@ -173,7 +174,8 @@ class RotationIntegrityTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
 
     val sink =
-      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(100.millis))(t => path / s"${t.index}.circe").circe
+      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(100.millis).repeat)(t =>
+        path / s"${t.index}.circe").circe
 
     val rotateFiles = Stream
       .empty
@@ -192,7 +194,8 @@ class RotationIntegrityTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
 
     val sink =
-      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(30.millis))(t => path / s"${t.index}.circe").circe
+      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(30.millis).repeat)(t =>
+        path / s"${t.index}.circe").circe
 
     val rotateFiles = Stream
       .emits(tigers(50))

@@ -12,13 +12,13 @@ class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
-      .updateConfig(_.withMetricsReport(_.crontab(_.hourly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.hourly).repeat))
       .updateConfig(_.withTaskName("conf"))
 
   test("1.tick") {
     TaskGuard[IO]("tick")
       .service("tick")
-      .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).limited(5)))
+      .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).repeat.limited(5)))
       .compile
       .drain
       .unsafeRunSync()

@@ -20,7 +20,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -415,7 +415,7 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("17.monadic flatMap limits") {
-    val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour))).eventStreamR { agent =>
+    val se = service.updateConfig(_.withMetricsReport(_.fixedDelay(1.hour).repeat)).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
         List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch(JobHook.noop) >>
           (1 to 5_000).toList.traverse(x => job(x.toString, IO(x))).monadicBatch(JobHook.noop)

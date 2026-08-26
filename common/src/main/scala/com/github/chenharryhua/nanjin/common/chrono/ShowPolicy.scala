@@ -25,6 +25,7 @@ private object ShowPolicy {
     case Except(policy, except)       => show"$policy.$EXCEPT($except)"
     case Offset(policy, offset)       => show"$policy.$OFFSET($offset)"
     case Jitter(policy, min, max)     => show"$policy.$JITTER($min,$max)"
+    case Expire(policy, ttl)          => show"$policy.$EXPIRE($ttl)"
   }
 
   def apply(policy: Fix[PolicyF]): String =

@@ -296,13 +296,13 @@ object BatchLight:
 
 end BatchLight
 
-/** BatchLight is a simpler API for short-lived jobs. It intentionally avoids the richer lifecycle and
-  * progress-tracking machinery of Batch and focuses on straightforward, low-overhead execution.
+/** Lightweight batch façade for short-lived jobs.
+  *
+  * It intentionally avoids the richer lifecycle and progress-tracking machinery of Batch and focuses on
+  * straightforward, low-overhead execution.
   */
-/** Lightweight batch façade for short-lived jobs. */
 final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uuidGenerator: F[UUID]) {
 
-  /** Creates a lightweight sequential batch from a list of named effects. */
   /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -311,7 +311,6 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
     new BatchLight.Sequential[F, A](metricLabel, Reader(_ => true), jobs, uuidGenerator)
   }
 
-  /** Creates a lightweight parallel batch from a list of named effects using the given parallelism. */
   /** Create a parallel batch with an explicit positive parallelism. */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")

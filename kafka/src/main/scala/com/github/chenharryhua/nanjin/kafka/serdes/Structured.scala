@@ -16,8 +16,9 @@ import java.nio.charset.StandardCharsets
 
 /** Kafka serdes for structured data formats.
   *
-  * Unlike `Primitive` (which handles scalar Kafka types such as String, Integer, or byte arrays), `Structured`
-  * covers formats whose payloads carry internal structure: fields, nesting, and (optionally) schema metadata.
+  * Unlike `Primitive` (which handles scalar Kafka types such as String, Integer, or byte arrays),
+  * `Structured` covers formats whose payloads carry internal structure: fields, nesting, and (optionally)
+  * schema metadata.
   *
   * Available instances:
   *   - `avro` – Avro `GenericRecord`, using Confluent's Schema Registry.
@@ -25,7 +26,8 @@ import java.nio.charset.StandardCharsets
   *   - `protobuf` – Protobuf `DynamicMessage`, using Confluent's Protobuf support.
   *   - `circe` – Circe `Json`, serialized as compact UTF-8 JSON without schema registry interaction.
   *
-  * Each instance can be further transformed via `.become[B]`, `.option`, or `.emap` inherited from `Unregistered`.
+  * Each instance can be further transformed via `.become[B]`, `.option`, or `.emap` inherited from
+  * `Unregistered`.
   */
 sealed trait Structured[A] extends Unregistered[A]
 
@@ -75,7 +77,8 @@ object Structured:
       }
   end avro
 
-  /** JSON Schema serde backed by Confluent's Schema Registry. Serializes and deserializes Jackson `JsonNode`. */
+  /** JSON Schema serde backed by Confluent's Schema Registry. Serializes and deserializes Jackson `JsonNode`.
+    */
   given jsonSchema: Structured[JsonNode] = new Structured[JsonNode]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[JsonNode] =
       new Serde[JsonNode]:

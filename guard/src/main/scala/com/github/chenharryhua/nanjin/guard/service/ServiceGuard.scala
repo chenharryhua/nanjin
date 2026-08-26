@@ -49,9 +49,9 @@ import java.util.UUID
   *       .withMetricsReport(_.crontab(_.hourly))
   *   )
   *   .eventStream { agent =>
-  *     // application logic using agent.batch, agent.retry, agent.heraldLogger, etc.
+  *     // application logic using agent.batch, agent.retry, agent.logger, etc.
   *     agent.tickScheduled(_.fixedDelay(1.minute)).evalMap { tick =>
-  *       agent.heraldLogger.info(s"heartbeat at \${tick.index}")
+  *       agent.logger.info(s"heartbeat at \${tick.index}")
   *     }.compile.drain
   *   }
   *
@@ -147,7 +147,7 @@ private[guard] object ServiceGuard {
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
         seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.logLevel)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.logThreshold)
         meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](

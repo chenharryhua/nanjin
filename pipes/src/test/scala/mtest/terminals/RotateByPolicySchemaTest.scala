@@ -36,7 +36,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val processedSize = data
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
           .avro(pandaSchema, _.Snappy))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
@@ -58,7 +58,8 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val processedSize = data
       .through(
-        hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).avro(pandaSchema))
+        hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t)).avro(
+          pandaSchema))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
@@ -80,7 +81,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val processedSize = data
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
           .binAvro(pandaSchema))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
@@ -103,7 +104,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val processedSize = data
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
           .jackson(pandaSchema))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
@@ -126,7 +127,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val processedSize = data
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
           .parquet(pandaSchema))
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
@@ -150,7 +151,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
       .covaryAll[IO, GenericRecord]
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(1.second).limited(2))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(2))(t => path / file.fileName(t))
           .avro(pandaSchema))
       .compile
       .toList

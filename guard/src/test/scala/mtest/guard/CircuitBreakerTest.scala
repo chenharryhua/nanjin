@@ -18,7 +18,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
-        cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds))
+        cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds).repeat)
         _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
       } yield cb
 
@@ -36,7 +36,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
-        cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds))
+        cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds).repeat)
         _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
       } yield cb
 
@@ -64,7 +64,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val io2 = IO.sleep(1.seconds) *> IO { j = 1 }
 
     val ss = service
-      .eventStream(_.circuitBreaker(maxFailures = 5, _.fixedDelay(1.seconds)).use { cb =>
+      .eventStream(_.circuitBreaker(maxFailures = 5, _.fixedDelay(1.seconds).repeat).use { cb =>
         IO.race(cb.protect(io1), cb.protect(io2)) >> IO.sleep(4.seconds)
       })
       .mapFilter(Event.serviceStop.getOption)
@@ -91,7 +91,7 @@ class CircuitBreakerTest extends AnyFunSuite {
 
   test("5.reset state") {
     val ss = service
-      .eventStream(_.circuitBreaker(maxFailures = 1, f = _.fixedRate(1.seconds)).use { cb =>
+      .eventStream(_.circuitBreaker(maxFailures = 1, f = _.fixedRate(1.seconds).repeat).use { cb =>
         cb.protect(IO.raiseError(new Exception())).attempt >>
           IO.sleep(2.seconds) >>
           cb.protect(IO(1)).void

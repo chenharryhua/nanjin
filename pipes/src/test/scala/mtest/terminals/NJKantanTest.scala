@@ -108,7 +108,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
   }
 
-  val policy: Policy = Policy.fixedDelay(1.second)
+  val policy: Policy = Policy.fixedDelay(1.second).repeat
   test("11.rotation - with-header - tick") {
     val path = fs2Root / "rotation" / "header" / "tick"
     val file = KantanFile(_.Uncompressed)
@@ -117,7 +117,7 @@ class NJKantanTest extends AnyFunSuite {
       .map(encode)
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -181,7 +181,7 @@ class NJKantanTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Seq[String]])
       .through(
         hdp
-          .rotateSink(zoneId, _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t => path / fk.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -197,8 +197,8 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(encode)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / file.fileName(t)).kantan.andThen(
-        _.drain))
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t =>
+        path / file.fileName(t)).kantan.andThen(_.drain))
       .map(decode)
       .unNone
       .compile
@@ -241,7 +241,8 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]])
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).kantan)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t =>
+        path / fk.fileName(t)).kantan)
       .compile
       .drain
       .unsafeRunSync()

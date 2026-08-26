@@ -47,7 +47,7 @@ class HttpTest extends AnyFunSuite {
     EmberClientBuilder.default[IO].build.map(MLogger[IO](logHeaders = true, logBody = true)(_))
 
   test("1.timeout") {
-    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).limited(2)))
+    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(2)))
     server
       .surround(
         client.use(c =>
@@ -61,7 +61,7 @@ class HttpTest extends AnyFunSuite {
   }
 
   test("2.failure") {
-    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).limited(3)))
+    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(3)))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())

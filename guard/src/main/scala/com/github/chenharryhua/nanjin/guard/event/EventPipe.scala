@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{toDateTimeCronOps, CronExpr}
 
@@ -85,7 +85,7 @@ object EventPipe {
               case Periodic(tick) =>
                 localTimes.exists { lt =>
                   val zdt = LocalDateTime.of(tick.local(_.conclude).toLocalDate, lt).atZone(tick.zoneId)
-                  if tick.isWithinOpenClosed(zdt.toInstant) then true else false
+                  tick.isWithinOpenClosed(zdt.toInstant)
                 }
             }
             if isKeep then Some(event) else None

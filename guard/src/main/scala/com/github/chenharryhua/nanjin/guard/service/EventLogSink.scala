@@ -11,7 +11,6 @@ import cats.{Defer, Monad}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.service.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   AnsiTextTranslator,

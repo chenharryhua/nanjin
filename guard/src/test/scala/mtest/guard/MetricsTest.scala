@@ -8,7 +8,7 @@ import com.codahale.metrics.{MetricRegistry, SlidingWindowReservoir}
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index
+import com.github.chenharryhua.nanjin.guard.event.MetricsIndex
 import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
@@ -44,7 +44,7 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.nonEmpty)
     assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
-    assert(mr.index.isInstanceOf[Index.Adhoc])
+    assert(mr.index.isInstanceOf[MetricsIndex.Adhoc])
   }
 
   test("1a.metric identifier round trip") {
@@ -111,7 +111,7 @@ class MetricsTest extends AnyFunSuite {
   test("3c.counter reset by policy") {
     val snapshots = service.eventStream { agent =>
       agent
-        .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis))))
+        .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis).repeat)))
         .use { counter =>
           counter.inc(10) >>
             agent.adhoc.report >>
@@ -333,7 +333,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(reports.size == 2)
-    assert(reports.forall(_.index.isInstanceOf[Index.Periodic]))
+    assert(reports.forall(_.index.isInstanceOf[MetricsIndex.Periodic]))
   }
 
   test("14.measured.retry - give up") {
@@ -349,7 +349,7 @@ class MetricsTest extends AnyFunSuite {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
-          IO(ra.giveUp).flatTap(d => agent.heraldLogger.warn(d, ra.cause))))
+          IO(ra.giveUp).flatTap(d => agent.logger.warn(d, ra.cause))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
 
@@ -366,6 +366,6 @@ class MetricsTest extends AnyFunSuite {
       }
       run.use(a => a >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
-    assert(report.index.isInstanceOf[Index.Adhoc])
+    assert(report.index.isInstanceOf[MetricsIndex.Adhoc])
   }
 }

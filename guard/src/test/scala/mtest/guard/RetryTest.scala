@@ -32,7 +32,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(j += 1) >> IO.raiseError[Unit](new Exception())
     var i = 0 // retry count
     service.eventStream { agent =>
-      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).limited(3)).withDecision { tv =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat.limited(3)).withDecision { tv =>
         i += 1
         IO.println(tv).as(tv.followPolicy)
       })
@@ -48,7 +48,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) >> { if (i < 2) throw new Exception(i.toString) else IO(0) }
 
     val ss = service.eventStream { agent =>
-      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second, 100.seconds).limited(20)))
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second, 100.seconds).repeat.limited(20)))
 
       retry.use(_(action)).map(x => assert(x == 0)).void
     }.map(checkJson).mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
@@ -61,7 +61,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(i += 1) >> IO.raiseError[Int](new Exception("unworthy retry"))
     val res = service.eventStream { agent =>
       val retry =
-        agent.retry(_.withPolicy(_.fixedDelay(100.seconds)).withDecision(tv => IO(tv.giveUp)))
+        agent.retry(_.withPolicy(_.fixedDelay(100.seconds).repeat).withDecision(tv => IO(tv.giveUp)))
       retry.use(_(action)).void
     }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(res.cause.exitCode == 3)
@@ -113,7 +113,7 @@ class RetryTest extends AnyFunSuite {
   test("8.retry - cancellation external") {
     def action(agent: Agent[IO]) = for {
       counter <- agent.facilitate("retry")(_.counter("total.calls"))
-      retry <- agent.retry(_.withPolicy(_.fixedDelay(10.hours)))
+      retry <- agent.retry(_.withPolicy(_.fixedDelay(10.hours).repeat))
     } yield (in: IO[Unit]) =>
       IO.uncancelable(poll =>
         IO.println("before retry") *>
@@ -140,7 +140,7 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
-      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat).withDecision { tv =>
         IO(if (tv.ordinal < 2) tv.followPolicy else tv.giveUp)
       })
       retry.use(_(action))
@@ -154,7 +154,7 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val action = IO(i += 1) <* IO.raiseError(new Exception)
     val ss = service.eventStream { agent =>
-      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second)).withDecision { tv =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat).withDecision { tv =>
         val decision = (tv.cause, tv.ordinal) match {
           case (_: Exception, 1) => true
           case (_: Exception, 2) => true

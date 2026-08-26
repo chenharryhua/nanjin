@@ -75,7 +75,7 @@ class FinalizeMonitorTest extends AnyFunSuite {
 
   test("3.Translator.idTranslator translates all event types") {
     val events = service
-      .eventStream(agent => agent.heraldLogger.info("msg"))
+      .eventStream(agent => agent.logger.info("msg"))
       .compile
       .toList
       .unsafeRunSync()

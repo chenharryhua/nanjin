@@ -12,7 +12,7 @@ import scala.jdk.DurationConverters.*
 class TickStreamSpec extends AnyFunSuite {
 
   val zoneId: ZoneId = ZoneId.systemDefault()
-  val policy: Policy = Policy.fixedDelay(100.milliseconds) // example fixed policy
+  val policy: Policy = Policy.fixedDelay(100.milliseconds).repeat // example fixed policy
 
   private def takeTicks[F[_]: Temporal](stream: Stream[F, Tick], n: Long): F[List[Tick]] =
     stream.take(n).compile.toList
@@ -29,7 +29,8 @@ class TickStreamSpec extends AnyFunSuite {
 
   test("2.tickFuture emits first tick immediately and sleeps afterward") {
     val start = LocalTime.now()
-    val ticks = takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds)), 3).unsafeRunSync()
+    val ticks =
+      takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds).repeat), 3).unsafeRunSync()
     val elapsed = JDuration.between(start, LocalTime.now())
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 1)

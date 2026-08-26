@@ -12,7 +12,7 @@ import io.circe.syntax.EncoderOps
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
-import org.http4s.client.middleware.{Logger, Retry, RetryPolicy}
+import org.http4s.client.middleware.Logger
 import org.http4s.dsl.io.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
@@ -50,8 +50,7 @@ class SalesforceIotTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = false, _ => false))
-    // .map(Retry(RetryPolicy(dr => Some(dr.seconds))))
-    .map(httpRetry(sydneyTime, _.fixedDelay(3.second)))
+    .map(httpRetry(sydneyTime, _.fixedDelay(1.second).repeat))
 
   val login: Resource[IO, Login[IO]] = Salesforce(
     authClient,
@@ -70,8 +69,7 @@ class SalesforceIotTest extends AnyFunSuite {
       .build
       .flatMap(c => login.flatMap(_.login(c)))
       .map(Logger(logHeaders = true, logBody = false, _ => false))
-      .map(httpRetry(sydneyTime, _.fixedDelay(3.second)))
-      .map(Retry(RetryPolicy(dr => Some(dr.seconds))))
+      .map(httpRetry(sydneyTime, _.fixedDelay(2.second).repeat))
 
   test("1.salesforce.iot") {
     (server *> client).use(_.expect[String]("data")).unsafeRunSync()
