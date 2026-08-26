@@ -180,7 +180,9 @@ lazy val frontend = project.in(file("frontend"))
       "io.circe" %%% "circe-core"      % circeV,
       "io.circe" %%% "circe-jawn"      % circeV,
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
-      "com.raquo" %%% "laminar"        % "17.0.0"
+      "com.raquo" %%% "laminar"        % "17.0.0",
+      // test
+      "org.scalameta" %%% "munit" % "1.1.0" % Test
     )
   )
 
