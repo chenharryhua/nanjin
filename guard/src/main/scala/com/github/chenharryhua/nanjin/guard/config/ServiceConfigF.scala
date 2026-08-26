@@ -3,7 +3,7 @@ import cats.derived.derived
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.{Applicative, Endo, Functor}
-import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.{zones, Policy}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -92,6 +92,8 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
     copy(zoneId = zoneId)
+  def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
+    withZoneId(f(zones))
 
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
     copy(httpBuilder = Some(f))
