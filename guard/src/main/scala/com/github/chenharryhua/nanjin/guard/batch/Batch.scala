@@ -379,9 +379,20 @@ object Batch:
       * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
       * crashes the batch.
       */
-    def pureF[A](fa: F[A]): Monadic[A] =
+    def lift[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(idx => Resource.eval(fa).map(a => idx -> ExecutionState(Right(a), Nil)))
+      })
+
+    /** Lift a resource into the monadic batch without creating a job.
+      *
+      * The resource is acquired when this step runs and released when the batch's resource scope closes. It
+      * is not tracked, timed, or reported. If acquisition fails, the exception propagates uncaught and
+      * crashes the batch.
+      */
+    def lift[A](ra: Resource[F, A]): Monadic[A] =
+      new Monadic[A](Kleisli { _ =>
+        StateT(idx => ra.map(a => idx -> ExecutionState(Right(a), Nil)))
       })
 
     private def handleOutcome[A](

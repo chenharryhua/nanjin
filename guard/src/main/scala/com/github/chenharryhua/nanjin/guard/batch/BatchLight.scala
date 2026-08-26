@@ -115,7 +115,7 @@ object BatchLight:
       * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
       * crashes the batch.
       */
-    def pureF[A](fa: F[A]): Monadic[A] =
+    def lift[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(idx => fa.map(a => idx -> ExecutionState(Right(a), Nil)))
       })
