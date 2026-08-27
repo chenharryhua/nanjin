@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import cats.syntax.order.catsSyntaxPartialOrder
 import org.scalatest.funsuite.AnyFunSuite

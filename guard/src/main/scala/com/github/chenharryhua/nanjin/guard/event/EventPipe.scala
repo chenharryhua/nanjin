@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{toDateTimeCronOps, CronExpr}
 

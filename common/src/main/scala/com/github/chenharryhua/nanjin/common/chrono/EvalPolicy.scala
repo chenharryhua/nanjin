@@ -35,17 +35,17 @@ private object EvalPolicy {
       case Empty() => LazyList.empty
 
       case Crontab(cronExpr) =>
-        LazyList(TickStepper { case TickRequest(tick, now) =>
+        LazyList(TickStepper { case Acquisition(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)).map(zdt => tick.nextTick(now, zdt.toInstant)).pure[F]
         })
 
       case FixedDelay(delays) =>
         LazyList.from(delays.toList).map { delay =>
-          TickStepper { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).some.pure[F] }
+          TickStepper { case Acquisition(tick, now) => tick.nextTick(now, now.plus(delay)).some.pure[F] }
         }
 
       case FixedRate(delay) =>
-        LazyList(TickStepper { case TickRequest(tick, now) =>
+        LazyList(TickStepper { case Acquisition(tick, now) =>
           tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).some.pure[F]
         })
 
@@ -58,8 +58,8 @@ private object EvalPolicy {
 
       case Meet(first, second) =>
         first.zip(second).map { case (sa, sb) =>
-          TickStepper { (req: TickRequest) =>
-            (sa(req), sb(req)).mapN {
+          TickStepper { (acq: Acquisition) =>
+            (sa(acq), sb(acq)).mapN {
               case (Some(ra), Some(rb)) => Some(if (ra.snooze < rb.snooze) ra else rb)
               case _                    => None
             }
@@ -68,8 +68,8 @@ private object EvalPolicy {
 
       case Except(policy, except) =>
         policy.map { stepper =>
-          TickStepper { (req: TickRequest) =>
-            stepper(req).flatMap {
+          TickStepper { (acq: Acquisition) =>
+            stepper(acq).flatMap {
               case Some(tick) =>
                 if (tick.local(_.conclude).toLocalTime === except)
                   stepper.step(tick, tick.conclude).map(_.map(nt => tick.withSnoozeStretch(nt.snooze)))
@@ -81,27 +81,27 @@ private object EvalPolicy {
 
       case Offset(policy, offset) =>
         policy.map { stepper =>
-          TickStepper { (req: TickRequest) =>
-            stepper(req).map(_.map(_.withSnoozeStretch(offset)))
+          TickStepper { (acq: Acquisition) =>
+            stepper(acq).map(_.map(_.withSnoozeStretch(offset)))
           }
         }
 
       case Jitter(policy, min, max) =>
         policy.map { stepper =>
-          TickStepper { (req: TickRequest) =>
+          TickStepper { (acq: Acquisition) =>
             rng.betweenLong(min.toNanos, max.toNanos).flatMap { delay =>
-              stepper(req).map(_.map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS))))
+              stepper(acq).map(_.map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS))))
             }
           }
         }
 
       case Expire(policy, ttl) =>
         policy.map { stepper =>
-          TickStepper { (req: TickRequest) =>
-            val elapsed = Duration.between(req.tick.launchTime, req.now)
+          TickStepper { (acq: Acquisition) =>
+            val elapsed = Duration.between(acq.tick.launchTime, acq.now)
             if (elapsed.compareTo(ttl) >= 0) None.pure[F]
             else
-              stepper(req).map(_.filter(t => Duration.between(t.launchTime, t.conclude).compareTo(ttl) < 0))
+              stepper(acq).map(_.filter(t => Duration.between(t.launchTime, t.conclude).compareTo(ttl) < 0))
           }
         }
     }

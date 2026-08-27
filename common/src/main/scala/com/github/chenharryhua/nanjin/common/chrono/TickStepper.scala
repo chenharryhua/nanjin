@@ -4,11 +4,11 @@ import cats.data.Kleisli
 
 import java.time.Instant
 
-final private case class TickRequest(tick: Tick, now: Instant)
+final private case class Acquisition(tick: Tick, now: Instant)
 
-private opaque type TickStepper[F[_]] = Kleisli[F, TickRequest, Option[Tick]]
+private opaque type TickStepper[F[_]] = Kleisli[F, Acquisition, Option[Tick]]
 private object TickStepper:
-  def apply[F[_]](fun: TickRequest => F[Option[Tick]]): TickStepper[F] = Kleisli(fun)
+  def apply[F[_]](fun: Acquisition => F[Option[Tick]]): TickStepper[F] = Kleisli(fun)
   extension [F[_]](ts: TickStepper[F])
-    def step(tick: Tick, now: Instant): F[Option[Tick]] = ts.run(TickRequest(tick, now))
-    def apply(req: TickRequest): F[Option[Tick]] = ts.run(req)
+    def step(tick: Tick, now: Instant): F[Option[Tick]] = ts.run(Acquisition(tick, now))
+    def apply(acq: Acquisition): F[Option[Tick]] = ts.run(acq)

@@ -115,7 +115,13 @@ private object SlackTranslator extends all {
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val error = Attribute(evt.stackTrace).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
-
+    val logLink: TextField =
+      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+        olink match {
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case None       => TextField(index)
+        }
+      }
     val color = coloring(evt)
     val app = SlackApp(
       username = evt.serviceIdentity.task.value,
@@ -125,7 +131,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
-            JuxtaposeSection(first = TextField(active), second = TextField(index)),
+            JuxtaposeSection(first = TextField(active), second = logLink),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
                                    |*${policy.tag}:* ${policy.text}
@@ -202,12 +208,20 @@ private object SlackTranslator extends all {
     val service = Attribute(evt.serviceIdentity.serviceId).textEntry
     val correlation = Attribute(evt.correlation).textEntry
 
+    val logLink: TextField =
+      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+        olink match {
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case None       => TextField(domain)
+        }
+      }
+
     val attachment = Attachment(
       color = color,
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceIdentity),
-        JuxtaposeSection(TextField(domain), TextField(correlation)),
+        JuxtaposeSection(TextField(correlation), logLink),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
         MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
       )
@@ -219,14 +233,7 @@ private object SlackTranslator extends all {
       }
     }
 
-    val app =
-      SlackApp(username = evt.serviceIdentity.task.value, attachments = List(Some(attachment), error).flatten)
-
-    evt.serviceIdentity.logLink.fold(app) { ll =>
-      val link = ll.locate(evt.timestamp)
-      val url = s"<$link|:mag: CloudWatch Logs>"
-      app.appendMarkdown(url)
-    }
+    SlackApp(username = evt.serviceIdentity.task.value, attachments = List(Some(attachment), error).flatten)
   }
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =

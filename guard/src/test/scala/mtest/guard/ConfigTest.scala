@@ -24,4 +24,15 @@ class ConfigTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("2.withZoneId builder function") {
+    val events = TaskGuard[IO]("zone")
+      .updateConfig(_.withZoneId(_.sydneyTime))
+      .service("zone")
+      .eventStream(_ => IO.unit)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(events.head.serviceIdentity.launchTime.zoneId.getId == "Australia/Sydney")
+  }
+
 }

@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.54.1"
+val awsV = "2.54.5"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -180,7 +180,9 @@ lazy val frontend = project.in(file("frontend"))
       "io.circe" %%% "circe-core"      % circeV,
       "io.circe" %%% "circe-jawn"      % circeV,
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
-      "com.raquo" %%% "laminar"        % "17.0.0"
+      "com.raquo" %%% "laminar"        % "17.0.0",
+      // test
+      "org.scalameta" %%% "munit" % "1.1.0" % Test
     )
   )
 

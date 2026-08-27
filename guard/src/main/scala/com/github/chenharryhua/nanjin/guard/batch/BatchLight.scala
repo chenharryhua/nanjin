@@ -110,6 +110,16 @@ object BatchLight:
         StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure[F])
       })
 
+    /** Lift an effectful value into the monadic batch without creating a job.
+      *
+      * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
+      * crashes the batch.
+      */
+    def lift[A](fa: F[A]): Monadic[A] =
+      new Monadic[A](Kleisli { _ =>
+        StateT(idx => fa.map(a => idx -> ExecutionState(Right(a), Nil)))
+      })
+
     /** Add a named effect-backed value job. */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](

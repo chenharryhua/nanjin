@@ -4,9 +4,7 @@ import cats.effect.Unique
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.Timestamp
-import io.circe.{Codec, Decoder, Encoder, Json}
+import io.circe.{Decoder, Encoder, Json}
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -65,8 +63,7 @@ end Active
 // ---------------- Snooze ----------------
 
 /** The delay between a panic and the next restart attempt, as determined by the restart policy. Corresponds
-  * to the `tick.snooze` value on a `ServicePanic` event — i.e., how long the service will sleep before
-  * retrying.
+  * to the `snooze` value on a `ServicePanic` event — i.e., how long the service will sleep before retrying.
   */
 opaque type Snooze = Duration
 object Snooze:
@@ -93,21 +90,3 @@ object Message:
   given Encoder[Message] = OpaqueLift.lift[Message, Json, Encoder]
   given Decoder[Message] = OpaqueLift.lift[Message, Json, Decoder]
 end Message
-
-// ---------------- MetricsIndex ----------------
-
-/** Distinguishes how a metrics snapshot was triggered: on a scheduled tick or by an ad-hoc request. */
-sealed trait MetricsIndex derives Codec.AsObject:
-  def scrapeTime: Timestamp
-
-object MetricsIndex:
-  final case class Adhoc(scrapeTime: Timestamp) extends MetricsIndex
-  final case class Periodic(tick: Tick) extends MetricsIndex:
-    override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
-
-  given Show[MetricsIndex]:
-    override def show(t: MetricsIndex): String = t match {
-      case Adhoc(_)       => "Adhoc"
-      case Periodic(tick) => tick.index.toString
-    }
-end MetricsIndex
