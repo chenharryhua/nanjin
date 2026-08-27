@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Duration, LocalTime}
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.Periodic
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.Periodic
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import fs2.Stream
 

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
+import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{
@@ -10,8 +11,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
   Timestamp,
   UpTime
 }
-import com.github.chenharryhua.nanjin.guard.event.MetricsIndex
-import com.github.chenharryhua.nanjin.guard.event.MetricsIndex.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
 import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
@@ -108,12 +107,29 @@ object Event {
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
     policy: Policy,
-    index: MetricsIndex,
+    index: MetricsSnapshot.Index,
     snapshot: Snapshot,
     took: Took)
       extends Event {
     override val timestamp: Timestamp = index.scrapeTime
   }
+  object MetricsSnapshot:
+    sealed trait Index derives Codec.AsObject:
+      def scrapeTime: Timestamp
+    end Index
+
+    object Index:
+      final case class Adhoc(scrapeTime: Timestamp) extends Index
+      final case class Periodic(tick: Tick) extends Index:
+        override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
+
+      given Show[Index]:
+        override def show(t: Index): String = t match {
+          case Adhoc(_)       => "Adhoc"
+          case Periodic(tick) => s"${tick.index}"
+        }
+    end Index
+  end MetricsSnapshot
 
   /** A user-emitted log message published through the service's logging facilities.
     *
@@ -152,14 +168,14 @@ object Event {
   val serviceStop: Prism[Event, ServiceStop] = GenPrism[Event, Event.ServiceStop]
   val servicePanic: Prism[Event, ServicePanic] = GenPrism[Event, Event.ServicePanic]
 
-  val adhocSnapshot: Optional[Event, Adhoc] =
+  val adhocSnapshot: Optional[Event, MetricsSnapshot.Index.Adhoc] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsIndex, Adhoc])
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Adhoc])
 
   val reportTick: Optional[Event, Tick] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsIndex, Periodic])
-      .andThen(GenLens[Periodic](_.tick))
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Periodic])
+      .andThen(GenLens[MetricsSnapshot.Index.Periodic](_.tick))
 }
