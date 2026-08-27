@@ -29,7 +29,7 @@ object JsonBlock {
   val encoder: Encoder[JsonBlock] = (cb: JsonBlock) =>
     Json.obj(
       "type" -> Json.fromString("CodeBlock"),
-      "codeSnippet" -> Json.fromString(cb.codeSnippet.spaces2),
+      "codeSnippet" -> Json.fromString(cb.codeSnippet.spaces2 + "\n"),
       "language" -> Json.fromString("JSON")
     )
 }

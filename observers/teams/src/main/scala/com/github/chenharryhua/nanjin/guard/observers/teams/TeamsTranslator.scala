@@ -85,31 +85,27 @@ private object TeamsTranslator {
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
     val brief = Attribute(evt.brief).typeName
+    val logLink = Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+      olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
+    }.getOrElse("")
 
-    val card = AdaptiveCard(
+    AdaptiveCard(
       body = List(
         headerBlock(evt),
         serviceInfo(evt),
+        TextBlock(panicText(evt), color = "Attention"),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
             Fact(active.tag, active.text),
-            Fact(policy.tag, policy.text)
+            Fact(policy.tag, policy.text),
+            Fact(stackTrace, logLink)
           )),
-        TextBlock(panicText(evt), color = "Attention"),
-        BolderTextBlock(stackTrace),
         StackTraceBlock(evt.stackTrace),
         BolderTextBlock(brief),
         JsonBlock(evt.brief.value)
       )
     )
-
-    evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.locate(evt.timestamp)
-      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
-      card.appendElement(url)
-    }
-
   }
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
@@ -154,26 +150,23 @@ private object TeamsTranslator {
       List(BolderTextBlock(attr), StackTraceBlock(st))
     }.sequence.flatten
 
+    val logLink = Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+      olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
+    }.getOrElse("")
+
     val body = List(
       headerBlock(evt),
       serviceInfo(evt),
       FactSet(
         List(
           Fact(domain.tag, domain.text),
-          Fact(correlation.tag, correlation.text)
+          Fact(correlation.tag, correlation.text),
+          Fact(message, logLink)
         )),
-      BolderTextBlock(message),
       JsonBlock(evt.message.value)
     ) ++ stackTrace
 
-    val card = AdaptiveCard(body)
-
-    evt.serviceIdentity.logLink.fold(card) { ll =>
-      val link = ll.locate(evt.timestamp)
-      val url = TextBlock(s"[\uD83D\uDD0D CloudWatch Logs]($link)")
-      card.appendElement(url)
-    }
-
+    AdaptiveCard(body)
   }
 
   def apply[F[_]: Applicative]: Translator[F, AdaptiveCard] =
