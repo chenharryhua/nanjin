@@ -123,7 +123,8 @@ private object SlackTranslator extends all {
         }
       }
     val color = coloring(evt)
-    val app = SlackApp(
+
+    SlackApp(
       username = evt.serviceIdentity.task.value,
       attachments = List(
         Attachment(
@@ -144,12 +145,6 @@ private object SlackTranslator extends all {
         Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
-
-    evt.serviceIdentity.logLink.fold(app) { ll =>
-      val link = ll.locate(evt.timestamp)
-      val url = s"<$link|:mag: CloudWatch Logs>"
-      app.appendMarkdown(url)
-    }
   }
 
   private def service_stop(evt: ServiceStop): SlackApp = {
