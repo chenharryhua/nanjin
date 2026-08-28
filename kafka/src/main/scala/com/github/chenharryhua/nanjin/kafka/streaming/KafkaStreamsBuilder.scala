@@ -1,16 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import cats.Show
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.Dispatcher
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.HasProperties
 import com.github.chenharryhua.nanjin.common.logging.Log
-import com.github.chenharryhua.nanjin.common.utils.toProperties
 import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings, StreamsConfigKeys}
 import fs2.Stream
-import io.circe.{Encoder, Json}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, Topology}
@@ -18,31 +15,6 @@ import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig, To
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.util.control.NoStackTrace
-
-final case class KafkaStreamsAbnormallyStopped(applicationId: String)
-    extends RuntimeException(s"KafkaStreams($applicationId) were stopped abnormally") with NoStackTrace
-
-final case class KafkaStreamsStartupTimeout(applicationId: String, startupTimeout: Duration)
-    extends RuntimeException(s"KafkaStreams($applicationId) did not reach RUNNING within $startupTimeout")
-    with NoStackTrace
-
-final case class StateTransition(applicationId: String, oldState: State, newState: State) {
-  override def toString: String =
-    s"StateTransition(application.id=$applicationId, ${oldState.name()} ==> ${newState.name()})"
-}
-
-object StateTransition {
-  given Show[StateTransition] = Show.fromToString
-
-  given Encoder[StateTransition] = (a: StateTransition) =>
-    Json.obj(
-      "event" -> Json.fromString("KafkaStreams.State.Transition"),
-      "applicationId" -> Json.fromString(a.applicationId),
-      "oldState" -> Json.fromString(a.oldState.name()),
-      "newState" -> Json.fromString(a.newState.name())
-    )
-}
 
 /** Builds and manages a Kafka Streams application with startup monitoring and transition notifications. */
 final class KafkaStreamsBuilder[F[_]] private (
