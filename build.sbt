@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.54.5"
+val awsV = "2.54.6"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -336,11 +336,12 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
-      "io.opentelemetry"                % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
-      "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.7", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
+      "at.yawk.lz4"      % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
+      "io.opentelemetry" % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
+      "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
+      "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
+      "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
+      "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
   .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
