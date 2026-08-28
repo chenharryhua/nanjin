@@ -5,6 +5,16 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.kernel.Group
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
+  ActiveGauge,
+  BalanceGauge,
+  FrequencyCounter,
+  Gauge,
+  GaugeParams,
+  HealthCheck,
+  IdleGauge,
+  Percentile
+}
 import com.github.chenharryhua.nanjin.guard.metrics.api.{
   Counter,
   Histogram,
@@ -14,15 +24,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.{
   UnsafeHistogram,
   UnsafeMeter,
   UnsafeTimer
-}
-import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
-  ActiveGauge,
-  BalanceGauge,
-  Gauge,
-  GaugeParams,
-  HealthCheck,
-  IdleGauge,
-  Percentile
 }
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -83,6 +84,14 @@ sealed trait MetricsHub[F[_]] {
 
   /** Register a gauge reporting elapsed time since acquisition until `deactivate`. */
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Resource[F, ActiveGauge[F]]
+
+  /** Register a tag-based frequency counter reported as a JSON map gauge.
+    *
+    * Each call to `inc(tag)` increments that tag's count. The map resets on each policy tick.
+    */
+  def frequencyCounter(
+    name: String,
+    f: Endo[FrequencyCounter.Builder] = identity): Resource[F, FrequencyCounter[F]]
 
   /** Register a transactional gauge backed by a supplied STM runtime and variable. */
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
@@ -150,6 +159,11 @@ object MetricsHub {
 
     override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Resource[F, ActiveGauge[F]] =
       ActiveGauge(gaugeParams, name, f)
+
+    override def frequencyCounter(
+      name: String,
+      f: Endo[FrequencyCounter.Builder]): Resource[F, FrequencyCounter[F]] =
+      FrequencyCounter(gaugeParams, name, f)
 
     override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
       for {

@@ -3,6 +3,15 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Endo
 import cats.effect.MonadCancel
 import cats.kernel.Group
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
+  ActiveGauge,
+  BalanceGauge,
+  FrequencyCounter,
+  Gauge,
+  HealthCheck,
+  IdleGauge,
+  Percentile
+}
 import com.github.chenharryhua.nanjin.guard.metrics.api.{
   Counter,
   Histogram,
@@ -12,14 +21,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.{
   UnsafeHistogram,
   UnsafeMeter,
   UnsafeTimer
-}
-import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
-  ActiveGauge,
-  BalanceGauge,
-  Gauge,
-  HealthCheck,
-  IdleGauge,
-  Percentile
 }
 import fs2.Stream
 import io.circe.Encoder
@@ -82,6 +83,9 @@ sealed trait MetricsHubS[F[_]] {
   /** Register an active-time gauge and emit its handle. */
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Stream[F, ActiveGauge[F]]
 
+  /** Register a tag-based frequency counter and emit its handle. */
+  def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
+
   /** Register an STM-backed gauge and emit its transactional variable. */
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]]
 
@@ -139,6 +143,11 @@ object MetricsHubS {
 
       override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Stream[F, ActiveGauge[F]] =
         Stream.resource(hub.activeGauge(name, f))
+
+      override def frequencyCounter(
+        name: String,
+        f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]] =
+        Stream.resource(hub.frequencyCounter(name, f))
 
       override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]] =
         Stream.resource(hub.txnGauge(stm, initial)(name))
