@@ -23,7 +23,6 @@ private object ServiceConfigF {
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
   final case class WithMetricsReport[K](policy: Policy, cont: K) extends ServiceConfigF[K]
   final case class WithHomepage[K](homepage: Option[Homepage], cont: K) extends ServiceConfigF[K]
-  final case class WithTaskName[K](task: Task, cont: K) extends ServiceConfigF[K]
   final case class WithLogFormat[K](format: LogFormat, cont: K) extends ServiceConfigF[K]
 
   final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
@@ -55,7 +54,6 @@ private object ServiceConfigF {
       case WithRestartPolicy(p, t, c)      => c.focus(_.policies.restart).replace(RestartPolicy(p, t))
       case WithMetricsReport(p, c)         => c.focus(_.policies.report).replace(p)
       case WithHomepage(v, c)              => c.focus(_.serviceIdentity.homepage).replace(v)
-      case WithTaskName(v, c)              => c.focus(_.serviceIdentity.task).replace(v)
       case WithLogFormat(v, c)             => c.focus(_.logFormat).replace(Some(v))
       case WithHistoryCapacity(p, e, m, c) => c.focus(_.history).replace(Some(HistoryCapacity(p, e, m)))
       case WithDashboardPolicy(p, m, c) => c.focus(_.policies.dashboard).replace(Some(DashboardPolicy(p, m)))
@@ -105,10 +103,6 @@ final class ServiceConfig[F[_]: Applicative] private (
   /** Set the service homepage URL, shown in dashboard and observer output. */
   def withHomepage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
-
-  /** Override the task name for this service configuration. */
-  def withTaskName(tn: String): ServiceConfig[F] =
-    copy(cont = Fix(WithTaskName(Task(tn), cont)))
 
   /** Set the time zone used by ticks, policies, and timestamp formatting. */
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
