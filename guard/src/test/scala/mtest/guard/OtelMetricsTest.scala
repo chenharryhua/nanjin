@@ -1,12 +1,13 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.kernel.Resource
+import cats.effect.kernel.{Ref, Resource}
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import io.opentelemetry.sdk.metrics.data.MetricData
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.otel4s.Attribute
+import org.typelevel.otel4s.metrics.MeterProvider
 import org.typelevel.otel4s.oteljava.testkit.metrics.{
   MetricExpectation,
   MetricExpectations,
@@ -156,5 +157,26 @@ class OtelMetricsTest extends AnyFunSuite {
     }.unsafeRunSync()
 
     assert(metrics.isEmpty)
+  }
+
+  test("7.the MeterProvider resource is acquired on start and released on stop") {
+    // A Resource that records its acquire/release into a Ref, yielding a noop provider. Verifies nanjin owns
+    // the provider's lifecycle: it must be opened once when the service starts and closed once when it stops.
+    val (acquired, released) = (for {
+      acq <- Ref.of[IO, Int](0)
+      rel <- Ref.of[IO, Int](0)
+      provider = Resource.make(acq.update(_ + 1).as(MeterProvider.noop[IO]))(_ => rel.update(_ + 1))
+      _ <- TaskGuard[IO]("otel")
+        .service("otel")
+        .updateConfig(_.withMeterProvider(provider))
+        .eventStream(agent => agent.facilitate("hub")(_.counter("c")).use(_.inc(1)))
+        .compile
+        .drain
+      a <- acq.get
+      r <- rel.get
+    } yield (a, r)).unsafeRunSync()
+
+    assert(acquired == 1)
+    assert(released == 1)
   }
 }
