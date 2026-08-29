@@ -57,7 +57,7 @@ object Meter {
 
   }
 
-  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants, description: String)
+  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants, description: Option[String])
       extends EnableConfig[Builder] {
 
     /** Enable or disable metric registration; disabled meters become no-ops. */
@@ -66,7 +66,7 @@ object Meter {
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, squants, description)
+      new Builder(isEnabled, squants, Some(description))
 
     /** Attach a squants unit to the reported meter. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
@@ -79,9 +79,10 @@ object Meter {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
       def meter: Resource[F, Meter[F]] =
         for {
-          otel <- Resource.eval(
-            meterProvider.get(label.label).flatMap(
-              _.counter[Long](name).withDescription(description).withUnit(squants.unitSymbol).create))
+          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+            val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
+            description.fold(builder)(builder.withDescription).create
+          })
           m <- Resource.make(MetricName(name).map { metricName =>
             new Impl[F](
               label = label,
@@ -102,6 +103,6 @@ object Meter {
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Meter[F]] =
-    f(new Builder(isEnabled = true, squants = Squants(Each), description = ""))
+    f(new Builder(isEnabled = true, squants = Squants(Each), description = None))
       .build[F](label, name, mr, meterProvider)
 }

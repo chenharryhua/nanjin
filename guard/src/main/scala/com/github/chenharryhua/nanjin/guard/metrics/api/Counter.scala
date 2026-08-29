@@ -74,7 +74,7 @@ object Counter {
     isEnabled: Boolean,
     isRisk: Boolean,
     policy: Policy,
-    description: String)
+    description: Option[String])
       extends EnableConfig[Builder] {
 
     /** Classify the counter as a risk counter in reported metrics. */
@@ -82,7 +82,7 @@ object Counter {
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, isRisk, policy, description)
+      new Builder(isEnabled, isRisk, policy, Some(description))
 
     /** Enable or disable metric registration; disabled counters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
@@ -101,9 +101,10 @@ object Counter {
       meterProvider: MeterProvider[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
-          upDown <- Resource.eval(
-            meterProvider.get(label.label).flatMap(
-              _.upDownCounter[Long](name).withDescription(description).withUnit(Each.symbol).create))
+          upDown <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+            val builder = m.upDownCounter[Long](name).withUnit(Each.symbol)
+            description.fold(builder)(builder.withDescription).create
+          })
           counter <- Resource.make(
             MetricName(name)
               .map { metricName =>
@@ -128,6 +129,6 @@ object Counter {
     zoneId: ZoneId,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Counter[F]] =
-    f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = ""))
+    f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = None))
       .build[F](label, name, mr, zoneId, meterProvider)
 }
