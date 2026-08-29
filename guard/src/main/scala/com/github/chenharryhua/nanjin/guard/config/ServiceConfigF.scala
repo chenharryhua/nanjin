@@ -11,6 +11,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
+import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.*
 import scala.concurrent.duration.FiniteDuration
@@ -65,7 +66,8 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] val zoneId: ZoneId,
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]],
-  private[guard] val logThreshold: LogThreshold) {
+  private[guard] val logThreshold: LogThreshold,
+  private[guard] val meterProvider: MeterProvider[F]) {
   import ServiceConfigF.*
 
   private def copy(
@@ -73,8 +75,9 @@ final class ServiceConfig[F[_]: Applicative] private (
     zoneId: ZoneId = this.zoneId,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs,
-    logThreshold: LogThreshold = this.logThreshold): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logThreshold)
+    logThreshold: LogThreshold = this.logThreshold,
+    meterProvider: MeterProvider[F] = this.meterProvider): ServiceConfig[F] =
+    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logThreshold, meterProvider)
 
   /** Set the restart policy for the service.
     *
@@ -163,6 +166,18 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
 
+  /** Supply an OpenTelemetry [[org.typelevel.otel4s.metrics.MeterProvider]] for recording metrics.
+    *
+    * By default the provider is a no-op, so otel4s metrics are disabled and incur no cost. Configuring a real
+    * provider opts the service into emitting metrics through the standard metrics hub: instruments created
+    * via `agent.facilitate`/`agent.metricsHub` then record to both Dropwizard and otel4s.
+    *
+    * @param meterProvider
+    *   the otel4s meter provider used to create meters and instruments
+    */
+  def withMeterProvider(meterProvider: MeterProvider[F]): ServiceConfig[F] =
+    copy(meterProvider = meterProvider)
+
   private[guard] def evalConfig(
     serviceName: Service,
     serviceId: ServiceId,
@@ -189,6 +204,7 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
-      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn)
+      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
+      meterProvider = MeterProvider.noop[F]
     )
 }

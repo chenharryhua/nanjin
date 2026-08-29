@@ -8,6 +8,7 @@ import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service}
 import io.circe.{Codec, Decoder, Encoder}
+import org.typelevel.otel4s.Attribute
 import squants.{Each, Quantity, UnitOfMeasure}
 
 sealed trait MetricKind extends Product
@@ -54,4 +55,17 @@ final case class MetricLabel(label: String, domain: Domain, service: Service) de
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: MetricCategory)
     derives Codec.AsObject:
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
+  val attributes: List[Attribute[String]] = {
+    val cat = category match {
+      case MetricCategory.Gauge(kind)        => kind.productPrefix
+      case MetricCategory.Counter(kind)      => kind.productPrefix
+      case MetricCategory.Meter(kind, _)     => kind.productPrefix
+      case MetricCategory.Histogram(kind, _) => kind.productPrefix
+      case MetricCategory.Timer(kind, _)     => kind.productPrefix
+    }
+    List(
+      Attribute.from("service", metricLabel.service.value),
+      Attribute.from("domain", metricLabel.domain.value),
+      Attribute.from("category", cat))
+  }
 end MetricID

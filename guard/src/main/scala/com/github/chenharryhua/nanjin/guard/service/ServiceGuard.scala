@@ -156,7 +156,8 @@ private[guard] object ServiceGuard {
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
             metricsEventHandler = meHandler,
-            reportedEventHandler = reHandler
+            reportedEventHandler = reHandler,
+            meterProvider = config.meterProvider
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

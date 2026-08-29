@@ -22,12 +22,6 @@ class MetricsNoopTest extends AnyFunSuite {
     counter.inc(1).unsafeRunSync()
   }
 
-  test("2.Counter.noop unsafeInc is a no-op") {
-    val counter = Counter.noop[IO]
-    counter.unsafeInc(100)
-    counter.unsafeInc(1)
-  }
-
   test("3.Counter.noop works with Id") {
     val counter = Counter.noop[Id]
     counter.inc(10)
@@ -41,12 +35,6 @@ class MetricsNoopTest extends AnyFunSuite {
     meter.mark(1).unsafeRunSync()
   }
 
-  test("5.Meter.noop unsafeMark is a no-op") {
-    val meter = Meter.noop[IO]
-    meter.unsafeMark(100)
-    meter.unsafeMark(1)
-  }
-
   test("6.Meter.noop works with Id") {
     val meter = Meter.noop[Id]
     meter.mark(10)
@@ -58,12 +46,6 @@ class MetricsNoopTest extends AnyFunSuite {
     val histogram = Histogram.noop[IO]
     histogram.update(100).unsafeRunSync()
     histogram.update(1).unsafeRunSync()
-  }
-
-  test("8.Histogram.noop unsafeUpdate is a no-op") {
-    val histogram = Histogram.noop[IO]
-    histogram.unsafeUpdate(100)
-    histogram.unsafeUpdate(1)
   }
 
   test("9.Histogram.noop works with Id") {
@@ -82,11 +64,6 @@ class MetricsNoopTest extends AnyFunSuite {
     val timer = Timer.noop[IO]
     val result = timer.timing(IO.pure(42)).unsafeRunSync()
     assert(result == 42)
-  }
-
-  test("12.Timer.noop unsafeElapsedNano is a no-op") {
-    val timer = Timer.noop[IO]
-    timer.unsafeElapsedNano(1000000)
   }
 
   test("13.Timer.noop works with Id") {

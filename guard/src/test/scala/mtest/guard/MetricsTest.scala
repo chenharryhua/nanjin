@@ -95,12 +95,12 @@ class MetricsTest extends AnyFunSuite {
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
   }
 
-  test("3b.unsafe counter") {
+  test("3b.counter inc") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("counter")(_.unsafeCounter("counter"))
+        .facilitate("counter")(_.counter("counter"))
         .use { counter =>
-          IO.delay(counter.unsafeInc(10)) >> agent.adhoc.report.void
+          counter.inc(10) >> agent.adhoc.report.void
         }
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
 
@@ -142,12 +142,12 @@ class MetricsTest extends AnyFunSuite {
     assert(meter.squants.dimensionName == Money.name)
   }
 
-  test("4b.unsafe meter") {
+  test("4b.meter mark") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("meter")(_.unsafeMeter("meter"))
+        .facilitate("meter")(_.meter("meter"))
         .use { meter =>
-          IO.delay(meter.unsafeMark(10)) >> agent.adhoc.report.void
+          meter.mark(10) >> agent.adhoc.report.void
         }
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
 
@@ -180,12 +180,12 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.squants.dimensionName == Information.name)
   }
 
-  test("6b.unsafe histogram") {
+  test("6b.histogram update") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("histogram")(_.unsafeHistogram("histogram"))
+        .facilitate("histogram")(_.histogram("histogram"))
         .use { histogram =>
-          IO.delay(histogram.unsafeUpdate(10)) >> agent.adhoc.report.void
+          histogram.update(10) >> agent.adhoc.report.void
         }
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
 
@@ -246,12 +246,12 @@ class MetricsTest extends AnyFunSuite {
     assert(timer.calls == 1)
   }
 
-  test("10b.unsafe timer") {
+  test("10b.timer elapsedNano") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("timer")(_.unsafeTimer("timer"))
+        .facilitate("timer")(_.timer("timer"))
         .use { timer =>
-          IO.delay(timer.unsafeElapsedNano(10)) >> agent.adhoc.report.void
+          timer.elapsedNano(10) >> agent.adhoc.report.void
         }
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
 

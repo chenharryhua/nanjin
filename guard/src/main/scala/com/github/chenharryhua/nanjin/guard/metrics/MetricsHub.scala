@@ -15,19 +15,11 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   IdleGauge,
   Percentile
 }
-import com.github.chenharryhua.nanjin.guard.metrics.api.{
-  Counter,
-  Histogram,
-  Meter,
-  Timer,
-  UnsafeCounter,
-  UnsafeHistogram,
-  UnsafeMeter,
-  UnsafeTimer
-}
+import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
+import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.ZoneId
 
@@ -40,6 +32,18 @@ import java.time.ZoneId
   *
   * Releasing the resource unregisters the metric. Use `MetricsHubS` when a stream-based registration API is
   * more convenient.
+  *
+  * ===Dual backend===
+  * The push-based instruments record to Dropwizard and, when an OpenTelemetry
+  * [[org.typelevel.otel4s.metrics.MeterProvider]] has been configured via `ServiceConfig.withMeterProvider`,
+  * also to otel4s. The default provider is a no-op, so the OpenTelemetry arm is free until it is enabled. The
+  * dual-write lives inside each instrument's implementation. The instrument-to-otel4s mapping is:
+  *   - counter → `UpDownCounter`
+  *   - meter → monotonic `Counter`
+  *   - histogram → `Histogram`
+  *   - timer → `Histogram` of durations in seconds
+  *
+  * Gauges are Dropwizard-only for now.
   */
 sealed trait MetricsHub[F[_]] {
 
@@ -49,26 +53,14 @@ sealed trait MetricsHub[F[_]] {
   /** Register a counter; the returned counter is safe to update in `F`. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
 
-  /** Register a counter with a synchronous, unsafe update method. */
-  def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, UnsafeCounter]
-
   /** Register a rate meter with effectful updates. */
   def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
-
-  /** Register a rate meter with a synchronous, unsafe update method. */
-  def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, UnsafeMeter]
 
   /** Register a histogram with effectful updates. */
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, Histogram[F]]
 
-  /** Register a histogram with a synchronous, unsafe update method. */
-  def unsafeHistogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, UnsafeHistogram]
-
   /** Register a timer with effectful updates. */
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
-
-  /** Register a timer with a synchronous, unsafe update method. */
-  def unsafeTimer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, UnsafeTimer]
 
   /** Register a custom effectful gauge. The resource unregisters it on release. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit]
@@ -107,35 +99,29 @@ object MetricsHub {
     metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
-    zoneId: ZoneId): MetricsHub[F] =
-    new Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
+    zoneId: ZoneId,
+    meterProvider: MeterProvider[F]): MetricsHub[F] =
+    new Impl[F](metricLabel, metricRegistry, dispatcher, zoneId, meterProvider)
 
   private class Impl[F[_]: Async](
     val metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
-    zoneId: ZoneId)
+    zoneId: ZoneId,
+    meterProvider: MeterProvider[F])
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, metricLabel, name, zoneId, f)
-    override def unsafeCounter(name: String, f: Endo[Counter.Builder]): Resource[F, UnsafeCounter] =
-      Counter[F](metricRegistry, metricLabel, name, zoneId, f)
+      Counter[F](metricRegistry, metricLabel, name, zoneId, meterProvider, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, metricLabel, name, f)
-    override def unsafeMeter(name: String, f: Endo[Meter.Builder]): Resource[F, UnsafeMeter] =
-      Meter[F](metricRegistry, metricLabel, name, f)
+      Meter[F](metricRegistry, metricLabel, name, meterProvider, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, metricLabel, name, f)
-    override def unsafeHistogram(name: String, f: Endo[Histogram.Builder]): Resource[F, UnsafeHistogram] =
-      Histogram[F](metricRegistry, metricLabel, name, f)
+      Histogram[F](metricRegistry, metricLabel, name, meterProvider, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, metricLabel, name, f)
-    override def unsafeTimer(name: String, f: Endo[Timer.Builder]): Resource[F, UnsafeTimer] =
-      Timer[F](metricRegistry, metricLabel, name, f)
+      Timer[F](metricRegistry, metricLabel, name, meterProvider, f)
 
     // gauges
 

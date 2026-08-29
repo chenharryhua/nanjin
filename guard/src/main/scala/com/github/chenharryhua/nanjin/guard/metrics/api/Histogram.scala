@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics.{
   ExponentiallyDecayingReservoir,
   Histogram as CodahaleHistogram,
@@ -19,6 +20,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricName,
   Squants
 }
+import org.typelevel.otel4s.metrics.{Histogram as OtelHistogram, MeterProvider}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
@@ -28,18 +30,10 @@ trait Histogram[F[_]]:
   final def update(num: Int): F[Unit] = update(num.toLong)
 end Histogram
 
-/** Synchronous histogram handle. */
-trait UnsafeHistogram:
-  /** Record one observed value immediately. */
-  def unsafeUpdate(num: Long): Unit
-  final def unsafeUpdate(num: Int): Unit = unsafeUpdate(num.toLong)
-end UnsafeHistogram
-
 object Histogram {
 
-  def noop[F[_]: Applicative]: Histogram[F] & UnsafeHistogram = new Histogram[F] with UnsafeHistogram {
+  def noop[F[_]: Applicative]: Histogram[F] = new Histogram[F] {
     override def update(num: Long): F[Unit] = ().pure
-    override def unsafeUpdate(num: Long): Unit = ()
   }
 
   private class Impl[F[_]](
@@ -47,15 +41,16 @@ object Histogram {
     metricRegistry: MetricRegistry,
     squants: Squants,
     reservoir: Option[Reservoir],
-    name: MetricName)(using F: Sync[F])
-      extends Histogram[F] with UnsafeHistogram {
+    name: MetricName,
+    otel: OtelHistogram[F, Double])(using F: Sync[F])
+      extends Histogram[F] {
 
-    private val histogramName: String =
+    private val id: MetricID =
       MetricID(
         metricLabel = label,
         metricName = name,
         MetricCategory.Histogram(kind = MetricKind.Histogram.Default, squants = squants)
-      ).identifier
+      )
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleHistogram] = () =>
       reservoir match {
@@ -63,41 +58,60 @@ object Histogram {
         case None        => new CodahaleHistogram(new ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private val histogram: CodahaleHistogram = metricRegistry.histogram(histogramName, supplier)
+    private val histogram: CodahaleHistogram = metricRegistry.histogram(id.identifier, supplier)
 
-    override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
-    override def unsafeUpdate(num: Long): Unit = histogram.update(num)
+    // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
+    // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
+    override def update(num: Long): F[Unit] =
+      F.delay(histogram.update(num)) >> otel.record(num.toDouble, id.attributes)
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(histogramName)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
   }
 
-  final class Builder private[Histogram] (isEnabled: Boolean, squants: Squants, reservoir: Option[Reservoir])
+  final class Builder private[Histogram] (
+    isEnabled: Boolean,
+    squants: Squants,
+    reservoir: Option[Reservoir],
+    description: String)
       extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, squants, Some(reservoir))
+      new Builder(isEnabled, squants, Some(reservoir), description)
+
+    /** Attach a human-readable description carried by the OpenTelemetry instrument. */
+    def withDescription(description: String): Builder =
+      new Builder(isEnabled, squants, reservoir, description)
 
     /** Attach a squants unit to the reported histogram. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, Squants(um), reservoir)
+      new Builder(isEnabled, Squants(um), reservoir, description)
 
     /** Enable or disable metric registration; disabled histograms become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, squants, reservoir)
+      new Builder(isEnabled, squants, reservoir, description)
 
-    private[Histogram] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Histogram[F] & UnsafeHistogram] = {
-      def histogram: Resource[F, Histogram[F] & UnsafeHistogram] =
-        Resource.make(MetricName(name).map { metricName =>
-          new Impl[F](
-            label = label,
-            metricRegistry = metricRegistry,
-            squants = squants,
-            reservoir = reservoir,
-            name = metricName)
-        })(_.unregister)
+    private[Histogram] def build[F[_]](
+      label: MetricLabel,
+      name: String,
+      metricRegistry: MetricRegistry,
+      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
+      def histogram: Resource[F, Histogram[F]] =
+        for {
+          otel <- Resource.eval(
+            meterProvider.get(label.label).flatMap(
+              _.histogram[Double](name).withUnit(squants.unitSymbol).withDescription(description).create))
+          h <- Resource.make(MetricName(name).map { metricName =>
+            new Impl[F](
+              label = label,
+              metricRegistry = metricRegistry,
+              squants = squants,
+              reservoir = reservoir,
+              name = metricName,
+              otel = otel)
+          })(_.unregister)
+        } yield h
 
       if isEnabled then histogram else noop.pure
     }
@@ -107,7 +121,8 @@ object Histogram {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Histogram[F] & UnsafeHistogram] =
-    f(new Builder(isEnabled = true, squants = Squants(Each), reservoir = None))
-      .build[F](label, name, mr)
+    meterProvider: MeterProvider[F],
+    f: Endo[Builder]): Resource[F, Histogram[F]] =
+    f(new Builder(isEnabled = true, squants = Squants(Each), reservoir = None, description = ""))
+      .build[F](label, name, mr, meterProvider)
 }

@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics.{
   ExponentiallyDecayingReservoir,
   MetricRegistry,
@@ -18,6 +19,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricLabel,
   MetricName
 }
+import org.typelevel.otel4s.metrics.{Histogram as OtelHistogram, MeterProvider}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
@@ -46,32 +48,24 @@ trait Timer[F[_]]:
     elapsedNano(summon[ToNanos[A]](nano))
 end Timer
 
-/** Synchronous timer handle for recording elapsed durations. */
-trait UnsafeTimer:
-  /** Record an elapsed duration in nanoseconds immediately. */
-  def unsafeElapsedNano(num: Long): Unit
-  final def unsafeElapsedNano[A: ToNanos](nano: A): Unit =
-    unsafeElapsedNano(summon[ToNanos[A]](nano))
-end UnsafeTimer
-
 object Timer {
 
-  def noop[F[_]: Applicative]: Timer[F] & UnsafeTimer = new Timer[F] with UnsafeTimer {
+  def noop[F[_]: Applicative]: Timer[F] = new Timer[F] {
     override def elapsedNano(num: Long): F[Unit] = ().pure
     override def timing[A](fa: F[A]): F[A] = fa
-    override def unsafeElapsedNano(num: Long): Unit = ()
   }
 
   private class Impl[F[_]](
     label: MetricLabel,
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
-    name: MetricName
+    name: MetricName,
+    otel: OtelHistogram[F, Double]
   )(implicit F: Sync[F])
-      extends Timer[F] with UnsafeTimer {
+      extends Timer[F] {
 
-    private val timerName: String =
-      MetricID(label, name, MetricCategory.Timer(MetricKind.Timer.Default)).identifier
+    private val id: MetricID =
+      MetricID(label, name, MetricCategory.Timer(MetricKind.Timer.Default))
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {
@@ -79,37 +73,53 @@ object Timer {
         case None        => new CodahaleTimer(new ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private val timer: CodahaleTimer = metricRegistry.timer(timerName, supplier)
+    private val timer: CodahaleTimer = metricRegistry.timer(id.identifier, supplier)
 
-    override def elapsedNano(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
-    override def unsafeElapsedNano(num: Long): Unit = timer.update(num, TimeUnit.NANOSECONDS)
+    // Records to Dropwizard (nanoseconds) and to an otel4s duration Histogram in seconds (no-op when the
+    // configured MeterProvider is MeterProvider.noop).
+    override def elapsedNano(num: Long): F[Unit] =
+      F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >> otel.record(num.toDouble / 1e9, id.attributes)
 
-    override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>
-      timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
-      result
-    }
+    // Measure the effect once, then record the same elapsed time to both backends.
+    override def timing[A](fa: F[A]): F[A] =
+      F.timed(fa).flatMap { case (fd, result) => elapsedNano(fd.toNanos).as(result) }
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(timerName)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
   }
 
   final class Builder private[Timer] (
     isEnabled: Boolean,
-    reservoir: Option[Reservoir]
+    reservoir: Option[Reservoir],
+    description: String
   ) extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain timing observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, Some(reservoir))
+      new Builder(isEnabled, Some(reservoir), description)
+
+    /** Attach a human-readable description carried by the OpenTelemetry instrument. */
+    def withDescription(description: String): Builder =
+      new Builder(isEnabled, reservoir, description)
 
     /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, reservoir)
+      new Builder(isEnabled, reservoir, description)
 
-    private[Timer] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Timer[F] & UnsafeTimer] = {
-      def timer: Resource[F, Timer[F] & UnsafeTimer] =
-        Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _)))(_.unregister)
+    private[Timer] def build[F[_]](
+      label: MetricLabel,
+      name: String,
+      metricRegistry: MetricRegistry,
+      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
+      def timer: Resource[F, Timer[F]] =
+        for {
+          // Timer maps to a duration histogram in seconds (OpenTelemetry duration convention).
+          otel <- Resource.eval(
+            meterProvider.get(label.label).flatMap(
+              _.histogram[Double](name).withUnit("s").withDescription(description).create))
+          t <- Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _, otel)))(
+            _.unregister)
+        } yield t
 
       if isEnabled then timer else noop.pure
     }
@@ -119,7 +129,8 @@ object Timer {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Timer[F] & UnsafeTimer] =
-    f(new Builder(isEnabled = true, reservoir = None))
-      .build[F](label, name, mr)
+    meterProvider: MeterProvider[F],
+    f: Endo[Builder]): Resource[F, Timer[F]] =
+    f(new Builder(isEnabled = true, reservoir = None, description = ""))
+      .build[F](label, name, mr, meterProvider)
 }
