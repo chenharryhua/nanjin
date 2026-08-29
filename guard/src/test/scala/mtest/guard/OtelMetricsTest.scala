@@ -100,7 +100,7 @@ class OtelMetricsTest extends AnyFunSuite {
     )
   }
 
-  test("4.timer records durations in nanoseconds via elapsedNano") {
+  test("4.timer records durations in seconds (default) via elapsedNano") {
     val metrics = MetricsTestkit.inMemory[IO]().use { testkit =>
       val service =
         TaskGuard[IO]("otel")
@@ -113,13 +113,38 @@ class OtelMetricsTest extends AnyFunSuite {
         .drain >> testkit.collectMetrics
     }.unsafeRunSync()
 
-    // Timer records nanoseconds under the "ns" unit: 2s + 3s = 5_000_000_000 ns.
+    // Default time unit is seconds: 2s + 3s = 5.0 s.
     assertMetrics(
       metrics,
       MetricExpectation
         .histogram("latency")
-        .unit("ns")
-        .points(PointSetExpectation.exists(PointExpectation.histogram.count(2L).sum(5.0e9)))
+        .unit("s")
+        .points(PointSetExpectation.exists(PointExpectation.histogram.count(2L).sum(5.0)))
+    )
+  }
+
+  test("4b.timer records in the configured time unit via withTimeUnit") {
+    val metrics = MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent
+            .facilitate("hub")(_.timer("latency", _.withTimeUnit(squants.time.Milliseconds)))
+            .use(t => t.elapsed(2.seconds) >> t.elapsed(3.seconds)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.unsafeRunSync()
+
+    // withTimeUnit(Milliseconds): 2s + 3s = 5000 ms, unit symbol "ms".
+    assertMetrics(
+      metrics,
+      MetricExpectation
+        .histogram("latency")
+        .unit("ms")
+        .points(PointSetExpectation.exists(PointExpectation.histogram.count(2L).sum(5000.0)))
     )
   }
 
@@ -140,7 +165,7 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .histogram("timed")
-        .unit("ns")
+        .unit("s")
         .points(PointSetExpectation.exists(PointExpectation.histogram.count(1L)))
     )
   }

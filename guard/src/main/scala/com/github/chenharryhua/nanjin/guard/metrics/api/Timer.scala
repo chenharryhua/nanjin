@@ -21,6 +21,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricName
 }
 import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
+import squants.time.Nanoseconds
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
@@ -61,7 +62,8 @@ object Timer {
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
     name: MetricName,
-    otel: OtelHistogram[F, Long]
+    otel: OtelHistogram[F, Double],
+    timeunit: squants.time.TimeUnit
   )(implicit F: Sync[F])
       extends Timer[F] {
 
@@ -76,10 +78,12 @@ object Timer {
 
     private val timer: CodahaleTimer = metricRegistry.timer(id.identifier, supplier)
 
-    // Records to Dropwizard and to an otel4s duration Histogram, both in nanoseconds (no-op when the
-    // configured MeterProvider is MeterProvider.noop). The otel instrument carries the "ns" unit.
+    // Records to Dropwizard in nanoseconds and to an otel4s duration Histogram in the configured time unit
+    // (no-op when the configured MeterProvider is MeterProvider.noop). The elapsed nanoseconds are converted
+    // to `timeunit`, and the otel instrument carries that unit's symbol.
     override def elapsedNano(num: Long): F[Unit] =
-      F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >> otel.record(num, id.attributes)
+      F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >>
+        otel.record(Nanoseconds(num).in(timeunit).value, id.attributes)
 
     // Measure the effect once, then record the same elapsed time to both backends.
     override def timing[A](fa: F[A]): F[A] =
@@ -93,20 +97,27 @@ object Timer {
     isEnabled: Boolean,
     reservoir: Option[Reservoir],
     description: Option[String],
-    boundaries: Option[BucketBoundaries]
+    boundaries: Option[BucketBoundaries],
+    timeunit: squants.time.TimeUnit
   ) extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain timing observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, Some(reservoir), description, boundaries)
+      new Builder(isEnabled, Some(reservoir), description, boundaries, timeunit)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, reservoir, Some(description), boundaries)
+      new Builder(isEnabled, reservoir, Some(description), boundaries, timeunit)
+
+    /** Choose the time unit the OpenTelemetry duration histogram records in (default seconds). The elapsed
+      * nanoseconds are converted to this unit and the instrument carries its symbol.
+      */
+    def withTimeUnit(timeunit: squants.time.TimeUnit): Builder =
+      new Builder(isEnabled, reservoir, description, boundaries, timeunit)
 
     /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, reservoir, description, boundaries)
+      new Builder(isEnabled, reservoir, description, boundaries, timeunit)
 
     private[Timer] def build[F[_]](
       label: MetricLabel,
@@ -116,13 +127,13 @@ object Timer {
       def timer: Resource[F, Timer[F]] =
         for {
           otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
-            ContT.pure(m.histogram[Long](name).withUnit("ns"))
+            ContT.pure(m.histogram[Double](name).withUnit(timeunit.symbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create)
           })
-          t <- Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _, otel)))(
-            _.unregister)
+          t <- Resource.make(
+            MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
         } yield t
 
       if isEnabled then timer else noop.pure
@@ -135,6 +146,12 @@ object Timer {
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =
-    f(new Builder(isEnabled = true, reservoir = None, description = None, boundaries = None))
+    f(
+      new Builder(
+        isEnabled = true,
+        reservoir = None,
+        description = None,
+        boundaries = None,
+        timeunit = squants.Seconds))
       .build[F](label, name, mr, meterProvider)
 }
