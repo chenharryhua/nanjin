@@ -166,7 +166,7 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
 
-  /** Supply an OpenTelemetry [[org.typelevel.otel4s.metrics.MeterProvider]] for recording metrics.
+  /** Supply an OpenTelemetry `org.typelevel.otel4s.metrics.MeterProvider` for recording metrics.
     *
     * By default the provider is a no-op, so otel4s metrics are disabled and incur no cost. Configuring a real
     * provider opts the service into emitting metrics through the standard metrics hub: instruments created

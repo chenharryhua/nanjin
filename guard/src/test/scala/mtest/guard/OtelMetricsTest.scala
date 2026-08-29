@@ -16,10 +16,10 @@ import org.typelevel.otel4s.oteljava.testkit.metrics.{
 
 import scala.concurrent.duration.DurationInt
 
-/** Verifies the OpenTelemetry arm of the merged [[com.github.chenharryhua.nanjin.guard.metrics.MetricsHub]].
+/** Verifies the OpenTelemetry arm of the merged `com.github.chenharryhua.nanjin.guard.metrics.MetricsHub`.
   *
   * Instruments acquired via `agent.facilitate` record to Dropwizard and, when a real
-  * [[org.typelevel.otel4s.metrics.MeterProvider]] is configured through `withMeterProvider`, also to otel4s.
+  * `org.typelevel.otel4s.metrics.MeterProvider` is configured through `withMeterProvider`, also to otel4s.
   * These tests supply the oteljava in-memory testkit as that provider and assert on the exported metrics.
   */
 class OtelMetricsTest extends AnyFunSuite {
@@ -27,6 +27,7 @@ class OtelMetricsTest extends AnyFunSuite {
   // service/domain attributes every instrument carries; "otel" is the metric label used below
   private val svc: Attribute[String] = Attribute("service", "otel")
   private val dom: Attribute[String] = Attribute("domain", "default")
+  private val cat: Attribute[String] = Attribute("category", "default")
 
   private def assertMetrics(metrics: List[MetricData], expected: MetricExpectation*): Unit =
     MetricExpectations.checkAll(metrics, expected*) match {
@@ -48,7 +49,7 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("requests")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(svc, dom)))
+        .points(PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(svc, dom, cat)))
     )
   }
 
@@ -67,7 +68,7 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("throughput")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(svc, dom)))
+        .points(PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(svc, dom, cat)))
     )
   }
 

@@ -66,6 +66,6 @@ final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, cate
     List(
       Attribute.from("service", metricLabel.service.value),
       Attribute.from("domain", metricLabel.domain.value),
-      Attribute.from("category", cat))
+      Attribute.from("category", cat.toLowerCase()))
   }
 end MetricID

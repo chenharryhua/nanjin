@@ -35,7 +35,7 @@ import java.time.ZoneId
   *
   * ===Dual backend===
   * The push-based instruments record to Dropwizard and, when an OpenTelemetry
-  * [[org.typelevel.otel4s.metrics.MeterProvider]] has been configured via `ServiceConfig.withMeterProvider`,
+  * `org.typelevel.otel4s.metrics.MeterProvider` has been configured via `ServiceConfig.withMeterProvider`,
   * also to otel4s. The default provider is a no-op, so the OpenTelemetry arm is free until it is enabled. The
   * dual-write lives inside each instrument's implementation. The instrument-to-otel4s mapping is:
   *   - counter → `UpDownCounter`
