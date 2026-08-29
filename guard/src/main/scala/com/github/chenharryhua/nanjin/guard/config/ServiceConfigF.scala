@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.derived.derived
+import cats.effect.kernel.Resource
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.{Applicative, Endo, Functor}
@@ -67,7 +68,7 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]],
   private[guard] val logThreshold: LogThreshold,
-  private[guard] val meterProvider: MeterProvider[F]) {
+  private[guard] val meterProvider: Resource[F, MeterProvider[F]]) {
   import ServiceConfigF.*
 
   private def copy(
@@ -76,7 +77,7 @@ final class ServiceConfig[F[_]: Applicative] private (
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs,
     logThreshold: LogThreshold = this.logThreshold,
-    meterProvider: MeterProvider[F] = this.meterProvider): ServiceConfig[F] =
+    meterProvider: Resource[F, MeterProvider[F]] = this.meterProvider): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, logThreshold, meterProvider)
 
   /** Set the restart policy for the service.
@@ -168,14 +169,26 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   /** Supply an OpenTelemetry `org.typelevel.otel4s.metrics.MeterProvider` for recording metrics.
     *
-    * By default the provider is a no-op, so otel4s metrics are disabled and incur no cost. Configuring a real
-    * provider opts the service into emitting metrics through the standard metrics hub: instruments created
-    * via `agent.facilitate`/`agent.metricsHub` then record to both Dropwizard and otel4s.
+    * By default, the provider is a no-op, so otel4s metrics are disabled and incur no cost. Configuring a
+    * real provider opts the service into emitting metrics through the standard metrics hub: instruments
+    * created via `agent.facilitate`/`agent.metricsHub` then record to both Dropwizard and otel4s.
+    *
+    * The provider is supplied as a `Resource`: the SDK-backed `MeterProvider` owns exporters and background
+    * readers, so the service acquires it on start and releases (flushes/shuts down) it on stop.
+    *
+    * ===Resource attributes===
+    * nanjin stamps only per-metric dimensions (`domain`, `category`) onto each measurement. Emitter identity
+    * belongs on the OpenTelemetry Resource, which is owned by the SDK and cannot be set from here. When
+    * building the `MeterProvider`, set these standard Resource attributes so metrics carry the service
+    * identity:
+    *   - `service.name` ← this service's name
+    *   - `service.namespace` ← the task name (the grouping above services)
+    *   - `service.instance.id` ← the service id (a new value per deployment)
     *
     * @param meterProvider
-    *   the otel4s meter provider used to create meters and instruments
+    *   a resource yielding the otel4s meter provider used to create meters and instruments
     */
-  def withMeterProvider(meterProvider: MeterProvider[F]): ServiceConfig[F] =
+  def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
     copy(meterProvider = meterProvider)
 
   private[guard] def evalConfig(
@@ -205,6 +218,6 @@ private[guard] object ServiceConfig {
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
       logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
-      meterProvider = MeterProvider.noop[F]
+      meterProvider = Resource.pure(MeterProvider.noop[F])
     )
 }

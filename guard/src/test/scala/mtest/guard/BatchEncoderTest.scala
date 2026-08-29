@@ -6,12 +6,12 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
 import java.util.UUID
-import com.github.chenharryhua.nanjin.guard.config.{Domain, Service}
+import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
 
 class BatchEncoderTest extends AnyFunSuite {
   private val batchId = UUID.fromString("00000000-0000-0000-0000-000000000001")
-  private val label = MetricLabel("batch", Domain("test"), Service("test-service"))
+  private val label = MetricLabel("batch", Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)
   private val completed = CompletedJob(job, Duration.ofMillis(12), done = true)
   private val failed = CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), done = false)

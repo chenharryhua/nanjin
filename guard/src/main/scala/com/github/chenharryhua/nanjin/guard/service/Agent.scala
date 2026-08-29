@@ -158,7 +158,11 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickFuture[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceIdentity.service)
+    val metricLabel = MetricLabel(
+      label,
+      reportedEventHandler.domain,
+      serviceParams.serviceIdentity.service,
+      serviceParams.serviceIdentity.task)
     MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId, meterProvider)
   }
 
@@ -175,7 +179,11 @@ final private class GeneralAgent[F[_]: Async](
     new Batch[F](metricsHub(label), uuidGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceIdentity.service)
+    val metricLabel = MetricLabel(
+      label,
+      reportedEventHandler.domain,
+      serviceParams.serviceIdentity.service,
+      serviceParams.serviceIdentity.task)
     new BatchLight[F](metricLabel, uuidGenerator)
   }
 
