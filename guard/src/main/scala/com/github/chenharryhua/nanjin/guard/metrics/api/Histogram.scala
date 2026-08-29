@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
+import cats.data.ContT
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
@@ -20,7 +21,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricName,
   Squants
 }
-import org.typelevel.otel4s.metrics.{Histogram as OtelHistogram, MeterProvider}
+import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
@@ -42,7 +43,7 @@ object Histogram {
     squants: Squants,
     reservoir: Option[Reservoir],
     name: MetricName,
-    otel: OtelHistogram[F, Double])(using F: Sync[F])
+    otel: OtelHistogram[F, Long])(using F: Sync[F])
       extends Histogram[F] {
 
     private val id: MetricID =
@@ -63,7 +64,7 @@ object Histogram {
     // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
     // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
     override def update(num: Long): F[Unit] =
-      F.delay(histogram.update(num)) >> otel.record(num.toDouble, id.attributes)
+      F.delay(histogram.update(num)) >> otel.record(num, id.attributes)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
@@ -73,24 +74,25 @@ object Histogram {
     isEnabled: Boolean,
     squants: Squants,
     reservoir: Option[Reservoir],
-    description: String)
+    description: Option[String],
+    boundaries: Option[BucketBoundaries])
       extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, squants, Some(reservoir), description)
+      new Builder(isEnabled, squants, Some(reservoir), description, boundaries)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, squants, reservoir, description)
+      new Builder(isEnabled, squants, reservoir, Some(description), boundaries)
 
     /** Attach a squants unit to the reported histogram. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, Squants(um), reservoir, description)
+      new Builder(isEnabled, Squants(um), reservoir, description, boundaries)
 
     /** Enable or disable metric registration; disabled histograms become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, squants, reservoir, description)
+      new Builder(isEnabled, squants, reservoir, description, boundaries)
 
     private[Histogram] def build[F[_]](
       label: MetricLabel,
@@ -99,9 +101,12 @@ object Histogram {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(
-            meterProvider.get(label.label).flatMap(
-              _.histogram[Double](name).withUnit(squants.unitSymbol).withDescription(description).create))
+          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+            ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
+              .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
+              .map(b => description.fold(b)(b.withDescription))
+              .run(_.create)
+          })
           h <- Resource.make(MetricName(name).map { metricName =>
             new Impl[F](
               label = label,
@@ -123,6 +128,12 @@ object Histogram {
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
-    f(new Builder(isEnabled = true, squants = Squants(Each), reservoir = None, description = ""))
+    f(
+      new Builder(
+        isEnabled = true,
+        squants = Squants(Each),
+        reservoir = None,
+        description = None,
+        boundaries = None))
       .build[F](label, name, mr, meterProvider)
 }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
+import cats.data.ContT
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
@@ -19,7 +20,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricLabel,
   MetricName
 }
-import org.typelevel.otel4s.metrics.{Histogram as OtelHistogram, MeterProvider}
+import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
@@ -60,7 +61,7 @@ object Timer {
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
     name: MetricName,
-    otel: OtelHistogram[F, Double]
+    otel: OtelHistogram[F, Long]
   )(implicit F: Sync[F])
       extends Timer[F] {
 
@@ -75,10 +76,10 @@ object Timer {
 
     private val timer: CodahaleTimer = metricRegistry.timer(id.identifier, supplier)
 
-    // Records to Dropwizard (nanoseconds) and to an otel4s duration Histogram in seconds (no-op when the
-    // configured MeterProvider is MeterProvider.noop).
+    // Records to Dropwizard and to an otel4s duration Histogram, both in nanoseconds (no-op when the
+    // configured MeterProvider is MeterProvider.noop). The otel instrument carries the "ns" unit.
     override def elapsedNano(num: Long): F[Unit] =
-      F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >> otel.record(num.toDouble / 1e9, id.attributes)
+      F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >> otel.record(num, id.attributes)
 
     // Measure the effect once, then record the same elapsed time to both backends.
     override def timing[A](fa: F[A]): F[A] =
@@ -91,20 +92,21 @@ object Timer {
   final class Builder private[Timer] (
     isEnabled: Boolean,
     reservoir: Option[Reservoir],
-    description: String
+    description: Option[String],
+    boundaries: Option[BucketBoundaries]
   ) extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain timing observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, Some(reservoir), description)
+      new Builder(isEnabled, Some(reservoir), description, boundaries)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, reservoir, description)
+      new Builder(isEnabled, reservoir, Some(description), boundaries)
 
     /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, reservoir, description)
+      new Builder(isEnabled, reservoir, description, boundaries)
 
     private[Timer] def build[F[_]](
       label: MetricLabel,
@@ -113,10 +115,12 @@ object Timer {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
       def timer: Resource[F, Timer[F]] =
         for {
-          // Timer maps to a duration histogram in seconds (OpenTelemetry duration convention).
-          otel <- Resource.eval(
-            meterProvider.get(label.label).flatMap(
-              _.histogram[Double](name).withUnit("s").withDescription(description).create))
+          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+            ContT.pure(m.histogram[Long](name).withUnit("ns"))
+              .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
+              .map(b => description.fold(b)(b.withDescription))
+              .run(_.create)
+          })
           t <- Resource.make(MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _, otel)))(
             _.unregister)
         } yield t
@@ -131,6 +135,6 @@ object Timer {
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =
-    f(new Builder(isEnabled = true, reservoir = None, description = ""))
+    f(new Builder(isEnabled = true, reservoir = None, description = None, boundaries = None))
       .build[F](label, name, mr, meterProvider)
 }

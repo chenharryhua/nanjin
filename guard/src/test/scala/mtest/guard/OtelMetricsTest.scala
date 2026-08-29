@@ -91,7 +91,7 @@ class OtelMetricsTest extends AnyFunSuite {
     )
   }
 
-  test("4.timer records durations in seconds via elapsedNano") {
+  test("4.timer records durations in nanoseconds via elapsedNano") {
     val metrics = MetricsTestkit.inMemory[IO]().use { testkit =>
       val service =
         TaskGuard[IO]("otel").service("otel").updateConfig(_.withMeterProvider(testkit.meterProvider))
@@ -102,12 +102,13 @@ class OtelMetricsTest extends AnyFunSuite {
         .drain >> testkit.collectMetrics
     }.unsafeRunSync()
 
+    // Timer records nanoseconds under the "ns" unit: 2s + 3s = 5_000_000_000 ns.
     assertMetrics(
       metrics,
       MetricExpectation
         .histogram("latency")
-        .unit("s")
-        .points(PointSetExpectation.exists(PointExpectation.histogram.count(2L).sum(5.0)))
+        .unit("ns")
+        .points(PointSetExpectation.exists(PointExpectation.histogram.count(2L).sum(5.0e9)))
     )
   }
 
@@ -126,7 +127,7 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .histogram("timed")
-        .unit("s")
+        .unit("ns")
         .points(PointSetExpectation.exists(PointExpectation.histogram.count(1L)))
     )
   }
