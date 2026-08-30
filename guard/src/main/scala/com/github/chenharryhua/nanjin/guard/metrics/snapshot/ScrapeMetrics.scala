@@ -128,7 +128,7 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Gauge(_))) =>
+        case Right(mid @ MetricID(_, _, MetricCategory.Gauge(_, _))) =>
           parse(gauge.getValue.toString)
             .toOption
             .filterNot(_.isNull)

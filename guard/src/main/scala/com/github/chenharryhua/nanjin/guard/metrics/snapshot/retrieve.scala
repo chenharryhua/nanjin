@@ -7,7 +7,7 @@ object retrieve {
   def healthCheck(gauges: List[MetricElement.Gauge]): Map[MetricID, Boolean] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.Gauge(MetricKind.Gauge.HealthCheck) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.HealthCheck, _) =>
           gg.gauge.value.asBoolean.map(gg.metricId -> _)
       }
     }.flatten.toMap
@@ -15,7 +15,7 @@ object retrieve {
   def gauge[A: Decoder](gauges: List[MetricElement.Gauge]): Map[MetricID, A] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.Gauge(MetricKind.Gauge.Default) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.Default, _) =>
           gg.gauge.value.as[A].toOption.map(gg.metricId -> _)
       }
     }.flatten.toMap
@@ -23,7 +23,7 @@ object retrieve {
   def percentile(gauges: List[MetricElement.Gauge]): Map[MetricID, Json] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.Gauge(MetricKind.Gauge.Percentile) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.Percentile, _) =>
           gg.metricId -> gg.gauge.value
       }
     }.toMap

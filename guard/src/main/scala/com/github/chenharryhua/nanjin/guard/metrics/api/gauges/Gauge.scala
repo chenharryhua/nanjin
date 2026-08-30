@@ -9,8 +9,7 @@ import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
-import com.github.chenharryhua.nanjin.guard.metrics.MetricKind
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricKind, MetricName}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
@@ -60,7 +59,10 @@ object Gauge {
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
       metricID <- Resource.eval(MetricName(name).map { metricName =>
-        MetricID(gp.label, metricName, MetricCategory.Gauge(builder.kind)).identifier
+        MetricID(
+          gp.label,
+          metricName,
+          MetricCategory.Gauge(builder.kind, builder.policy.isDefined)).identifier
       })
       _ <- Resource.make(F.delay {
         gp.metricRegistry.gauge(

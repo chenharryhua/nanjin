@@ -30,7 +30,7 @@ object MetricKind:
 end MetricKind
 
 enum MetricCategory derives Encoder, Decoder:
-  case Gauge(kind: MetricKind.Gauge)
+  case Gauge(kind: MetricKind.Gauge, isCached: Boolean)
   case Counter(kind: MetricKind.Counter)
   case Meter(kind: MetricKind.Meter, squants: Squants)
   case Histogram(kind: MetricKind.Histogram, squants: Squants)
@@ -58,7 +58,7 @@ final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, cate
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
   val attributes: List[Attribute[String]] = {
     val cat = category match {
-      case MetricCategory.Gauge(kind)        => kind.productPrefix
+      case MetricCategory.Gauge(kind, _)     => kind.productPrefix
       case MetricCategory.Counter(kind)      => kind.productPrefix
       case MetricCategory.Meter(kind, _)     => kind.productPrefix
       case MetricCategory.Histogram(kind, _) => kind.productPrefix
