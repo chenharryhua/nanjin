@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   Gauge,
   HealthCheck,
   IdleGauge,
+  NumericGauge,
   Percentile
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
@@ -49,6 +50,14 @@ sealed trait MetricsHubS[F[_]] {
 
   /** Register a custom gauge and emit unit when registration succeeds. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit]
+
+  /** Register a pull-based numeric gauge (Dropwizard + otel4s `ObservableGauge`) and emit unit when
+    * registration succeeds.
+    */
+  def numericGauge(
+    name: String,
+    fa: F[Long],
+    f: Endo[NumericGauge.Builder] = identity): Stream[F, Unit]
 
   /** Register a health check and emit unit when registration succeeds. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Stream[F, Unit]
@@ -96,6 +105,12 @@ object MetricsHubS {
 
       override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit] =
         Stream.resource(hub.gauge(name, f))
+
+      override def numericGauge(
+        name: String,
+        fa: F[Long],
+        f: Endo[NumericGauge.Builder]): Stream[F, Unit] =
+        Stream.resource(hub.numericGauge(name, fa, f))
 
       override def healthCheck(
         name: String,

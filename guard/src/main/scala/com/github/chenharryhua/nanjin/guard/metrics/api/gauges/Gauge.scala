@@ -8,9 +8,7 @@ import cats.syntax.functor.given
 import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricKind, MetricName}
-import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -54,7 +52,6 @@ object Gauge {
   }
 
   final class Registered[F[_]] private[Gauge] (builder: Builder, initial: F[Json]) {
-    private def trans_error(ex: Throwable): Json = StackTrace(ex).headOption.asJson
 
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
@@ -71,9 +68,7 @@ object Gauge {
             new CodahaleGauge[Json] {
               override def getValue: Json =
                 try gp.dispatcher.unsafeRunTimed(json, builder.timeout)
-                catch {
-                  case NonFatal(ex) => trans_error(ex)
-                }
+                catch { case NonFatal(ex) => translateError(ex) }
             }
         )
       })(_ => F.delay(gp.metricRegistry.remove(metricID)).void)
@@ -84,7 +79,7 @@ object Gauge {
         builder.policy match {
           case None         => create(gp, name, initial)
           case Some(policy) =>
-            val handled: F[Json] = F.handleError(initial.timeout(builder.timeout))(trans_error)
+            val handled: F[Json] = F.handleError(initial.timeout(builder.timeout))(translateError)
             for {
               json <- Resource.eval(handled)
               ref <- Resource.eval(F.ref(json))

@@ -174,6 +174,35 @@ class OtelMetricsTest extends AnyFunSuite {
     )
   }
 
+  test("5b.numericGauge maps to an ObservableGauge and records the value with attributes") {
+    // A numericGauge maps to an otel4s ObservableGauge, whose callback only reports while the registration
+    // resource is open. Unlike the push instruments, it records nothing after release, so metrics must be
+    // collected while the gauge is still alive: collectMetrics runs inside the facilitate `use` scope.
+    val metrics = MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      Ref.of[IO, List[MetricData]](Nil).flatMap { collected =>
+        service
+          .eventStream(agent =>
+            agent
+              .facilitate("hub")(_.numericGauge("queue_depth", IO.pure(7L)))
+              .use(_ => testkit.collectMetrics.flatMap(collected.set)))
+          .compile
+          .drain >> collected.get
+      }
+    }.unsafeRunSync()
+
+    assertMetrics(
+      metrics,
+      MetricExpectation
+        .gauge[Long]("queue_depth")
+        .points(
+          PointSetExpectation.exists(PointExpectation.numeric(7L).attributesExact(njDomain, njService, njTask)))
+    )
+  }
+
   test("6.noop provider (default) records nothing to OpenTelemetry") {
     // No withMeterProvider call, so ServiceConfig keeps MeterProvider.noop[IO]. Instruments still work
     // (Dropwizard side), but nothing reaches the testkit.
