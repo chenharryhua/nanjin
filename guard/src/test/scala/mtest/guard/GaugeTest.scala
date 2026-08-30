@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import io.circe.Json
-import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -164,30 +163,6 @@ class GaugeTest extends AnyFunSuite {
     val percentiles = retrieve.percentile(snapshots.head.snapshot.gauges)
     assert(percentiles.nonEmpty)
     assert(percentiles.values.head.asString.exists(_.contains("50")))
-  }
-
-  test("11.transactional gauge") {
-    service.eventStream { agent =>
-      val mtx =
-        agent.facilitate("transactional") { fac =>
-          for {
-            stm <- Resource.eval(STM.runtime[IO])
-            a <- fac.txnGauge(stm, 10)("account-a")
-            b <- fac.txnGauge(stm, 10)("account-b")
-          } yield { (n: Int) =>
-            val transfer = for {
-              balance <- a.get
-              _ <- stm.check(balance > n)
-              _ <- a.modify(_ - n)
-              _ <- b.modify(_ + n)
-            } yield ()
-            stm.commit(transfer)
-          }
-        }
-
-      mtx.use(_(5) >> agent.adhoc.report.void)
-    }.compile.drain.unsafeRunSync()
-
   }
 
   test("12.frequency counter - accumulates tags") {

@@ -16,7 +16,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import fs2.Stream
 import io.circe.Encoder
-import io.github.timwspence.cats.stm.STM
 
 /** Stream-native interface for registering and using metrics.
   *
@@ -71,9 +70,6 @@ sealed trait MetricsHubS[F[_]] {
   /** Register a tag-based frequency counter and emit its handle. */
   def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
 
-  /** Register an STM-backed gauge and emit its transactional variable. */
-  def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]]
-
   /** Register a two-sided balance gauge and emit its transfer handle. */
   def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
@@ -124,9 +120,6 @@ object MetricsHubS {
         name: String,
         f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]] =
         Stream.resource(hub.frequencyCounter(name, f))
-
-      override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]] =
-        Stream.resource(hub.txnGauge(stm, initial)(name))
 
       override def balanceGauge[A: {Group, Encoder}](
         source: (String, A),

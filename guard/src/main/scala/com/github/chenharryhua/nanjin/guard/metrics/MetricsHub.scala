@@ -109,9 +109,6 @@ sealed trait MetricsHub[F[_]] {
     name: String,
     f: Endo[FrequencyCounter.Builder] = identity): Resource[F, FrequencyCounter[F]]
 
-  /** Register a transactional gauge backed by a supplied STM runtime and variable. */
-  def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
-
   /** Register a two-sided balance gauge and return operations to move values between sides. */
   def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
@@ -177,12 +174,6 @@ object MetricsHub {
       name: String,
       f: Endo[FrequencyCounter.Builder]): Resource[F, FrequencyCounter[F]] =
       FrequencyCounter(gaugeParams, name, f)
-
-    override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
-      for {
-        ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
-        _ <- gauge(name, _.register(stm.commit(ta.get)))
-      } yield ta
 
     override def balanceGauge[A: {Group, Encoder}](
       source: (String, A),
