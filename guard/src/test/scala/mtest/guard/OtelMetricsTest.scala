@@ -30,9 +30,9 @@ class OtelMetricsTest extends AnyFunSuite {
   // are namespaced with an "nj." prefix to stay distinct from any OpenTelemetry SDK Resource attributes the
   // caller sets at a higher level. The service is built with TaskGuard[IO]("otel").service("otel"), so both
   // nj.task and nj.service are "otel"; domain defaults to "default".
-  private val njDomain: Attribute[String]  = Attribute("nj.domain", "default")
+  private val njDomain: Attribute[String] = Attribute("nj.domain", "default")
   private val njService: Attribute[String] = Attribute("nj.service", "otel")
-  private val njTask: Attribute[String]    = Attribute("nj.task", "otel")
+  private val njTask: Attribute[String] = Attribute("nj.task", "otel")
 
   private def assertMetrics(metrics: List[MetricData], expected: MetricExpectation*): Unit =
     MetricExpectations.checkAll(metrics, expected*) match {
@@ -56,8 +56,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("requests")
-        .points(
-          PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(njDomain, njService, njTask)))
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(2L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
@@ -78,8 +78,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("throughput")
-        .points(
-          PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(njDomain, njService, njTask)))
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(30L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
@@ -198,8 +198,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .gauge[Long]("queue_depth")
-        .points(
-          PointSetExpectation.exists(PointExpectation.numeric(7L).attributesExact(njDomain, njService, njTask)))
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(7L).attributesExact(njDomain, njService, njTask)))
     )
   }
 

@@ -45,8 +45,8 @@ import java.time.ZoneId
   *   - timer → `Histogram` of durations in seconds
   *   - numericGauge → `ObservableGauge`
   *
-  * This mapping is intentional but '''not''' a faithful one-to-one correspondence; the two backends diverge by
-  * design in several places:
+  * This mapping is intentional but '''not''' a faithful one-to-one correspondence; the two backends diverge
+  * by design in several places:
   *   - '''Counter → UpDownCounter''': the Dropwizard counter is reset on the reporting-window policy, while
   *     the otel `UpDownCounter` is never reset (OpenTelemetry instruments are cumulative and the backend owns
   *     windowing). The Dropwizard value is therefore windowed and the otel value cumulative.
@@ -83,14 +83,11 @@ sealed trait MetricsHub[F[_]] {
   /** Register a custom effectful gauge. The resource unregisters it on release. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit]
 
-  /** Register a pull-based numeric gauge that records to Dropwizard and, when a `MeterProvider` is configured,
-    * an otel4s `ObservableGauge`. The value type is constrained to a numeric type (`Long`/`Double`) because
-    * OpenTelemetry gauges only accept those.
+  /** Register a pull-based numeric gauge that records to Dropwizard and, when a `MeterProvider` is
+    * configured, an otel4s `ObservableGauge`. The value type is constrained to a numeric type
+    * (`Long`/`Double`) because OpenTelemetry gauges only accept those.
     */
-  def numericGauge(
-    name: String,
-    fa: F[Long],
-    f: Endo[NumericGauge.Builder] = identity): Resource[F, Unit]
+  def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder] = identity): Resource[F, Unit]
 
   /** Register a boolean health check with timeout and optional refresh policy. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
@@ -157,10 +154,7 @@ object MetricsHub {
     override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit] =
       Gauge[F](gaugeParams, name, f)
 
-    override def numericGauge(
-      name: String,
-      fa: F[Long],
-      f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
+    override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
       NumericGauge[F](metricRegistry, metricLabel, name, dispatcher, meterProvider, fa, f)
 
     override def healthCheck(
