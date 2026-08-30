@@ -14,7 +14,7 @@ object MetricFixtures {
   private def metric(id: String): MeteredID = {
     val mid = decode[MetricID](
       s"""{
-         |  "metricLabel": {"label": "$id", "domain": "test", "service": "test-service"},
+         |  "metricLabel": {"label": "$id", "domain": "test", "service": "test-service", "task":"task"},
          |  "metricName": {"name": "$id", "age": 0, "uniqueToken": 0},
          |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin

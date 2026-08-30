@@ -14,6 +14,10 @@ import scala.jdk.CollectionConverters.given
 enum ScrapeMode:
   case Cheap, Full
 
+/*
+ * Counter filter out zero
+ * Gauge filter out Json.Null
+ */
 final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   /*
    *Counters
@@ -125,10 +129,10 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricID](name) match {
         case Right(mid @ MetricID(_, _, MetricCategory.Gauge(_))) =>
-          parse(gauge.getValue.toString) match {
-            case Right(json) => Some(MetricElement.Gauge(mid, MetricElement.GaugeData(json)))
-            case Left(_)     => None
-          }
+          parse(gauge.getValue.toString)
+            .toOption
+            .filterNot(_.isNull)
+            .map(js => MetricElement.Gauge(mid, MetricElement.GaugeData(js)))
         case _ => None
       }
     }.toList

@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub, MetricsHubS}
 import fs2.Stream
 import fs2.concurrent.Channel
+import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.ZoneId
 import java.util.UUID
@@ -133,7 +134,8 @@ final private class GeneralAgent[F[_]: Async](
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
   metricsEventHandler: MetricsEventHandler[F],
-  reportedEventHandler: ReportedEventHandler[F])
+  reportedEventHandler: ReportedEventHandler[F],
+  meterProvider: MeterProvider[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
@@ -145,7 +147,8 @@ final private class GeneralAgent[F[_]: Async](
       dispatcher = dispatcher,
       uuidGenerator = uuidGenerator,
       metricsEventHandler = metricsEventHandler,
-      reportedEventHandler = reportedEventHandler.withDomain(domain)
+      reportedEventHandler = reportedEventHandler.withDomain(domain),
+      meterProvider = meterProvider
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -155,8 +158,12 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickFuture[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceIdentity.service)
-    MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId)
+    val metricLabel = MetricLabel(
+      label,
+      reportedEventHandler.domain,
+      serviceParams.serviceIdentity.service,
+      serviceParams.serviceIdentity.task)
+    MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId, meterProvider)
   }
 
   override def metricsHubS(label: String): MetricsHubS[F] =
@@ -172,7 +179,11 @@ final private class GeneralAgent[F[_]: Async](
     new Batch[F](metricsHub(label), uuidGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
-    val metricLabel = MetricLabel(label, reportedEventHandler.domain, serviceParams.serviceIdentity.service)
+    val metricLabel = MetricLabel(
+      label,
+      reportedEventHandler.domain,
+      serviceParams.serviceIdentity.service,
+      serviceParams.serviceIdentity.task)
     new BatchLight[F](metricLabel, uuidGenerator)
   }
 
@@ -185,5 +196,4 @@ final private class GeneralAgent[F[_]: Async](
   override val adhoc: AdhocReport[F] = metricsEventHandler
 
   override val logger: Log[F] = reportedEventHandler.logger
-
 }

@@ -144,6 +144,7 @@ private[guard] object ServiceGuard {
         KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
+        meterProvider <- Stream.resource(config.meterProvider)
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
         seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
@@ -156,7 +157,8 @@ private[guard] object ServiceGuard {
             dispatcher = dispatcher,
             uuidGenerator = uuidGenerator,
             metricsEventHandler = meHandler,
-            reportedEventHandler = reHandler
+            reportedEventHandler = reHandler,
+            meterProvider = meterProvider
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

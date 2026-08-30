@@ -13,7 +13,6 @@ class ConfigTest extends AnyFunSuite {
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
       .updateConfig(_.withMetricsReport(_.crontab(_.hourly).repeat))
-      .updateConfig(_.withTaskName("conf"))
 
   test("1.tick") {
     TaskGuard[IO]("tick")

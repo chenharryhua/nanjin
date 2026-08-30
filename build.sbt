@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.54.5"
+val awsV = "2.54.7"
 val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
@@ -34,9 +34,9 @@ val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.3"
 val lz4V = "1.11.2"
-val metricsV = "4.2.39"
+val metricsV = "4.2.40"
 val monocleV = "3.3.0"
-val natchezV = "0.3.10"
+val otel4sV = "1.1.0"
 val parquetV = "1.18.0"
 val postgresV = "42.7.13"
 val skunkV = "1.0.0"
@@ -192,19 +192,21 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "io.github.timwspence" %% "cats-stm"  % "0.13.5",
-      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
-      "io.circe" %% "circe-optics"          % "0.15.1",
-      "org.http4s" %% "http4s-core"         % http4sV,
-      "org.http4s" %% "http4s-dsl"          % http4sV,
-      "org.http4s" %% "http4s-ember-server" % http4sV,
-      "org.http4s" %% "http4s-circe"        % http4sV,
-      "org.http4s" %% "http4s-scalatags"    % "0.25.3",
+      "io.github.timwspence" %% "cats-stm"     % "0.13.5",
+      "org.typelevel" %% "log4cats-slf4j"      % log4catsV,
+      "io.circe" %% "circe-optics"             % "0.15.1",
+      "org.http4s" %% "http4s-core"            % http4sV,
+      "org.http4s" %% "http4s-dsl"             % http4sV,
+      "org.http4s" %% "http4s-ember-server"    % http4sV,
+      "org.http4s" %% "http4s-circe"           % http4sV,
+      "org.http4s" %% "http4s-scalatags"       % "0.25.3",
+      "org.typelevel" %% "otel4s-core-metrics" % otel4sV,
       // java
       "io.dropwizard.metrics" % "metrics-core" % metricsV,
       // test
-      "org.http4s" %% "http4s-ember-client" % http4sV           % Test,
-      "ch.qos.logback"                      % "logback-classic" % logbackV % Test
+      "org.http4s" %% "http4s-ember-client"       % http4sV           % Test,
+      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV          % Test,
+      "ch.qos.logback"                            % "logback-classic" % logbackV % Test
     ) ++ testLib
   )
   .settings {
@@ -277,6 +279,16 @@ lazy val observer_teams = (project in file("observers/teams"))
     ) ++ testLib
   )
 
+lazy val observer_otel4s = (project in file("observers/otel4s"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-otel4s")
+  .settings(
+    libraryDependencies ++= List(
+      "org.typelevel" %% "otel4s-core-logs" % otel4sV
+    ) ++ testLib
+  )
+
 lazy val observer_splunk = (project in file("observers/splunk"))
   .dependsOn(guard)
   .settings(commonSettings *)
@@ -336,11 +348,12 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "at.yawk.lz4"                     % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
-      "io.opentelemetry"                % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
-      "org.apache.httpcomponents.core5" % "httpcore5-h2"      % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"               % "wire-runtime-jvm"  % "6.4.7", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"            % "kotlin-stdlib"     % "2.4.10" // snyk by wire-runtime-jvm
+      "at.yawk.lz4"      % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
+      "io.opentelemetry" % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
+      "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
+      "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
+      "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
+      "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
   .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
@@ -410,6 +423,7 @@ lazy val example = (project in file("example"))
   .dependsOn(observer_database)
   .dependsOn(observer_kafka)
   .dependsOn(observer_teams)
+  .dependsOn(observer_otel4s)
   .dependsOn(observer_splunk)
   .settings(commonSettings *)
   .settings(name := "nj-example")
@@ -439,5 +453,6 @@ lazy val nanjin =
       observer_database,
       observer_kafka,
       observer_teams,
+      observer_otel4s,
       observer_splunk
     )

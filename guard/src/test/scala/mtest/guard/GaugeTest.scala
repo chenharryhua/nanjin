@@ -189,4 +189,76 @@ class GaugeTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
 
   }
+
+  test("12.frequency counter - accumulates tags") {
+    val snapshots = service.eventStream { agent =>
+      agent.facilitate("freq") { fac =>
+        fac.frequencyCounter("errors").use { fc =>
+          fc.inc("getCustomer") >>
+            fc.inc("createOrder") >>
+            fc.inc("getCustomer") >>
+            fc.inc("getCustomer", 5) >>
+            agent.adhoc.report.void
+        }
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
+
+    assert(snapshots.nonEmpty)
+    val gauges = retrieve.gauge[Map[String, Long]](snapshots.head.snapshot.gauges)
+    assert(gauges.nonEmpty)
+    val counts = gauges.values.head
+    assert(counts("getCustomer") == 7)
+    assert(counts("createOrder") == 1)
+  }
+
+  test("13.frequency counter - policy reset clears counts") {
+    val snapshots = service.eventStream { agent =>
+      agent.facilitate("freq-reset") { fac =>
+        fac.frequencyCounter("errors", _.withPolicy(_.fixedDelay(200.millis).repeat)).use { fc =>
+          fc.inc("a", 10) >>
+            IO.sleep(500.millis) >>
+            agent.adhoc.report.void
+        }
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
+
+    assert(snapshots.nonEmpty)
+    // After 500ms with 200ms reset policy, map is empty -> gauge reports Json.Null -> filtered from snapshot
+    val gauges = retrieve.gauge[Map[String, Long]](snapshots.head.snapshot.gauges)
+    assert(gauges.isEmpty)
+  }
+
+  test("14.frequency counter - disabled is noop") {
+    val snapshots = service.eventStream { agent =>
+      agent.facilitate("freq-disabled") { fac =>
+        fac.frequencyCounter("errors", _.enable(false)).use { fc =>
+          fc.inc("x") >>
+            fc.inc("y") >>
+            agent.adhoc.report.void
+        }
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
+
+    assert(snapshots.nonEmpty)
+    // No gauge registered for disabled frequency counter
+    val gauges = retrieve.gauge[Map[String, Long]](snapshots.head.snapshot.gauges)
+    assert(gauges.isEmpty)
+  }
+
+  test("15.gauge returning Json.Null is excluded from snapshot") {
+    val snapshots = service.eventStream { agent =>
+      agent.facilitate("null-gauge") { fac =>
+        for {
+          _ <- fac.gauge("always-null", _.register(IO.pure(Json.Null)))
+          _ <- fac.gauge("has-value", _.register(IO.pure(Json.fromInt(42))))
+        } yield ()
+      }.surround(agent.adhoc.report.void)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
+
+    assert(snapshots.nonEmpty)
+    val gauges = retrieve.gauge[Json](snapshots.head.snapshot.gauges)
+    // "always-null" is filtered out, only "has-value" appears
+    assert(gauges.size == 1)
+    assert(gauges.values.head == Json.fromInt(42))
+  }
 }

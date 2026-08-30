@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api
 
-import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.{Applicative, Endo}
 import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.metrics.{
@@ -14,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricName,
   Squants
 }
+import org.typelevel.otel4s.metrics.{Counter as OtelCounter, MeterProvider}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful event-rate meter. */
@@ -23,59 +25,73 @@ trait Meter[F[_]]:
   final def mark(num: Int): F[Unit] = mark(num.toLong)
 end Meter
 
-/** Synchronous event-rate meter handle. */
-trait UnsafeMeter:
-  /** Mark `num` events immediately. */
-  def unsafeMark(num: Long): Unit
-  final def unsafeMark(num: Int): Unit = unsafeMark(num.toLong)
-end UnsafeMeter
-
 object Meter {
 
-  def noop[F[_]: Applicative]: Meter[F] & UnsafeMeter = new Meter[F] with UnsafeMeter {
+  def noop[F[_]: Applicative]: Meter[F] = new Meter[F] {
     override def mark(num: Long): F[Unit] = ().pure
-    override def unsafeMark(num: Long): Unit = ()
   }
 
   private class Impl[F[_]](
     label: MetricLabel,
     metricRegistry: MetricRegistry,
     squants: Squants,
-    name: MetricName)(using F: Sync[F])
-      extends Meter[F] with UnsafeMeter {
+    name: MetricName,
+    otel: OtelCounter[F, Long])(using F: Sync[F])
+      extends Meter[F] {
 
-    private val meterName: String =
+    private val id: MetricID =
       MetricID(
         metricLabel = label,
         metricName = name,
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
-      ).identifier
+      )
 
-    private val meter: CodahaleMeter = metricRegistry.meter(meterName)
+    private val meter: CodahaleMeter = metricRegistry.meter(id.identifier)
 
-    override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
-    override def unsafeMark(num: Long): Unit = meter.mark(num)
+    // Records to Dropwizard and to an otel4s monotonic Counter (no-op when the configured MeterProvider is
+    // MeterProvider.noop). nanjin's Meter counts events; the otel SDK derives the rate from the sum.
+    override def mark(num: Long): F[Unit] =
+      F.delay(meter.mark(num)) >> otel.add(num, id.attributes)
 
-    val unregister: F[Unit] = F.delay(metricRegistry.remove(meterName)).void
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
   }
 
-  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants) extends EnableConfig[Builder] {
+  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants, description: Option[String])
+      extends EnableConfig[Builder] {
 
     /** Enable or disable metric registration; disabled meters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, squants)
+      new Builder(isEnabled, squants, description)
+
+    /** Attach a human-readable description carried by the OpenTelemetry instrument. */
+    def withDescription(description: String): Builder =
+      new Builder(isEnabled, squants, Some(description))
 
     /** Attach a squants unit to the reported meter. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, Squants(um))
+      new Builder(isEnabled, Squants(um), description)
 
-    private[Meter] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(using
-      F: Sync[F]): Resource[F, Meter[F] & UnsafeMeter] = {
-      def meter: Resource[F, Meter[F] & UnsafeMeter] =
-        Resource.make(MetricName(name).map { metricName =>
-          new Impl[F](label = label, metricRegistry = metricRegistry, squants = squants, name = metricName)
-        })(_.unregister)
+    private[Meter] def build[F[_]](
+      label: MetricLabel,
+      name: String,
+      metricRegistry: MetricRegistry,
+      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
+      def meter: Resource[F, Meter[F]] =
+        for {
+          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+            val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
+            description.fold(builder)(builder.withDescription).create
+          })
+          m <- Resource.make(MetricName(name).map { metricName =>
+            new Impl[F](
+              label = label,
+              metricRegistry = metricRegistry,
+              squants = squants,
+              name = metricName,
+              otel = otel)
+          })(_.unregister)
+        } yield m
 
       if isEnabled then meter else noop.pure
     }
@@ -85,7 +101,8 @@ object Meter {
     mr: MetricRegistry,
     label: MetricLabel,
     name: String,
-    f: Endo[Builder]): Resource[F, Meter[F] & UnsafeMeter] =
-    f(new Builder(isEnabled = true, squants = Squants(Each)))
-      .build[F](label, name, mr)
+    meterProvider: MeterProvider[F],
+    f: Endo[Builder]): Resource[F, Meter[F]] =
+    f(new Builder(isEnabled = true, squants = Squants(Each), description = None))
+      .build[F](label, name, mr, meterProvider)
 }

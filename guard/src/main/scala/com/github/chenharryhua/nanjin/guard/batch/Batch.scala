@@ -73,7 +73,7 @@ object Batch:
       },
       active)
 
-  private def createPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
+  private def createMonadicPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("Active")
       progress <- Resource.eval(F.ref[List[CompletedJob]](Nil))
@@ -343,7 +343,7 @@ object Batch:
       /** Execute the monadic batch with lifecycle hooks and JSON job reporting. */
       def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] =
         Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-          createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
+          createMonadicPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
             kleisli
               .run(Context[F](updatePanel, jobHook, batchId))
               .run(1)

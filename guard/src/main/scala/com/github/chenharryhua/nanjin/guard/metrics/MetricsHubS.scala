@@ -3,24 +3,16 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Endo
 import cats.effect.MonadCancel
 import cats.kernel.Group
-import com.github.chenharryhua.nanjin.guard.metrics.api.{
-  Counter,
-  Histogram,
-  Meter,
-  Timer,
-  UnsafeCounter,
-  UnsafeHistogram,
-  UnsafeMeter,
-  UnsafeTimer
-}
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   ActiveGauge,
   BalanceGauge,
+  FrequencyCounter,
   Gauge,
   HealthCheck,
   IdleGauge,
   Percentile
 }
+import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import fs2.Stream
 import io.circe.Encoder
 import io.github.timwspence.cats.stm.STM
@@ -46,26 +38,14 @@ sealed trait MetricsHubS[F[_]] {
   /** Register a counter and emit its effectful handle. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
 
-  /** Register a counter and emit its unsafe handle. */
-  def unsafeCounter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, UnsafeCounter]
-
   /** Register a meter and emit its effectful handle. */
   def meter(name: String, f: Endo[Meter.Builder] = identity): Stream[F, Meter[F]]
-
-  /** Register a meter and emit its unsafe handle. */
-  def unsafeMeter(name: String, f: Endo[Meter.Builder] = identity): Stream[F, UnsafeMeter]
 
   /** Register a histogram and emit its effectful handle. */
   def histogram(name: String, f: Endo[Histogram.Builder] = identity): Stream[F, Histogram[F]]
 
-  /** Register a histogram and emit its unsafe handle. */
-  def unsafeHistogram(name: String, f: Endo[Histogram.Builder] = identity): Stream[F, UnsafeHistogram]
-
   /** Register a timer and emit its effectful handle. */
   def timer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, Timer[F]]
-
-  /** Register a timer and emit its unsafe handle. */
-  def unsafeTimer(name: String, f: Endo[Timer.Builder] = identity): Stream[F, UnsafeTimer]
 
   /** Register a custom gauge and emit unit when registration succeeds. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit]
@@ -81,6 +61,9 @@ sealed trait MetricsHubS[F[_]] {
 
   /** Register an active-time gauge and emit its handle. */
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Stream[F, ActiveGauge[F]]
+
+  /** Register a tag-based frequency counter and emit its handle. */
+  def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
 
   /** Register an STM-backed gauge and emit its transactional variable. */
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]]
@@ -102,26 +85,14 @@ object MetricsHubS {
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))
 
-      override def unsafeCounter(name: String, f: Endo[Counter.Builder]): Stream[F, UnsafeCounter] =
-        Stream.resource(hub.unsafeCounter(name, f))
-
       override def meter(name: String, f: Endo[Meter.Builder]): Stream[F, Meter[F]] =
         Stream.resource(hub.meter(name, f))
-
-      override def unsafeMeter(name: String, f: Endo[Meter.Builder]): Stream[F, UnsafeMeter] =
-        Stream.resource(hub.unsafeMeter(name, f))
 
       override def histogram(name: String, f: Endo[Histogram.Builder]): Stream[F, Histogram[F]] =
         Stream.resource(hub.histogram(name, f))
 
-      override def unsafeHistogram(name: String, f: Endo[Histogram.Builder]): Stream[F, UnsafeHistogram] =
-        Stream.resource(hub.unsafeHistogram(name, f))
-
       override def timer(name: String, f: Endo[Timer.Builder]): Stream[F, Timer[F]] =
         Stream.resource(hub.timer(name, f))
-
-      override def unsafeTimer(name: String, f: Endo[Timer.Builder]): Stream[F, UnsafeTimer] =
-        Stream.resource(hub.unsafeTimer(name, f))
 
       override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Stream[F, Unit] =
         Stream.resource(hub.gauge(name, f))
@@ -139,6 +110,11 @@ object MetricsHubS {
 
       override def activeGauge(name: String, f: Endo[ActiveGauge.Builder]): Stream[F, ActiveGauge[F]] =
         Stream.resource(hub.activeGauge(name, f))
+
+      override def frequencyCounter(
+        name: String,
+        f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]] =
+        Stream.resource(hub.frequencyCounter(name, f))
 
       override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]] =
         Stream.resource(hub.txnGauge(stm, initial)(name))
