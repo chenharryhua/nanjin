@@ -26,11 +26,13 @@ import scala.concurrent.duration.DurationInt
   */
 class OtelMetricsTest extends AnyFunSuite {
 
-  // Per-metric attributes every instrument carries. Emitter identity (task/service/serviceId) is Resource
-  // information and is intentionally NOT a point attribute, so it is absent here. The service is built with
-  // TaskGuard[IO]("otel").service("otel"); domain defaults to "default".
-  private val dom: Attribute[String] = Attribute("domain", "default")
-  private val cat: Attribute[String] = Attribute("category", "default")
+  // Per-metric attributes every instrument carries. These are nanjin's own conceptual grouping keys, so they
+  // are namespaced with an "nj." prefix to stay distinct from any OpenTelemetry SDK Resource attributes the
+  // caller sets at a higher level. The service is built with TaskGuard[IO]("otel").service("otel"), so both
+  // nj.task and nj.service are "otel"; domain defaults to "default".
+  private val njDomain: Attribute[String] = Attribute("nj.domain", "default")
+  private val njService: Attribute[String] = Attribute("nj.service", "otel")
+  private val njTask: Attribute[String] = Attribute("nj.task", "otel")
 
   private def assertMetrics(metrics: List[MetricData], expected: MetricExpectation*): Unit =
     MetricExpectations.checkAll(metrics, expected*) match {
@@ -54,7 +56,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("requests")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(dom, cat)))
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(2L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
@@ -75,7 +78,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("throughput")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(dom, cat)))
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(30L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
@@ -167,6 +171,35 @@ class OtelMetricsTest extends AnyFunSuite {
         .histogram("timed")
         .unit("s")
         .points(PointSetExpectation.exists(PointExpectation.histogram.count(1L)))
+    )
+  }
+
+  test("5b.numericGauge maps to an ObservableGauge and records the value with attributes") {
+    // A numericGauge maps to an otel4s ObservableGauge, whose callback only reports while the registration
+    // resource is open. Unlike the push instruments, it records nothing after release, so metrics must be
+    // collected while the gauge is still alive: collectMetrics runs inside the facilitate `use` scope.
+    val metrics = MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      Ref.of[IO, List[MetricData]](Nil).flatMap { collected =>
+        service
+          .eventStream(agent =>
+            agent
+              .facilitate("hub")(_.numericGauge("queue_depth", IO.pure(7L)))
+              .use(_ => testkit.collectMetrics.flatMap(collected.set)))
+          .compile
+          .drain >> collected.get
+      }
+    }.unsafeRunSync()
+
+    assertMetrics(
+      metrics,
+      MetricExpectation
+        .gauge[Long]("queue_depth")
+        .points(PointSetExpectation.exists(
+          PointExpectation.numeric(7L).attributesExact(njDomain, njService, njTask)))
     )
   }
 

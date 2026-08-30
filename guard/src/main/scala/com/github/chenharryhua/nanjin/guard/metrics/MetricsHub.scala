@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   GaugeParams,
   HealthCheck,
   IdleGauge,
+  NumericGauge,
   Percentile
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
@@ -42,8 +43,25 @@ import java.time.ZoneId
   *   - meter → monotonic `Counter`
   *   - histogram → `Histogram`
   *   - timer → `Histogram` of durations in seconds
+  *   - numericGauge → `ObservableGauge`
   *
-  * Gauges are Dropwizard-only for now.
+  * This mapping is intentional but '''not''' a faithful one-to-one correspondence; the two backends diverge
+  * by design in several places:
+  *   - '''Counter → UpDownCounter''': the Dropwizard counter is reset on the reporting-window policy, while
+  *     the otel `UpDownCounter` is never reset (OpenTelemetry instruments are cumulative and the backend owns
+  *     windowing). The Dropwizard value is therefore windowed and the otel value cumulative.
+  *   - '''numericGauge''': the Dropwizard gauge is read on scrape and holds its last value, whereas the otel
+  *     `ObservableGauge` only reports while its callback registration is alive and records nothing after the
+  *     registering `Resource` is released.
+  *   - '''Errors''': a Dropwizard gauge can render a JSON stacktrace when evaluation fails; an otel point
+  *     cannot, so it simply records nothing for that observation.
+  *   - '''Loss of dimensions''': per-metric distinctions that Dropwizard keeps in the identifier (for example
+  *     risk vs. normal counters) are not stamped as otel point attributes, so such siblings collapse into a
+  *     single otel series unless given distinct metric names.
+  *
+  * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/percentile/idle/active/frequency) is
+  * Dropwizard-only: an arbitrary encoded value cannot satisfy otel4s's numeric `MeasurementValue`. Use
+  * `numericGauge` when the value is a `Long` and should also reach OpenTelemetry.
   */
 sealed trait MetricsHub[F[_]] {
 
@@ -64,6 +82,12 @@ sealed trait MetricsHub[F[_]] {
 
   /** Register a custom effectful gauge. The resource unregisters it on release. */
   def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit]
+
+  /** Register a pull-based numeric gauge that records to Dropwizard and, when a `MeterProvider` is
+    * configured, an otel4s `ObservableGauge`. The value type is constrained to a numeric type
+    * (`Long`/`Double`) because OpenTelemetry gauges only accept those.
+    */
+  def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder] = identity): Resource[F, Unit]
 
   /** Register a boolean health check with timeout and optional refresh policy. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
@@ -129,6 +153,9 @@ object MetricsHub {
 
     override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit] =
       Gauge[F](gaugeParams, name, f)
+
+    override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
+      NumericGauge[F](metricRegistry, metricLabel, name, dispatcher, meterProvider, fa, f)
 
     override def healthCheck(
       name: String,
