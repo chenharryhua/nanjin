@@ -45,8 +45,9 @@ object Counter {
 
     private val counter: CodahaleCounter = metricRegistry.counter(id.identifier)
 
-    // The service/domain attributes plus a uniform "category" dimension (always present) so risk and normal
-    // counters form distinct, queryable series on the OpenTelemetry side.
+    // nanjin's conceptual grouping attributes (nj.domain / nj.service / nj.task). Note: risk and normal
+    // counters are NOT separated by a point attribute here, so under the same metric name they aggregate
+    // into a single OpenTelemetry series. Distinguish them via the metric name if separate series are needed.
     private val attributes: List[Attribute[String]] = id.attributes
 
     // Records to Dropwizard and to the otel4s UpDownCounter (a no-op when the configured MeterProvider is

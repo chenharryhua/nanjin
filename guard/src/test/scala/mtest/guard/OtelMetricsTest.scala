@@ -26,11 +26,13 @@ import scala.concurrent.duration.DurationInt
   */
 class OtelMetricsTest extends AnyFunSuite {
 
-  // Per-metric attributes every instrument carries. Emitter identity (task/service/serviceId) is Resource
-  // information and is intentionally NOT a point attribute, so it is absent here. The service is built with
-  // TaskGuard[IO]("otel").service("otel"); domain defaults to "default".
-  private val dom: Attribute[String] = Attribute("domain", "default")
-  private val cat: Attribute[String] = Attribute("category", "default")
+  // Per-metric attributes every instrument carries. These are nanjin's own conceptual grouping keys, so they
+  // are namespaced with an "nj." prefix to stay distinct from any OpenTelemetry SDK Resource attributes the
+  // caller sets at a higher level. The service is built with TaskGuard[IO]("otel").service("otel"), so both
+  // nj.task and nj.service are "otel"; domain defaults to "default".
+  private val njDomain: Attribute[String]  = Attribute("nj.domain", "default")
+  private val njService: Attribute[String] = Attribute("nj.service", "otel")
+  private val njTask: Attribute[String]    = Attribute("nj.task", "otel")
 
   private def assertMetrics(metrics: List[MetricData], expected: MetricExpectation*): Unit =
     MetricExpectations.checkAll(metrics, expected*) match {
@@ -54,7 +56,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("requests")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(dom, cat)))
+        .points(
+          PointSetExpectation.exists(PointExpectation.numeric(2L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
@@ -75,7 +78,8 @@ class OtelMetricsTest extends AnyFunSuite {
       metrics,
       MetricExpectation
         .sum[Long]("throughput")
-        .points(PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(dom, cat)))
+        .points(
+          PointSetExpectation.exists(PointExpectation.numeric(30L).attributesExact(njDomain, njService, njTask)))
     )
   }
 
