@@ -26,12 +26,12 @@ import scala.util.control.NonFatal
 /** A pull-based `Long` gauge that records to both Dropwizard and, when a real
   * `org.typelevel.otel4s.metrics.MeterProvider` is configured, an otel4s `ObservableGauge`.
   *
-  * This is deliberately distinct from `Gauge`: `Gauge` stores an arbitrary `io.circe.Encoder` value as
-  * JSON and is Dropwizard-only, because an arbitrary encoded value cannot satisfy otel4s's numeric
+  * This is deliberately distinct from `Gauge`: `Gauge` stores an arbitrary `io.circe.Encoder` value as JSON
+  * and is Dropwizard-only, because an arbitrary encoded value cannot satisfy otel4s's numeric
   * `MeasurementValue`. `NumericGauge` fixes the value to `Long` so it maps to an OpenTelemetry gauge point,
   * consistent with the other instruments (counter/meter/histogram/timer all speak `Long`). Choose a unit
   * whose scale makes the integer natural: report `35` with a percent unit for 35%, not `0.35`. Finer-grained
-  * fractions can use a smaller unit (e.g. per-mille) so the reported integer stays meaningful.
+  * fractions can use a smaller unit (e.g. per mille) so the reported integer stays meaningful.
   *
   * The value is read on demand: Dropwizard evaluates the effect when the registry is scraped, and the otel4s
   * `ObservableGauge` evaluates it in the collection callback. There is no push/update call site and no
@@ -71,7 +71,8 @@ object NumericGauge {
       fa: F[Long])(using F: Async[F]): Resource[F, Unit] = {
 
       // The Dropwizard side stores the value as a JSON number so it flows through the existing snapshot
-      // pipeline exactly like a Default gauge. A failed evaluation renders null, which the snapshot filters.
+      // pipeline exactly like a Default gauge. A failed evaluation renders the error as JSON via the shared
+      // translateError, matching Gauge, so a broken gauge stays visible in the snapshot rather than vanishing.
       def dropwizard(id: MetricID): Resource[F, Unit] =
         Resource.make(F.delay {
           metricRegistry.gauge(
@@ -80,7 +81,7 @@ object NumericGauge {
               new CodahaleGauge[Json] {
                 override def getValue: Json =
                   try dispatcher.unsafeRunTimed(fa.map(Json.fromLong), timeout)
-                  catch { case NonFatal(_) => Json.Null }
+                  catch { case NonFatal(ex) => translateError(ex) }
               }
           )
         })(_ => F.delay(metricRegistry.remove(id.identifier)).void).void
