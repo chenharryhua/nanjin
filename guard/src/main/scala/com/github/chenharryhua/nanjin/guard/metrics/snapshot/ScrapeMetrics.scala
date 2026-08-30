@@ -183,9 +183,9 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
       decode[MetricID](name).toOption.flatMap { mid =>
         mid.category match {
           case metrics.MetricCategory.Meter(_, squants) =>
-            Some(MeteredID(mid.metricLabel, mid.metricName, squants) -> meter.getCount)
+            Some(MeteredID(mid.scope, mid.token, squants) -> meter.getCount)
           case metrics.MetricCategory.Timer(_, squants) =>
-            Some(MeteredID(mid.metricLabel, mid.metricName, squants) -> meter.getCount)
+            Some(MeteredID(mid.scope, mid.token, squants) -> meter.getCount)
           case _ => None
         }
       }

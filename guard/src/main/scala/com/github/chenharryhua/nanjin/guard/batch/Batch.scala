@@ -15,7 +15,7 @@ import cats.syntax.show.given
 import cats.syntax.traverse.given
 import cats.{Applicative, MonadThrow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -94,7 +94,7 @@ object Batch:
   private class JobExecutor[F[_]: Temporal, A](
     mode: BatchMode,
     jobHook: JobHook[F, A],
-    metricLabel: MetricLabel,
+    metricLabel: MetricScope,
     batchId: UUID,
     batchPanel: BatchMetrics[F],
     predicate: Reader[A, Boolean]) {

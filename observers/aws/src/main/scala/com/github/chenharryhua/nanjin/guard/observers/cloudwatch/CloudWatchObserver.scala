@@ -63,9 +63,9 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
       Stream.resource(client).flatMap { cwc =>
         mcs.mapChunks(_.flatMap(mc => Chunk.from(mc.counts.map((_, _, mc.timestamp))))).map {
           case (mid, count, timestamp) =>
-            val label = Attribute(mid.metricLabel).map(_.label).textEntry
-            val domain = Attribute(mid.metricLabel.domain).textEntry
-            val service = Attribute(mid.metricLabel.service).textEntry
+            val label = Attribute(mid.scope).map(_.label).textEntry
+            val domain = Attribute(mid.scope.domain).textEntry
+            val service = Attribute(mid.scope.service).textEntry
 
             val dimensions = java.util.List.of(
               Dimension.builder().name(service.tag).value(service.text).build(),
@@ -82,7 +82,7 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
             MetricDatum
               .builder()
               .dimensions(dimensions)
-              .metricName(mid.metricName.name)
+              .metricName(mid.token.name)
               .unit(unit)
               .timestamp(timestamp)
               .value(value)

@@ -103,7 +103,7 @@ final case class Snapshot(
       histograms.map(_.metricId)
 
   def hasDuplication: Boolean = {
-    val stable = metricIDs.map(id => (id.metricLabel, id.metricName.name))
+    val stable = metricIDs.map(id => (id.scope, id.token.name))
     stable.distinct.size =!= stable.size
   }
 }

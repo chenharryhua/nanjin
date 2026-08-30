@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricName, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricToken, Squants}
 
 import java.time.Instant
 
-final case class MeteredID(metricLabel: MetricLabel, metricName: MetricName, squants: Squants)
+final case class MeteredID(scope: MetricScope, token: MetricToken, squants: Squants)
 
 opaque type MeteredCounts = TickedValue[Map[MeteredID, Long]]
 

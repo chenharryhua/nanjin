@@ -17,8 +17,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName
+  MetricScope,
+  MetricToken
 }
 import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
 import squants.time.Nanoseconds
@@ -58,10 +58,10 @@ object Timer {
   }
 
   private class Impl[F[_]](
-    label: MetricLabel,
+    label: MetricScope,
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
-    name: MetricName,
+    name: MetricToken,
     otel: OtelHistogram[F, Double],
     timeunit: squants.time.TimeUnit
   )(implicit F: Sync[F])
@@ -120,7 +120,7 @@ object Timer {
       new Builder(isEnabled, reservoir, description, boundaries, timeunit)
 
     private[Timer] def build[F[_]](
-      label: MetricLabel,
+      label: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
@@ -133,7 +133,7 @@ object Timer {
               .run(_.create)
           })
           t <- Resource.make(
-            MetricName(name).map(Impl[F](label, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
+            MetricToken(name).map(Impl[F](label, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
         } yield t
 
       if isEnabled then timer else noop.pure
@@ -142,7 +142,7 @@ object Timer {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricLabel,
+    label: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =

@@ -13,8 +13,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName
+  MetricScope,
+  MetricToken
 }
 import org.typelevel.otel4s.Attribute
 import org.typelevel.otel4s.metrics.{MeterProvider, UpDownCounter}
@@ -32,10 +32,10 @@ end Counter
 object Counter {
 
   private class Impl[F[_]](
-    label: MetricLabel,
+    label: MetricScope,
     metricRegistry: MetricRegistry,
     isRisk: Boolean,
-    name: MetricName,
+    name: MetricToken,
     upDown: UpDownCounter[F, Long])(using F: Sync[F])
       extends Counter[F] {
     private val id: MetricID =
@@ -95,7 +95,7 @@ object Counter {
       new Builder(isEnabled, isRisk, f(Policy), description)
 
     private[Counter] def build[F[_]: Async](
-      label: MetricLabel,
+      label: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId,
@@ -107,7 +107,7 @@ object Counter {
             description.fold(builder)(builder.withDescription).create
           })
           counter <- Resource.make(
-            MetricName(name)
+            MetricToken(name)
               .map { metricName =>
                 new Impl[F](label, metricRegistry, isRisk, metricName, upDown)
               })(_.unregister)
@@ -125,7 +125,7 @@ object Counter {
 
   private[metrics] def apply[F[_]: Async](
     mr: MetricRegistry,
-    label: MetricLabel,
+    label: MetricScope,
     name: String,
     zoneId: ZoneId,
     meterProvider: MeterProvider[F],

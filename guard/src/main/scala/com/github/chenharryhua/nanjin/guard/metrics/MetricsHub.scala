@@ -24,7 +24,7 @@ import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.ZoneId
 
-/** Resource-based factory for metrics registered under one `MetricLabel`.
+/** Resource-based factory for metrics registered under one `MetricScope`.
   *
   * Obtain a hub from `Agent.metricsHub(label)`, acquire an instrument with its `Resource`, and update it
   * inside the resource scope:
@@ -33,6 +33,23 @@ import java.time.ZoneId
   *
   * Releasing the resource unregisters the metric. Use `MetricsHubS` when a stream-based registration API is
   * more convenient.
+  *
+  * ===Lifecycle===
+  * nanjin's metric lifecycle differs from both backends it builds on, even though the storage is Dropwizard.
+  * A metric here is a '''scoped, uniquely-identified''' resource, not a permanent name-keyed registry entry:
+  *   - '''Scoped, not process-scoped.''' A metric lives only for its `Resource` scope; release unregisters
+  *     it. Dropwizard and OpenTelemetry instruments, by contrast, persist for the life of the registry or
+  *     `MeterProvider`.
+  *   - '''Per-instance, not per-name.''' Each acquisition mints a unique identity even for the same name
+  *     string, so nanjin bypasses Dropwizard's name-based deduplication and OpenTelemetry's
+  *     same-name-conflict rule. Two live instruments with the same name are distinct metrics. See
+  *     `MetricID`/`MetricToken`.
+  *   - '''Windowed values.''' A counter's Dropwizard value is reset on its reporting-window policy, so it is
+  *     cumulative only within the current window; the mirrored otel instrument stays cumulative and lets the
+  *     backend own windowing (see below).
+  *
+  * The Dropwizard `MetricRegistry` is thus used as transient, uniquely-keyed storage feeding the snapshot
+  * pipeline, rather than as the long-lived name-keyed registry it was designed to be.
   *
   * ===Dual backend===
   * The push-based instruments record to Dropwizard and, when an OpenTelemetry
@@ -66,7 +83,7 @@ import java.time.ZoneId
 sealed trait MetricsHub[F[_]] {
 
   /** Metric label shared by instruments created from this hub. */
-  def metricLabel: MetricLabel
+  def metricLabel: MetricScope
 
   /** Register a counter; the returned counter is safe to update in `F`. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
@@ -117,7 +134,7 @@ sealed trait MetricsHub[F[_]] {
 
 object MetricsHub {
   def apply[F[_]: Async](
-    metricLabel: MetricLabel,
+    metricLabel: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
@@ -125,7 +142,7 @@ object MetricsHub {
     new Impl[F](metricLabel, metricRegistry, dispatcher, zoneId, meterProvider)
 
   private class Impl[F[_]: Async](
-    val metricLabel: MetricLabel,
+    val metricLabel: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,

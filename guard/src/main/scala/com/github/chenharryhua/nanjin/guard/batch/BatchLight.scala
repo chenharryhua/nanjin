@@ -9,7 +9,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
 import java.time.Duration
 import java.util.UUID
@@ -29,7 +29,7 @@ object BatchLight:
    */
 
   final class JobBuilder[F[_]: Async] private[BatchLight] (
-    val metricLabel: MetricLabel,
+    val metricLabel: MetricScope,
     val uuidGenerator: F[UUID]):
 
     private val mode: BatchMode = BatchMode.Monadic
@@ -183,7 +183,7 @@ object BatchLight:
    * Parallel
    */
   final class Parallel[F[_], A] private[BatchLight] (
-    metricLabel: MetricLabel,
+    metricLabel: MetricScope,
     predicate: Reader[A, Boolean],
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
@@ -242,7 +242,7 @@ object BatchLight:
    * Sequential
    */
   final class Sequential[F[_], A] private[BatchLight] (
-    metricLabel: MetricLabel,
+    metricLabel: MetricScope,
     predicate: Reader[A, Boolean],
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])(implicit F: Sync[F])
@@ -311,7 +311,7 @@ end BatchLight
   * It intentionally avoids the richer lifecycle and progress-tracking machinery of Batch and focuses on
   * straightforward, low-overhead execution.
   */
-final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uuidGenerator: F[UUID]) {
+final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricScope, uuidGenerator: F[UUID]) {
 
   /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {

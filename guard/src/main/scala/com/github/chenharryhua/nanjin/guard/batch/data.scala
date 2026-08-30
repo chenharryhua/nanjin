@@ -5,7 +5,7 @@ import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
-import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -51,7 +51,7 @@ end BatchMode
 final case class Job(
   name: String,
   index: Int,
-  label: MetricLabel,
+  label: MetricScope,
   mode: BatchMode,
   kind: BatchKind,
   batchId: UUID):
@@ -99,7 +99,7 @@ object JobValue:
 
 /** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
-  label: MetricLabel,
+  label: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -134,7 +134,7 @@ object CompletedBatch:
 sealed trait BatchResult[A] {
 
   /** Batch label and domain. */
-  def label: MetricLabel
+  def label: MetricScope
 
   /** Total elapsed execution time. */
   def spent: Duration
@@ -159,7 +159,7 @@ sealed trait BatchResult[A] {
   * outcome state.
   */
 final case class QuasiBatch[A](
-  label: MetricLabel,
+  label: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -202,7 +202,7 @@ end QuasiBatch
   * completion metadata.
   */
 final case class BatchValue[A](
-  label: MetricLabel,
+  label: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -242,7 +242,7 @@ end BatchValue
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   */
 final case class MonadicBatch[A](
-  label: MetricLabel,
+  label: MetricScope,
   spent: Duration,
   batchId: UUID,
   jobs: List[CompletedJob],

@@ -12,8 +12,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName,
+  MetricScope,
+  MetricToken,
   Squants
 }
 import io.circe.Json
@@ -64,7 +64,7 @@ object NumericGauge {
 
     private[NumericGauge] def build[F[_]](
       metricRegistry: MetricRegistry,
-      label: MetricLabel,
+      label: MetricScope,
       name: String,
       dispatcher: Dispatcher[F],
       meterProvider: MeterProvider[F],
@@ -100,7 +100,7 @@ object NumericGauge {
 
       def impl: Resource[F, Unit] =
         for {
-          id <- Resource.eval(MetricName(name).map(mn =>
+          id <- Resource.eval(MetricToken(name).map(mn =>
             MetricID(label, mn, MetricCategory.Gauge(MetricKind.Gauge.Default, isCached = false))))
           _ <- dropwizard(id)
           _ <- observable(id)
@@ -112,7 +112,7 @@ object NumericGauge {
 
   private[metrics] def apply[F[_]: Async](
     metricRegistry: MetricRegistry,
-    label: MetricLabel,
+    label: MetricScope,
     name: String,
     dispatcher: Dispatcher[F],
     meterProvider: MeterProvider[F],

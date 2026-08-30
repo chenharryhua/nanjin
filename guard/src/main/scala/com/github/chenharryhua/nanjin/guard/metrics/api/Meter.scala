@@ -11,8 +11,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName,
+  MetricScope,
+  MetricToken,
   Squants
 }
 import org.typelevel.otel4s.metrics.{Counter as OtelCounter, MeterProvider}
@@ -32,17 +32,17 @@ object Meter {
   }
 
   private class Impl[F[_]](
-    label: MetricLabel,
+    label: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,
-    name: MetricName,
+    name: MetricToken,
     otel: OtelCounter[F, Long])(using F: Sync[F])
       extends Meter[F] {
 
     private val id: MetricID =
       MetricID(
-        metricLabel = label,
-        metricName = name,
+        scope = label,
+        token = name,
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
       )
 
@@ -73,7 +73,7 @@ object Meter {
       new Builder(isEnabled, Squants(um), description)
 
     private[Meter] def build[F[_]](
-      label: MetricLabel,
+      label: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
@@ -83,7 +83,7 @@ object Meter {
             val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
             description.fold(builder)(builder.withDescription).create
           })
-          m <- Resource.make(MetricName(name).map { metricName =>
+          m <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
               label = label,
               metricRegistry = metricRegistry,
@@ -99,7 +99,7 @@ object Meter {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricLabel,
+    label: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Meter[F]] =

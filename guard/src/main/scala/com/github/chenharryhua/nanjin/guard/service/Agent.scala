@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub, MetricsHubS}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
@@ -158,7 +158,7 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickFuture[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricLabel(
+    val metricLabel = MetricScope(
       label,
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
@@ -179,7 +179,7 @@ final private class GeneralAgent[F[_]: Async](
     new Batch[F](metricsHub(label), uuidGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
-    val metricLabel = MetricLabel(
+    val metricLabel = MetricScope(
       label,
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
