@@ -268,7 +268,7 @@ object BatchLight:
         }.map(jobs =>
           QuasiBatch(
             scope = scope,
-            spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
             jobs = jobs))
@@ -293,7 +293,7 @@ object BatchLight:
         }.map { jobs =>
           ValueBatch(
             scope = scope,
-            spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
             jobs = jobs)

@@ -41,13 +41,13 @@ class BatchTest extends AnyFunSuite {
             .onComplete(_ => IO.println("complete"))
         )
         .map { qr =>
-          assert(!qr.jobs.head.completed.succeeded)
-          assert(qr.jobs(1).completed.succeeded)
-          assert(qr.jobs(2).completed.succeeded)
-          assert(!qr.jobs(3).completed.succeeded)
-          assert(qr.jobs(4).completed.succeeded)
-          assert(!qr.jobs(5).completed.succeeded)
-          assert(qr.jobs.map(_.completed.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
+          assert(!qr.jobs.head.record.succeeded)
+          assert(qr.jobs(1).record.succeeded)
+          assert(qr.jobs(2).record.succeeded)
+          assert(!qr.jobs(3).record.succeeded)
+          assert(qr.jobs(4).record.succeeded)
+          assert(!qr.jobs(5).record.succeeded)
+          assert(qr.jobs.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(_ => ga.adhoc.report)
@@ -68,13 +68,13 @@ class BatchTest extends AnyFunSuite {
         )
         .quasiBatch(JobHook(ga.logger).universal[Unit](_.asJson).onKickoff(_ => IO.unit))
         .map { qr =>
-          assert(qr.jobs.head.completed.succeeded)
-          assert(qr.jobs(1).completed.succeeded)
-          assert(!qr.jobs(2).completed.succeeded)
-          assert(qr.jobs(3).completed.succeeded)
-          assert(!qr.jobs(4).completed.succeeded)
-          assert(qr.jobs(5).completed.succeeded)
-          assert(qr.jobs.map(_.completed.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
+          assert(qr.jobs.head.record.succeeded)
+          assert(qr.jobs(1).record.succeeded)
+          assert(!qr.jobs(2).record.succeeded)
+          assert(qr.jobs(3).record.succeeded)
+          assert(!qr.jobs(4).record.succeeded)
+          assert(qr.jobs(5).record.succeeded)
+          assert(qr.jobs.map(_.record.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(_ => ga.adhoc.report.void)
@@ -108,7 +108,7 @@ class BatchTest extends AnyFunSuite {
         .withPostCondition(_ => true)
         .valueBatch(JobHook.noop)
         .memoizedAcquire
-        .use(_.map(_.jobs.forall(_.completed.succeeded)))
+        .use(_.map(_.jobs.forall(_.record.succeeded)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
@@ -301,17 +301,17 @@ class BatchTest extends AnyFunSuite {
             assert(jobs(2).result == 3)
             assert(jobs(3).result == 4)
             assert(jobs(4).result == 5)
-            assert(jobs.forall(_.completed.succeeded))
-            assert(jobs.head.completed.job.name == "1")
-            assert(jobs.head.completed.job.index == 1)
-            assert(jobs(1).completed.job.name == "2")
-            assert(jobs(1).completed.job.index == 2)
-            assert(jobs(2).completed.job.name == "3")
-            assert(jobs(2).completed.job.index == 3)
-            assert(jobs(3).completed.job.name == "4")
-            assert(jobs(3).completed.job.index == 4)
-            assert(jobs(4).completed.job.name == "5")
-            assert(jobs(4).completed.job.index == 5)
+            assert(jobs.forall(_.record.succeeded))
+            assert(jobs.head.record.job.name == "1")
+            assert(jobs.head.record.job.index == 1)
+            assert(jobs(1).record.job.name == "2")
+            assert(jobs(1).record.job.index == 2)
+            assert(jobs(2).record.job.name == "3")
+            assert(jobs(2).record.job.index == 3)
+            assert(jobs(3).record.job.name == "4")
+            assert(jobs(3).record.job.index == 4)
+            assert(jobs(4).record.job.name == "5")
+            assert(jobs(4).record.job.index == 5)
           }.void
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -328,17 +328,17 @@ class BatchTest extends AnyFunSuite {
             assert(jobs(2).result == 3)
             assert(jobs(3).result == 4)
             assert(jobs(4).result == 5)
-            assert(jobs.forall(_.completed.succeeded))
-            assert(jobs.head.completed.job.name == "1")
-            assert(jobs.head.completed.job.index == 1)
-            assert(jobs(1).completed.job.name == "2")
-            assert(jobs(1).completed.job.index == 2)
-            assert(jobs(2).completed.job.name == "3")
-            assert(jobs(2).completed.job.index == 3)
-            assert(jobs(3).completed.job.name == "4")
-            assert(jobs(3).completed.job.index == 4)
-            assert(jobs(4).completed.job.name == "5")
-            assert(jobs(4).completed.job.index == 5)
+            assert(jobs.forall(_.record.succeeded))
+            assert(jobs.head.record.job.name == "1")
+            assert(jobs.head.record.job.index == 1)
+            assert(jobs(1).record.job.name == "2")
+            assert(jobs(1).record.job.index == 2)
+            assert(jobs(2).record.job.name == "3")
+            assert(jobs(2).record.job.index == 3)
+            assert(jobs(3).record.job.name == "4")
+            assert(jobs(3).record.job.index == 4)
+            assert(jobs(4).record.job.name == "5")
+            assert(jobs(4).record.job.index == 5)
           }.void
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -357,7 +357,7 @@ class BatchTest extends AnyFunSuite {
         .valueBatch(JobHook.noop)
         .use { batch =>
           IO {
-            sequentialResult = batch.jobs.map(j => j.completed.job.index -> j.completed.job.name)
+            sequentialResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 
@@ -367,7 +367,7 @@ class BatchTest extends AnyFunSuite {
         .valueBatch(JobHook.noop)
         .use { batch =>
           IO {
-            parallelResult = batch.jobs.map(j => j.completed.job.index -> j.completed.job.name)
+            parallelResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 

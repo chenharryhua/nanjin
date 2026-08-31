@@ -53,9 +53,9 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch(JobHook(agent.logger).standard)
         .use { mb =>
           IO {
-            assert(mb.jobs.head.completed.succeeded)
-            assert(mb.jobs(1).completed.succeeded)
-            assert(!mb.jobs(2).completed.succeeded)
+            assert(mb.jobs.head.record.succeeded)
+            assert(mb.jobs(1).record.succeeded)
+            assert(!mb.jobs(2).record.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -71,8 +71,8 @@ class BatchParallelTest extends AnyFunSuite {
         .onCancel(jo => IO { canceledJob = jo })
         .onComplete(jo =>
           IO {
-            if (jo.result.isLeft) errorJob = jo.completed.job
-            else succJob = jo.completed.job
+            if (jo.result.isLeft) errorJob = jo.record.job
+            else succJob = jo.record.job
           })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
@@ -105,11 +105,11 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch(JobHook(agent.logger).standard[Int])
         .use { mb =>
           IO {
-            assert(!mb.jobs.head.completed.succeeded)
-            assert(mb.jobs.head.completed.job.mode === BatchMode.Parallel(3))
-            assert(mb.jobs.head.completed.job.kind === BatchKind.Quasi)
-            assert(!mb.jobs(1).completed.succeeded)
-            assert(mb.jobs(2).completed.succeeded)
+            assert(!mb.jobs.head.record.succeeded)
+            assert(mb.jobs.head.record.job.mode === BatchMode.Parallel(3))
+            assert(mb.jobs.head.record.job.kind === BatchKind.Quasi)
+            assert(!mb.jobs(1).record.succeeded)
+            assert(mb.jobs(2).record.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -136,15 +136,15 @@ class BatchParallelTest extends AnyFunSuite {
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.sortBy(_.record.job.index)
 
-    assert(sorted.head.completed.job.index == 1)
-    assert(sorted.head.completed.job.kind === BatchKind.Value)
-    assert(sorted.head.completed.job.mode === BatchMode.Parallel(3))
-    assert(sorted.head.completed.succeeded)
+    assert(sorted.head.record.job.index == 1)
+    assert(sorted.head.record.job.kind === BatchKind.Value)
+    assert(sorted.head.record.job.mode === BatchMode.Parallel(3))
+    assert(sorted.head.record.succeeded)
 
-    assert(sorted(1).completed.job.index == 2)
-    assert(!sorted(1).completed.succeeded)
+    assert(sorted(1).record.job.index == 2)
+    assert(!sorted(1).record.succeeded)
 
     assert(canceledJob.index == 3)
   }
@@ -177,11 +177,11 @@ class BatchParallelTest extends AnyFunSuite {
     assert(canceledJobs.exists(_.index == 3))
     assert(canceledJobs.nonEmpty)
 
-    val sorted = completedJob.sortBy(_.completed.job.index)
+    val sorted = completedJob.sortBy(_.record.job.index)
     assert(sorted.nonEmpty)
     assert(sorted.head.result.isRight)
     assert(sorted.exists(_.result.isLeft))
-    assert(sorted.exists(_.completed.succeeded == false))
+    assert(sorted.exists(_.record.succeeded == false))
   }
 
 }
