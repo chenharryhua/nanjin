@@ -8,10 +8,10 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Consolidates the invariant that a `JobState`'s completion flag, its derived `succeeded`, and its
-  * result agree: `completed.succeeded == succeeded == result.isRight`. Rather than enforcing this with a
-  * runtime assertion in the data type, we exercise every path that produces a `JobState` and check that the
-  * three views line up.
+/** Consolidates the invariant that a `JobState`'s completion flag, its derived `succeeded`, and its result
+  * agree: `completed.succeeded == succeeded == result.isRight`. Rather than enforcing this with a runtime
+  * assertion in the data type, we exercise every path that produces a `JobState` and check that the three
+  * views line up.
   */
 class JobStateInvariantSpec extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -26,10 +26,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
   }
 
   test("quasi parallel - mixed success and exception") {
-    val jobs = List(
-      "a" -> IO(1),
-      "b" -> IO.raiseError[Int](new Exception("boom")),
-      "c" -> IO(3))
+    val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
         .batch("quasi.parallel.mixed")
@@ -54,11 +51,8 @@ class JobStateInvariantSpec extends AnyFunSuite {
   }
 
   test("quasi sequential - mixed success and exception") {
-    val jobs = List(
-      "a" -> IO(1),
-      "b" -> IO.raiseError[Int](new Exception("boom")),
-      "c" -> IO(3),
-      "d" -> IO(4))
+    val jobs =
+      List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3), "d" -> IO(4))
     val se = service.eventStream { agent =>
       agent
         .batch("quasi.sequential.mixed")
@@ -85,10 +79,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
   test("value sequential - every completed job state is aligned") {
     var completed: List[JobState[Int]] = Nil
     val tracer = JobHook.noop[IO, Int].onComplete(js => IO { completed = js :: completed })
-    val jobs = List(
-      "a" -> IO(1),
-      "b" -> IO.raiseError[Int](new Exception("boom")),
-      "c" -> IO(3))
+    val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
         .batch("value.sequential.mixed")

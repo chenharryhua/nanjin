@@ -85,9 +85,7 @@ final case class JobState[A](record: CompletedJob, result: Either[Throwable, A])
 }
 object JobState:
   given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
-    Json.obj(
-      "took" -> Json.fromString(fmt.format(a.record.took)),
-      resultTag(a.succeeded) -> a.result.asJson)
+    Json.obj("took" -> Json.fromString(fmt.format(a.record.took)), resultTag(a.succeeded) -> a.result.asJson)
       .deepMerge(a.record.job.asJson)
   }
 
