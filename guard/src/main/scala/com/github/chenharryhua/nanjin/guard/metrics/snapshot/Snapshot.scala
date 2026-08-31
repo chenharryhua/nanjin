@@ -95,7 +95,7 @@ final case class Snapshot(
 
   def nonEmpty: Boolean = !isEmpty
 
-  def metricIDs: List[MetricID] =
+  def metricIds: List[MetricID] =
     counters.map(_.metricId) :::
       timers.map(_.metricId) :::
       gauges.map(_.metricId) :::
@@ -103,7 +103,7 @@ final case class Snapshot(
       histograms.map(_.metricId)
 
   def hasDuplication: Boolean = {
-    val stable = metricIDs.map(id => (id.scope, id.token.name))
+    val stable = metricIds.map(id => (id.scope, id.token.name))
     stable.distinct.size =!= stable.size
   }
 }
