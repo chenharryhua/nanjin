@@ -224,19 +224,19 @@ final class Hadoop[F[_]](config: Configuration) {
     *   Dates to retain
     */
   def dateFolderRetention(path: Url, keeps: List[LocalDate])(using
-    F: Sync[F]): F[List[FolderRetentionStatus]] =
+    F: Sync[F]): F[List[FolderRetentionResult]] =
     dataFolders(path).flatMap(_.traverse { url =>
       extractDate(url) match {
         case Some(date) =>
           if (keeps.contains(date))
-            F.pure(FolderRetentionStatus(url, RetentionStatus.Retained))
+            F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
           else {
             delete(url).map {
-              case true  => FolderRetentionStatus(url, RetentionStatus.Removed)
-              case false => FolderRetentionStatus(url, RetentionStatus.RemovalFailed)
+              case true  => FolderRetentionResult(url, RetentionStatus.Removed)
+              case false => FolderRetentionResult(url, RetentionStatus.RemovalFailed)
             }
           }
-        case None => F.pure(FolderRetentionStatus(url, RetentionStatus.Retained))
+        case None => F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
       }
     })
 
@@ -248,7 +248,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * @return
     */
   def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(using
-    F: Sync[F]): F[List[FolderRetentionStatus]] = {
+    F: Sync[F]): F[List[FolderRetentionResult]] = {
     val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
     dateFolderRetention(path, keeps)
   }

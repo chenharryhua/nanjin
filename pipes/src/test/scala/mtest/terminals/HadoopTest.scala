@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
-import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionStatus}
+import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionResult}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
@@ -130,7 +130,7 @@ class HadoopTest extends AnyFunSuite {
   test("12.retention status") {
     import io.circe.syntax.EncoderOps
     import cats.syntax.show.given
-    val frs = FolderRetentionStatus(path, Retained)
+    val frs = FolderRetentionResult(path, Retained)
     println(frs.asJson)
     println(frs.status.show)
   }

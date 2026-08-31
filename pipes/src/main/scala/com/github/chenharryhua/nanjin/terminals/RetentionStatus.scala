@@ -15,4 +15,4 @@ object RetentionStatus:
     RetentionStatus.values.find(_.productPrefix === s).toRight(s"Invalid RetentionStatus: $s")
   }
 
-final case class FolderRetentionStatus(folder: Url, status: RetentionStatus) derives Codec.AsObject
+final case class FolderRetentionResult(folder: Url, status: RetentionStatus) derives Codec.AsObject
