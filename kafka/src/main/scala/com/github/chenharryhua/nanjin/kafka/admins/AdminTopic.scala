@@ -45,14 +45,14 @@ trait AdminTopic[F[_]] {
 
   /** Create a new topic with the given number of partitions and replication factor.
     *
-    * @param numPartition
+    * @param numPartitions
     *   number of partitions (must be > 0)
-    * @param numReplica
+    * @param numReplicas
     *   replication factor (must be > 0)
     * @return
     *   an effect that creates the topic
     */
-  def newTopic(numPartition: Int, numReplica: Short): F[Unit]
+  def newTopic(numPartitions: Int, numReplicas: Short): F[Unit]
 
   /** Create a new topic based on the given `TopicDescription`.
     *
@@ -139,8 +139,8 @@ private[kafka] object AdminTopic {
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminClient.deleteTopic(topicName.value)
 
-    override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminClient.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
+    override def newTopic(numPartitions: Int, numReplicas: Short): F[Unit] =
+      adminClient.createTopic(new NewTopic(topicName.value, numPartitions, numReplicas))
 
     override def newTopic(description: TopicDescription): F[Unit] = {
       val partitions = description.partitions().size()
