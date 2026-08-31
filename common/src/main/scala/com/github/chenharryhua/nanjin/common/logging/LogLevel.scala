@@ -4,7 +4,10 @@ import cats.syntax.eq.given
 import cats.{Order, Show}
 import io.circe.{Decoder, Encoder}
 
-// name corresponding to org.slf4j.event.Level
+// nanjin log levels, each mapping onto an org.slf4j.event.Level. `Good` is a
+// success/"good news" level (e.g. a job completed successfully) that ranks
+// above `Info`. It maps to slf4j INFO, same as `Info`, but is kept distinct so
+// the Console renderer can color it differently from `Info`.
 enum LogLevel(val value: Int):
   case Error extends LogLevel(4)
   case Warn extends LogLevel(3)
