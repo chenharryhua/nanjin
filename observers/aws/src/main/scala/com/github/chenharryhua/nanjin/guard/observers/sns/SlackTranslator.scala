@@ -36,9 +36,9 @@ private object SlackTranslator extends all {
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
-  private val MessageSizeLimits: Information = Bytes(2500)
+  private val MESSAGE_SIZE_LIMIT: Information = Bytes(2500)
 
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits.toBytes.toInt)
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MESSAGE_SIZE_LIMIT.toBytes.toInt)
 
   private def mark_down(first: TextEntry, second: TextEntry): MarkdownSection =
     MarkdownSection(s"""|*${first.tag}:* ${first.text}
@@ -64,16 +64,16 @@ private object SlackTranslator extends all {
     JuxtaposeSection(first = TextField(uptime), second = TextField(idx))
   }
 
-  private def metrics_section(snapshot: Snapshot): KeyValueSection = {
+  private def metrics_section(snapshot: Snapshot): TagValueSection = {
     val ss = Attribute(snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
     if (snapshot.nonEmpty) {
-      KeyValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
-    } else KeyValueSection(ss.tag, """`not available`""")
+      TagValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
+    } else TagValueSection(ss.tag, """`not available`""")
   }
 
-  private def brief(sb: Brief): KeyValueSection = {
+  private def brief(sb: Brief): TagValueSection = {
     val service_brief = Attribute(sb).textEntry
-    KeyValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
+    TagValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
   }
 
   // events
@@ -141,7 +141,7 @@ private object SlackTranslator extends all {
         ),
         Attachment(
           color = color,
-          blocks = List(KeyValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
+          blocks = List(TagValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
         Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )
@@ -224,7 +224,7 @@ private object SlackTranslator extends all {
 
     val error: Option[Attachment] = Attribute(evt.stackTrace).fold { (tag, ost) =>
       ost.map { st =>
-        Attachment(color = color, blocks = List(KeyValueSection(tag, s"```${abbreviate(st.show)}```")))
+        Attachment(color = color, blocks = List(TagValueSection(tag, s"```${abbreviate(st.show)}```")))
       }
     }
 

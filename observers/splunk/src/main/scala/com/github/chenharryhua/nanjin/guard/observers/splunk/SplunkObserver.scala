@@ -72,7 +72,7 @@ final class SplunkObserver[F[_]](client: Resource[F, Client[F]], translator: Tra
   override def withTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F] =
     new SplunkObserver[F](client, f(translator))
 
-  private def buildEnvelope(event: Event, json: Json, config: HecConfig): Json = {
+  private def build_envelope(event: Event, json: Json, config: HecConfig): Json = {
     val epoch: Double = event.timestamp.value.toInstant.toEpochMilli / 1000.0
     val fields = List(
       "time" -> Json.fromDoubleOrNull(epoch),
@@ -97,7 +97,7 @@ final class SplunkObserver[F[_]](client: Resource[F, Client[F]], translator: Tra
       http <- Stream.resource(client)
       event <- es.evalTap { e =>
         translator.translate(e).flatMap(_.traverse { json =>
-          publish(http, config, buildEnvelope(e, json, config))
+          publish(http, config, build_envelope(e, json, config))
         }).void
       }
     } yield event

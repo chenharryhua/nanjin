@@ -25,8 +25,8 @@ object Section {
         "type" -> Json.fromString("section"),
         "text" -> Json.obj("type" -> Json.fromString("mrkdwn"), "text" -> Json.fromString(text)))
 
-    case KeyValueSection(key, value) =>
-      Json.obj("type" -> Json.fromString("section"), "text" -> TextField(key, value).asJson)
+    case TagValueSection(tag, value) =>
+      Json.obj("type" -> Json.fromString("section"), "text" -> TextField(tag, value).asJson)
 
     case HeaderSection(text) =>
       Json.obj(
@@ -40,7 +40,7 @@ object Section {
 }
 
 final case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Encoder
-final case class KeyValueSection(tag: String, value: String) extends Section derives Encoder
+final case class TagValueSection(tag: String, value: String) extends Section derives Encoder
 final case class MarkdownSection(text: String) extends Section derives Encoder
 final case class HeaderSection(text: String) extends Section derives Encoder
 
