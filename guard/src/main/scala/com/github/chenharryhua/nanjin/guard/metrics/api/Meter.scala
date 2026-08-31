@@ -79,7 +79,7 @@ object Meter {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
       def meter: Resource[F, Meter[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
             val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
             description.fold(builder)(builder.withDescription).create
           })

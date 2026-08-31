@@ -15,7 +15,7 @@ object MetricFixtures {
     val mid = decode[MetricId](
       s"""{
          |  "scope": {"label": "$id", "domain": "test", "service": "test-service", "task":"task"},
-         |  "token": {"name": "$id", "age": 0, "uniqueToken": 0},
+         |  "token": {"metricName": "$id", "age": 0, "uniqueToken": 0},
          |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin
     ).fold(throw _, identity)

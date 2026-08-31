@@ -159,7 +159,7 @@ final private class GeneralAgent[F[_]: Async](
 
   override def metricsHub(label: String): MetricsHub[F] = {
     val scope = MetricScope(
-      label,
+      MetricScope.Label(label),
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
@@ -180,7 +180,7 @@ final private class GeneralAgent[F[_]: Async](
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(
-      label,
+      MetricScope.Label(label),
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)

@@ -14,6 +14,16 @@
 - Only interrupt an approved step to ask if there is a genuine fork with materially different
   outcomes, or if a build or test fails in a way that needs my input.
 
+## Wire format
+
+- Always notify me when a change impacts wire format, before finalizing or committing it. This
+  includes: JSON object keys (e.g. `derives Codec.AsObject` field renames), Avro record field
+  names, serialized enum/case names, CloudWatch dimension or metric names, OAuth/token fields, and
+  any other externally-observed or persisted key or value. Type/identifier renames that do not
+  change the serialized bytes are wire-safe and do not need a heads-up.
+- When flagging, state exactly what the old and new serialized form is, and where it is read or
+  persisted, so I can decide whether the break is acceptable.
+
 ## Commits and PRs
 
 - Before every commit, run `sbt scalafixAll scalafmtAll` and stage any resulting changes so the

@@ -5,7 +5,8 @@ import cats.effect.Unique
 import cats.effect.kernel.Clock
 import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
-import cats.{Applicative, Hash}
+import cats.{Applicative, Hash, Show}
+import com.github.chenharryhua.nanjin.common.OpaqueLift
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import io.circe.{Codec, Decoder, Encoder}
 import org.typelevel.otel4s.Attribute
@@ -62,15 +63,26 @@ end Squants
   * constructor is private because a `MetricToken` can only be minted through the effectful `apply`; a caller
   * cannot fabricate one and thereby forge an identity or alias an existing instance.
   */
-final case class MetricToken private (name: String, age: Long, uniqueToken: Int) derives Eq, Codec.AsObject
+final case class MetricToken private (metricName: String, age: Long, uniqueToken: Int)
+    derives Eq, Codec.AsObject
 private object MetricToken:
-  def apply[F[_]: {Applicative, Clock, Unique}](name: String): F[MetricToken] =
+  def apply[F[_]: {Applicative, Clock, Unique}](metricName: String): F[MetricToken] =
     (Clock[F].monotonic, Unique[F].unique).mapN((age, token) =>
-      MetricToken(name, age.toNanos, Hash[Unique.Token].hash(token)))
+      MetricToken(metricName, age.toNanos, Hash[Unique.Token].hash(token)))
 end MetricToken
 
-final case class MetricScope(label: String, domain: Domain, service: Service, task: Task)
+final case class MetricScope(label: MetricScope.Label, domain: Domain, service: Service, task: Task)
     derives Codec.AsObject
+object MetricScope {
+  opaque type Label = String
+  object Label:
+    def apply(value: String): Label = value
+    extension (t: Label) inline def value: String = t
+    given Show[Label] = OpaqueLift.lift[Label, String, Show]
+    given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
+    given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
+  end Label
+}
 
 /** The full identity of a single metric instance, and the bridge between nanjin's lifecycle model and its two
   * reporting backends.

@@ -40,7 +40,7 @@ final private class HttpWsRouter[F[_]: Async](
   private def text(mc: MeteredCounts): WebSocketFrame.Text = {
     val series = mc.counts.map { case (mid, count) =>
       Json.obj(
-        "label" -> Json.fromString(s"${mid.scope.label}(${mid.token.name})"),
+        "label" -> Json.fromString(s"${mid.scope.label}(${mid.token.metricName})"),
         "value" -> Json.fromLong(count)
       )
     }

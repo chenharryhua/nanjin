@@ -128,10 +128,10 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
             val inner: Json =
               items
                 .sortBy(_._1.token.age)
-                .map { case (mId, js) => Json.obj(mId.token.name -> js) }
+                .map { case (mId, js) => Json.obj(mId.token.metricName -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            age -> Json.obj(scope.label -> inner.asJson)
+            age -> Json.obj(scope.label.value -> inner.asJson)
           }
           .sortBy(_._1)
           .map(_._2)
@@ -170,11 +170,12 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   private def counter_str: List[(MetricId, List[String])] =
     snapshot.counters
-      .map(c => c.metricId -> List(show"${c.metricId.token.name}: ${decimalFormatter.format(c.counter)}"))
+      .map(c =>
+        c.metricId -> List(show"${c.metricId.token.metricName}: ${decimalFormatter.format(c.counter)}"))
 
   private def gauge_str: List[(MetricId, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonView.yml(g.metricId.token.name, g.gauge.value, space)
+      val content = JsonView.yml(g.metricId.token.metricName, g.gauge.value, space)
       if (content.isEmpty) None
       else
         Some(g.metricId -> content)
@@ -186,7 +187,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
   }
 
   private def named(id: MetricId, data: NonEmptyList[String]): List[String] =
-    s"${id.token.name}:" :: data.toList
+    s"${id.token.metricName}:" :: data.toList
 
   private def meter_str: List[(MetricId, List[String])] =
     meters.map { case (id, data) => id -> named(id, padded(data)) }
