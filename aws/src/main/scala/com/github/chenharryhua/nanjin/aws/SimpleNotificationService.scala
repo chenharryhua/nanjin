@@ -74,9 +74,9 @@ object SimpleNotificationService {
         cw =>
           shutdown(name, logger)(cw.close())
       }
-    } yield new AwsSNS[F](client, logger)
+    } yield new SimpleNotificationServiceImpl[F](client, logger)
 
-  final private class AwsSNS[F[_]: Sync](client: SnsClient, logger: Logger[F])
+  final private class SimpleNotificationServiceImpl[F[_]: Sync](client: SnsClient, logger: Logger[F])
       extends SimpleNotificationService[F]:
 
     override def publish(request: PublishRequest): F[PublishResponse] =

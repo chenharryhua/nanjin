@@ -76,7 +76,7 @@ trait SimpleStorageService[F[_]] {
     copyObject(f(CopyObjectRequest.builder()).build())
 
   /** Delete an object using a fully configured request. */
-  def deleteObject(cor: DeleteObjectRequest): F[DeleteObjectResponse]
+  def deleteObject(dor: DeleteObjectRequest): F[DeleteObjectResponse]
 
   /** Delete an object using a fluent S3 request builder. */
   final def deleteObject(f: Endo[DeleteObjectRequest.Builder]): F[DeleteObjectResponse] =
@@ -134,9 +134,9 @@ object SimpleStorageService:
         shutdown(presignerName, logger)(presigner.close()) >>
           shutdown(s3Name, logger)(s3.close())
       }
-    } yield new AwsS3[F](s3, presigner, logger)
+    } yield new SimpleStorageServiceImpl[F](s3, presigner, logger)
 
-  final private class AwsS3[F[_]](s3: S3Client, presigner: S3Presigner, logger: Logger[F])(using F: Sync[F])
+  final private class SimpleStorageServiceImpl[F[_]](s3: S3Client, presigner: S3Presigner, logger: Logger[F])(using F: Sync[F])
       extends SimpleStorageService[F] {
 
     override def headObject(hor: HeadObjectRequest): F[HeadObjectResponse] =
@@ -154,8 +154,8 @@ object SimpleStorageService:
     override def copyObject(cor: CopyObjectRequest): F[CopyObjectResponse] =
       blockingF(s3.copyObject(cor), cor.toString, logger)
 
-    override def deleteObject(cor: DeleteObjectRequest): F[DeleteObjectResponse] =
-      blockingF(s3.deleteObject(cor), cor.toString, logger)
+    override def deleteObject(dor: DeleteObjectRequest): F[DeleteObjectResponse] =
+      blockingF(s3.deleteObject(dor), dor.toString, logger)
 
     override def renameObject(ror: RenameObjectRequest): F[RenameObjectResponse] =
       blockingF(s3.renameObject(ror), ror.toString, logger)

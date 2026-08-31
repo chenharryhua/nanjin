@@ -13,7 +13,7 @@ import org.http4s.ember.client.EmberClientBuilder
 
 object ecs {
 
-  private def meta_uri[F[_]: Sync]: F[Option[Uri]] = {
+  private def metaUri[F[_]: Sync]: F[Option[Uri]] = {
     val env: Env[F] = Env.make[F]
     for {
       v4 <- env.get("ECS_CONTAINER_METADATA_URI_V4")
@@ -22,18 +22,18 @@ object ecs {
   }
 
   // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
-  def container_metadata[F[_]: {Async, Network}]: F[Json] =
+  def containerMetadata[F[_]: {Async, Network}]: F[Json] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
-        uri <- meta_uri[F]
+        uri <- metaUri[F]
         json <- uri.flatTraverse(addr => client.expect[Json](addr).attempt.map(_.toOption))
       } yield json.getOrElse(Json.Null)
     }
 
-  def container_metadata_task[F[_]: {Async, Network}]: F[Json] =
+  def containerMetadataTask[F[_]: {Async, Network}]: F[Json] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
-        uri <- meta_uri[F]
+        uri <- metaUri[F]
         json <- uri.flatTraverse(addr => client.expect[Json](addr / "task").attempt.map(_.toOption))
       } yield json.getOrElse(Json.Null)
     }
