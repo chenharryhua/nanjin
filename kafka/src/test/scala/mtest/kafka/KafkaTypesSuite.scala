@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.kernel.PartialOrder
 import com.github.chenharryhua.nanjin.kafka.{
-  GroupId,
+  GroupID,
   LagBehind,
   Offset,
   OffsetRange,
@@ -20,10 +20,10 @@ import java.time.Instant
 class KafkaTypesSuite extends CatsEffectSuite {
 
   test("1.GroupId codec") {
-    val gid = GroupId("my-group")
+    val gid = GroupID("my-group")
     val json = gid.asJson.noSpaces
     assertEquals(json, "\"my-group\"")
-    assertEquals(decode[GroupId](json), Right(gid))
+    assertEquals(decode[GroupID](json), Right(gid))
   }
 
   test("2.Offset arithmetic and asLast") {

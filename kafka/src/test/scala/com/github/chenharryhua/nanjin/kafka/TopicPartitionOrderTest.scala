@@ -51,7 +51,7 @@ class TopicPartitionOrderTest extends AnyFunSuite {
   }
 
   test("5.group id") {
-    val gid = GroupId("abc")
-    assert(decode[GroupId](gid.asJson.noSpaces).toOption.get == gid)
+    val gid = GroupID("abc")
+    assert(decode[GroupID](gid.asJson.noSpaces).toOption.get == gid)
   }
 }

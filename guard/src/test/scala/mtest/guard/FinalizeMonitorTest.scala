@@ -24,10 +24,10 @@ class FinalizeMonitorTest extends AnyFunSuite {
     // it should produce a synthetic ServiceStop(ByCancellation) via onFinalize.
     // We test this indirectly by creating an observer-like pipe that tracks starts.
     import cats.effect.kernel.Ref
-    import com.github.chenharryhua.nanjin.guard.config.ServiceId
+    import com.github.chenharryhua.nanjin.guard.config.ServiceID
 
     val test = for {
-      ref <- Ref.of[IO, Map[ServiceId, ServiceStart]](Map.empty)
+      ref <- Ref.of[IO, Map[ServiceID, ServiceStart]](Map.empty)
       events <- service
         .eventStream(_ => IO.sleep(10.seconds))
         .evalTap {
@@ -52,10 +52,10 @@ class FinalizeMonitorTest extends AnyFunSuite {
 
   test("2.observer tracking clears on normal ServiceStop") {
     import cats.effect.kernel.Ref
-    import com.github.chenharryhua.nanjin.guard.config.ServiceId
+    import com.github.chenharryhua.nanjin.guard.config.ServiceID
 
     val test = for {
-      ref <- Ref.of[IO, Map[ServiceId, ServiceStart]](Map.empty)
+      ref <- Ref.of[IO, Map[ServiceID, ServiceStart]](Map.empty)
       _ <- service
         .eventStream(_ => IO.unit)
         .evalTap {

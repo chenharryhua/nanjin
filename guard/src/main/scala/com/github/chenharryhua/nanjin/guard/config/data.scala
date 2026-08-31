@@ -73,15 +73,15 @@ end Service
 /** A unique identifier generated for each service instance at launch time. A new UUID is minted on every JVM
   * start; it does not change across panic-triggered restarts within the same process lifetime.
   */
-opaque type ServiceId = UUID
-object ServiceId:
-  def apply(value: UUID): ServiceId = value
-  extension (s: ServiceId) inline def value: UUID = s
+opaque type ServiceID = UUID
+object ServiceID:
+  def apply(value: UUID): ServiceID = value
+  extension (s: ServiceID) inline def value: UUID = s
 
-  given Show[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Show]
-  given Encoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Encoder]
-  given Decoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Decoder]
-end ServiceId
+  given Show[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Show]
+  given Encoder[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Encoder]
+  given Decoder[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Decoder]
+end ServiceID
 
 // ---------------- Homepage ----------------
 opaque type Homepage = String
