@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchKind,
   BatchMode,
-  BatchValue,
+  ValueBatch,
   JobHook,
   PostConditionUnsatisfied
 }
@@ -72,7 +72,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).batchValue(JobHook.noop)
+        agent.batch("good job").sequential(jobs*).valueBatch(JobHook.noop)
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -89,7 +89,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onComplete { jo =>
+          .valueBatch(tracer.onComplete { jo =>
             IO {
               assert(jo.result.isLeft)
               assert(!jo.completed.succeeded)
@@ -105,12 +105,12 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs =
         List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        val result: Resource[IO, BatchValue[Int]] =
+        val result: Resource[IO, ValueBatch[Int]] =
           agent
             .batch("predicate")
             .sequential(jobs*)
             .withPostCondition(_ > 3)
-            .batchValue(tracer.onComplete { jo =>
+            .valueBatch(tracer.onComplete { jo =>
               IO {
                 assert(!jo.completed.succeeded)
                 assert(jo.completed.job.index == 1)

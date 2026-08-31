@@ -24,7 +24,7 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(completed, Right(1))))
     val value =
-      BatchValue(label, Duration.ofMillis(20), BatchMode.Sequential, batchId, List(JobValue(completed, 1)))
+      ValueBatch(label, Duration.ofMillis(20), BatchMode.Sequential, batchId, List(JobValue(completed, 1)))
 
     val quasiJson = quasi.asJson
     val valueJson = value.asJson
@@ -117,9 +117,9 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(!withFailure.completed.succeeded)
   }
 
-  test("BatchValue.completed accessor") {
+  test("ValueBatch.completed accessor") {
     val bv =
-      BatchValue(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
+      ValueBatch(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
     assert(bv.succeeded)
     val cb = bv.completed
     assert(cb.scope == label)

@@ -163,7 +163,7 @@ object Batch:
     /** Exceptions from individual jobs are propagated, causing the batch operation to fail immediately, and a
       * post-condition failure is reported as `PostConditionUnsatisfied`.
       */
-    def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]]
+    def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]]
   }
 
   /*
@@ -201,7 +201,7 @@ object Batch:
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
+    override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
@@ -214,7 +214,7 @@ object Batch:
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-            BatchValue(
+            ValueBatch(
               scope = metrics.scope,
               spent = fd.toJava,
               mode = mode,
@@ -260,7 +260,7 @@ object Batch:
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
+    override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobValue[A]]] =
         jobs
@@ -277,7 +277,7 @@ object Batch:
 
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
-          BatchValue(
+          ValueBatch(
             scope = metrics.scope,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
@@ -502,7 +502,7 @@ end Batch
 /** Metrics-backed façade for long-running or stateful work.
   *
   * Use `sequential` or `parallel` for independent jobs, and `monadic` when later jobs depend on earlier
-  * results. Acquire `quasiBatch` or `batchValue` with `.use`; both execution styles report progress and
+  * results. Acquire `quasiBatch` or `valueBatch` with `.use`; both execution styles report progress and
   * lifecycle events.
   */
 final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {

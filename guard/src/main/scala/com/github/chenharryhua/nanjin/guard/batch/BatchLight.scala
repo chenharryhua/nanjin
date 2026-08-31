@@ -21,7 +21,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   *
   * Obtain a `BatchLight` from `Agent.batchLight(label)`. It has the same sequential, parallel, and monadic
   * shapes as `Batch`, but returns `F` values directly and omits the metrics-backed progress machinery. Use
-  * `quasiBatch` to retain per-job failures or `batchValue` to raise them.
+  * `quasiBatch` to retain per-job failures or `valueBatch` to raise them.
   */
 object BatchLight:
   /*
@@ -176,7 +176,7 @@ object BatchLight:
     def quasiBatch: F[QuasiBatch[A]]
 
     /** Execute and raise on failure, returning successful values. */
-    def batchValue: F[BatchValue[A]]
+    def valueBatch: F[ValueBatch[A]]
   }
 
   /*
@@ -212,7 +212,7 @@ object BatchLight:
         }
       }
 
-    override def batchValue: F[BatchValue[A]] =
+    override def valueBatch: F[ValueBatch[A]] =
       uuidGenerator.flatMap { (batchId: UUID) =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobValue[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
@@ -230,7 +230,7 @@ object BatchLight:
                 }
               }
         }).map { case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-          BatchValue(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          ValueBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
@@ -274,7 +274,7 @@ object BatchLight:
             jobs = jobs))
       }
 
-    override def batchValue: F[BatchValue[A]] =
+    override def valueBatch: F[ValueBatch[A]] =
       uuidGenerator.flatMap { (batchId: UUID) =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, scope, mode, BatchKind.Value, batchId)
@@ -291,7 +291,7 @@ object BatchLight:
               }
             }
         }.map { jobs =>
-          BatchValue(
+          ValueBatch(
             scope = scope,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,

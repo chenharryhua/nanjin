@@ -82,7 +82,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("exception.value")
         .parallel(jobs*)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
@@ -129,7 +129,7 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.value")
         .parallel(jobs*)
         .withPostCondition(_ < 2)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false))))
         .void
@@ -167,7 +167,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("failed-cancels-siblings")
         .parallel(jobs*)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void

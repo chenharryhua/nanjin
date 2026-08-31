@@ -201,7 +201,7 @@ end QuasiBatch
 /** The aggregate result of a value-batch execution, where each job contributes a successful value and
   * completion metadata.
   */
-final case class BatchValue[A](
+final case class ValueBatch[A](
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
@@ -218,8 +218,8 @@ final case class BatchValue[A](
       jobs = jobs.map(_.completed)
     )
 }
-object BatchValue:
-  given [A: Encoder] => Encoder[BatchValue[A]] =
+object ValueBatch:
+  given [A: Encoder] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
       Json.obj(
         "batch" -> Json.fromString(bv.scope.label),
@@ -237,7 +237,7 @@ object BatchValue:
           .asJson
       )
     }
-end BatchValue
+end ValueBatch
 
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   */

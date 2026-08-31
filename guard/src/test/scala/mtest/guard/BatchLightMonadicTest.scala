@@ -327,14 +327,14 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "batchValue should fail when predicate is not satisfied" in {
+    "valueBatch should fail when predicate is not satisfied" in {
       val se = service.eventStreamR { agent =>
         Resource.eval(
           agent
             .batchLight("light-sequential-value")
             .sequential("a" -> IO(1), "b" -> IO(2))
             .withPostCondition(_ > 1)
-            .batchValue
+            .valueBatch
             .attempt
             .map { outcome =>
               outcome.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false) shouldBe true
@@ -345,12 +345,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "batchValue should return all values on success" in {
+    "valueBatch should return all values on success" in {
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-sequential-value-ok")
           .sequential("a" -> IO(10), "b" -> IO(20), "c" -> IO(30))
-          .batchValue
+          .valueBatch
           .map { bv =>
             bv.jobs.size shouldBe 3
             bv.jobs.map(_.result) shouldBe List(10, 20, 30)
@@ -426,7 +426,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
         agent
           .batchLight("light-parallel-explicit")
           .parallel(1)("a" -> IO(1), "b" -> IO(2))
-          .batchValue
+          .valueBatch
           .map { value =>
             value.jobs.size shouldBe 2
             value.mode shouldBe BatchMode.Parallel(1)
@@ -454,14 +454,14 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "batchValue should fail when predicate is not satisfied" in {
+    "valueBatch should fail when predicate is not satisfied" in {
       val se = service.eventStreamR { agent =>
         Resource.eval(
           agent
             .batchLight("light-parallel-value")
             .parallel(2)("a" -> IO(1), "b" -> IO(2))
             .withPostCondition(_ > 1)
-            .batchValue
+            .valueBatch
             .attempt
             .map { outcome =>
               outcome.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false) shouldBe true
@@ -485,7 +485,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
               "b" -> IO.raiseError[Int](new Exception("boom")),
               "c" -> IO.sleep(5.seconds) *> IO { cCompleted = true; 3 }
             )
-            .batchValue
+            .valueBatch
             .attempt
             .map { outcome =>
               outcome.isLeft shouldBe true
