@@ -63,12 +63,12 @@ import scala.jdk.CollectionConverters.*
   *   a new `Client[F]` that automatically manages cookies
   */
 def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sync[F]): Client[F] = {
-  val cookie_store: CookieStore = cookieManager.getCookieStore
+  val cookieStore: CookieStore = cookieManager.getCookieStore
   Client[F] { req =>
     for {
       cookies <- Resource.eval[F, List[RequestCookie]](
         F.delay(
-          cookie_store
+          cookieStore
             .get(URI.create(req.uri.renderString))
             .asScala
             .toList
@@ -78,7 +78,7 @@ def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(using F: Sy
           resp.headers.headers
             .filter(_.name === `Set-Cookie`.name)
             .flatMap(c => HttpCookie.parse(c.value).asScala)
-            .foreach(hc => cookie_store.add(URI.create(req.uri.renderString), hc)))
+            .foreach(hc => cookieStore.add(URI.create(req.uri.renderString), hc)))
       }
     } yield out
   }
