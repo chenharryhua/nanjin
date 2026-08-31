@@ -253,7 +253,7 @@ final class Hadoop[F[_]](config: Configuration) {
     dateFolderRetention(path, keeps)
   }
 
-  private def copyFile(source: Url, target: Url, deleteSource: Boolean)(using F: Sync[F]): F[Boolean] =
+  private def copy_file(source: Url, target: Url, delete_source: Boolean)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val src = toHadoopPath(source)
       val tgt = toHadoopPath(target)
@@ -261,7 +261,7 @@ final class Hadoop[F[_]](config: Configuration) {
       val srcFs = src.getFileSystem(config)
       val tgtFs = tgt.getFileSystem(config)
 
-      FileUtil.copy(srcFs, src, tgtFs, tgt, deleteSource, true, config)
+      FileUtil.copy(srcFs, src, tgtFs, tgt, delete_source, true, config)
     }
 
   /** Convenience method to copy a file or directory from one Hadoop-compatible path to another.
@@ -274,7 +274,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * storage-specific SDK or handle cleanup externally.
     */
   def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copyFile(source, target, false)
+    copy_file(source, target, false)
 
   /** Convenience method to move a file or directory from one Hadoop-compatible path to another.
     *
@@ -286,7 +286,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * appropriate storage-specific SDK or handle cleanup externally.
     */
   def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copyFile(source, target, true)
+    copy_file(source, target, true)
 
   /*
    * source and sink

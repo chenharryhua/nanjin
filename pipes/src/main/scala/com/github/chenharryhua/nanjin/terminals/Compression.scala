@@ -115,7 +115,7 @@ object Compression {
       case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.value}")
     }
 
-  private def convertLevel(lvl: String): Either[String, Level] =
+  private def convert_level(lvl: String): Either[String, Level] =
     Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
       .flatMap(i => Level.values.find(_.value === i).toRight(s"invalid Compression Level: $i"))
 
@@ -129,9 +129,9 @@ object Compression {
       case Lz4_Raw.shortName      => Right(Lz4_Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
-      case s"deflate-${level}"    => convertLevel(level).map(Deflate(_))
-      case s"xz-${level}"         => convertLevel(level).map(Xz(_))
-      case s"zstd-${level}"       => convertLevel(level).map(Zstandard(_))
+      case s"deflate-${level}"    => convert_level(level).map(Deflate(_))
+      case s"xz-${level}"         => convert_level(level).map(Xz(_))
+      case s"zstd-${level}"       => convert_level(level).map(Zstandard(_))
       case unknown                => Left(s"unknown compression: $unknown")
     }
 
