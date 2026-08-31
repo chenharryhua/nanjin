@@ -14,9 +14,18 @@ These are the naming rules agreed for this library. Apply them consistently acro
 - **Casing by visibility:** local-private identifiers use `snake_case`; package-private and
   public identifiers use `camelCase`; types/classes/objects use `PascalCase`. The `snake_case`
   for local-privates is deliberate, it visually distinguishes internal helpers from the public API.
-- **Acronyms in types vs fields:** acronyms in *type* names are uppercased (`MetricID`, `ServiceID`,
-  `GroupID`, `RegisteredSchemaID`), while id-valued *fields/params/vals* keep `camelCase`
-  (`serviceId`, `groupId`). Note `ServiceIdentity` is "Identity", not the `ID` acronym, so it stays.
+- **"Id" is a word, not an acronym:** treat `Id` (short for "Identifier") as an ordinary word,
+  so only its first letter is capitalized. This gives one uniform rule with no type-vs-field
+  special case: an identifier derived from a type is the *type name with its first letter
+  lowercased*. So the type is `ServiceId` and the field/param/val/pattern binding is `serviceId`
+  (`MetricId`, `GroupId`, `RegisteredSchemaId`; `metricId`, `groupId`). The pair echoes cleanly
+  everywhere — `serviceId: ServiceId`, `case ServiceId(serviceId)`, `def lookup(serviceId: ServiceId)`.
+  Rationale: the older `ID` form (`ServiceID`) forced a two-part rule because `ServiceID` does not
+  lowercase to a clean binding name, and trailing caps (`serviceID`) read like a constant on a val.
+  Note `ServiceIdentity` is "Identity", not `Id`, so it is unaffected.
+  This supersedes the earlier `ID`-uppercased convention; existing `*ID` names should migrate to
+  `*Id` in a deliberate, module-wide rename pass (see "Wire format is frozen" — type renames are
+  wire-safe, but check any serialized string keys separately).
 - **Private shared constants:** a private `val` that holds a fixed literal reused internally
   (e.g. a JSON field-key string) uses `SCREAMING_SNAKE_CASE`. Three properties justify it: it is
   private (does not pollute the public space), it is a shared literal (reused internally), and it

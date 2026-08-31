@@ -7,7 +7,7 @@ import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.guard.config.NbspChar
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{JsonView, Snapshot}
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricId, Squants}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
@@ -39,7 +39,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
     else
       s"${decimalFormatter.format(data * 86400)} $symbol/${time.Days.symbol}"
 
-  private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
+  private def meters: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
       val unit = m.meter.squants.unitSymbol
       m.metricId -> NonEmptyList.of(
@@ -51,7 +51,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       )
     }
 
-  private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
+  private def timers: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
       val unit = s"calls/${time.Seconds.symbol}"
       t.metricId -> NonEmptyList.of(
@@ -90,7 +90,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       s"${decimalFormatter.format(data)} $unitSymbol"
   }
 
-  private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =
+  private def histograms: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
@@ -108,13 +108,13 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       )
     }
 
-  private def json_list(lst: List[(MetricID, NonEmptyList[(String, String)])]): List[(MetricID, Json)] =
+  private def json_list(lst: List[(MetricId, NonEmptyList[(String, String)])]): List[(MetricId, Json)] =
     lst.map { case (id, items) =>
       id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.toList.reduce[Json]((a, b) =>
         b.deepMerge(a))
     }
 
-  private def group_json(pairs: List[(MetricID, Json)]): Json =
+  private def group_json(pairs: List[(MetricId, Json)]): Json =
     pairs
       .groupBy(_._1.scope.domain) // domain group
       .toList
@@ -154,13 +154,13 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   // for screen display
   def toPrettyJson: Json = {
-    val counters: List[(MetricID, Json)] =
+    val counters: List[(MetricId, Json)] =
       snapshot.counters.map(c => c.metricId -> c.counter.asJson)
-    val gauges: List[(MetricID, Json)] =
+    val gauges: List[(MetricId, Json)] =
       snapshot.gauges.mapFilter(g =>
         if (g.gauge.value === Json.Null) None else Some(g.metricId -> g.gauge.value))
 
-    val lst: List[(MetricID, Json)] =
+    val lst: List[(MetricId, Json)] =
       counters ::: gauges ::: json_list(meters ::: histograms ::: timers)
     group_json(lst)
   }
@@ -168,11 +168,11 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
   /** Homemade Yaml
     */
 
-  private def counter_str: List[(MetricID, List[String])] =
+  private def counter_str: List[(MetricId, List[String])] =
     snapshot.counters
       .map(c => c.metricId -> List(show"${c.metricId.token.name}: ${decimalFormatter.format(c.counter)}"))
 
-  private def gauge_str: List[(MetricID, List[String])] =
+  private def gauge_str: List[(MetricId, List[String])] =
     snapshot.gauges.mapFilter { g =>
       val content = JsonView.yml(g.metricId.token.name, g.gauge.value, space)
       if (content.isEmpty) None
@@ -185,19 +185,19 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
     data.map { case (k, v) => s"$space4${StringUtils.leftPad(k, pad, space)}: $v" }
   }
 
-  private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
+  private def named(id: MetricId, data: NonEmptyList[String]): List[String] =
     s"${id.token.name}:" :: data.toList
 
-  private def meter_str: List[(MetricID, List[String])] =
+  private def meter_str: List[(MetricId, List[String])] =
     meters.map { case (id, data) => id -> named(id, padded(data)) }
 
-  private def timer_str: List[(MetricID, List[String])] =
+  private def timer_str: List[(MetricId, List[String])] =
     timers.map { case (id, data) => id -> named(id, padded(data)) }
 
-  private def histogram_str: List[(MetricID, List[String])] =
+  private def histogram_str: List[(MetricId, List[String])] =
     histograms.map { case (id, data) => id -> named(id, padded(data)) }
 
-  private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
+  private def group_yaml(pairs: List[(MetricId, List[String])]): List[String] =
     pairs
       .groupBy(_._1.scope.domain) // domain group
       .toList
@@ -222,7 +222,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   // for screen display
   def toYaml: String = {
-    val lst: List[(MetricID, List[String])] =
+    val lst: List[(MetricId, List[String])] =
       counter_str ::: gauge_str ::: meter_str ::: histogram_str ::: timer_str
     group_yaml(lst).mkString("\n")
   }

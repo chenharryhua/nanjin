@@ -88,7 +88,7 @@ object Batch:
       canceled = jobHook.canceled(job),
       // Outcome.Errored should be impossible because job effects are wrapped in attempt
       errored = ex => F.raiseError(shouldNeverHappenException(ex)),
-      completed = _.flatMap(js => updatePanel.run(js.completed) *> jobHook.completed(js))
+      completed = _.flatMap(js => updatePanel.run(js.record) *> jobHook.completed(js))
     )
 
   private class JobExecutor[F[_]: Temporal, A](
@@ -118,7 +118,7 @@ object Batch:
           .flatMap(js =>
             js.result match {
               case Left(ex)     => ex.raiseError[F, JobValue[A]]
-              case Right(value) => JobValue(js.completed, value).pure[F]
+              case Right(value) => JobValue(js.record, value).pure[F]
             })
     }
 
@@ -243,7 +243,7 @@ object Batch:
           .map(jobs =>
             QuasiBatch(
               scope = metrics.scope,
-              spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
+              spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
               mode = mode,
               batchId = batchId,
               jobs = jobs))
@@ -269,7 +269,7 @@ object Batch:
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
           ValueBatch(
             scope = metrics.scope,
-            spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
             jobs = jobs)
@@ -392,7 +392,7 @@ object Batch:
       translate: A => Json)(outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
-          rfa.evalMap(js => updatePanel.run(js.completed) *> jobHook.completed(js.map(translate)))
+          rfa.evalMap(js => updatePanel.run(js.record) *> jobHook.completed(js.map(translate)))
         // Outcome.Errored should be impossible because job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
@@ -431,7 +431,7 @@ object Batch:
               }
               .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Encoder[A].apply))
               .map { js =>
-                index + 1 -> ExecutionState(js.result, List(js.completed))
+                index + 1 -> ExecutionState(js.result, List(js.record))
               }
           }
         }
@@ -476,7 +476,7 @@ object Batch:
               }
               .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
               .map { js =>
-                index + 1 -> ExecutionState(Right(js.completed.succeeded), List(js.completed))
+                index + 1 -> ExecutionState(Right(js.record.succeeded), List(js.record))
               }
           }
         }

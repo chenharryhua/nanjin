@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.MetricId
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -41,7 +41,7 @@ class GaugeTest extends AnyFunSuite {
               .register(IO(true))))
         .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val health: Map[MetricID, Boolean] = retrieve.healthCheck(mr.snapshot.gauges)
+    val health: Map[MetricId, Boolean] = retrieve.healthCheck(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(health.values.head)
   }

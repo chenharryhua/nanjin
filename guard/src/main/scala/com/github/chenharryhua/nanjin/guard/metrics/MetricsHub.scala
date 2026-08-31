@@ -43,7 +43,7 @@ import java.time.ZoneId
   *   - '''Per-instance, not per-name.''' Each acquisition mints a unique identity even for the same name
   *     string, so nanjin bypasses Dropwizard's name-based deduplication and OpenTelemetry's
   *     same-name-conflict rule. Two live instruments with the same name are distinct metrics. See
-  *     `MetricID`/`MetricToken`.
+  *     `MetricId`/`MetricToken`.
   *   - '''Windowed values.''' A counter's Dropwizard value is reset on its reporting-window policy, so it is
   *     cumulative only within the current window; the mirrored otel instrument stays cumulative and lets the
   *     backend own windowing (see below).

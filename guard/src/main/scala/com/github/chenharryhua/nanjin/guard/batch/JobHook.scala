@@ -83,7 +83,7 @@ object JobHook {
           val json: Json = f(js)
           js.result match {
             case Left(ex) =>
-              js.completed.job.kind match {
+              js.record.job.kind match {
                 case BatchKind.Quasi => log.warn(Json.obj(SeverityNonFatal -> json), ex)
                 case BatchKind.Value => log.error(Json.obj(SeverityCritical -> json), ex)
               }

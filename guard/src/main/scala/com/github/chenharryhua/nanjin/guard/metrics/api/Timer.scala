@@ -15,7 +15,7 @@ import com.codahale.metrics.{
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
-  MetricID,
+  MetricId,
   MetricKind,
   MetricScope,
   MetricToken
@@ -67,8 +67,8 @@ object Timer {
   )(implicit F: Sync[F])
       extends Timer[F] {
 
-    private val id: MetricID =
-      MetricID(scope, name, MetricCategory.Timer(MetricKind.Timer.Default))
+    private val id: MetricId =
+      MetricId(scope, name, MetricCategory.Timer(MetricKind.Timer.Default))
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {

@@ -298,12 +298,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "a"
-            state.jobs.head.completed.job.mode shouldBe BatchMode.Sequential
-            state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
-            state.jobs.head.completed.succeeded shouldBe false
-            state.jobs(1).completed.succeeded shouldBe true
-            state.jobs(2).completed.succeeded shouldBe true
+            state.jobs.head.record.job.name shouldBe "a"
+            state.jobs.head.record.job.mode shouldBe BatchMode.Sequential
+            state.jobs.head.record.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.record.succeeded shouldBe false
+            state.jobs(1).record.succeeded shouldBe true
+            state.jobs(2).record.succeeded shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -318,8 +318,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
           .quasiBatch
           .map { state =>
-            state.jobs.map(_.completed.job.index) shouldBe List(1, 2, 3)
-            state.jobs.map(_.completed.job.name) shouldBe List("a", "b", "c")
+            state.jobs.map(_.record.job.index) shouldBe List(1, 2, 3)
+            state.jobs.map(_.record.job.name) shouldBe List("a", "b", "c")
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -408,12 +408,12 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .quasiBatch
           .map { state =>
             state.jobs.size shouldBe 3
-            state.jobs.head.completed.job.name shouldBe "a"
-            state.jobs.head.completed.job.mode shouldBe BatchMode.Parallel(3)
-            state.jobs.head.completed.job.kind shouldBe BatchKind.Quasi
-            state.jobs.head.completed.succeeded shouldBe false
-            state.jobs(1).completed.succeeded shouldBe true
-            state.jobs(2).completed.succeeded shouldBe true
+            state.jobs.head.record.job.name shouldBe "a"
+            state.jobs.head.record.job.mode shouldBe BatchMode.Parallel(3)
+            state.jobs.head.record.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.record.succeeded shouldBe false
+            state.jobs(1).record.succeeded shouldBe true
+            state.jobs(2).record.succeeded shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -445,8 +445,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .parallel(3)("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
           .quasiBatch
           .map { state =>
-            state.jobs.map(_.completed.job.index) shouldBe List(1, 2, 3)
-            state.jobs.map(_.completed.job.name) shouldBe List("a", "b", "c")
+            state.jobs.map(_.record.job.index) shouldBe List(1, 2, 3)
+            state.jobs.map(_.record.job.name) shouldBe List("a", "b", "c")
             ()
           }
       }.compile.lastOrError.unsafeRunSync()

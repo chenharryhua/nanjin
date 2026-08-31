@@ -64,8 +64,8 @@ class BatchMonadicTest extends AnyFunSuite {
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    assert(!completedJob.completed.succeeded)
-    assert(completedJob.completed.job.index == 2)
+    assert(!completedJob.record.succeeded)
+    assert(completedJob.record.job.index == 2)
   }
 
   test("3.invincible - exception") {
@@ -91,14 +91,14 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(sorted.nonEmpty)
 
-    assert(sorted.head.completed.succeeded)
-    assert(sorted.head.completed.job.index == 1)
+    assert(sorted.head.record.succeeded)
+    assert(sorted.head.record.job.index == 1)
 
-    assert(!sorted(1).completed.succeeded)
-    assert(sorted(1).completed.job.index == 2)
+    assert(!sorted(1).record.succeeded)
+    assert(sorted(1).record.job.index == 2)
 
-    assert(sorted(2).completed.succeeded)
-    assert(sorted(2).completed.job.index == 3)
+    assert(sorted(2).record.succeeded)
+    assert(sorted(2).record.job.index == 3)
   }
 
   test("4.invincible - false") {
@@ -122,15 +122,15 @@ class BatchMonadicTest extends AnyFunSuite {
 
     val sorted = completedJob.reverse
 
-    assert(sorted.head.completed.succeeded)
-    assert(sorted.head.completed.job.index == 1)
+    assert(sorted.head.record.succeeded)
+    assert(sorted.head.record.job.index == 1)
 
     assert(sorted(1).result.isRight)
-    assert(!sorted(1).completed.succeeded)
-    assert(sorted(1).completed.job.index == 2)
+    assert(!sorted(1).record.succeeded)
+    assert(sorted(1).record.job.index == 2)
 
-    assert(sorted(2).completed.succeeded)
-    assert(sorted(2).completed.job.index == 3)
+    assert(sorted(2).record.succeeded)
+    assert(sorted(2).record.job.index == 3)
   }
 
   test("4a.withFilter on a pure value should fail without crashing") {
@@ -175,11 +175,11 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(sorted.size == 4)
     assert(sorted.head.result == Right(Json.fromInt(1)))
-    assert(sorted(1).completed.job.kind == BatchKind.Quasi)
-    assert(sorted(1).completed.succeeded)
+    assert(sorted(1).record.job.kind == BatchKind.Quasi)
+    assert(sorted(1).record.succeeded)
     assert(sorted(1).result == Right(Json.True))
-    assert(sorted(2).completed.job.kind == BatchKind.Quasi)
-    assert(!sorted(2).completed.succeeded)
+    assert(sorted(2).record.job.kind == BatchKind.Quasi)
+    assert(!sorted(2).record.succeeded)
     assert(sorted(2).result == Right(Json.False))
     assert(sorted(3).result == Right(Json.fromInt(4)))
   }
@@ -208,8 +208,8 @@ class BatchMonadicTest extends AnyFunSuite {
     val sorted = completedJob
 
     assert(sorted.size == 3)
-    assert(sorted(1).completed.job.kind == BatchKind.Quasi)
-    assert(!sorted(1).completed.succeeded)
+    assert(sorted(1).record.job.kind == BatchKind.Quasi)
+    assert(!sorted(1).record.succeeded)
     assert(sorted(1).result.isLeft)
     assert(sorted(1).result.left.toOption.get.getMessage == errorMessage)
   }
@@ -240,10 +240,10 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(completedJob.size == 2)
     val sorted = completedJob.reverse
 
-    assert(sorted.head.completed.succeeded)
-    assert(sorted.head.completed.job.index == 1)
-    assert(sorted(1).completed.succeeded)
-    assert(sorted(1).completed.job.index == 2)
+    assert(sorted.head.record.succeeded)
+    assert(sorted.head.record.job.index == 1)
+    assert(sorted(1).record.succeeded)
+    assert(sorted(1).record.job.index == 2)
   }
 
   test("5b.filter should preserve post-condition failure in job state") {
@@ -276,8 +276,8 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(sorted.size == 2)
     assert(sorted.head.result == Right(Json.fromInt(1)))
     assert(sorted(1).result == Right(Json.False))
-    assert(sorted(1).completed.succeeded)
-    assert(sorted(1).completed.job.index == 2)
+    assert(sorted(1).record.succeeded)
+    assert(sorted(1).record.job.index == 2)
   }
 
   test("6.cancel") {

@@ -95,7 +95,7 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(json.hcursor.get[String]("took").toOption.nonEmpty)
   }
 
-  test("QuasiBatch.done and completed accessors") {
+  test("QuasiBatch.done and summary accessors") {
     val allDone = QuasiBatch(
       label,
       Duration.ofMillis(20),
@@ -103,7 +103,7 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(completed, Right(1))))
     assert(allDone.succeeded)
-    val cb = allDone.completed
+    val cb = allDone.summary
     assert(cb.scope == label)
     assert(cb.jobs.size == 1)
     assert(cb.succeeded)
@@ -115,24 +115,24 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(failed, Left(new RuntimeException("x")))))
     assert(!withFailure.succeeded)
-    assert(!withFailure.completed.succeeded)
+    assert(!withFailure.summary.succeeded)
   }
 
-  test("ValueBatch.completed accessor") {
+  test("ValueBatch.summary accessor") {
     val bv =
       ValueBatch(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
     assert(bv.succeeded)
-    val cb = bv.completed
+    val cb = bv.summary
     assert(cb.scope == label)
     assert(cb.mode == BatchMode.Parallel(2))
     assert(cb.jobs.size == 1)
     assert(cb.succeeded)
   }
 
-  test("MonadicBatch.completed accessor") {
+  test("MonadicBatch.summary accessor") {
     val mb = MonadicBatch(label, Duration.ofMillis(30), batchId, List(completed, failed), Right(99))
     assert(mb.succeeded)
-    val cb = mb.completed
+    val cb = mb.summary
     assert(cb.scope == label)
     assert(cb.mode == BatchMode.Monadic)
     assert(cb.jobs.size == 2)

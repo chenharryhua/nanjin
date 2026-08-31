@@ -40,7 +40,7 @@ private object ServiceConfigF {
     serviceName: Service,
     brief: Brief,
     launchTime: LaunchTime,
-    serviceId: ServiceID,
+    serviceId: ServiceId,
     host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
@@ -193,7 +193,7 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   private[guard] def evalConfig(
     serviceName: Service,
-    serviceId: ServiceID,
+    serviceId: ServiceId,
     launchTime: LaunchTime,
     brief: Brief,
     host: Host): ServiceParams =

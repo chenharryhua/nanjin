@@ -6,7 +6,7 @@ import cats.syntax.functor.given
 import cats.syntax.traverseFilter.toTraverseFilterOps
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
-  GroupID,
+  GroupId,
   Offset,
   OffsetRange,
   Partition,
@@ -83,7 +83,7 @@ trait AdminTopic[F[_]] {
     * @return
     *   a list of `GroupId` for all consumer groups that have offsets in this topic
     */
-  def groups: F[List[GroupID]]
+  def groups: F[List[GroupId]]
 
   /** List all partitions of this topic.
     *
@@ -158,7 +158,7 @@ private[kafka] object AdminTopic {
             desc.partitions().get(0).replicas().size().toShort))
       } yield ()
 
-    override def groups: F[List[GroupID]] =
+    override def groups: F[List[GroupId]] =
       for {
         gIds <- adminClient.listConsumerGroups.groupIds
         ids <- gIds.traverseFilter(gid =>
@@ -166,7 +166,7 @@ private[kafka] object AdminTopic {
             .listConsumerGroupOffsets(gid)
             .partitionsToOffsetAndMetadata
             .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
-      } yield ids.distinct.map(GroupID(_))
+      } yield ids.distinct.map(GroupId(_))
 
     override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
       consumerClient.offsetRangeFor(dtr)

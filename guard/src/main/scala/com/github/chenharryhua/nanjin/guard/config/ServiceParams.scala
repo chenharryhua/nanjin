@@ -13,7 +13,7 @@ final case class ServiceIdentity(
   task: Task,
   service: Service,
   host: Host,
-  serviceId: ServiceID,
+  serviceId: ServiceId,
   launchTime: LaunchTime,
   homepage: Option[Homepage],
   logLink: Option[LogLink]
@@ -60,7 +60,7 @@ object ServiceParams {
   def apply(
     taskName: Task,
     serviceName: Service,
-    serviceId: ServiceID,
+    serviceId: ServiceId,
     launchTime: LaunchTime,
     brief: Brief,
     host: Host
