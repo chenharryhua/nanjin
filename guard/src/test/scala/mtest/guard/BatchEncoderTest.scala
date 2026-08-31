@@ -67,12 +67,12 @@ class BatchEncoderTest extends AnyFunSuite {
     val json = cb.asJson
     assert(json.hcursor.get[String]("batch").toOption.contains("batch"))
     assert(json.hcursor.get[String]("mode").toOption.contains("Sequential"))
-    assert(json.hcursor.get[Int]("done").toOption.contains(1))
-    assert(json.hcursor.get[Int]("fail").toOption.contains(1))
+    assert(json.hcursor.get[Int]("succeeded").toOption.contains(1))
+    assert(json.hcursor.get[Int]("failed").toOption.contains(1))
     val jobsArr = json.hcursor.downField("jobs").as[List[io.circe.Json]].toOption.get
     assert(jobsArr.size == 2)
-    assert(jobsArr.head.hcursor.get[Boolean]("done").toOption.contains(true))
-    assert(jobsArr(1).hcursor.get[Boolean]("done").toOption.contains(false))
+    assert(jobsArr.head.hcursor.get[Boolean]("succeeded").toOption.contains(true))
+    assert(jobsArr(1).hcursor.get[Boolean]("succeeded").toOption.contains(false))
   }
 
   test("CompletedBatch.done returns true when all jobs done") {

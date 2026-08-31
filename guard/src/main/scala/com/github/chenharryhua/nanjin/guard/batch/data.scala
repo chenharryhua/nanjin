@@ -111,21 +111,21 @@ final case class CompletedBatch(
 object CompletedBatch:
   given Encoder[CompletedBatch] =
     Encoder.instance { cb =>
-      val (done, fail) = cb.jobs.partition(_.succeeded)
+      val (succeeded, failed) = cb.jobs.partition(_.succeeded)
       Json.obj(
         "batch" -> Json.fromString(cb.scope.label),
         "batch_id" -> cb.batchId.asJson,
         "domain" -> Json.fromString(cb.scope.domain.value),
         "mode" -> cb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(cb.spent)),
-        "done" -> Json.fromInt(done.length),
-        "fail" -> Json.fromInt(fail.length),
+        "succeeded" -> Json.fromInt(succeeded.length),
+        "failed" -> Json.fromInt(failed.length),
         "jobs" -> cb.jobs.map(cj =>
           Json.obj(
             show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
             "took" -> Json.fromString(fmt.format(cj.took)),
             "kind" -> cj.job.kind.asJson,
-            "done" -> Json.fromBoolean(cj.succeeded)
+            "succeeded" -> Json.fromBoolean(cj.succeeded)
           ))
           .asJson
       )
@@ -177,7 +177,7 @@ final case class QuasiBatch[A](
 object QuasiBatch:
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (done, fail) = qb.jobs.partition(_.completed.succeeded)
+      val (succeeded, failed) = qb.jobs.partition(_.completed.succeeded)
       Json.obj(
         "batch" -> Json.fromString(qb.scope.label),
         "batch_id" -> qb.batchId.asJson,
@@ -185,8 +185,8 @@ object QuasiBatch:
         "mode" -> qb.mode.asJson,
         "kind" -> BatchKind.Quasi.asJson,
         "spent" -> Json.fromString(fmt.format(qb.spent)),
-        "done" -> Json.fromInt(done.length),
-        "fail" -> Json.fromInt(fail.length),
+        "succeeded" -> Json.fromInt(succeeded.length),
+        "failed" -> Json.fromInt(failed.length),
         "jobs" -> qb.jobs.map { js =>
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
