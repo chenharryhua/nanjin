@@ -217,8 +217,8 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     assert(r.distance == 98)
   }
 
-  test("14.numOfRecordsSince") {
-    val r = transientConsumer.use(_.numOfRecordsSince(Instant.ofEpochMilli(100))).unsafeRunSync()
+  test("14.offsetRangeSince") {
+    val r = transientConsumer.use(_.offsetRangeSince(Instant.ofEpochMilli(100))).unsafeRunSync()
     val v = r.flatten
     assert(v.nonEmpty)
   }
