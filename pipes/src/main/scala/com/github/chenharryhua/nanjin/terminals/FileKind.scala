@@ -75,7 +75,7 @@ object ParquetFile {
 }
 
 final case class ProtobufFile(override val compression: ProtobufCompression)
-    extends FileKind(FileFormat.ProtoBuf, compression)
+    extends FileKind(FileFormat.Protobuf, compression)
 
 object ProtobufFile {
   def apply(f: ProtobufCompression.type => ProtobufCompression): ProtobufFile =
