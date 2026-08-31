@@ -38,7 +38,7 @@ object Histogram {
   }
 
   private class Impl[F[_]](
-    label: MetricScope,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,
     reservoir: Option[Reservoir],
@@ -48,7 +48,7 @@ object Histogram {
 
     private val id: MetricID =
       MetricID(
-        scope = label,
+        scope = scope,
         token = name,
         MetricCategory.Histogram(kind = MetricKind.Histogram.Default, squants = squants)
       )
@@ -95,13 +95,13 @@ object Histogram {
       new Builder(isEnabled, squants, reservoir, description, boundaries)
 
     private[Histogram] def build[F[_]](
-      label: MetricScope,
+      scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
             ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
@@ -109,7 +109,7 @@ object Histogram {
           })
           h <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
-              label = label,
+              scope = scope,
               metricRegistry = metricRegistry,
               squants = squants,
               reservoir = reservoir,
@@ -124,7 +124,7 @@ object Histogram {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricScope,
+    scope: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
@@ -135,5 +135,5 @@ object Histogram {
         reservoir = None,
         description = None,
         boundaries = None))
-      .build[F](label, name, mr, meterProvider)
+      .build[F](scope, name, mr, meterProvider)
 }

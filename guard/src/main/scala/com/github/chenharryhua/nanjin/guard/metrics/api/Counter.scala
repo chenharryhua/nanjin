@@ -32,7 +32,7 @@ end Counter
 object Counter {
 
   private class Impl[F[_]](
-    label: MetricScope,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     isRisk: Boolean,
     name: MetricToken,
@@ -40,8 +40,8 @@ object Counter {
       extends Counter[F] {
     private val id: MetricID =
       if isRisk
-      then MetricID(label, name, MetricCategory.Counter(MetricKind.Counter.Risk))
-      else MetricID(label, name, MetricCategory.Counter(MetricKind.Counter.Default))
+      then MetricID(scope, name, MetricCategory.Counter(MetricKind.Counter.Risk))
+      else MetricID(scope, name, MetricCategory.Counter(MetricKind.Counter.Default))
 
     private val counter: CodahaleCounter = metricRegistry.counter(id.identifier)
 
@@ -95,21 +95,21 @@ object Counter {
       new Builder(isEnabled, isRisk, f(Policy), description)
 
     private[Counter] def build[F[_]: Async](
-      label: MetricScope,
+      scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId,
       meterProvider: MeterProvider[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
-          upDown <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+          upDown <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
             val builder = m.upDownCounter[Long](name).withUnit(Each.symbol)
             description.fold(builder)(builder.withDescription).create
           })
           counter <- Resource.make(
             MetricToken(name)
               .map { metricName =>
-                new Impl[F](label, metricRegistry, isRisk, metricName, upDown)
+                new Impl[F](scope, metricRegistry, isRisk, metricName, upDown)
               })(_.unregister)
           // Keep the counter cumulative only within the current policy window.
           _ <- tickStream.tickScheduled[F](zoneId, _.fresh(policy))
@@ -125,11 +125,11 @@ object Counter {
 
   private[metrics] def apply[F[_]: Async](
     mr: MetricRegistry,
-    label: MetricScope,
+    scope: MetricScope,
     name: String,
     zoneId: ZoneId,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Counter[F]] =
     f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = None))
-      .build[F](label, name, mr, zoneId, meterProvider)
+      .build[F](scope, name, mr, zoneId, meterProvider)
 }

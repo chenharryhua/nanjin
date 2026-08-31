@@ -57,7 +57,7 @@ object Gauge {
       F: Async[F]): Resource[F, Unit] = for {
       metricID <- Resource.eval(MetricToken(name).map { metricName =>
         MetricID(
-          gp.label,
+          gp.scope,
           metricName,
           MetricCategory.Gauge(builder.kind, builder.policy.isDefined)).identifier
       })

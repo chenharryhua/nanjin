@@ -9,5 +9,5 @@ import java.time.ZoneId
 final private[metrics] case class GaugeParams[F[_]](
   dispatcher: Dispatcher[F],
   metricRegistry: MetricRegistry,
-  label: MetricScope,
+  scope: MetricScope,
   zoneId: ZoneId)

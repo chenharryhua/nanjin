@@ -32,7 +32,7 @@ object Meter {
   }
 
   private class Impl[F[_]](
-    label: MetricScope,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,
     name: MetricToken,
@@ -41,7 +41,7 @@ object Meter {
 
     private val id: MetricID =
       MetricID(
-        scope = label,
+        scope = scope,
         token = name,
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
       )
@@ -73,19 +73,19 @@ object Meter {
       new Builder(isEnabled, Squants(um), description)
 
     private[Meter] def build[F[_]](
-      label: MetricScope,
+      scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
       def meter: Resource[F, Meter[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
             val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
             description.fold(builder)(builder.withDescription).create
           })
           m <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
-              label = label,
+              scope = scope,
               metricRegistry = metricRegistry,
               squants = squants,
               name = metricName,
@@ -99,10 +99,10 @@ object Meter {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricScope,
+    scope: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Meter[F]] =
     f(new Builder(isEnabled = true, squants = Squants(Each), description = None))
-      .build[F](label, name, mr, meterProvider)
+      .build[F](scope, name, mr, meterProvider)
 }

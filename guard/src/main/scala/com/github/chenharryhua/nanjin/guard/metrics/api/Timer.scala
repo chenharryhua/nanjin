@@ -58,7 +58,7 @@ object Timer {
   }
 
   private class Impl[F[_]](
-    label: MetricScope,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
     name: MetricToken,
@@ -68,7 +68,7 @@ object Timer {
       extends Timer[F] {
 
     private val id: MetricID =
-      MetricID(label, name, MetricCategory.Timer(MetricKind.Timer.Default))
+      MetricID(scope, name, MetricCategory.Timer(MetricKind.Timer.Default))
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {
@@ -120,20 +120,20 @@ object Timer {
       new Builder(isEnabled, reservoir, description, boundaries, timeunit)
 
     private[Timer] def build[F[_]](
-      label: MetricScope,
+      scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
       def timer: Resource[F, Timer[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
             ContT.pure(m.histogram[Double](name).withUnit(timeunit.symbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create)
           })
           t <- Resource.make(
-            MetricToken(name).map(Impl[F](label, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
+            MetricToken(name).map(Impl[F](scope, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
         } yield t
 
       if isEnabled then timer else noop.pure
@@ -142,7 +142,7 @@ object Timer {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricScope,
+    scope: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =
@@ -153,5 +153,5 @@ object Timer {
         description = None,
         boundaries = None,
         timeunit = squants.Seconds))
-      .build[F](label, name, mr, meterProvider)
+      .build[F](scope, name, mr, meterProvider)
 }

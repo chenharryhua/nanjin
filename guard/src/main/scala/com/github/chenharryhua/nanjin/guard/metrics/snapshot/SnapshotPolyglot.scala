@@ -121,9 +121,9 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       .sortBy(_._1.value) // sort by domain name.
       .map { case (domain, lst) =>
         val arr: List[Json] = lst
-          .groupBy(_._1.scope) // metric-name group
+          .groupBy(_._1.scope) // group by metric scope
           .toList
-          .map { case (label, items) =>
+          .map { case (scope, items) =>
             val age = items.map(_._1.token.age).min
             val inner: Json =
               items
@@ -131,7 +131,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
                 .map { case (mId, js) => Json.obj(mId.token.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            age -> Json.obj(label.label -> inner.asJson)
+            age -> Json.obj(scope.label -> inner.asJson)
           }
           .sortBy(_._1)
           .map(_._2)
@@ -205,15 +205,15 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
       .sortBy(_._1.value)
       .map { case (domain, domains) =>
         val arr: List[String] = domains
-          .groupBy(_._1.scope) // metric-name group
+          .groupBy(_._1.scope) // group by metric scope
           .toList
-          .map { case (name, items) =>
+          .map { case (scope, items) =>
             val age = items.map(_._1.token.age).min
-            (age, name) -> items.sortBy(_._1.token.age).flatMap(_._2.map(space4 + _))
+            (age, scope) -> items.sortBy(_._1.token.age).flatMap(_._2.map(space4 + _))
           }
           .sortBy(_._1._1)
-          .flatMap { case ((_, n), items) =>
-            s"$space2- ${n.label}:" :: items
+          .flatMap { case ((_, scope), items) =>
+            s"$space2- ${scope.label}:" :: items
           }
         val age = domains.map(_._1.token.age).min
         (age, show"[$domain]:" :: arr)
