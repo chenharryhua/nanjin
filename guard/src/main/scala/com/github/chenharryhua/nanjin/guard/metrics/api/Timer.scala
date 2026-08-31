@@ -126,7 +126,7 @@ object Timer {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
       def timer: Resource[F, Timer[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
             ContT.pure(m.histogram[Double](name).withUnit(timeunit.symbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))

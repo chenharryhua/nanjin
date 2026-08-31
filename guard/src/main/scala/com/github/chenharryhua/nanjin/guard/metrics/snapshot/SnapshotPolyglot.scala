@@ -131,7 +131,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
                 .map { case (mId, js) => Json.obj(mId.token.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            age -> Json.obj(scope.label -> inner.asJson)
+            age -> Json.obj(scope.label.value -> inner.asJson)
           }
           .sortBy(_._1)
           .map(_._2)

@@ -90,7 +90,7 @@ object NumericGauge {
       // MeterProvider is MeterProvider.noop this whole resource is a no-op. The optional description is
       // threaded with ContT, mirroring Timer's instrument construction.
       def observable(id: MetricId): Resource[F, Unit] =
-        Resource.eval(meterProvider.get(scope.label)).flatMap { m =>
+        Resource.eval(meterProvider.get(scope.label.value)).flatMap { m =>
           ContT
             .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
               m.observableGauge[Long](name).withUnit(squants.unitSymbol))

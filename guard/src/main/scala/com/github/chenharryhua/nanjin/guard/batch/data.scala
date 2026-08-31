@@ -57,7 +57,7 @@ final case class Job(
   mode: BatchMode,
   kind: BatchKind,
   batchId: UUID):
-  val batch: String = scope.label
+  val batch: String = scope.label.value
   val domain: String = scope.domain.value
 
   /** Human-readable name combining the job index and configured name. */
@@ -115,7 +115,7 @@ object CompletedBatch:
     Encoder.instance { cb =>
       val (succeeded, failed) = cb.jobs.partition(_.succeeded)
       Json.obj(
-        "batch" -> Json.fromString(cb.scope.label),
+        "batch" -> cb.scope.label.asJson,
         "batch_id" -> cb.batchId.asJson,
         "domain" -> Json.fromString(cb.scope.domain.value),
         "mode" -> cb.mode.asJson,
@@ -181,7 +181,7 @@ object QuasiBatch:
     Encoder.instance { qb =>
       val (succeeded, failed) = qb.jobs.partition(_.record.succeeded)
       Json.obj(
-        "batch" -> Json.fromString(qb.scope.label),
+        "batch" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
         "domain" -> Json.fromString(qb.scope.domain.value),
         "mode" -> qb.mode.asJson,
@@ -224,7 +224,7 @@ object ValueBatch:
   given [A: Encoder] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
       Json.obj(
-        "batch" -> Json.fromString(bv.scope.label),
+        "batch" -> bv.scope.label.asJson,
         "batch_id" -> bv.batchId.asJson,
         "domain" -> Json.fromString(bv.scope.domain.value),
         "mode" -> bv.mode.asJson,
@@ -266,7 +266,7 @@ object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
       Json.obj(
-        "batch" -> Json.fromString(mb.scope.label),
+        "batch" -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.scope.domain.value),
         "mode" -> mb.mode.asJson,

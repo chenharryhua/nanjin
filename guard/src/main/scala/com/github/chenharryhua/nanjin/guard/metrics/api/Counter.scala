@@ -102,7 +102,7 @@ object Counter {
       meterProvider: MeterProvider[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
-          upDown <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
+          upDown <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
             val builder = m.upDownCounter[Long](name).withUnit(Each.symbol)
             description.fold(builder)(builder.withDescription).create
           })

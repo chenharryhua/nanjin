@@ -101,7 +101,7 @@ object Histogram {
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
             ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
