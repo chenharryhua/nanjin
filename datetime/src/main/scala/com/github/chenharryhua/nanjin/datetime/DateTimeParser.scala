@@ -8,12 +8,12 @@ import cats.syntax.apply.given
 import java.time.*
 import java.time.format.DateTimeParseException
 
-final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {
-  def concat(other: FailedParsers): FailedParsers = FailedParsers(parsers ::: other.parsers)
+final case class FailedParsers(parserNames: NonEmptyList[String]) extends AnyVal {
+  def concat(other: FailedParsers): FailedParsers = FailedParsers(parserNames ::: other.parserNames)
 
   def parseException(str: String): DateTimeParseException =
     new DateTimeParseException(
-      s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]""",
+      s"""can not parse "$str" by any of [${parserNames.toList.mkString(",")}]""",
       str,
       -1)
 }
