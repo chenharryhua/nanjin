@@ -16,6 +16,8 @@
 
 ## Commits and PRs
 
+- Before every commit, run `sbt scalafixAll scalafmtAll` and stage any resulting changes so the
+  commit is already linted and formatted.
 - Commit only when I ask. Group related changes into one commit per logical step.
 - Prefer staging specific files over `git add .`.
 - Do not push or open PRs unless I ask.
