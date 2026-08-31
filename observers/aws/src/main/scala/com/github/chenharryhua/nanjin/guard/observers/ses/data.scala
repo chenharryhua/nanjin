@@ -13,7 +13,7 @@ final private case class Letter(
   errors: Int,
   notice: Text.TypedTag[String],
   content: List[Text.TypedTag[String]]) {
-  private val emailHeader: Text.TypedTag[String] =
+  private val email_header: Text.TypedTag[String] =
     head(tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
@@ -24,6 +24,6 @@ final private case class Letter(
 
   def emailBody(chunkSize: ChunkSize): String = {
     val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/$chunkSize")))
-    html(emailHeader, body(notice, content, foot)).render
+    html(email_header, body(notice, content, foot)).render
   }
 }

@@ -16,7 +16,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
-final private class RotateByPolicySink[F[_]: Async](
+final private class RotateByPolicyImpl[F[_]: Async](
   configuration: Configuration,
   pathBuilder: CreateRotateFile => Url,
   rotateSequence: Stream[F, CreateRotateFile])
@@ -24,8 +24,8 @@ final private class RotateByPolicySink[F[_]: Async](
 
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
 
-  private def doWork[A](
-    getWriter: GetWriter[A],
+  private def do_work[A](
+    get_writer: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     merged: Stream[F, Either[Chunk[A], CreateRotateFile]],
     current: CreateRotateFile,
@@ -41,10 +41,10 @@ final private class RotateByPolicySink[F[_]: Async](
           case Left(data) =>
             Pull.eval(hotswap.get.use(_.write(data)).adaptError(ex =>
               RotateWriteException(current, pathBuilder(current), count, ex))) >>
-              doWork(getWriter, hotswap, tail, current, count + data.size)
+              do_work(get_writer, hotswap, tail, current, count + data.size)
           case Right(next) =>
             for {
-              _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(next))))
+              _ <- Pull.eval(hotswap.swap(get_writer(pathBuilder(next))))
               _ <- Pull.output1[F, RotateFile](
                 RotateFile(
                   create = current,
@@ -52,20 +52,20 @@ final private class RotateByPolicySink[F[_]: Async](
                   url = pathBuilder(current),
                   recordCount = count
                 ))
-              _ <- doWork(getWriter, hotswap, tail, next, 0L)
+              _ <- do_work(get_writer, hotswap, tail, next, 0L)
             } yield ()
         }
     }
 
-  private def persist[A](data: Stream[F, Chunk[A]], getWriter: GetWriter[A]): Pull[F, RotateFile, Unit] =
+  private def persist[A](data: Stream[F, Chunk[A]], get_writer: GetWriter[A]): Pull[F, RotateFile, Unit] =
     rotateSequence.pull.uncons1.flatMap {
       case None               => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
-          .resource(NonEmptyHotswap(getWriter(pathBuilder(head))))
+          .resource(NonEmptyHotswap(get_writer(pathBuilder(head))))
           .flatMap { hotswap =>
-            doWork(
-              getWriter = getWriter,
+            do_work(
+              get_writer = get_writer,
               hotswap = hotswap,
               merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
               current = head,
@@ -169,7 +169,7 @@ final private class RotateByPolicySink[F[_]: Async](
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
     val get_writer: GetWriter[Seq[String]] =
-      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+      Reader(url => HadoopWriter.kantanR[F](configuration, url, csvConfiguration))
 
     (ss: Stream[F, Seq[String]]) => persist(ss.chunks, get_writer).stream
   }

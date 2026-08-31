@@ -22,8 +22,8 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
     case Right(value) => value.asJson
   }
 
-private def resultTag(done: Boolean): String =
-  if done then "result" else "error"
+private def resultTag(succeeded: Boolean): String =
+  if succeeded then "result" else "error"
 
 private val SeverityNonFatal: "nonfatal" = "nonfatal"
 private val SeverityCritical: "critical" = "critical"

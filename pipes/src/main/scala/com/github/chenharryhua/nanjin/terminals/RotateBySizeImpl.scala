@@ -19,7 +19,7 @@ import scalapb.GeneratedMessage
 
 import java.time.ZoneId
 
-final private class RotateBySizeSink[F[_]](
+final private class RotateBySizeImpl[F[_]](
   configuration: Configuration,
   zoneId: ZoneId,
   pathBuilder: CreateRotateFile => Url,
@@ -30,7 +30,7 @@ final private class RotateBySizeSink[F[_]](
 
   /** Recursively writes data from the stream to disk, rotating files based on size.
     *
-    * @param getWriter
+    * @param get_writer
     *   function to create a new HadoopWriter given a CreateRotateFile event
     * @param hotswap
     *   current Hotswap managing the writer resource
@@ -50,8 +50,8 @@ final private class RotateBySizeSink[F[_]](
     *   2. Files that exceed `sizeLimit` are split across ticks, generating multiple TickedValues.
     *   3. The tick index increments sequentially starting from 1.
     */
-  private def doWork[A](
-    getWriter: GetWriter[A],
+  private def do_work[A](
+    get_writer: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
     data: Stream[F, A],
     current: CreateRotateFile,
@@ -78,7 +78,7 @@ final private class RotateBySizeSink[F[_]](
         val dataSize = as.size
         // invariant: count is always <= sizeLimit
         if ((dataSize + count) <= sizeLimit) {
-          writeChunk(as) >> doWork(getWriter, hotswap, stream, current, dataSize + count)
+          writeChunk(as) >> do_work(get_writer, hotswap, stream, current, dataSize + count)
         } else {
           val splitIndex = math.min(sizeLimit - count, dataSize.toLong).toInt
           val (first, second) = as.splitAt(splitIndex)
@@ -87,7 +87,7 @@ final private class RotateBySizeSink[F[_]](
             _ <- writeChunk(first)
             now <- Pull.eval(F.realTimeInstant) // end of current tick
             next = current.copy(index = current.index + 1, time = now.atZone(current.time.getZone))
-            _ <- Pull.eval(hotswap.swap(getWriter(pathBuilder(next))))
+            _ <- Pull.eval(hotswap.swap(get_writer(pathBuilder(next))))
             _ <- Pull.output1[F, RotateFile](
               RotateFile(
                 create = current,
@@ -96,21 +96,21 @@ final private class RotateBySizeSink[F[_]](
                 recordCount = count + first.size
               )
             )
-            _ <- doWork(getWriter, hotswap, stream.cons(second), next, 0L)
+            _ <- do_work(get_writer, hotswap, stream.cons(second), next, 0L)
           } yield ()
         }
     }
   }
 
-  private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, RotateFile] = {
+  private def persist[A](data: Stream[F, A], get_writer: GetWriter[A]): Stream[F, RotateFile] = {
     val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], CreateRotateFile)] =
       Resource.eval(Tick.seed[F](zoneId)).flatMap { tick =>
         val crf = CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.commence))
-        NonEmptyHotswap(getWriter(pathBuilder(crf))).map((_, crf))
+        NonEmptyHotswap(get_writer(pathBuilder(crf))).map((_, crf))
       }
 
     Stream.resource(resources).flatMap { case (hotswap, crf) =>
-      doWork(getWriter = getWriter, hotswap = hotswap, data = data, current = crf, count = 0L).stream
+      do_work(get_writer = get_writer, hotswap = hotswap, data = data, current = crf, count = 0L).stream
     }
   }
 
@@ -175,7 +175,7 @@ final private class RotateBySizeSink[F[_]](
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
     val get_writer: GetWriter[Seq[String]] =
-      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+      Reader(url => HadoopWriter.kantanR[F](configuration, url, csvConfiguration))
 
     (ss: Stream[F, Seq[String]]) => persist(ss, get_writer)
   }

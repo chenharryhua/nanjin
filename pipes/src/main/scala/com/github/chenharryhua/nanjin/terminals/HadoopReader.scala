@@ -114,7 +114,7 @@ private object HadoopReader {
         F.blocking(go(offset, Array.ofDim[Byte](bufferSize))))
     }
 
-  def jawnS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
+  def circeS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = 131072
@@ -173,7 +173,7 @@ private object HadoopReader {
    */
 
   private def genericRecordReaderS[F[_]](
-    getDecoder: InputStream => Decoder,
+    get_decoder: InputStream => Decoder,
     configuration: Configuration,
     writerSchema: Schema,
     readerSchema: Schema,
@@ -182,7 +182,7 @@ private object HadoopReader {
     inputStreamS[F](configuration, url).flatMap { is =>
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](writerSchema, readerSchema)
-      val decoder: Decoder = getDecoder(is)
+      val decoder: Decoder = get_decoder(is)
 
       def go(): (Chunk[GenericData.Record], Option[Unit]) = {
         val builder = Vector.newBuilder[GenericData.Record]
@@ -209,7 +209,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
-      getDecoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(writerSchema, is),
+      get_decoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(writerSchema, is),
       configuration = configuration,
       writerSchema = writerSchema,
       readerSchema = readerSchema,
@@ -224,7 +224,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
-      getDecoder = (is: InputStream) => DecoderFactory.get.binaryDecoder(is, null),
+      get_decoder = (is: InputStream) => DecoderFactory.get.binaryDecoder(is, null),
       configuration = configuration,
       writerSchema = writerSchema,
       readerSchema = readerSchema,

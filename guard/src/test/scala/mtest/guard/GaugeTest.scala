@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricID
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import io.circe.Json
-import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -151,43 +150,19 @@ class GaugeTest extends AnyFunSuite {
     assert(second == 1)
   }
 
-  test("10.percentile gauge is collected as percentile data") {
+  test("10.ratio gauge is collected as ratio data") {
     val snapshots = service.eventStream { agent =>
-      agent.facilitate("percentile") { fac =>
-        fac.percentile("ratio").use { percentile =>
-          percentile.incBoth(1, 2) >> agent.adhoc.report.void
+      agent.facilitate("ratio") { fac =>
+        fac.ratio("ratio").use { ratio =>
+          ratio.incBoth(1, 2) >> agent.adhoc.report.void
         }
       }
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
 
     assert(snapshots.nonEmpty)
-    val percentiles = retrieve.percentile(snapshots.head.snapshot.gauges)
-    assert(percentiles.nonEmpty)
-    assert(percentiles.values.head.asString.exists(_.contains("50")))
-  }
-
-  test("11.transactional gauge") {
-    service.eventStream { agent =>
-      val mtx =
-        agent.facilitate("transactional") { fac =>
-          for {
-            stm <- Resource.eval(STM.runtime[IO])
-            a <- fac.txnGauge(stm, 10)("account-a")
-            b <- fac.txnGauge(stm, 10)("account-b")
-          } yield { (n: Int) =>
-            val transfer = for {
-              balance <- a.get
-              _ <- stm.check(balance > n)
-              _ <- a.modify(_ - n)
-              _ <- b.modify(_ + n)
-            } yield ()
-            stm.commit(transfer)
-          }
-        }
-
-      mtx.use(_(5) >> agent.adhoc.report.void)
-    }.compile.drain.unsafeRunSync()
-
+    val ratios = retrieve.ratio(snapshots.head.snapshot.gauges)
+    assert(ratios.nonEmpty)
+    assert(ratios.values.head.asString.exists(_.contains("50")))
   }
 
   test("12.frequency counter - accumulates tags") {

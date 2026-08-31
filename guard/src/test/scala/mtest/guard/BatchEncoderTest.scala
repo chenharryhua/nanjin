@@ -7,14 +7,15 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Duration
 import java.util.UUID
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
-import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
 class BatchEncoderTest extends AnyFunSuite {
   private val batchId = UUID.fromString("00000000-0000-0000-0000-000000000001")
-  private val label = MetricLabel("batch", Domain("test"), Service("test-service"), Task("task"))
+  private val label = MetricScope("batch", Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)
-  private val completed = CompletedJob(job, Duration.ofMillis(12), done = true)
-  private val failed = CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), done = false)
+  private val completed = CompletedJob(job, Duration.ofMillis(12), succeeded = true)
+  private val failed =
+    CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), succeeded = false)
 
   test("quasi and value batches encode kind and result tags") {
     val quasi = QuasiBatch(
@@ -24,7 +25,7 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(completed, Right(1))))
     val value =
-      BatchValue(label, Duration.ofMillis(20), BatchMode.Sequential, batchId, List(JobValue(completed, 1)))
+      ValueBatch(label, Duration.ofMillis(20), BatchMode.Sequential, batchId, List(JobValue(completed, 1)))
 
     val quasiJson = quasi.asJson
     val valueJson = value.asJson
@@ -58,7 +59,7 @@ class BatchEncoderTest extends AnyFunSuite {
 
   test("CompletedBatch encoder produces correct JSON") {
     val cb = CompletedBatch(
-      label = label,
+      scope = label,
       spent = Duration.ofMillis(50),
       mode = BatchMode.Sequential,
       batchId = batchId,
@@ -67,23 +68,23 @@ class BatchEncoderTest extends AnyFunSuite {
     val json = cb.asJson
     assert(json.hcursor.get[String]("batch").toOption.contains("batch"))
     assert(json.hcursor.get[String]("mode").toOption.contains("Sequential"))
-    assert(json.hcursor.get[Int]("done").toOption.contains(1))
-    assert(json.hcursor.get[Int]("fail").toOption.contains(1))
+    assert(json.hcursor.get[Int]("succeeded").toOption.contains(1))
+    assert(json.hcursor.get[Int]("failed").toOption.contains(1))
     val jobsArr = json.hcursor.downField("jobs").as[List[io.circe.Json]].toOption.get
     assert(jobsArr.size == 2)
-    assert(jobsArr.head.hcursor.get[Boolean]("done").toOption.contains(true))
-    assert(jobsArr(1).hcursor.get[Boolean]("done").toOption.contains(false))
+    assert(jobsArr.head.hcursor.get[Boolean]("succeeded").toOption.contains(true))
+    assert(jobsArr(1).hcursor.get[Boolean]("succeeded").toOption.contains(false))
   }
 
   test("CompletedBatch.done returns true when all jobs done") {
     val cb = CompletedBatch(label, Duration.ofMillis(10), BatchMode.Sequential, batchId, List(completed))
-    assert(cb.done)
+    assert(cb.succeeded)
   }
 
   test("CompletedBatch.done returns false when any job failed") {
     val cb =
       CompletedBatch(label, Duration.ofMillis(10), BatchMode.Sequential, batchId, List(completed, failed))
-    assert(!cb.done)
+    assert(!cb.succeeded)
   }
 
   test("JobValue encoder produces correct JSON") {
@@ -101,11 +102,11 @@ class BatchEncoderTest extends AnyFunSuite {
       BatchMode.Sequential,
       batchId,
       List(JobState(completed, Right(1))))
-    assert(allDone.done)
+    assert(allDone.succeeded)
     val cb = allDone.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.jobs.size == 1)
-    assert(cb.done)
+    assert(cb.succeeded)
 
     val withFailure = QuasiBatch(
       label,
@@ -113,33 +114,33 @@ class BatchEncoderTest extends AnyFunSuite {
       BatchMode.Sequential,
       batchId,
       List(JobState(failed, Left(new RuntimeException("x")))))
-    assert(!withFailure.done)
-    assert(!withFailure.completed.done)
+    assert(!withFailure.succeeded)
+    assert(!withFailure.completed.succeeded)
   }
 
-  test("BatchValue.completed accessor") {
+  test("ValueBatch.completed accessor") {
     val bv =
-      BatchValue(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
-    assert(bv.done)
+      ValueBatch(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
+    assert(bv.succeeded)
     val cb = bv.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.mode == BatchMode.Parallel(2))
     assert(cb.jobs.size == 1)
-    assert(cb.done)
+    assert(cb.succeeded)
   }
 
   test("MonadicBatch.completed accessor") {
     val mb = MonadicBatch(label, Duration.ofMillis(30), batchId, List(completed, failed), Right(99))
-    assert(mb.done)
+    assert(mb.succeeded)
     val cb = mb.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.mode == BatchMode.Monadic)
     assert(cb.jobs.size == 2)
   }
 
   test("MonadicBatch encoder non-fatal severity for quasi failed job") {
     val quasiJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Quasi, batchId)
-    val quasiFailed = CompletedJob(quasiJob, Duration.ofMillis(5), done = false)
+    val quasiFailed = CompletedJob(quasiJob, Duration.ofMillis(5), succeeded = false)
     val mb: MonadicBatch[Int] =
       MonadicBatch(label, Duration.ofMillis(10), batchId, List(quasiFailed), Right(0))
     val json = mb.asJson

@@ -61,8 +61,8 @@ abstract class KafkaRecordSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], v
    */
 
   def serializeKey(k: K): Array[Byte] = keySerde.serialize(k)
-  def serializeVal(v: V): Array[Byte] = valSerde.serialize(v)
+  def serializeValue(v: V): Array[Byte] = valSerde.serialize(v)
 
   def serialize[G[_, _]: Bifunctor](data: G[K, V]): G[Array[Byte], Array[Byte]] =
-    data.bimap(serializeKey, serializeVal)
+    data.bimap(serializeKey, serializeValue)
 }

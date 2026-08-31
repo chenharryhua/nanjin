@@ -9,7 +9,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.metrics.MetricLabel
+import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
 import java.time.Duration
 import java.util.UUID
@@ -21,7 +21,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   *
   * Obtain a `BatchLight` from `Agent.batchLight(label)`. It has the same sequential, parallel, and monadic
   * shapes as `Batch`, but returns `F` values directly and omits the metrics-backed progress machinery. Use
-  * `quasiBatch` to retain per-job failures or `batchValue` to raise them.
+  * `quasiBatch` to retain per-job failures or `valueBatch` to raise them.
   */
 object BatchLight:
   /*
@@ -29,7 +29,7 @@ object BatchLight:
    */
 
   final class JobBuilder[F[_]: Async] private[BatchLight] (
-    val metricLabel: MetricLabel,
+    val scope: MetricScope,
     val uuidGenerator: F[UUID]):
 
     private val mode: BatchMode = BatchMode.Monadic
@@ -86,7 +86,7 @@ object BatchLight:
             .run(1)
             .map { case (_, ExecutionState(eoa, history)) =>
               MonadicBatch(
-                label = metricLabel,
+                scope = scope,
                 spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
                 batchId = batchId,
                 jobs = history.reverse,
@@ -128,7 +128,7 @@ object BatchLight:
             val job: Job = Job(
               name = name,
               index = index,
-              label = metricLabel,
+              scope = scope,
               mode = mode,
               kind = BatchKind.Value,
               batchId = batchId)
@@ -149,15 +149,15 @@ object BatchLight:
             val job: Job = Job(
               name = name,
               index = index,
-              label = metricLabel,
+              scope = scope,
               mode = mode,
               kind = BatchKind.Quasi,
               batchId = batchId)
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-              val done = eoa.fold(_ => false, identity)
-              val completed = CompletedJob(job, fd.toJava, done)
-              index + 1 -> ExecutionState(eoa = Right(done), history = List(completed))
+              val succeeded = eoa.fold(_ => false, identity)
+              val completed = CompletedJob(job, fd.toJava, succeeded)
+              index + 1 -> ExecutionState(eoa = Right(succeeded), history = List(completed))
             }
           }
         }
@@ -176,14 +176,14 @@ object BatchLight:
     def quasiBatch: F[QuasiBatch[A]]
 
     /** Execute and raise on failure, returning successful values. */
-    def batchValue: F[BatchValue[A]]
+    def valueBatch: F[ValueBatch[A]]
   }
 
   /*
    * Parallel
    */
   final class Parallel[F[_], A] private[BatchLight] (
-    metricLabel: MetricLabel,
+    scope: MetricScope,
     predicate: Reader[A, Boolean],
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
@@ -196,7 +196,7 @@ object BatchLight:
       uuidGenerator.flatMap { (batchId: UUID) =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobState[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
-            val job = Job(name, idx, metricLabel, mode, BatchKind.Quasi, batchId)
+            val job = Job(name, idx, scope, mode, BatchKind.Quasi, batchId)
             F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               val result: Either[Throwable, A] =
                 eoa.flatMap { a =>
@@ -208,15 +208,15 @@ object BatchLight:
               JobState(CompletedJob(job, fd.toJava, result.isRight), result)
             }
         }).map { case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-          QuasiBatch(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
-    override def batchValue: F[BatchValue[A]] =
+    override def valueBatch: F[ValueBatch[A]] =
       uuidGenerator.flatMap { (batchId: UUID) =>
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobValue[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
-            val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
+            val job = Job(name, idx, scope, mode, BatchKind.Value, batchId)
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 eoa.flatMap { a =>
@@ -230,19 +230,19 @@ object BatchLight:
                 }
               }
         }).map { case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-          BatchValue(label = metricLabel, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
+          ValueBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](metricLabel, predicate = Reader(f), parallelism, jobs, uuidGenerator)
+      new Parallel[F, A](scope, predicate = Reader(f), parallelism, jobs, uuidGenerator)
   }
 
   /*
    * Sequential
    */
   final class Sequential[F[_], A] private[BatchLight] (
-    metricLabel: MetricLabel,
+    scope: MetricScope,
     predicate: Reader[A, Boolean],
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])(implicit F: Sync[F])
@@ -253,7 +253,7 @@ object BatchLight:
     override def quasiBatch: F[QuasiBatch[A]] =
       uuidGenerator.flatMap { (batchId: UUID) =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
-          val job = Job(name, idx, metricLabel, mode, BatchKind.Quasi, batchId)
+          val job = Job(name, idx, scope, mode, BatchKind.Quasi, batchId)
           F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             val result: Either[Throwable, A] =
               eoa.flatMap { a =>
@@ -267,17 +267,17 @@ object BatchLight:
           }
         }.map(jobs =>
           QuasiBatch(
-            label = metricLabel,
+            scope = scope,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
             jobs = jobs))
       }
 
-    override def batchValue: F[BatchValue[A]] =
+    override def valueBatch: F[ValueBatch[A]] =
       uuidGenerator.flatMap { (batchId: UUID) =>
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
-          val job = Job(name, idx, metricLabel, mode, BatchKind.Value, batchId)
+          val job = Job(name, idx, scope, mode, BatchKind.Value, batchId)
           F.timed(F.attempt(fa))
             .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               eoa.flatMap { a =>
@@ -291,8 +291,8 @@ object BatchLight:
               }
             }
         }.map { jobs =>
-          BatchValue(
-            label = metricLabel,
+          ValueBatch(
+            scope = scope,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
@@ -301,7 +301,7 @@ object BatchLight:
       }
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Sequential[F, A](metricLabel, predicate = Reader(f), jobs, uuidGenerator)
+      new Sequential[F, A](scope, predicate = Reader(f), jobs, uuidGenerator)
   }
 
 end BatchLight
@@ -311,14 +311,14 @@ end BatchLight
   * It intentionally avoids the richer lifecycle and progress-tracking machinery of Batch and focuses on
   * straightforward, low-overhead execution.
   */
-final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uuidGenerator: F[UUID]) {
+final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, uuidGenerator: F[UUID]) {
 
   /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Sequential[F, A](metricLabel, Reader(_ => true), jobs, uuidGenerator)
+    new BatchLight.Sequential[F, A](scope, Reader(_ => true), jobs, uuidGenerator)
   }
 
   /** Create a parallel batch with an explicit positive parallelism. */
@@ -327,14 +327,14 @@ final class BatchLight[F[_]: Async] private[guard] (metricLabel: MetricLabel, uu
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Parallel[F, A](metricLabel, Reader(_ => true), parallelism, jobs, uuidGenerator)
+    new BatchLight.Parallel[F, A](scope, Reader(_ => true), parallelism, jobs, uuidGenerator)
   }
 
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 
   def monadic[A](f: BatchLight.JobBuilder[F] => A): A = {
-    val builder = new BatchLight.JobBuilder[F](metricLabel, uuidGenerator)
+    val builder = new BatchLight.JobBuilder[F](scope, uuidGenerator)
     f(builder)
   }
 }

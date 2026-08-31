@@ -12,8 +12,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName,
+  MetricScope,
+  MetricToken,
   Squants
 }
 import io.circe.Json
@@ -64,7 +64,7 @@ object NumericGauge {
 
     private[NumericGauge] def build[F[_]](
       metricRegistry: MetricRegistry,
-      label: MetricLabel,
+      scope: MetricScope,
       name: String,
       dispatcher: Dispatcher[F],
       meterProvider: MeterProvider[F],
@@ -90,7 +90,7 @@ object NumericGauge {
       // MeterProvider is MeterProvider.noop this whole resource is a no-op. The optional description is
       // threaded with ContT, mirroring Timer's instrument construction.
       def observable(id: MetricID): Resource[F, Unit] =
-        Resource.eval(meterProvider.get(label.label)).flatMap { m =>
+        Resource.eval(meterProvider.get(scope.label)).flatMap { m =>
           ContT
             .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
               m.observableGauge[Long](name).withUnit(squants.unitSymbol))
@@ -100,8 +100,8 @@ object NumericGauge {
 
       def impl: Resource[F, Unit] =
         for {
-          id <- Resource.eval(MetricName(name).map(mn =>
-            MetricID(label, mn, MetricCategory.Gauge(MetricKind.Gauge.Default, isCached = false))))
+          id <- Resource.eval(MetricToken(name).map(mn =>
+            MetricID(scope, mn, MetricCategory.Gauge(MetricKind.Gauge.Default, isCached = false))))
           _ <- dropwizard(id)
           _ <- observable(id)
         } yield ()
@@ -112,12 +112,12 @@ object NumericGauge {
 
   private[metrics] def apply[F[_]: Async](
     metricRegistry: MetricRegistry,
-    label: MetricLabel,
+    scope: MetricScope,
     name: String,
     dispatcher: Dispatcher[F],
     meterProvider: MeterProvider[F],
     fa: F[Long],
     f: Endo[Builder]): Resource[F, Unit] =
     f(new Builder(isEnabled = true, timeout = 5.seconds, squants = Squants(Each), description = None))
-      .build[F](metricRegistry, label, name, dispatcher, meterProvider, fa)
+      .build[F](metricRegistry, scope, name, dispatcher, meterProvider, fa)
 }

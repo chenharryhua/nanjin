@@ -116,7 +116,7 @@ sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveRecordsForTimes(ts: Instant): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def numOfRecordsSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
+  def offsetRangeSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
 
   def resetOffsetsToBegin: F[Unit]
   def resetOffsetsToEnd: F[Unit]
@@ -197,7 +197,7 @@ private[kafka] object SnapshotConsumer {
         } yield calculate.consumer_offsetRange(beg, end)
       }
 
-    override def numOfRecordsSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]] =
+    override def offsetRangeSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]] =
       execute {
         for {
           oft <- kpc.offsetsForTimes(ts)

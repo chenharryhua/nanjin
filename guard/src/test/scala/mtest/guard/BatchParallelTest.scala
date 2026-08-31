@@ -53,9 +53,9 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch(JobHook(agent.logger).standard)
         .use { mb =>
           IO {
-            assert(mb.jobs.head.completed.done)
-            assert(mb.jobs(1).completed.done)
-            assert(!mb.jobs(2).completed.done)
+            assert(mb.jobs.head.completed.succeeded)
+            assert(mb.jobs(1).completed.succeeded)
+            assert(!mb.jobs(2).completed.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -82,7 +82,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("exception.value")
         .parallel(jobs*)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
@@ -105,11 +105,11 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch(JobHook(agent.logger).standard[Int])
         .use { mb =>
           IO {
-            assert(!mb.jobs.head.completed.done)
+            assert(!mb.jobs.head.completed.succeeded)
             assert(mb.jobs.head.completed.job.mode === BatchMode.Parallel(3))
             assert(mb.jobs.head.completed.job.kind === BatchKind.Quasi)
-            assert(!mb.jobs(1).completed.done)
-            assert(mb.jobs(2).completed.done)
+            assert(!mb.jobs(1).completed.succeeded)
+            assert(mb.jobs(2).completed.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -129,7 +129,7 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.value")
         .parallel(jobs*)
         .withPostCondition(_ < 2)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false))))
         .void
@@ -141,10 +141,10 @@ class BatchParallelTest extends AnyFunSuite {
     assert(sorted.head.completed.job.index == 1)
     assert(sorted.head.completed.job.kind === BatchKind.Value)
     assert(sorted.head.completed.job.mode === BatchMode.Parallel(3))
-    assert(sorted.head.completed.done)
+    assert(sorted.head.completed.succeeded)
 
     assert(sorted(1).completed.job.index == 2)
-    assert(!sorted(1).completed.done)
+    assert(!sorted(1).completed.succeeded)
 
     assert(canceledJob.index == 3)
   }
@@ -167,7 +167,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("failed-cancels-siblings")
         .parallel(jobs*)
-        .batchValue(tracer)
+        .valueBatch(tracer)
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
@@ -181,7 +181,7 @@ class BatchParallelTest extends AnyFunSuite {
     assert(sorted.nonEmpty)
     assert(sorted.head.result.isRight)
     assert(sorted.exists(_.result.isLeft))
-    assert(sorted.exists(_.completed.done == false))
+    assert(sorted.exists(_.completed.succeeded == false))
   }
 
 }

@@ -22,7 +22,7 @@ class DateTimeParserSpec extends AnyFunSuite {
     val parser = DateTimeParser[LocalDate]
     val result = parser.parse("not-a-date")
     assert(result.isLeft)
-    assert(result.left.exists(_.parsers.exists(_ == "LocalDate")))
+    assert(result.left.exists(_.parserNames.exists(_ == "LocalDate")))
   }
 
   // --- LocalTime parser ---
@@ -36,7 +36,7 @@ class DateTimeParserSpec extends AnyFunSuite {
     val parser = DateTimeParser[LocalTime]
     val result = parser.parse("25:99")
     assert(result.isLeft)
-    assert(result.left.exists(_.parsers.exists(_ == "LocalTime")))
+    assert(result.left.exists(_.parserNames.exists(_ == "LocalTime")))
   }
 
   // --- LocalDateTime parser ---
@@ -91,7 +91,7 @@ class DateTimeParserSpec extends AnyFunSuite {
 
     val r = combined.parse("invalid")
     assert(r.isLeft)
-    val failures = r.swap.toOption.get.parsers.toList
+    val failures = r.swap.toOption.get.parserNames.toList
     assert(failures.contains("LocalDate"))
     assert(failures.contains("LocalTime"))
   }

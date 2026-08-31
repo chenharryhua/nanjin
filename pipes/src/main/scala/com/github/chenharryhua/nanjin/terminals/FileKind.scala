@@ -13,16 +13,16 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
     s"${fmt.format(time)}.$fileName"
   }
 
-  final def fileName(cfe: CreateRotateFile): String = {
+  final def fileName(crf: CreateRotateFile): String = {
     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
-    val seqId: String = cfe.sequenceId.toString.take(5)
-    val time: String = fmt.format(cfe.time.toLocalTime)
-    f"$seqId-${cfe.index}%04d-$time.$fileName"
+    val seqId: String = crf.sequenceId.toString.take(5)
+    val time: String = fmt.format(crf.time.toLocalTime)
+    f"$seqId-${crf.index}%04d-$time.$fileName"
   }
 
-  final def ymdFileName(cfe: CreateRotateFile): String = {
-    val ymd = partitionPath.ymd(cfe.time.toLocalDate)
-    s"$ymd/${fileName(cfe)}"
+  final def ymdFileName(crf: CreateRotateFile): String = {
+    val ymd = partitionPath.ymd(crf.time.toLocalDate)
+    s"$ymd/${fileName(crf)}"
   }
 }
 
@@ -75,7 +75,7 @@ object ParquetFile {
 }
 
 final case class ProtobufFile(override val compression: ProtobufCompression)
-    extends FileKind(FileFormat.ProtoBuf, compression)
+    extends FileKind(FileFormat.Protobuf, compression)
 
 object ProtobufFile {
   def apply(f: ProtobufCompression.type => ProtobufCompression): ProtobufFile =

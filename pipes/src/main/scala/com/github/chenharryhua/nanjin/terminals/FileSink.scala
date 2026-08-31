@@ -191,12 +191,12 @@ sealed trait FileSink[F[_]] {
     * JSON serialization, and a line separator is appended after each value. The resulting stream emits the
     * number of JSON values written in each input chunk.
     *
-    * @param ow
+    * @param objectWriter
     *   Jackson writer used to serialize each JSON tree.
     * @see
     *   https://github.com/FasterXML/jackson-databind
     */
-  def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, Int]
+  def jsonNode(objectWriter: ObjectWriter): Pipe[F, JsonNode, Int]
 }
 
 final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSink[F] {
@@ -272,7 +272,7 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
   override def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
     (ss: Stream[F, Seq[String]]) =>
       Stream
-        .resource(HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+        .resource(HadoopWriter.kantanR[F](configuration, url, csvConfiguration))
         .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
@@ -294,8 +294,8 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
     }
   }
 
-  override def jsonNode(ow: ObjectWriter): Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
-    Stream.resource(HadoopWriter.jsonNodeR[F](configuration, url, ow)).flatMap { w =>
+  override def jsonNode(objectWriter: ObjectWriter): Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
+    Stream.resource(HadoopWriter.jsonNodeR[F](configuration, url, objectWriter)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }

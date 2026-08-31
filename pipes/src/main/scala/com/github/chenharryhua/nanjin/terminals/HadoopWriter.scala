@@ -63,7 +63,7 @@ private object HadoopWriter {
    * output stream based
    */
 
-  private def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
+  private def file_output_stream(configuration: Configuration, url: Url): OutputStream = {
     val path: Path = toHadoopPath(url)
     val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
@@ -74,7 +74,7 @@ private object HadoopWriter {
 
   private def outputStreamR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStream] =
-    Resource.fromAutoCloseable(F.blocking(fileOutputStream(configuration, url)))
+    Resource.fromAutoCloseable(F.blocking(file_output_stream(configuration, url)))
 
   def byteR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
@@ -100,13 +100,13 @@ private object HadoopWriter {
     }
 
   private def genericRecordWriterR[F[_]](
-    getEncoder: OutputStream => Encoder,
+    get_encoder: OutputStream => Encoder,
     configuration: Configuration,
     schema: Schema,
     url: Url)(using F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     outputStreamR[F](configuration, url).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-      val encoder = getEncoder(os)
+      val encoder = get_encoder(os)
       new HadoopWriter[F, GenericRecord] {
         override def write(cgr: Chunk[GenericRecord]): F[Unit] =
           F.blocking {
@@ -154,7 +154,7 @@ private object HadoopWriter {
   private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStreamWriter] =
     Resource.fromAutoCloseable(
-      F.blocking(new OutputStreamWriter(fileOutputStream(configuration, url), StandardCharsets.UTF_8)))
+      F.blocking(new OutputStreamWriter(file_output_stream(configuration, url), StandardCharsets.UTF_8)))
 
   def stringR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
@@ -170,7 +170,7 @@ private object HadoopWriter {
           }
       })
 
-  def csvR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
+  def kantanR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Seq[String]]] = {
     val header: Chunk[Seq[String]] = csvConfiguration.header match {
       case Header.None             => Chunk.empty

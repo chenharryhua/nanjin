@@ -7,6 +7,27 @@ When reviewing or writing code, always check **naming** in addition to logic:
 - Prefer camelCase for vals/methods, PascalCase for types/classes, and lowercase for package objects.
 - Ensure names across a module tell a coherent story (e.g., sibling types should follow the same naming pattern).
 
+### Project naming conventions
+
+These are the naming rules agreed for this library. Apply them consistently across all modules.
+
+- **Casing by visibility:** local-private identifiers use `snake_case`; package-private and
+  public identifiers use `camelCase`; types/classes/objects use `PascalCase`. The `snake_case`
+  for local-privates is deliberate, it visually distinguishes internal helpers from the public API.
+- **Acronyms in types vs fields:** acronyms in *type* names are uppercased (`MetricID`, `ServiceID`,
+  `GroupID`, `RegisteredSchemaID`), while id-valued *fields/params/vals* keep `camelCase`
+  (`serviceId`, `groupId`). Note `ServiceIdentity` is "Identity", not the `ID` acronym, so it stays.
+- **Private shared constants:** a private `val` that holds a fixed literal reused internally
+  (e.g. a JSON field-key string) uses `SCREAMING_SNAKE_CASE`. Three properties justify it: it is
+  private (does not pollute the public space), it is a shared literal (reused internally), and it
+  is a constant (never varies). This sits visually apart from types (PascalCase) and ordinary
+  vals (camelCase/snake_case). Examples: `TOPIC`/`PARTITION` in kafka, `EMPTY`/`JITTER`/`POLICY`
+  in common/chrono.
+- **Wire format is frozen:** never rename a value that is serialized, JSON object keys, Avro
+  record field names, OAuth token fields, etc. Renaming the Scala *identifier* of a constant is
+  fine as long as its literal *value* (the wire key) is unchanged. Type renames are wire-safe
+  because type names are not serialized.
+
 Also look for **edge cases**:
 
 - Null inputs, empty collections, zero/negative values, boundary conditions.

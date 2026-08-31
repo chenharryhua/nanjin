@@ -27,7 +27,7 @@ private object TeamsTranslator {
       case LogLevel.Debug => Eval.now("Dark")
     }.value
 
-  private def headerBlock(evt: Event): TextBlock = {
+  private def header_block(evt: Event): TextBlock = {
     val symbol = eventLogLevel[Eval, String](evt).run {
       case LogLevel.Good  => Eval.now("\u2705")
       case LogLevel.Info  => Eval.now("\u2139\uFE0F")
@@ -42,7 +42,7 @@ private object TeamsTranslator {
       size = Some("Medium"))
   }
 
-  private def serviceInfo(evt: Event): FactSet = {
+  private def service_info(evt: Event): FactSet = {
     val si = evt.serviceIdentity
     val service = Attribute(si.service).textEntry
     val host = Attribute(si.host).textEntry
@@ -66,8 +66,8 @@ private object TeamsTranslator {
 
     AdaptiveCard(
       body = List(
-        headerBlock(evt),
-        serviceInfo(evt),
+        header_block(evt),
+        service_info(evt),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
@@ -91,8 +91,8 @@ private object TeamsTranslator {
 
     AdaptiveCard(
       body = List(
-        headerBlock(evt),
-        serviceInfo(evt),
+        header_block(evt),
+        service_info(evt),
         TextBlock(panicText(evt), color = "Attention"),
         FactSet(
           List(
@@ -113,8 +113,8 @@ private object TeamsTranslator {
 
     AdaptiveCard(
       body = List(
-        headerBlock(evt),
-        serviceInfo(evt),
+        header_block(evt),
+        service_info(evt),
         FactSet(List(Fact(cause.tag, cause.text)))
       )
     )
@@ -128,8 +128,8 @@ private object TeamsTranslator {
 
     AdaptiveCard(
       body = List(
-        headerBlock(evt),
-        serviceInfo(evt),
+        header_block(evt),
+        service_info(evt),
         FactSet(
           List(
             Fact(idx.tag, idx.text),
@@ -155,8 +155,8 @@ private object TeamsTranslator {
     }.getOrElse("")
 
     val body = List(
-      headerBlock(evt),
-      serviceInfo(evt),
+      header_block(evt),
+      service_info(evt),
       FactSet(
         List(
           Fact(domain.tag, domain.text),

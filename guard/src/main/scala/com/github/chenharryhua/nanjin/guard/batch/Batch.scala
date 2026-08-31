@@ -15,7 +15,7 @@ import cats.syntax.show.given
 import cats.syntax.traverse.given
 import cats.{Applicative, MonadThrow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricLabel, MetricsHub}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -48,7 +48,7 @@ object Batch:
     else {
       val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: CompletedJob) =>
         val took: String = defaultFormatter.format(cj.took)
-        val result: String = if (cj.done) took else s"$took (failed)"
+        val result: String = if (cj.succeeded) took else s"$took (failed)"
         cj.job.displayName -> result.asJson
       }
       Json.obj(pairs*)
@@ -62,14 +62,14 @@ object Batch:
     F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("Active")
-      percentile <- mtx
-        .percentile(show"$mode $kind completion", _.withTranslator(translator))
+      ratio <- mtx
+        .ratio(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[CompletedJob]](Nil))
       _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
       Kleisli { (cj: CompletedJob) =>
-        F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(cj)))
+        F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
       },
       active)
 
@@ -94,13 +94,13 @@ object Batch:
   private class JobExecutor[F[_]: Temporal, A](
     mode: BatchMode,
     jobHook: JobHook[F, A],
-    metricLabel: MetricLabel,
+    scope: MetricScope,
     batchId: UUID,
     batchPanel: BatchMetrics[F],
     predicate: Reader[A, Boolean]) {
 
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
-      Job(jni.name, jni.index, metricLabel, mode, kind, batchId)
+      Job(jni.name, jni.index, scope, mode, kind, batchId)
 
     def runValue(jni: JobNameIndex[F, A]): F[JobValue[A]] = {
       val job: Job = batchJob(jni, BatchKind.Value)
@@ -155,7 +155,7 @@ object Batch:
       * complete and report per-job outcomes.
       *
       * @return
-      *   a batch result where each job is marked as done only when it succeeds and satisfies the
+      *   a batch result where each job is marked as succeeded only when it completes and satisfies the
       *   post-condition; otherwise it is marked as failed.
       */
     def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]]
@@ -163,7 +163,7 @@ object Batch:
     /** Exceptions from individual jobs are propagated, causing the batch operation to fail immediately, and a
       * post-condition failure is reported as `PostConditionUnsatisfied`.
       */
-    def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]]
+    def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]]
   }
 
   /*
@@ -183,7 +183,7 @@ object Batch:
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runQuasi
+            JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -191,22 +191,17 @@ object Batch:
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-            QuasiBatch(
-              label = metrics.metricLabel,
-              spent = fd.toJava,
-              mode = mode,
-              batchId = batchId,
-              jobs = jobs)
+            QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
+    override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runValue
+            JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runValue
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -214,12 +209,7 @@ object Batch:
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-            BatchValue(
-              label = metrics.metricLabel,
-              spent = fd.toJava,
-              mode = mode,
-              batchId = batchId,
-              jobs = jobs)
+            ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
     }
@@ -244,7 +234,7 @@ object Batch:
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobState[A]]] =
         jobs.traverse {
-          JobExecutor(mode, jobHook, metrics.metricLabel, batchId, batchPanel, predicate).runQuasi
+          JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
         }.guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
@@ -252,7 +242,7 @@ object Batch:
           .evalMap(bp => exec(bp, batchId))
           .map(jobs =>
             QuasiBatch(
-              label = metrics.metricLabel,
+              scope = metrics.scope,
               spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
               mode = mode,
               batchId = batchId,
@@ -260,7 +250,7 @@ object Batch:
       }
     }
 
-    override def batchValue(jobHook: JobHook[F, A]): Resource[F, BatchValue[A]] = {
+    override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobValue[A]]] =
         jobs
@@ -268,7 +258,7 @@ object Batch:
             JobExecutor(
               mode = mode,
               jobHook = jobHook,
-              metricLabel = metrics.metricLabel,
+              scope = metrics.scope,
               batchId = batchId,
               batchPanel = batchPanel,
               predicate = predicate
@@ -277,8 +267,8 @@ object Batch:
 
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
-          BatchValue(
-            label = metrics.metricLabel,
+          ValueBatch(
+            scope = metrics.scope,
             spent = jobs.map(_.completed.took).foldLeft(Duration.ZERO)(_.plus(_)),
             mode = mode,
             batchId = batchId,
@@ -350,7 +340,7 @@ object Batch:
               .guarantee(Resource.eval(activeGauge.deactivate))
           }.map { case (_, ExecutionState(eoa, history)) =>
             MonadicBatch(
-              label = metrics.metricLabel,
+              scope = metrics.scope,
               spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
               batchId = batchId,
               jobs = history.reverse,
@@ -427,7 +417,7 @@ object Batch:
               Job(
                 name = name,
                 index = index,
-                label = metrics.metricLabel,
+                scope = metrics.scope,
                 mode = mode,
                 kind = BatchKind.Value,
                 batchId = batchId)
@@ -471,7 +461,7 @@ object Batch:
               Job(
                 name = name,
                 index = index,
-                label = metrics.metricLabel,
+                scope = metrics.scope,
                 mode = mode,
                 kind = BatchKind.Quasi,
                 batchId = batchId)
@@ -481,12 +471,12 @@ object Batch:
               .attempt
               .timed
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                val done = eoa.fold(_ => false, identity)
-                JobState(CompletedJob(job, fd.toJava, done), eoa) // make throwable visible
+                val succeeded = eoa.fold(_ => false, identity)
+                JobState(CompletedJob(job, fd.toJava, succeeded), eoa) // make throwable visible
               }
               .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
               .map { js =>
-                index + 1 -> ExecutionState(Right(js.completed.done), List(js.completed))
+                index + 1 -> ExecutionState(Right(js.completed.succeeded), List(js.completed))
               }
           }
         }
@@ -502,7 +492,7 @@ end Batch
 /** Metrics-backed façade for long-running or stateful work.
   *
   * Use `sequential` or `parallel` for independent jobs, and `monadic` when later jobs depend on earlier
-  * results. Acquire `quasiBatch` or `batchValue` with `.use`; both execution styles report progress and
+  * results. Acquire `quasiBatch` or `valueBatch` with `.use`; both execution styles report progress and
   * lifecycle events.
   */
 final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {

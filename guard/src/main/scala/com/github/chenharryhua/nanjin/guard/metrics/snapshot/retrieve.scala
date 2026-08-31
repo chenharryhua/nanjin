@@ -20,10 +20,10 @@ object retrieve {
       }
     }.flatten.toMap
 
-  def percentile(gauges: List[MetricElement.Gauge]): Map[MetricID, Json] =
+  def ratio(gauges: List[MetricElement.Gauge]): Map[MetricID, Json] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case MetricCategory.Gauge(MetricKind.Gauge.Percentile, _) =>
+        case MetricCategory.Gauge(MetricKind.Gauge.Ratio, _) =>
           gg.metricId -> gg.gauge.value
       }
     }.toMap

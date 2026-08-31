@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import io.circe.Json
 
 /** Effectful ratio gauge built from numerator and denominator counts. */
-trait Percentile[F[_]] {
+trait Ratio[F[_]] {
 
   /** Add to the numerator count.
     *
@@ -47,15 +47,15 @@ trait Percentile[F[_]] {
   }
 }
 
-object Percentile {
+object Ratio {
 
-  def noop[F[_]: Applicative]: Percentile[F] = new Percentile[F] {
+  def noop[F[_]: Applicative]: Ratio[F] = new Ratio[F] {
     override def incNumerator(numerator: Long): F[Unit] = ().pure
     override def incDenominator(denominator: Long): F[Unit] = ().pure
     override def incBoth(numerator: Long, denominator: Long): F[Unit] = ().pure
   }
 
-  private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
+  private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Ratio[F] {
 
     private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
 
@@ -80,7 +80,7 @@ object Percentile {
       }
   }
 
-  final class Builder private[Percentile] (
+  final class Builder private[Ratio] (
     isEnabled: Boolean,
     translator: Ior[Long, Long] => Json
   ) extends EnableConfig[Builder] {
@@ -89,16 +89,16 @@ object Percentile {
     def withTranslator(translator: Ior[Long, Long] => Json): Builder =
       new Builder(isEnabled, translator)
 
-    /** Enable or disable percentile registration; disabled gauges become no-ops. */
+    /** Enable or disable ratio registration; disabled gauges become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, translator)
 
-    private[Percentile] def build[F[_]](gp: GaugeParams[F], name: String)(using
-      F: Async[F]): Resource[F, Percentile[F]] = {
+    private[Ratio] def build[F[_]](gp: GaugeParams[F], name: String)(using
+      F: Async[F]): Resource[F, Ratio[F]] = {
 
-      def impl: Resource[F, Percentile[F]] = for {
+      def impl: Resource[F, Ratio[F]] = for {
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
-        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Percentile).register(ref.get.map(translator)))
+        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Ratio).register(ref.get.map(translator)))
       } yield new Impl[F](ref)
 
       if (isEnabled) impl else noop.pure
@@ -108,6 +108,6 @@ object Percentile {
   private[metrics] def apply[F[_]: Async](
     gp: GaugeParams[F],
     name: String,
-    f: Endo[Builder]): Resource[F, Percentile[F]] =
+    f: Endo[Builder]): Resource[F, Ratio[F]] =
     f(new Builder(true, translator)).build[F](gp, name)
 }

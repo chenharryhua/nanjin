@@ -168,7 +168,20 @@ object Policy {
     Policy(Fix(FixedRate(delay.toJava)))
   }
 
-  /** Returns the given Policy instance unchanged.
+  /** Adapter that lets an already-built `Policy` be supplied where a builder function
+    * `f: Policy.type => Policy` is expected.
+    *
+    * Most APIs take the builder shape so callers can write `_.fixedDelay(1.second).repeat`, where the
+    * argument is this `Policy` companion. When you instead hold a `Policy` value prepared elsewhere, there is
+    * no companion to build from, so pass it through `fresh`:
+    *
+    * {{{
+    *   val prepared: Policy = Policy.fixedDelay(1.second).repeat
+    *   agent.circuitBreaker(3, _.fresh(prepared))
+    * }}}
+    *
+    * The body is intentionally the identity function: `fresh` exists only to occupy the
+    * `Policy.type => Policy` slot, returning the supplied policy unchanged.
     */
   def fresh(policy: Policy): Policy = policy
 

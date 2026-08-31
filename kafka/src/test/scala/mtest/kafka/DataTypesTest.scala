@@ -114,14 +114,14 @@ class DataTypesTest extends AnyFunSuite {
   // --- GroupId ---
 
   test("17.GroupId - JSON round-trip") {
-    val gid = GroupId("consumer-group-1")
-    val decoded = decode[GroupId](gid.asJson.noSpaces)
+    val gid = GroupID("consumer-group-1")
+    val decoded = decode[GroupID](gid.asJson.noSpaces)
     assert(decoded == Right(gid))
     assert(gid.show == "consumer-group-1")
   }
 
   test("18.GroupId - implicit conversion from String") {
-    val gid: GroupId = "my-group"
+    val gid: GroupID = "my-group"
     assert(gid.value == "my-group")
   }
 

@@ -13,9 +13,9 @@ import java.nio.charset.StandardCharsets
 object jackson {
 
   def toBytes[F[_]](schema: Schema)(using F: Sync[F]): Pipe[F, GenericRecord, Byte] = {
-    (sfgr: Stream[F, GenericRecord]) =>
+    (ss: Stream[F, GenericRecord]) =>
       Stream.eval(F.delay(new GenericDatumWriter[GenericRecord](schema))).flatMap { datumWriter =>
-        sfgr.chunks.map { grs =>
+        ss.chunks.map { grs =>
           val baos: ByteArrayOutputStream = new ByteArrayOutputStream
           val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
           grs.foreach(gr => datumWriter.write(gr, encoder))

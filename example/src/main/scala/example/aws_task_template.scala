@@ -23,7 +23,7 @@ object aws_task_template {
           .limited(3)
           .followedBy(_.fixedRate(2.hours).limited(12))
           .followedBy(_.crontab(_.daily.tenAM)))
-      .addBrief(ecs.container_metadata[IO])
+      .addBrief(ecs.containerMetadata[IO])
       .withHistoryCapacity(32, 32, 32)
   )
 

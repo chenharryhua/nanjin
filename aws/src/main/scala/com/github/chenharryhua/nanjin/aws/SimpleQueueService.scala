@@ -111,10 +111,13 @@ object SimpleQueueService {
         cw =>
           shutdown(name, logger)(cw.close())
       }
-    } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
+    } yield new SimpleQueueServiceImpl[F](client, f(Policy), zoneId, logger)
 
-  final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(using
-    F: Async[F])
+  final private class SimpleQueueServiceImpl[F[_]](
+    client: SqsClient,
+    policy: Policy,
+    zoneId: ZoneId,
+    logger: Logger[F])(using F: Async[F])
       extends SimpleQueueService[F] {
 
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {

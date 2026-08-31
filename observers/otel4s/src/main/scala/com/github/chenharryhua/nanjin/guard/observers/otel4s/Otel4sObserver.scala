@@ -44,7 +44,7 @@ final class Otel4sObserver[F[_], Ctx](provider: LoggerProvider[F, Ctx], translat
   override def withTranslator(f: Endo[Translator[F, Json]]): Otel4sObserver[F, Ctx] =
     new Otel4sObserver[F, Ctx](provider, f(translator))
 
-  private def severityOf(event: Event): Severity =
+  private def severity_of(event: Event): Severity =
     eventLogLevel[Eval, Severity](event).run {
       case LogLevel.Debug => Eval.now(Severity.debug)
       case LogLevel.Info  => Eval.now(Severity.info)
@@ -63,7 +63,7 @@ final class Otel4sObserver[F[_], Ctx](provider: LoggerProvider[F, Ctx], translat
       es.evalTap { event =>
         translator.translate(event).flatMap {
           _.traverse { json =>
-            val severity: Severity = severityOf(event)
+            val severity: Severity = severity_of(event)
             logger.logRecordBuilder
               .withSeverity(severity)
               .withSeverityText(severity.toString)

@@ -11,12 +11,11 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   HealthCheck,
   IdleGauge,
   NumericGauge,
-  Percentile
+  Ratio
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import fs2.Stream
 import io.circe.Encoder
-import io.github.timwspence.cats.stm.STM
 
 /** Stream-native interface for registering and using metrics.
   *
@@ -33,8 +32,8 @@ import io.github.timwspence.cats.stm.STM
   */
 sealed trait MetricsHubS[F[_]] {
 
-  /** Metric label shared by instruments created from this hub. */
-  def metricLabel: MetricLabel
+  /** Metric scope shared by instruments created from this hub. */
+  def scope: MetricScope
 
   /** Register a counter and emit its effectful handle. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
@@ -59,8 +58,8 @@ sealed trait MetricsHubS[F[_]] {
   /** Register a health check and emit unit when registration succeeds. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Stream[F, Unit]
 
-  /** Register a percentile gauge and emit its handle. */
-  def percentile(name: String, f: Endo[Percentile.Builder] = identity): Stream[F, Percentile[F]]
+  /** Register a ratio gauge and emit its handle. */
+  def ratio(name: String, f: Endo[Ratio.Builder] = identity): Stream[F, Ratio[F]]
 
   /** Register an idle-time gauge and emit its handle. */
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Stream[F, IdleGauge[F]]
@@ -70,9 +69,6 @@ sealed trait MetricsHubS[F[_]] {
 
   /** Register a tag-based frequency counter and emit its handle. */
   def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
-
-  /** Register an STM-backed gauge and emit its transactional variable. */
-  def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]]
 
   /** Register a two-sided balance gauge and emit its transfer handle. */
   def balanceGauge[A: {Group, Encoder}](
@@ -86,7 +82,7 @@ object MetricsHubS {
   def apply[F[_]](hub: MetricsHub[F])(using MonadCancel[F, Throwable]): MetricsHubS[F] =
     new MetricsHubS[F] {
 
-      override val metricLabel: MetricLabel = hub.metricLabel
+      override val scope: MetricScope = hub.scope
 
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))
@@ -111,8 +107,8 @@ object MetricsHubS {
         f: HealthCheck.Builder => HealthCheck.Registered[F]): Stream[F, Unit] =
         Stream.resource(hub.healthCheck(name, f))
 
-      override def percentile(name: String, f: Endo[Percentile.Builder]): Stream[F, Percentile[F]] =
-        Stream.resource(hub.percentile(name, f))
+      override def ratio(name: String, f: Endo[Ratio.Builder]): Stream[F, Ratio[F]] =
+        Stream.resource(hub.ratio(name, f))
 
       override def idleGauge(name: String, f: Endo[IdleGauge.Builder]): Stream[F, IdleGauge[F]] =
         Stream.resource(hub.idleGauge(name, f))
@@ -124,9 +120,6 @@ object MetricsHubS {
         name: String,
         f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]] =
         Stream.resource(hub.frequencyCounter(name, f))
-
-      override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Stream[F, stm.TVar[A]] =
-        Stream.resource(hub.txnGauge(stm, initial)(name))
 
       override def balanceGauge[A: {Group, Encoder}](
         source: (String, A),

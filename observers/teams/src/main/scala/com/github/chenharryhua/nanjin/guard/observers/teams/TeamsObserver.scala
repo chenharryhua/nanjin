@@ -7,7 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.config.ServiceID
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -52,7 +52,7 @@ final class TeamsObserver[F[_]: Clock](
     for {
       http <- Stream.resource(client)
       ofm <- Stream.eval(
-        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+        F.ref[Map[ServiceID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e => translator.translate(e).flatMap(_.traverse(card => publish(http, webhook, card))))

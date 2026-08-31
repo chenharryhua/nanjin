@@ -87,7 +87,7 @@ object JobHook {
                 case BatchKind.Quasi => log.warn(Json.obj(SeverityNonFatal -> json), ex)
                 case BatchKind.Value => log.error(Json.obj(SeverityCritical -> json), ex)
               }
-            case Right(_) => log.good(Json.obj("done" -> json))
+            case Right(_) => log.good(Json.obj("succeeded" -> json))
           }
         },
         canceled = (bj: Job) => log.warn(Json.obj("canceled" -> bj.asJson)),

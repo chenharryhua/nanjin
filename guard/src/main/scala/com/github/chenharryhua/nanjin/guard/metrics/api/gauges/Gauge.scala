@@ -8,7 +8,7 @@ import cats.syntax.functor.given
 import com.codahale.metrics.Gauge as CodahaleGauge
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricKind, MetricName}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID, MetricKind, MetricToken}
 import io.circe.{Encoder, Json}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -55,9 +55,9 @@ object Gauge {
 
     private def create(gp: GaugeParams[F], name: String, json: F[Json])(using
       F: Async[F]): Resource[F, Unit] = for {
-      metricID <- Resource.eval(MetricName(name).map { metricName =>
+      metricID <- Resource.eval(MetricToken(name).map { metricName =>
         MetricID(
-          gp.label,
+          gp.scope,
           metricName,
           MetricCategory.Gauge(builder.kind, builder.policy.isDefined)).identifier
       })

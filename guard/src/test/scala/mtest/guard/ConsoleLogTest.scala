@@ -25,7 +25,7 @@ class ConsoleLogTest extends AnyFunSuite {
         _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
         _ <- mtx.histogram("2", _.withUnit(Bytes)).evalMap(_.update(10000L).replicateA(100))
         _ <- mtx
-          .percentile("1")
+          .ratio("1")
           .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
       } yield Kleisli((_: Int) => agent.logger.warn("wow", new Exception))
     }
@@ -74,7 +74,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
-    val tags = mr.snapshot.metricIDs.sortBy(_.metricName.age).map(_.metricName.name.toInt)
+    val tags = mr.snapshot.metricIds.sortBy(_.token.age).map(_.token.name.toInt)
     assert(tags == List(7, 6, 5, 4, 3, 2, 1))
   }
 }

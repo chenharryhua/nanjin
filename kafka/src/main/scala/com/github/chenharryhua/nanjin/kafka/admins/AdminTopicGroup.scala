@@ -5,7 +5,7 @@ import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{GroupId, LagBehind, Offset, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{GroupID, LagBehind, Offset, TopicPartitionMap}
 import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -86,14 +86,14 @@ private[kafka] object AdminTopicGroup {
     adminClient: KafkaAdminClient[F],
     consumerClient: SnapshotConsumer[F],
     topicName: TopicName,
-    groupId: GroupId): AdminTopicGroup[F] =
+    groupId: GroupID): AdminTopicGroup[F] =
     new AdminTopicGroupImpl[F](adminClient, consumerClient, topicName, groupId)
 
   final private class AdminTopicGroupImpl[F[_]: Sync](
     override val adminClient: KafkaAdminClient[F],
     consumerClient: SnapshotConsumer[F],
     topicName: TopicName,
-    groupId: GroupId
+    groupId: GroupID
   ) extends AdminTopicGroup[F] {
 
     override def lagBehind: F[TopicPartitionMap[Option[LagBehind]]] =

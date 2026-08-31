@@ -23,7 +23,7 @@ import scala.jdk.DurationConverters.given
 /** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
   * Adaptive Cards).
   */
-final val NBSP_CHAR: Char = '\u00A0'
+final val NbspChar: Char = '\u00A0'
 
 // ---------------- StackTrace ----------------
 
@@ -33,13 +33,13 @@ final val NBSP_CHAR: Char = '\u00A0'
   */
 opaque type StackTrace = List[String]
 object StackTrace:
-  final private val NBSP_INDENT: String = String.valueOf(NBSP_CHAR) * 2
+  final private val NbspIndent: String = String.valueOf(NbspChar) * 2
   def apply(ex: Throwable): StackTrace =
     ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
   extension (st: StackTrace)
     inline def value: List[String] = st
     def headOption: Option[String] = st.headOption
-    def nbspIndented: String = st.mkString(s"\n$NBSP_INDENT")
+    def nbspIndented: String = st.mkString(s"\n$NbspIndent")
 
   given Show[StackTrace] = _.mkString("\n  ")
   given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
@@ -73,15 +73,15 @@ end Service
 /** A unique identifier generated for each service instance at launch time. A new UUID is minted on every JVM
   * start; it does not change across panic-triggered restarts within the same process lifetime.
   */
-opaque type ServiceId = UUID
-object ServiceId:
-  def apply(value: UUID): ServiceId = value
-  extension (s: ServiceId) inline def value: UUID = s
+opaque type ServiceID = UUID
+object ServiceID:
+  def apply(value: UUID): ServiceID = value
+  extension (s: ServiceID) inline def value: UUID = s
 
-  given Show[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Show]
-  given Encoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Encoder]
-  given Decoder[ServiceId] = OpaqueLift.lift[ServiceId, UUID, Decoder]
-end ServiceId
+  given Show[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Show]
+  given Encoder[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Encoder]
+  given Decoder[ServiceID] = OpaqueLift.lift[ServiceID, UUID, Decoder]
+end ServiceID
 
 // ---------------- Homepage ----------------
 opaque type Homepage = String

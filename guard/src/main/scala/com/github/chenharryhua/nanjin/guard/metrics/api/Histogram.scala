@@ -17,8 +17,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
   MetricID,
   MetricKind,
-  MetricLabel,
-  MetricName,
+  MetricScope,
+  MetricToken,
   Squants
 }
 import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
@@ -38,18 +38,18 @@ object Histogram {
   }
 
   private class Impl[F[_]](
-    label: MetricLabel,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,
     reservoir: Option[Reservoir],
-    name: MetricName,
+    name: MetricToken,
     otel: OtelHistogram[F, Long])(using F: Sync[F])
       extends Histogram[F] {
 
     private val id: MetricID =
       MetricID(
-        metricLabel = label,
-        metricName = name,
+        scope = scope,
+        token = name,
         MetricCategory.Histogram(kind = MetricKind.Histogram.Default, squants = squants)
       )
 
@@ -95,21 +95,21 @@ object Histogram {
       new Builder(isEnabled, squants, reservoir, description, boundaries)
 
     private[Histogram] def build[F[_]](
-      label: MetricLabel,
+      scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(label.label).flatMap { m =>
+          otel <- Resource.eval(meterProvider.get(scope.label).flatMap { m =>
             ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create)
           })
-          h <- Resource.make(MetricName(name).map { metricName =>
+          h <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
-              label = label,
+              scope = scope,
               metricRegistry = metricRegistry,
               squants = squants,
               reservoir = reservoir,
@@ -124,7 +124,7 @@ object Histogram {
 
   private[metrics] def apply[F[_]: Sync](
     mr: MetricRegistry,
-    label: MetricLabel,
+    scope: MetricScope,
     name: String,
     meterProvider: MeterProvider[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
@@ -135,5 +135,5 @@ object Histogram {
         reservoir = None,
         description = None,
         boundaries = None))
-      .build[F](label, name, mr, meterProvider)
+      .build[F](scope, name, mr, meterProvider)
 }

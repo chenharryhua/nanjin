@@ -37,7 +37,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * @param path
     *   Path to check
     */
-  def isExist(path: Url)(using F: Sync[F]): F[Boolean] =
+  def exists(path: Url)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
       val fs: FileSystem = hp.getFileSystem(config)
@@ -224,19 +224,19 @@ final class Hadoop[F[_]](config: Configuration) {
     *   Dates to retain
     */
   def dateFolderRetention(path: Url, keeps: List[LocalDate])(using
-    F: Sync[F]): F[List[FolderRetentionStatus]] =
+    F: Sync[F]): F[List[FolderRetentionResult]] =
     dataFolders(path).flatMap(_.traverse { url =>
       extractDate(url) match {
         case Some(date) =>
           if (keeps.contains(date))
-            F.pure(FolderRetentionStatus(url, RetentionStatus.Retained))
+            F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
           else {
             delete(url).map {
-              case true  => FolderRetentionStatus(url, RetentionStatus.Removed)
-              case false => FolderRetentionStatus(url, RetentionStatus.RemovalFailed)
+              case true  => FolderRetentionResult(url, RetentionStatus.Removed)
+              case false => FolderRetentionResult(url, RetentionStatus.RemoveFailed)
             }
           }
-        case None => F.pure(FolderRetentionStatus(url, RetentionStatus.Retained))
+        case None => F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
       }
     })
 
@@ -248,12 +248,12 @@ final class Hadoop[F[_]](config: Configuration) {
     * @return
     */
   def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(using
-    F: Sync[F]): F[List[FolderRetentionStatus]] = {
+    F: Sync[F]): F[List[FolderRetentionResult]] = {
     val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
     dateFolderRetention(path, keeps)
   }
 
-  private def copyFile(source: Url, target: Url, deleteSource: Boolean)(using F: Sync[F]): F[Boolean] =
+  private def copy_file(source: Url, target: Url, delete_source: Boolean)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val src = toHadoopPath(source)
       val tgt = toHadoopPath(target)
@@ -261,7 +261,7 @@ final class Hadoop[F[_]](config: Configuration) {
       val srcFs = src.getFileSystem(config)
       val tgtFs = tgt.getFileSystem(config)
 
-      FileUtil.copy(srcFs, src, tgtFs, tgt, deleteSource, true, config)
+      FileUtil.copy(srcFs, src, tgtFs, tgt, delete_source, true, config)
     }
 
   /** Convenience method to copy a file or directory from one Hadoop-compatible path to another.
@@ -274,7 +274,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * storage-specific SDK or handle cleanup externally.
     */
   def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copyFile(source, target, false)
+    copy_file(source, target, false)
 
   /** Convenience method to move a file or directory from one Hadoop-compatible path to another.
     *
@@ -286,7 +286,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * appropriate storage-specific SDK or handle cleanup externally.
     */
   def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copyFile(source, target, true)
+    copy_file(source, target, true)
 
   /*
    * source and sink
@@ -311,7 +311,7 @@ final class Hadoop[F[_]](config: Configuration) {
       tickStream.tickFuture[F](zoneId, f).map { tick =>
         CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
       }
-    new RotateByPolicySink[F](config, pathBuilder, crfs)
+    new RotateByPolicyImpl[F](config, pathBuilder, crfs)
   }
 
   /** Create a size-based rotating sink.
@@ -326,6 +326,6 @@ final class Hadoop[F[_]](config: Configuration) {
   def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(using
     F: Async[F]): RotateBySize[F] = {
     require(size > 0L, "size must be positive")
-    new RotateBySizeSink[F](config, zoneId, pathBuilder, size)
+    new RotateBySizeImpl[F](config, zoneId, pathBuilder, size)
   }
 }

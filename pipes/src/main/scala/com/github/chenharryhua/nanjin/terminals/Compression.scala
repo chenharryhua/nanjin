@@ -23,7 +23,7 @@ sealed trait Compression extends Product {
     case FileFormat.Kantan     => s"${FileFormat.Kantan.suffix}$fileExtension"
     case FileFormat.BinaryAvro => s"${FileFormat.BinaryAvro.suffix}$fileExtension"
     case FileFormat.JavaObject => s"${FileFormat.JavaObject.suffix}$fileExtension"
-    case FileFormat.ProtoBuf   => s"${FileFormat.ProtoBuf.suffix}$fileExtension"
+    case FileFormat.Protobuf   => s"${FileFormat.Protobuf.suffix}$fileExtension"
 
     case FileFormat.Parquet => s"$shortName.${FileFormat.Parquet.suffix}"
     case FileFormat.Avro    => s"$shortName.${FileFormat.Avro.suffix}"
@@ -48,7 +48,7 @@ sealed trait Compression extends Product {
     case Compression.Bzip2            => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Gzip             => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Lz4              => CompressionLevel.DEFAULT_COMPRESSION
-    case Compression.Lz4_Raw          => CompressionLevel.DEFAULT_COMPRESSION
+    case Compression.Lz4Raw           => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Brotli           => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Lzo              => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Deflate(level)   => convert(level.value)
@@ -69,7 +69,7 @@ sealed trait ParquetCompression extends Compression {
     case Compression.Snappy       => CompressionCodecName.SNAPPY
     case Compression.Gzip         => CompressionCodecName.GZIP
     case Compression.Lz4          => CompressionCodecName.LZ4
-    case Compression.Lz4_Raw      => CompressionCodecName.LZ4_RAW
+    case Compression.Lz4Raw       => CompressionCodecName.LZ4_RAW
     case Compression.Brotli       => CompressionCodecName.BROTLI
     case Compression.Lzo          => CompressionCodecName.LZO
     case Compression.Zstandard(_) => CompressionCodecName.ZSTD
@@ -107,7 +107,7 @@ object Compression {
       case Bzip2                => Json.fromString(Bzip2.shortName)
       case Gzip                 => Json.fromString(Gzip.shortName)
       case Lz4                  => Json.fromString(Lz4.shortName)
-      case Lz4_Raw              => Json.fromString(Lz4_Raw.shortName)
+      case Lz4Raw               => Json.fromString(Lz4Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
       case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.value}") // hadoop convention
@@ -115,7 +115,7 @@ object Compression {
       case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.value}")
     }
 
-  private def convertLevel(lvl: String): Either[String, Level] =
+  private def convert_level(lvl: String): Either[String, Level] =
     Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
       .flatMap(i => Level.values.find(_.value === i).toRight(s"invalid Compression Level: $i"))
 
@@ -126,12 +126,12 @@ object Compression {
       case Bzip2.shortName        => Right(Bzip2)
       case Gzip.shortName         => Right(Gzip)
       case Lz4.shortName          => Right(Lz4)
-      case Lz4_Raw.shortName      => Right(Lz4_Raw)
+      case Lz4Raw.shortName       => Right(Lz4Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
-      case s"deflate-${level}"    => convertLevel(level).map(Deflate(_))
-      case s"xz-${level}"         => convertLevel(level).map(Xz(_))
-      case s"zstd-${level}"       => convertLevel(level).map(Zstandard(_))
+      case s"deflate-${level}"    => convert_level(level).map(Deflate(_))
+      case s"xz-${level}"         => convert_level(level).map(Xz(_))
+      case s"zstd-${level}"       => convert_level(level).map(Zstandard(_))
       case unknown                => Left(s"unknown compression: $unknown")
     }
 
@@ -229,7 +229,7 @@ object Compression {
     override val fileExtension: String = ".lz4"
   }
 
-  case object Lz4_Raw
+  case object Lz4Raw
       extends Compression with ParquetCompression with BinaryAvroCompression with CirceCompression
       with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String = "lz4raw"
@@ -285,7 +285,7 @@ object BinaryAvroCompression {
   val Bzip2: BinaryAvroCompression = Compression.Bzip2
   val Gzip: BinaryAvroCompression = Compression.Gzip
   val Lz4: BinaryAvroCompression = Compression.Lz4
-  val Lz4_Raw: BinaryAvroCompression = Compression.Lz4_Raw
+  val Lz4Raw: BinaryAvroCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): BinaryAvroCompression = Compression.Deflate(f)
 }
 
@@ -295,7 +295,7 @@ object JacksonCompression {
   val Bzip2: JacksonCompression = Compression.Bzip2
   val Gzip: JacksonCompression = Compression.Gzip
   val Lz4: JacksonCompression = Compression.Lz4
-  val Lz4_Raw: JacksonCompression = Compression.Lz4_Raw
+  val Lz4Raw: JacksonCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): JacksonCompression = Compression.Deflate(f)
 }
 
@@ -305,7 +305,7 @@ object CirceCompression {
   val Bzip2: CirceCompression = Compression.Bzip2
   val Gzip: CirceCompression = Compression.Gzip
   val Lz4: CirceCompression = Compression.Lz4
-  val Lz4_Raw: CirceCompression = Compression.Lz4_Raw
+  val Lz4Raw: CirceCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): CirceCompression = Compression.Deflate(f)
 }
 
@@ -315,7 +315,7 @@ object KantanCompression {
   val Bzip2: KantanCompression = Compression.Bzip2
   val Gzip: KantanCompression = Compression.Gzip
   val Lz4: KantanCompression = Compression.Lz4
-  val Lz4_Raw: KantanCompression = Compression.Lz4_Raw
+  val Lz4Raw: KantanCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): KantanCompression = Compression.Deflate(f)
 }
 
@@ -325,7 +325,7 @@ object TextCompression {
   val Bzip2: TextCompression = Compression.Bzip2
   val Gzip: TextCompression = Compression.Gzip
   val Lz4: TextCompression = Compression.Lz4
-  val Lz4_Raw: TextCompression = Compression.Lz4_Raw
+  val Lz4Raw: TextCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): TextCompression = Compression.Deflate(f)
 }
 
@@ -334,7 +334,7 @@ object ParquetCompression {
   val Snappy: ParquetCompression = Compression.Snappy
   val Gzip: ParquetCompression = Compression.Gzip
   val Lz4: ParquetCompression = Compression.Lz4
-  val Lz4_Raw: ParquetCompression = Compression.Lz4_Raw
+  val Lz4Raw: ParquetCompression = Compression.Lz4Raw
   val Brotli: ParquetCompression = Compression.Brotli
   val Lzo: ParquetCompression = Compression.Lzo
   def Zstandard(f: Level.type => Level): ParquetCompression = Compression.Zstandard(f)

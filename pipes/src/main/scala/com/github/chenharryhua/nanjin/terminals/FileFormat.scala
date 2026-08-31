@@ -17,7 +17,7 @@ enum FileFormat(val value: Int, val format: String, val alias: String):
   case Avro extends FileFormat(12, "avro", "data")
   case BinaryAvro extends FileFormat(13, "avro", "binary")
   case JavaObject extends FileFormat(14, "obj", "java")
-  case ProtoBuf extends FileFormat(15, "pb", "google")
+  case Protobuf extends FileFormat(15, "pb", "google")
 
   val suffix: String = s"$alias.$format"
 end FileFormat

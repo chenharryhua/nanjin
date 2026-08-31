@@ -61,9 +61,9 @@ object CloudWatch {
         logger.info(s"initialize $name") >> F.blocking(f(CloudWatchClient.builder()).build())) { cw =>
         shutdown(name, logger)(cw.close())
       }
-    } yield new AwsCloudWatch[F](client, logger)
+    } yield new CloudWatchImpl[F](client, logger)
 
-  final private class AwsCloudWatch[F[_]: Sync](client: CloudWatchClient, logger: Logger[F])
+  final private class CloudWatchImpl[F[_]: Sync](client: CloudWatchClient, logger: Logger[F])
       extends CloudWatch[F]:
 
     override def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse] =

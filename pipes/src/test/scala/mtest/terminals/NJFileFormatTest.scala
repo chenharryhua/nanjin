@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class NJFileFormatTest extends AnyFunSuite {
   test("1.no dup") {
     val all: List[FileFormat] =
-      List(Unknown, Jackson, Circe, Text, Kantan, Parquet, Avro, BinaryAvro, JavaObject, ProtoBuf)
+      List(Unknown, Jackson, Circe, Text, Kantan, Parquet, Avro, BinaryAvro, JavaObject, Protobuf)
     assert(all.map(_.suffix).distinct.size === all.size)
   }
 
@@ -22,7 +22,7 @@ class NJFileFormatTest extends AnyFunSuite {
     val f9: FileFormat = FileFormat.Avro
     val f10: FileFormat = FileFormat.BinaryAvro
     val f11: FileFormat = FileFormat.JavaObject
-    val f12: FileFormat = FileFormat.ProtoBuf
+    val f12: FileFormat = FileFormat.Protobuf
     assert(f1.asJson.noSpaces === """ "unknown.unknown" """.trim)
     assert(f2.asJson.noSpaces === """ "jackson.json" """.trim)
     assert(f3.asJson.noSpaces === """ "circe.json" """.trim)

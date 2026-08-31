@@ -23,14 +23,14 @@ object CsvHeaderOf {
   def apply[A](using ev: CsvHeaderOf[A]): ev.type = ev
 
   /** internal helper to build CsvHeaderOf without inline anonymous duplication */
-  private def fromLabels(labels: List[String]): CsvHeaderOf[Any] =
+  private def from_labels(labels: List[String]): CsvHeaderOf[Any] =
     new CsvHeaderOf[Any] {
       override val header: Header.Explicit = Header.Explicit(labels)
     }
 
   /** fully generic derivation for case classes, no duplicate anonymous class warning */
   inline given derived[A](using m: Mirror.ProductOf[A]): CsvHeaderOf[A] =
-    fromLabels(
+    from_labels(
       constValueTuple[m.MirroredElemLabels]
         .productIterator
         .toList

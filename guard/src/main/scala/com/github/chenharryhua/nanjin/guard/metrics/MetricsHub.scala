@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   HealthCheck,
   IdleGauge,
   NumericGauge,
-  Percentile
+  Ratio
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import io.circe.syntax.EncoderOps
@@ -24,7 +24,7 @@ import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.ZoneId
 
-/** Resource-based factory for metrics registered under one `MetricLabel`.
+/** Resource-based factory for metrics registered under one `MetricScope`.
   *
   * Obtain a hub from `Agent.metricsHub(label)`, acquire an instrument with its `Resource`, and update it
   * inside the resource scope:
@@ -33,6 +33,23 @@ import java.time.ZoneId
   *
   * Releasing the resource unregisters the metric. Use `MetricsHubS` when a stream-based registration API is
   * more convenient.
+  *
+  * ===Lifecycle===
+  * nanjin's metric lifecycle differs from both backends it builds on, even though the storage is Dropwizard.
+  * A metric here is a '''scoped, uniquely-identified''' resource, not a permanent name-keyed registry entry:
+  *   - '''Scoped, not process-scoped.''' A metric lives only for its `Resource` scope; release unregisters
+  *     it. Dropwizard and OpenTelemetry instruments, by contrast, persist for the life of the registry or
+  *     `MeterProvider`.
+  *   - '''Per-instance, not per-name.''' Each acquisition mints a unique identity even for the same name
+  *     string, so nanjin bypasses Dropwizard's name-based deduplication and OpenTelemetry's
+  *     same-name-conflict rule. Two live instruments with the same name are distinct metrics. See
+  *     `MetricID`/`MetricToken`.
+  *   - '''Windowed values.''' A counter's Dropwizard value is reset on its reporting-window policy, so it is
+  *     cumulative only within the current window; the mirrored otel instrument stays cumulative and lets the
+  *     backend own windowing (see below).
+  *
+  * The Dropwizard `MetricRegistry` is thus used as transient, uniquely-keyed storage feeding the snapshot
+  * pipeline, rather than as the long-lived name-keyed registry it was designed to be.
   *
   * ===Dual backend===
   * The push-based instruments record to Dropwizard and, when an OpenTelemetry
@@ -59,14 +76,14 @@ import java.time.ZoneId
   *     risk vs. normal counters) are not stamped as otel point attributes, so such siblings collapse into a
   *     single otel series unless given distinct metric names.
   *
-  * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/percentile/idle/active/frequency) is
+  * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/ratio/idle/active/frequency) is
   * Dropwizard-only: an arbitrary encoded value cannot satisfy otel4s's numeric `MeasurementValue`. Use
   * `numericGauge` when the value is a `Long` and should also reach OpenTelemetry.
   */
 sealed trait MetricsHub[F[_]] {
 
-  /** Metric label shared by instruments created from this hub. */
-  def metricLabel: MetricLabel
+  /** Metric scope shared by instruments created from this hub. */
+  def scope: MetricScope
 
   /** Register a counter; the returned counter is safe to update in `F`. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
@@ -92,8 +109,8 @@ sealed trait MetricsHub[F[_]] {
   /** Register a boolean health check with timeout and optional refresh policy. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
 
-  /** Register a numerator/denominator percentile gauge. */
-  def percentile(name: String, f: Endo[Percentile.Builder] = identity): Resource[F, Percentile[F]]
+  /** Register a numerator/denominator ratio gauge. */
+  def ratio(name: String, f: Endo[Ratio.Builder] = identity): Resource[F, Ratio[F]]
 
   /** Register a gauge reporting elapsed time since the last `wakeUp`. */
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Resource[F, IdleGauge[F]]
@@ -109,9 +126,6 @@ sealed trait MetricsHub[F[_]] {
     name: String,
     f: Endo[FrequencyCounter.Builder] = identity): Resource[F, FrequencyCounter[F]]
 
-  /** Register a transactional gauge backed by a supplied STM runtime and variable. */
-  def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
-
   /** Register a two-sided balance gauge and return operations to move values between sides. */
   def balanceGauge[A: {Group, Encoder}](
     source: (String, A),
@@ -120,15 +134,15 @@ sealed trait MetricsHub[F[_]] {
 
 object MetricsHub {
   def apply[F[_]: Async](
-    metricLabel: MetricLabel,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
     meterProvider: MeterProvider[F]): MetricsHub[F] =
-    new Impl[F](metricLabel, metricRegistry, dispatcher, zoneId, meterProvider)
+    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meterProvider)
 
   private class Impl[F[_]: Async](
-    val metricLabel: MetricLabel,
+    val scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
@@ -136,34 +150,34 @@ object MetricsHub {
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, metricLabel, name, zoneId, meterProvider, f)
+      Counter[F](metricRegistry, scope, name, zoneId, meterProvider, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Meter[F](metricRegistry, scope, name, meterProvider, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Histogram[F](metricRegistry, scope, name, meterProvider, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Timer[F](metricRegistry, scope, name, meterProvider, f)
 
     // gauges
 
-    private val gaugeParams = GaugeParams[F](dispatcher, metricRegistry, metricLabel, zoneId)
+    private val gaugeParams = GaugeParams[F](dispatcher, metricRegistry, scope, zoneId)
 
     override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit] =
       Gauge[F](gaugeParams, name, f)
 
     override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
-      NumericGauge[F](metricRegistry, metricLabel, name, dispatcher, meterProvider, fa, f)
+      NumericGauge[F](metricRegistry, scope, name, dispatcher, meterProvider, fa, f)
 
     override def healthCheck(
       name: String,
       f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit] =
       HealthCheck[F](gaugeParams, name, f)
 
-    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
-      Percentile(gaugeParams, name, f)
+    override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
+      Ratio(gaugeParams, name, f)
 
     // derived
 
@@ -177,12 +191,6 @@ object MetricsHub {
       name: String,
       f: Endo[FrequencyCounter.Builder]): Resource[F, FrequencyCounter[F]] =
       FrequencyCounter(gaugeParams, name, f)
-
-    override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
-      for {
-        ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
-        _ <- gauge(name, _.register(stm.commit(ta.get)))
-      } yield ta
 
     override def balanceGauge[A: {Group, Encoder}](
       source: (String, A),

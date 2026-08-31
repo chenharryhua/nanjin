@@ -6,7 +6,7 @@ import cats.syntax.functor.given
 import cats.syntax.traverseFilter.toTraverseFilterOps
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
-  GroupId,
+  GroupID,
   Offset,
   OffsetRange,
   Partition,
@@ -45,14 +45,14 @@ trait AdminTopic[F[_]] {
 
   /** Create a new topic with the given number of partitions and replication factor.
     *
-    * @param numPartition
+    * @param numPartitions
     *   number of partitions (must be > 0)
-    * @param numReplica
+    * @param numReplicas
     *   replication factor (must be > 0)
     * @return
     *   an effect that creates the topic
     */
-  def newTopic(numPartition: Int, numReplica: Short): F[Unit]
+  def newTopic(numPartitions: Int, numReplicas: Short): F[Unit]
 
   /** Create a new topic based on the given `TopicDescription`.
     *
@@ -83,7 +83,7 @@ trait AdminTopic[F[_]] {
     * @return
     *   a list of `GroupId` for all consumer groups that have offsets in this topic
     */
-  def groups: F[List[GroupId]]
+  def groups: F[List[GroupID]]
 
   /** List all partitions of this topic.
     *
@@ -139,8 +139,8 @@ private[kafka] object AdminTopic {
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminClient.deleteTopic(topicName.value)
 
-    override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminClient.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
+    override def newTopic(numPartitions: Int, numReplicas: Short): F[Unit] =
+      adminClient.createTopic(new NewTopic(topicName.value, numPartitions, numReplicas))
 
     override def newTopic(description: TopicDescription): F[Unit] = {
       val partitions = description.partitions().size()
@@ -158,7 +158,7 @@ private[kafka] object AdminTopic {
             desc.partitions().get(0).replicas().size().toShort))
       } yield ()
 
-    override def groups: F[List[GroupId]] =
+    override def groups: F[List[GroupID]] =
       for {
         gIds <- adminClient.listConsumerGroups.groupIds
         ids <- gIds.traverseFilter(gid =>
@@ -166,7 +166,7 @@ private[kafka] object AdminTopic {
             .listConsumerGroupOffsets(gid)
             .partitionsToOffsetAndMetadata
             .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
-      } yield ids.distinct.map(GroupId(_))
+      } yield ids.distinct.map(GroupID(_))
 
     override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
       consumerClient.offsetRangeFor(dtr)

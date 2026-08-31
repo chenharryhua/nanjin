@@ -5,7 +5,7 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.guard.config.NBSP_CHAR
+import com.github.chenharryhua.nanjin.guard.config.NbspChar
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{JsonView, Snapshot}
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
 import io.circe.Json
@@ -19,7 +19,7 @@ enum IndentSpace:
   case Nbsp, Normal
 
 private def indentSpace(is: IndentSpace): Char = is match {
-  case IndentSpace.Nbsp   => NBSP_CHAR
+  case IndentSpace.Nbsp   => NbspChar
   case IndentSpace.Normal => ' '
 }
 
@@ -116,26 +116,26 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   private def group_json(pairs: List[(MetricID, Json)]): Json =
     pairs
-      .groupBy(_._1.metricLabel.domain) // domain group
+      .groupBy(_._1.scope.domain) // domain group
       .toList
       .sortBy(_._1.value) // sort by domain name.
       .map { case (domain, lst) =>
         val arr: List[Json] = lst
-          .groupBy(_._1.metricLabel) // metric-name group
+          .groupBy(_._1.scope) // group by metric scope
           .toList
-          .map { case (label, items) =>
-            val age = items.map(_._1.metricName.age).min
+          .map { case (scope, items) =>
+            val age = items.map(_._1.token.age).min
             val inner: Json =
               items
-                .sortBy(_._1.metricName.age)
-                .map { case (mId, js) => Json.obj(mId.metricName.name -> js) }
+                .sortBy(_._1.token.age)
+                .map { case (mId, js) => Json.obj(mId.token.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            age -> Json.obj(label.label -> inner.asJson)
+            age -> Json.obj(scope.label -> inner.asJson)
           }
           .sortBy(_._1)
           .map(_._2)
-        val age = lst.map(_._1.metricName.age).min
+        val age = lst.map(_._1.token.age).min
         age -> Json.obj(domain.value -> Json.arr(arr*))
       }
       .sortBy(_._1)
@@ -170,12 +170,11 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
-      .map(c =>
-        c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.counter)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.token.name}: ${decimalFormatter.format(c.counter)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonView.yml(g.metricId.metricName.name, g.gauge.value, space)
+      val content = JsonView.yml(g.metricId.token.name, g.gauge.value, space)
       if (content.isEmpty) None
       else
         Some(g.metricId -> content)
@@ -187,7 +186,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
   }
 
   private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
-    s"${id.metricName.name}:" :: data.toList
+    s"${id.token.name}:" :: data.toList
 
   private def meter_str: List[(MetricID, List[String])] =
     meters.map { case (id, data) => id -> named(id, padded(data)) }
@@ -200,22 +199,22 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs
-      .groupBy(_._1.metricLabel.domain) // domain group
+      .groupBy(_._1.scope.domain) // domain group
       .toList
       .sortBy(_._1.value)
       .map { case (domain, domains) =>
         val arr: List[String] = domains
-          .groupBy(_._1.metricLabel) // metric-name group
+          .groupBy(_._1.scope) // group by metric scope
           .toList
-          .map { case (name, items) =>
-            val age = items.map(_._1.metricName.age).min
-            (age, name) -> items.sortBy(_._1.metricName.age).flatMap(_._2.map(space4 + _))
+          .map { case (scope, items) =>
+            val age = items.map(_._1.token.age).min
+            (age, scope) -> items.sortBy(_._1.token.age).flatMap(_._2.map(space4 + _))
           }
           .sortBy(_._1._1)
-          .flatMap { case ((_, n), items) =>
-            s"$space2- ${n.label}:" :: items
+          .flatMap { case ((_, scope), items) =>
+            s"$space2- ${scope.label}:" :: items
           }
-        val age = domains.map(_._1.metricName.age).min
+        val age = domains.map(_._1.token.age).min
         (age, show"[$domain]:" :: arr)
       }
       .sortBy(_._1)

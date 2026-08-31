@@ -95,9 +95,9 @@ object SimpleEmailService {
         client =>
           shutdown(name, logger)(client.close())
       }
-    } yield new AwsSES[F](client, logger)
+    } yield new SimpleEmailServiceImpl[F](client, logger)
 
-  final private class AwsSES[F[_]: Sync](
+  final private class SimpleEmailServiceImpl[F[_]: Sync](
     client: SesClient,
     logger: Logger[F]
   ) extends SimpleEmailService[F]:

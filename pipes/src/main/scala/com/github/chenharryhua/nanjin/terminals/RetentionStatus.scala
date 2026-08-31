@@ -6,7 +6,7 @@ import io.circe.{Codec, Decoder, Encoder}
 import io.lemonlabs.uri.Url
 
 enum RetentionStatus:
-  case Removed, RemovalFailed, Retained
+  case Removed, RemoveFailed, Retained
 
 object RetentionStatus:
   given Show[RetentionStatus] = _.productPrefix
@@ -15,4 +15,4 @@ object RetentionStatus:
     RetentionStatus.values.find(_.productPrefix === s).toRight(s"Invalid RetentionStatus: $s")
   }
 
-final case class FolderRetentionStatus(folder: Url, status: RetentionStatus) derives Codec.AsObject
+final case class FolderRetentionResult(folder: Url, status: RetentionStatus) derives Codec.AsObject

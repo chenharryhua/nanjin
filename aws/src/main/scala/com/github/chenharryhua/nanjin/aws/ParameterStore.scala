@@ -65,9 +65,9 @@ object ParameterStore {
       client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SsmClient.builder()).build())) {
         client => shutdown(name, logger)(client.close())
       }
-    } yield new AwsPS[F](client, logger)
+    } yield new ParameterStoreImpl[F](client, logger)
 
-  final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(using F: Sync[F])
+  final private class ParameterStoreImpl[F[_]](client: SsmClient, logger: Logger[F])(using F: Sync[F])
       extends ParameterStore[F] {
 
     override def fetch(request: GetParametersRequest): F[GetParametersResponse] =
