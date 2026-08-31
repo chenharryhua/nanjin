@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.metrics
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricId}
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 
@@ -24,8 +24,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    */
   private def interpretCounters(sm: java.util.SortedMap[String, Counter]): List[MetricElement.Counter] =
     sm.asScala.iterator.filter(_._2.getCount =!= 0L).flatMap { case (name, counter) =>
-      decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Counter(_))) =>
+      decode[MetricId](name) match {
+        case Right(mid @ MetricId(_, _, MetricCategory.Counter(_))) =>
           Some(
             MetricElement.Counter(
               metricId = mid,
@@ -39,8 +39,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    */
   private def interpretMeters(sm: java.util.SortedMap[String, Meter]): List[MetricElement.Meter] =
     sm.asScala.iterator.flatMap { case (name, meter) =>
-      decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Meter(_, squants))) =>
+      decode[MetricId](name) match {
+        case Right(mid @ MetricId(_, _, MetricCategory.Meter(_, squants))) =>
           Some(
             MetricElement.Meter(
               metricId = mid,
@@ -62,8 +62,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    */
   private def interpretHistograms(sm: java.util.SortedMap[String, Histogram]): List[MetricElement.Histogram] =
     sm.asScala.iterator.flatMap { case (name, histogram) =>
-      decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Histogram(_, squants))) =>
+      decode[MetricId](name) match {
+        case Right(mid @ MetricId(_, _, MetricCategory.Histogram(_, squants))) =>
           val ss = histogram.getSnapshot
           Some(
             MetricElement.Histogram(
@@ -92,8 +92,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    */
   private def interpretTimers(sm: java.util.SortedMap[String, Timer]): List[MetricElement.Timer] =
     sm.asScala.iterator.flatMap { case (name, timer) =>
-      decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Timer(_, _))) =>
+      decode[MetricId](name) match {
+        case Right(mid @ MetricId(_, _, MetricCategory.Timer(_, _))) =>
           val ss = timer.getSnapshot
           Some(
             MetricElement.Timer(
@@ -127,8 +127,8 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
    */
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
-      decode[MetricID](name) match {
-        case Right(mid @ MetricID(_, _, MetricCategory.Gauge(_, _))) =>
+      decode[MetricId](name) match {
+        case Right(mid @ MetricId(_, _, MetricCategory.Gauge(_, _))) =>
           parse(gauge.getValue.toString)
             .toOption
             .filterNot(_.isNull)
@@ -175,17 +175,17 @@ final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
     }
 
   // Counts from Meter and Timer metrics only
-  def meteredCounts: Map[MeteredID, Long] = {
+  def meteredCounts: Map[MeteredId, Long] = {
     val meters: java.util.SortedMap[String, Meter] = metricRegistry.getMeters
     val timers: java.util.SortedMap[String, Timer] = metricRegistry.getTimers
 
     (meters.asScala ++ timers.asScala).flatMap { case (name, meter) =>
-      decode[MetricID](name).toOption.flatMap { mid =>
+      decode[MetricId](name).toOption.flatMap { mid =>
         mid.category match {
           case metrics.MetricCategory.Meter(_, squants) =>
-            Some(MeteredID(mid.scope, mid.token, squants) -> meter.getCount)
+            Some(MeteredId(mid.scope, mid.token, squants) -> meter.getCount)
           case metrics.MetricCategory.Timer(_, squants) =>
-            Some(MeteredID(mid.scope, mid.token, squants) -> meter.getCount)
+            Some(MeteredId(mid.scope, mid.token, squants) -> meter.getCount)
           case _ => None
         }
       }

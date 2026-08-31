@@ -15,7 +15,7 @@ import com.codahale.metrics.{
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
-  MetricID,
+  MetricId,
   MetricKind,
   MetricScope,
   MetricToken,
@@ -46,8 +46,8 @@ object Histogram {
     otel: OtelHistogram[F, Long])(using F: Sync[F])
       extends Histogram[F] {
 
-    private val id: MetricID =
-      MetricID(
+    private val id: MetricId =
+      MetricId(
         scope = scope,
         token = name,
         MetricCategory.Histogram(kind = MetricKind.Histogram.Default, squants = squants)

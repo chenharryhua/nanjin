@@ -5,21 +5,21 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricID}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, MeteredID}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricId}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, MeteredId}
 import io.circe.jawn.decode
 
 object MetricFixtures {
 
-  private def metric(id: String): MeteredID = {
-    val mid = decode[MetricID](
+  private def metric(id: String): MeteredId = {
+    val mid = decode[MetricId](
       s"""{
          |  "scope": {"label": "$id", "domain": "test", "service": "test-service", "task":"task"},
          |  "token": {"name": "$id", "age": 0, "uniqueToken": 0},
          |  "category": {"Meter": {"kind": {"Default": {}}, "squants": {"unitSymbol": "ea", "dimensionName": "Dimensionless"}}}
          |}""".stripMargin
     ).fold(throw _, identity)
-    MeteredID(
+    MeteredId(
       mid.scope,
       mid.token,
       mid.category match {
@@ -30,17 +30,17 @@ object MetricFixtures {
   }
 
   // Predefined stable metrics (reused across all tests)
-  val a: MeteredID = metric("a")
-  val b: MeteredID = metric("b")
-  val c: MeteredID = metric("c")
-  val d: MeteredID = metric("d")
+  val a: MeteredId = metric("a")
+  val b: MeteredId = metric("b")
+  val c: MeteredId = metric("c")
+  val d: MeteredId = metric("d")
 }
 object MeteredTestUtils {
 
   def tick(ms: Long): Tick =
     Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.ofEpochMilli(ms))
 
-  def mc(t: Long, values: (MeteredID, Long)*): MeteredCounts =
+  def mc(t: Long, values: (MeteredId, Long)*): MeteredCounts =
     MeteredCounts(
       tick(t),
       values.toMap

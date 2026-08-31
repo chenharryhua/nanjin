@@ -7,7 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import cats.{Endo, Parallel}
-import com.github.chenharryhua.nanjin.guard.config.ServiceID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -50,7 +50,7 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
         log <- Stream.eval(Slf4jLogger.create[F])
         _ <- Stream.eval(log.info(s"initialize $name"))
         ofm <- Stream.eval(
-          F.ref[Map[ServiceID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- ss
           .evalTap(ofm.monitoring)
           .evalTap {

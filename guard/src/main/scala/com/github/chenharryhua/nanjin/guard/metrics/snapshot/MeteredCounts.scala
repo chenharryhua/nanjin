@@ -6,16 +6,16 @@ import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricToken, S
 
 import java.time.Instant
 
-final case class MeteredID(scope: MetricScope, token: MetricToken, squants: Squants)
+final case class MeteredId(scope: MetricScope, token: MetricToken, squants: Squants)
 
-opaque type MeteredCounts = TickedValue[Map[MeteredID, Long]]
+opaque type MeteredCounts = TickedValue[Map[MeteredId, Long]]
 
 object MeteredCounts {
-  def apply(tick: Tick, value: Map[MeteredID, Long]): MeteredCounts = TickedValue(tick, value)
+  def apply(tick: Tick, value: Map[MeteredId, Long]): MeteredCounts = TickedValue(tick, value)
 
   extension (mc: MeteredCounts)
     def timestamp: Instant = mc.tick.conclude
-    def counts: Map[MeteredID, Long] = mc.value
+    def counts: Map[MeteredId, Long] = mc.value
 
     def delta(prev: MeteredCounts): MeteredCounts = {
       val prevMap = prev.value

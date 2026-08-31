@@ -7,7 +7,7 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.guard.config.ServiceID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -49,7 +49,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
       log <- Stream.eval(Slf4jLogger.create[F])
       _ <- Stream.eval(log.info(s"initialize $name"))
       ofm <- Stream.eval(
-        F.ref[Map[ServiceID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap { evt =>

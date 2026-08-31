@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
-import com.github.chenharryhua.nanjin.guard.metrics.MetricID
+import com.github.chenharryhua.nanjin.guard.metrics.MetricId
 import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{ScrapeMetrics, ScrapeMode}
@@ -55,7 +55,7 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
 
     val metricId = mr.snapshot.counters.head.metricId
-    assert(decode[MetricID](metricId.identifier) == Right(metricId))
+    assert(decode[MetricId](metricId.identifier) == Right(metricId))
   }
 
   test("1b.scraper ignores a metric identifier with the wrong registry type") {
@@ -298,7 +298,7 @@ class MetricsTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     assert(mr.snapshot.hasDuplication)
-    val counts: Map[MetricID, CounterData] = retrieve.counter(mr.snapshot.counters)
+    val counts: Map[MetricId, CounterData] = retrieve.counter(mr.snapshot.counters)
     assert(counts.values.toList.map(_.value).contains(1L))
     assert(counts.values.toList.map(_.value).contains(2L))
   }

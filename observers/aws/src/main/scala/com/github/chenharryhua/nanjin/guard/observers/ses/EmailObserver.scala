@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.ServiceID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator, UpdateTranslator}
@@ -119,7 +119,7 @@ final class EmailObserver[F[_]] private (
   }
 
   private def good_bye(
-    state: Ref[F, Map[ServiceID, ServiceStart]],
+    state: Ref[F, Map[ServiceId, ServiceStart]],
     cache: Ref[F, Chunk[ColoredTag]]): F[Chunk[ColoredTag]] =
     F.realTimeInstant.flatMap { ts =>
       state.get.flatMap { sm =>
@@ -172,7 +172,7 @@ final class EmailObserver[F[_]] private (
     (events: Stream[F, Event]) =>
       for {
         ses <- Stream.resource(client)
-        state <- Stream.eval(F.ref(Map.empty[ServiceID, ServiceStart]))
+        state <- Stream.eval(F.ref(Map.empty[ServiceId, ServiceStart]))
         cache <- Stream.eval(F.ref(Chunk.empty[ColoredTag]))
         monitor = events.evalTap {
           case ss: ServiceStart => state.update(_.updated(ss.serviceIdentity.serviceId, ss))

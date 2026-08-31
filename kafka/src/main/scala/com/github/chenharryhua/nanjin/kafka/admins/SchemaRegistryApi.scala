@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,
   OptionalProtobufSchemaPair,
-  RegisteredSchemaID,
+  RegisteredSchemaId,
   TopicName
 }
 import io.confluent.kafka.schemaregistry.ParsedSchema
@@ -53,7 +53,7 @@ sealed trait SchemaRegistryApi[F[_]] {
   def register(
     topicName: TopicName,
     key: Option[ParsedSchema] = None,
-    value: Option[ParsedSchema] = None): F[RegisteredSchemaID]
+    value: Option[ParsedSchema] = None): F[RegisteredSchemaId]
 
   def delete(topicName: TopicName): F[(List[Integer], List[Integer])]
 }
@@ -126,10 +126,10 @@ private[kafka] object SchemaRegistryApi {
     def register(
       topicName: TopicName,
       key: Option[ParsedSchema] = None,
-      value: Option[ParsedSchema] = None): F[RegisteredSchemaID] = {
+      value: Option[ParsedSchema] = None): F[RegisteredSchemaId] = {
       val loc = SchemaLocation(topicName)
       F.blocking {
-        RegisteredSchemaID(key.map(client.register(loc.keyLoc, _)), value.map(client.register(loc.valLoc, _)))
+        RegisteredSchemaId(key.map(client.register(loc.keyLoc, _)), value.map(client.register(loc.valLoc, _)))
       }
     }
 

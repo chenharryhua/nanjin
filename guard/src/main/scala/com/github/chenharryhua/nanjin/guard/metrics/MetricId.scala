@@ -58,7 +58,7 @@ end Squants
   *   - `uniqueToken` — a hash of a fresh `cats.effect.Unique.Token`, so distinct acquisitions never collide
   *     even at the same instant.
   *
-  * Both participate in `Eq` and in the encoded `MetricID.identifier` used as the Dropwizard registry key. The
+  * Both participate in `Eq` and in the encoded `MetricId.identifier` used as the Dropwizard registry key. The
   * constructor is private because a `MetricToken` can only be minted through the effectful `apply`; a caller
   * cannot fabricate one and thereby forge an identity or alias an existing instance.
   */
@@ -90,23 +90,23 @@ final case class MetricScope(label: String, domain: Domain, service: Service, ta
   *     `UpDownCounter` is never reset; the backend owns windowing there.
   *
   * ===Two identities, keyed differently===
-  * `MetricID` feeds both backends, but each keys on a different projection:
-  *   - '''Dropwizard''' uses `identifier`, the whole `MetricID` encoded as compact JSON. Because that
+  * `MetricId` feeds both backends, but each keys on a different projection:
+  *   - '''Dropwizard''' uses `identifier`, the whole `MetricId` encoded as compact JSON. Because that
   *     includes the per-instance `token` plus `category` (kind and unit), the key is '''finer''' than a name:
   *     identical names never collide, and risk vs. normal counters or same-name-different-unit siblings stay
-  *     separate. `ScrapeMetrics` reconstructs the metric by decoding this string back into a `MetricID`,
+  *     separate. `ScrapeMetrics` reconstructs the metric by decoding this string back into a `MetricId`,
   *     which is why `category` (and its unit) must live inside the identity.
   *   - '''OpenTelemetry''' uses only the raw name string plus the fixed point `attributes`
   *     (`nj.domain`/`nj.service`/`nj.task`). This is '''coarser''': `age`/`uniqueToken` and the risk flag are
   *     not projected, so same-named siblings collapse into a single otel series unless given distinct names.
   */
-final case class MetricID(scope: MetricScope, token: MetricToken, category: MetricCategory)
+final case class MetricId(scope: MetricScope, token: MetricToken, category: MetricCategory)
     derives Codec.AsObject:
-  val identifier: String = Encoder[MetricID].apply(this).noSpaces
+  val identifier: String = Encoder[MetricId].apply(this).noSpaces
   val attributes: List[Attribute[String]] =
     List(
       Attribute.from("nj.domain", scope.domain.value),
       Attribute.from("nj.service", scope.service.value),
       Attribute.from("nj.task", scope.task.value)
     )
-end MetricID
+end MetricId

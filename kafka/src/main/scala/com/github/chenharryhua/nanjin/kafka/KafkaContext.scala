@@ -232,7 +232,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  private def snapshotConsumer(topicName: TopicName, groupId: Option[GroupID])(using
+  private def snapshotConsumer(topicName: TopicName, groupId: Option[GroupId])(using
     F: Async[F]): Resource[F, SnapshotConsumer[F]] = {
     val baseSettings = PureConsumerSettings
       .withProperties(settings.consumerSettings.properties)
@@ -243,7 +243,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     SnapshotConsumer(topicName, consumerSettings)
   }
 
-  def admin(topicName: TopicName, groupId: GroupID)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+  def admin(topicName: TopicName, groupId: GroupId)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- snapshotConsumer(topicName, Some(groupId))
@@ -264,7 +264,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     * @return
     *   List of topics successfully be removed from the consumer group
     */
-  def ungroup(groupId: GroupID, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
+  def ungroup(groupId: GroupId, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))

@@ -9,7 +9,7 @@ import com.codahale.metrics.{Meter as CodahaleMeter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
-  MetricID,
+  MetricId,
   MetricKind,
   MetricScope,
   MetricToken,
@@ -39,8 +39,8 @@ object Meter {
     otel: OtelCounter[F, Long])(using F: Sync[F])
       extends Meter[F] {
 
-    private val id: MetricID =
-      MetricID(
+    private val id: MetricId =
+      MetricId(
         scope = scope,
         token = name,
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)

@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.guard.metrics.snapshot
 
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricID, Squants}
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricId, Squants}
 import io.circe.{Codec, Decoder, Encoder, Json}
 import squants.time.Frequency
 
 import java.time.Duration
 
-sealed trait MetricElement extends Product { def metricId: MetricID }
+sealed trait MetricElement extends Product { def metricId: MetricId }
 
 object MetricElement {
   opaque type CounterData = Long
@@ -20,7 +20,7 @@ object MetricElement {
     given Decoder[CounterData] = OpaqueLift.lift[CounterData, Long, Decoder]
   end CounterData
 
-  final case class Counter(metricId: MetricID, counter: CounterData) extends MetricElement
+  final case class Counter(metricId: MetricId, counter: CounterData) extends MetricElement
       derives Codec.AsObject
 
   opaque type GaugeData = Json
@@ -32,7 +32,7 @@ object MetricElement {
     given Decoder[GaugeData] = OpaqueLift.lift[GaugeData, Json, Decoder]
   end GaugeData
 
-  final case class Gauge(metricId: MetricID, gauge: GaugeData) extends MetricElement derives Codec.AsObject
+  final case class Gauge(metricId: MetricId, gauge: GaugeData) extends MetricElement derives Codec.AsObject
 
   final case class MeterData(
     squants: Squants,
@@ -43,7 +43,7 @@ object MetricElement {
     m15_rate: Frequency
   ) derives Codec.AsObject
 
-  final case class Meter(metricId: MetricID, meter: MeterData) extends MetricElement derives Codec.AsObject
+  final case class Meter(metricId: MetricId, meter: MeterData) extends MetricElement derives Codec.AsObject
 
   final case class TimerData(
     calls: Long,
@@ -62,7 +62,7 @@ object MetricElement {
     p99: Duration,
     p999: Duration
   ) derives Codec.AsObject
-  final case class Timer(metricId: MetricID, timer: TimerData) extends MetricElement derives Codec.AsObject
+  final case class Timer(metricId: MetricId, timer: TimerData) extends MetricElement derives Codec.AsObject
 
   final case class HistogramData(
     squants: Squants,
@@ -79,7 +79,7 @@ object MetricElement {
     p999: Double
   ) derives Codec.AsObject
 
-  final case class Histogram(metricId: MetricID, histogram: HistogramData) extends MetricElement
+  final case class Histogram(metricId: MetricId, histogram: HistogramData) extends MetricElement
       derives Codec.AsObject
 }
 
@@ -95,7 +95,7 @@ final case class Snapshot(
 
   def nonEmpty: Boolean = !isEmpty
 
-  def metricIds: List[MetricID] =
+  def metricIds: List[MetricId] =
     counters.map(_.metricId) :::
       timers.map(_.metricId) :::
       gauges.map(_.metricId) :::

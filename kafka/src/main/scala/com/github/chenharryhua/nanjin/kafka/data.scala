@@ -20,18 +20,18 @@ object TopicName:
     override def apply(tn: String): TopicName = TopicName(tn)
 end TopicName
 
-opaque type GroupID = String
-object GroupID:
-  def apply(value: String): GroupID = value
-  extension (gid: GroupID) inline def value: String = gid
+opaque type GroupId = String
+object GroupId:
+  def apply(value: String): GroupId = value
+  extension (gid: GroupId) inline def value: String = gid
 
-  given Show[GroupID] = OpaqueLift.lift[GroupID, String, Show]
-  given Encoder[GroupID] = OpaqueLift.lift[GroupID, String, Encoder]
-  given Decoder[GroupID] = OpaqueLift.lift[GroupID, String, Decoder]
+  given Show[GroupId] = OpaqueLift.lift[GroupId, String, Show]
+  given Encoder[GroupId] = OpaqueLift.lift[GroupId, String, Encoder]
+  given Decoder[GroupId] = OpaqueLift.lift[GroupId, String, Decoder]
 
-  given Conversion[String, GroupID] with
-    override def apply(gid: String): GroupID = GroupID(gid)
-end GroupID
+  given Conversion[String, GroupId] with
+    override def apply(gid: String): GroupId = GroupId(gid)
+end GroupId
 
 opaque type Offset = Long
 object Offset:
@@ -107,4 +107,4 @@ object LagBehind {
 
 // Holds optional schema registry IDs for Kafka message keys and values.
 // 'key' is the schema ID for the message key, 'value' is the schema ID for the message value.
-final case class RegisteredSchemaID(key: Option[Int], value: Option[Int])
+final case class RegisteredSchemaId(key: Option[Int], value: Option[Int])

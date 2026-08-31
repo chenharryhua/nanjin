@@ -10,7 +10,7 @@ import com.codahale.metrics.{Gauge as CodahaleGauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
-  MetricID,
+  MetricId,
   MetricKind,
   MetricScope,
   MetricToken,
@@ -73,7 +73,7 @@ object NumericGauge {
       // The Dropwizard side stores the value as a JSON number so it flows through the existing snapshot
       // pipeline exactly like a Default gauge. A failed evaluation renders the error as JSON via the shared
       // translateError, matching Gauge, so a broken gauge stays visible in the snapshot rather than vanishing.
-      def dropwizard(id: MetricID): Resource[F, Unit] =
+      def dropwizard(id: MetricId): Resource[F, Unit] =
         Resource.make(F.delay {
           metricRegistry.gauge(
             id.identifier,
@@ -89,7 +89,7 @@ object NumericGauge {
       // The otel4s ObservableGauge reads the same effect in its collection callback. When the configured
       // MeterProvider is MeterProvider.noop this whole resource is a no-op. The optional description is
       // threaded with ContT, mirroring Timer's instrument construction.
-      def observable(id: MetricID): Resource[F, Unit] =
+      def observable(id: MetricId): Resource[F, Unit] =
         Resource.eval(meterProvider.get(scope.label)).flatMap { m =>
           ContT
             .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
@@ -101,7 +101,7 @@ object NumericGauge {
       def impl: Resource[F, Unit] =
         for {
           id <- Resource.eval(MetricToken(name).map(mn =>
-            MetricID(scope, mn, MetricCategory.Gauge(MetricKind.Gauge.Default, isCached = false))))
+            MetricId(scope, mn, MetricCategory.Gauge(MetricKind.Gauge.Default, isCached = false))))
           _ <- dropwizard(id)
           _ <- observable(id)
         } yield ()

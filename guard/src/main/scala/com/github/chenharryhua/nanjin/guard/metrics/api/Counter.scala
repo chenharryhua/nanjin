@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricCategory,
-  MetricID,
+  MetricId,
   MetricKind,
   MetricScope,
   MetricToken
@@ -38,10 +38,10 @@ object Counter {
     name: MetricToken,
     upDown: UpDownCounter[F, Long])(using F: Sync[F])
       extends Counter[F] {
-    private val id: MetricID =
+    private val id: MetricId =
       if isRisk
-      then MetricID(scope, name, MetricCategory.Counter(MetricKind.Counter.Risk))
-      else MetricID(scope, name, MetricCategory.Counter(MetricKind.Counter.Default))
+      then MetricId(scope, name, MetricCategory.Counter(MetricKind.Counter.Risk))
+      else MetricId(scope, name, MetricCategory.Counter(MetricKind.Counter.Default))
 
     private val counter: CodahaleCounter = metricRegistry.counter(id.identifier)
 
