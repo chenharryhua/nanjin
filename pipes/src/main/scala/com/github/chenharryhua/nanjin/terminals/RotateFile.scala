@@ -12,6 +12,10 @@ import java.util.UUID
 
 /** Instruction to create a new rotated file.
   *
+  * The verb-phrase name is intentional: this is a command/event value (an instruction to open a file), the
+  * counterpart to the past-tense `RotateFile` (the record of a file that was completed). It is not a function
+  * despite reading like one.
+  *
   * This event marks the beginning of a new `Tick` window. A writer opened from this information will accept
   * records that belong to that tick.
   *

@@ -19,7 +19,7 @@ import scalapb.GeneratedMessage
 
 import java.time.ZoneId
 
-final private class RotateBySizeSink[F[_]](
+final private class RotateBySizeImpl[F[_]](
   configuration: Configuration,
   zoneId: ZoneId,
   pathBuilder: CreateRotateFile => Url,
@@ -175,7 +175,7 @@ final private class RotateBySizeSink[F[_]](
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
     val get_writer: GetWriter[Seq[String]] =
-      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+      Reader(url => HadoopWriter.kantanR[F](configuration, url, csvConfiguration))
 
     (ss: Stream[F, Seq[String]]) => persist(ss, get_writer)
   }

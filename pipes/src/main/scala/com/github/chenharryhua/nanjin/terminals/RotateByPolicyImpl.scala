@@ -16,7 +16,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
-final private class RotateByPolicySink[F[_]: Async](
+final private class RotateByPolicyImpl[F[_]: Async](
   configuration: Configuration,
   pathBuilder: CreateRotateFile => Url,
   rotateSequence: Stream[F, CreateRotateFile])
@@ -169,7 +169,7 @@ final private class RotateByPolicySink[F[_]: Async](
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
     val get_writer: GetWriter[Seq[String]] =
-      Reader(url => HadoopWriter.csvR[F](configuration, url, csvConfiguration))
+      Reader(url => HadoopWriter.kantanR[F](configuration, url, csvConfiguration))
 
     (ss: Stream[F, Seq[String]]) => persist(ss.chunks, get_writer).stream
   }

@@ -221,12 +221,12 @@ sealed trait FileSource[F[_]] {
     *
     * @param chunkSize
     *   Maximum number of JSON values in each emitted chunk. Must be positive.
-    * @param or
+    * @param objectReader
     *   Jackson reader used to parse each non-empty line.
     * @see
     *   https://github.com/FasterXML/jackson-databind
     */
-  def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode]
+  def jsonNode(chunkSize: ChunkSize, objectReader: ObjectReader): Stream[F, JsonNode]
 }
 
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
@@ -252,7 +252,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   }
 
   override def circe(chunkSize: ChunkSize): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, url, chunkSize)
+    HadoopReader.circeS[F](configuration, url, chunkSize)
 
   override def jackson(
     chunkSize: ChunkSize,
@@ -295,6 +295,6 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     chunkSize: ChunkSize): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
-  override def jsonNode(chunkSize: ChunkSize, or: ObjectReader): Stream[F, JsonNode] =
-    text(chunkSize).filter(_.nonEmpty).map(or.readTree)
+  override def jsonNode(chunkSize: ChunkSize, objectReader: ObjectReader): Stream[F, JsonNode] =
+    text(chunkSize).filter(_.nonEmpty).map(objectReader.readTree)
 }

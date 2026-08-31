@@ -114,7 +114,7 @@ private object HadoopReader {
         F.blocking(go(offset, Array.ofDim[Byte](bufferSize))))
     }
 
-  def jawnS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
+  def circeS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = 131072

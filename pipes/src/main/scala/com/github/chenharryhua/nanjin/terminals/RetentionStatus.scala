@@ -6,7 +6,7 @@ import io.circe.{Codec, Decoder, Encoder}
 import io.lemonlabs.uri.Url
 
 enum RetentionStatus:
-  case Removed, RemovalFailed, Retained
+  case Removed, RemoveFailed, Retained
 
 object RetentionStatus:
   given Show[RetentionStatus] = _.productPrefix

@@ -170,7 +170,7 @@ private object HadoopWriter {
           }
       })
 
-  def csvR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
+  def kantanR[F[_]](configuration: Configuration, url: Url, csvConfiguration: CsvConfiguration)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Seq[String]]] = {
     val header: Chunk[Seq[String]] = csvConfiguration.header match {
       case Header.None             => Chunk.empty

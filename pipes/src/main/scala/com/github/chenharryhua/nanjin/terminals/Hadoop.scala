@@ -233,7 +233,7 @@ final class Hadoop[F[_]](config: Configuration) {
           else {
             delete(url).map {
               case true  => FolderRetentionResult(url, RetentionStatus.Removed)
-              case false => FolderRetentionResult(url, RetentionStatus.RemovalFailed)
+              case false => FolderRetentionResult(url, RetentionStatus.RemoveFailed)
             }
           }
         case None => F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
@@ -311,7 +311,7 @@ final class Hadoop[F[_]](config: Configuration) {
       tickStream.tickFuture[F](zoneId, f).map { tick =>
         CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
       }
-    new RotateByPolicySink[F](config, pathBuilder, crfs)
+    new RotateByPolicyImpl[F](config, pathBuilder, crfs)
   }
 
   /** Create a size-based rotating sink.
@@ -326,6 +326,6 @@ final class Hadoop[F[_]](config: Configuration) {
   def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(using
     F: Async[F]): RotateBySize[F] = {
     require(size > 0L, "size must be positive")
-    new RotateBySizeSink[F](config, zoneId, pathBuilder, size)
+    new RotateBySizeImpl[F](config, zoneId, pathBuilder, size)
   }
 }
