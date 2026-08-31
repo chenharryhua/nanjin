@@ -38,13 +38,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val se = service.eventStreamR { agent =>
         val result = agent.batch("exception").sequential(jobs*).quasiBatch(JobHook.noop)
         result.asserting { mb =>
-          mb.jobs.head.completed.done.shouldBe(true)
+          mb.jobs.head.completed.succeeded.shouldBe(true)
           mb.jobs.head.completed.job.mode.shouldBe(BatchMode.Sequential)
           mb.jobs.head.completed.job.kind.shouldBe(BatchKind.Quasi)
-          mb.jobs(1).completed.done.shouldBe(false)
-          mb.jobs(2).completed.done.shouldBe(true)
-          mb.jobs(3).completed.done.shouldBe(true)
-          mb.jobs(4).completed.done.shouldBe(true)
+          mb.jobs(1).completed.succeeded.shouldBe(false)
+          mb.jobs(2).completed.succeeded.shouldBe(true)
+          mb.jobs(3).completed.succeeded.shouldBe(true)
+          mb.jobs(4).completed.succeeded.shouldBe(true)
         }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -57,11 +57,11 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result =
           agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch(JobHook.noop)
         result.asserting { mb =>
-          mb.jobs.head.completed.done.shouldBe(false)
-          mb.jobs(1).completed.done.shouldBe(false)
-          mb.jobs(2).completed.done.shouldBe(false)
-          mb.jobs(3).completed.done.shouldBe(true)
-          mb.jobs(4).completed.done.shouldBe(true)
+          mb.jobs.head.completed.succeeded.shouldBe(false)
+          mb.jobs(1).completed.succeeded.shouldBe(false)
+          mb.jobs(2).completed.succeeded.shouldBe(false)
+          mb.jobs(3).completed.succeeded.shouldBe(true)
+          mb.jobs(4).completed.succeeded.shouldBe(true)
         }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -92,7 +92,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .batchValue(tracer.onComplete { jo =>
             IO {
               assert(jo.result.isLeft)
-              assert(!jo.completed.done)
+              assert(!jo.completed.succeeded)
               assert(jo.result.left.toOption.get.getMessage == "abc")
             }.whenA(jo.completed.job.index == 2)
           })
@@ -112,7 +112,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .withPostCondition(_ > 3)
             .batchValue(tracer.onComplete { jo =>
               IO {
-                assert(!jo.completed.done)
+                assert(!jo.completed.succeeded)
                 assert(jo.completed.job.index == 1)
               }.void
             })

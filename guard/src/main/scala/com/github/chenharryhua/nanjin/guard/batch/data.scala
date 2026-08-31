@@ -75,15 +75,15 @@ object Job {
 }
 
 /** A completed job record that captures its identity, elapsed time, and whether it finished successfully. */
-final case class CompletedJob(job: Job, took: Duration, done: Boolean)
+final case class CompletedJob(job: Job, took: Duration, succeeded: Boolean)
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](completed: CompletedJob, result: Either[Throwable, A]) derives Functor {
-  val done: Boolean = result.isRight
+  val succeeded: Boolean = result.isRight
 }
 object JobState:
   given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
-    Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), resultTag(a.done) -> a.result.asJson)
+    Json.obj("took" -> Json.fromString(fmt.format(a.completed.took)), resultTag(a.succeeded) -> a.result.asJson)
       .deepMerge(a.completed.job.asJson)
   }
 
@@ -93,7 +93,7 @@ object JobValue:
   given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
     Json.obj(
       "took" -> Json.fromString(fmt.format(a.completed.took)),
-      resultTag(a.completed.done) -> a.result.asJson)
+      resultTag(a.completed.succeeded) -> a.result.asJson)
       .deepMerge(a.completed.job.asJson)
   }
 
@@ -106,12 +106,12 @@ final case class CompletedBatch(
   jobs: List[CompletedJob]) {
 
   /** Whether every job in the batch completed successfully. */
-  def done: Boolean = jobs.forall(_.done)
+  def succeeded: Boolean = jobs.forall(_.succeeded)
 }
 object CompletedBatch:
   given Encoder[CompletedBatch] =
     Encoder.instance { cb =>
-      val (done, fail) = cb.jobs.partition(_.done)
+      val (done, fail) = cb.jobs.partition(_.succeeded)
       Json.obj(
         "batch" -> Json.fromString(cb.scope.label),
         "batch_id" -> cb.batchId.asJson,
@@ -125,7 +125,7 @@ object CompletedBatch:
             show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
             "took" -> Json.fromString(fmt.format(cj.took)),
             "kind" -> cj.job.kind.asJson,
-            "done" -> Json.fromBoolean(cj.done)
+            "done" -> Json.fromBoolean(cj.succeeded)
           ))
           .asJson
       )
@@ -149,7 +149,7 @@ sealed trait BatchResult[A] {
   def jobs: List[A]
 
   /** Whether all jobs completed successfully. */
-  def done: Boolean
+  def succeeded: Boolean
 
   /** Completion-only summary suitable for reporting. */
   def completed: CompletedBatch
@@ -165,7 +165,7 @@ final case class QuasiBatch[A](
   batchId: UUID,
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
-  override def done: Boolean = jobs.forall(_.completed.done)
+  override def succeeded: Boolean = jobs.forall(_.completed.succeeded)
   override def completed: CompletedBatch = CompletedBatch(
     scope = scope,
     spent = spent,
@@ -177,7 +177,7 @@ final case class QuasiBatch[A](
 object QuasiBatch:
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (done, fail) = qb.jobs.partition(_.completed.done)
+      val (done, fail) = qb.jobs.partition(_.completed.succeeded)
       Json.obj(
         "batch" -> Json.fromString(qb.scope.label),
         "batch_id" -> qb.batchId.asJson,
@@ -191,7 +191,7 @@ object QuasiBatch:
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            resultTag(js.done) -> js.result.asJson
+            resultTag(js.succeeded) -> js.result.asJson
           )
         }.asJson
       )
@@ -208,7 +208,7 @@ final case class BatchValue[A](
   batchId: UUID,
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
-  override val done: Boolean = true
+  override val succeeded: Boolean = true
   override def completed: CompletedBatch =
     CompletedBatch(
       scope = scope,
@@ -232,7 +232,7 @@ object BatchValue:
           Json.obj(
             show"job-${js.completed.job.index}" -> Json.fromString(js.completed.job.name),
             "took" -> Json.fromString(fmt.format(js.completed.took)),
-            resultTag(js.completed.done) -> js.result.asJson
+            resultTag(js.completed.succeeded) -> js.result.asJson
           ))
           .asJson
       )
@@ -249,7 +249,7 @@ final case class MonadicBatch[A](
   result: Either[Throwable, A])
     extends BatchResult[CompletedJob] derives Functor {
   override val mode: BatchMode = BatchMode.Monadic
-  override def done: Boolean = result.isRight
+  override def succeeded: Boolean = result.isRight
 
   override def completed: CompletedBatch =
     CompletedBatch(
@@ -270,7 +270,7 @@ object MonadicBatch:
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
         "jobs" -> mb.jobs.map { cj =>
-          if (cj.done)
+          if (cj.succeeded)
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(fmt.format(cj.took)))
@@ -287,7 +287,7 @@ object MonadicBatch:
           }
         }
           .asJson,
-        resultTag(mb.done) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        resultTag(mb.succeeded) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
 end MonadicBatch

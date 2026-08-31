@@ -155,9 +155,9 @@ object BatchLight:
               batchId = batchId)
 
             fa.attempt.timed.map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-              val done = eoa.fold(_ => false, identity)
-              val completed = CompletedJob(job, fd.toJava, done)
-              index + 1 -> ExecutionState(eoa = Right(done), history = List(completed))
+              val succeeded = eoa.fold(_ => false, identity)
+              val completed = CompletedJob(job, fd.toJava, succeeded)
+              index + 1 -> ExecutionState(eoa = Right(succeeded), history = List(completed))
             }
           }
         }

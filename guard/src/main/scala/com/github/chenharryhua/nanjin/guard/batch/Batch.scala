@@ -48,7 +48,7 @@ object Batch:
     else {
       val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: CompletedJob) =>
         val took: String = defaultFormatter.format(cj.took)
-        val result: String = if (cj.done) took else s"$took (failed)"
+        val result: String = if (cj.succeeded) took else s"$took (failed)"
         cj.job.displayName -> result.asJson
       }
       Json.obj(pairs*)
@@ -155,7 +155,7 @@ object Batch:
       * complete and report per-job outcomes.
       *
       * @return
-      *   a batch result where each job is marked as done only when it succeeds and satisfies the
+      *   a batch result where each job is marked as succeeded only when it completes and satisfies the
       *   post-condition; otherwise it is marked as failed.
       */
     def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]]
@@ -481,12 +481,12 @@ object Batch:
               .attempt
               .timed
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                val done = eoa.fold(_ => false, identity)
-                JobState(CompletedJob(job, fd.toJava, done), eoa) // make throwable visible
+                val succeeded = eoa.fold(_ => false, identity)
+                JobState(CompletedJob(job, fd.toJava, succeeded), eoa) // make throwable visible
               }
               .guaranteeCase(handleOutcome(job, jobHook, updatePanel, Json.fromBoolean))
               .map { js =>
-                index + 1 -> ExecutionState(Right(js.completed.done), List(js.completed))
+                index + 1 -> ExecutionState(Right(js.completed.succeeded), List(js.completed))
               }
           }
         }
