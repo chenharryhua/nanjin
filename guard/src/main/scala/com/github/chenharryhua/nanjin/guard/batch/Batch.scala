@@ -62,14 +62,14 @@ object Batch:
     F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("Active")
-      percentile <- mtx
-        .percentile(show"$mode $kind completion", _.withTranslator(translator))
+      ratio <- mtx
+        .ratio(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[CompletedJob]](Nil))
       _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
       Kleisli { (cj: CompletedJob) =>
-        F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(cj)))
+        F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
       },
       active)
 

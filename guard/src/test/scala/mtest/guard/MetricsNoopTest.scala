@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   ActiveGauge,
   BalanceGauge,
   IdleGauge,
-  Percentile
+  Ratio
 }
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -73,28 +73,28 @@ class MetricsNoopTest extends AnyFunSuite {
     assert(result == 42)
   }
 
-  // Percentile noop
+  // Ratio noop
 
-  test("14.Percentile.noop incNumerator is a no-op") {
-    val percentile = Percentile.noop[IO]
-    percentile.incNumerator(10).unsafeRunSync()
+  test("14.Ratio.noop incNumerator is a no-op") {
+    val ratio = Ratio.noop[IO]
+    ratio.incNumerator(10).unsafeRunSync()
   }
 
-  test("15.Percentile.noop incDenominator is a no-op") {
-    val percentile = Percentile.noop[IO]
-    percentile.incDenominator(10).unsafeRunSync()
+  test("15.Ratio.noop incDenominator is a no-op") {
+    val ratio = Ratio.noop[IO]
+    ratio.incDenominator(10).unsafeRunSync()
   }
 
-  test("16.Percentile.noop incBoth is a no-op") {
-    val percentile = Percentile.noop[IO]
-    percentile.incBoth(3, 4).unsafeRunSync()
+  test("16.Ratio.noop incBoth is a no-op") {
+    val ratio = Ratio.noop[IO]
+    ratio.incBoth(3, 4).unsafeRunSync()
   }
 
-  test("17.Percentile.noop works with Id") {
-    val percentile = Percentile.noop[Id]
-    percentile.incNumerator(1)
-    percentile.incDenominator(2)
-    percentile.incBoth(3, 4)
+  test("17.Ratio.noop works with Id") {
+    val ratio = Ratio.noop[Id]
+    ratio.incNumerator(1)
+    ratio.incDenominator(2)
+    ratio.incBoth(3, 4)
   }
 
   // IdleGauge noop

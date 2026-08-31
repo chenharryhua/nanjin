@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   HealthCheck,
   IdleGauge,
   NumericGauge,
-  Percentile
+  Ratio
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import io.circe.syntax.EncoderOps
@@ -76,7 +76,7 @@ import java.time.ZoneId
   *     risk vs. normal counters) are not stamped as otel point attributes, so such siblings collapse into a
   *     single otel series unless given distinct metric names.
   *
-  * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/percentile/idle/active/frequency) is
+  * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/ratio/idle/active/frequency) is
   * Dropwizard-only: an arbitrary encoded value cannot satisfy otel4s's numeric `MeasurementValue`. Use
   * `numericGauge` when the value is a `Long` and should also reach OpenTelemetry.
   */
@@ -109,8 +109,8 @@ sealed trait MetricsHub[F[_]] {
   /** Register a boolean health check with timeout and optional refresh policy. */
   def healthCheck(name: String, f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit]
 
-  /** Register a numerator/denominator percentile gauge. */
-  def percentile(name: String, f: Endo[Percentile.Builder] = identity): Resource[F, Percentile[F]]
+  /** Register a numerator/denominator ratio gauge. */
+  def ratio(name: String, f: Endo[Ratio.Builder] = identity): Resource[F, Ratio[F]]
 
   /** Register a gauge reporting elapsed time since the last `wakeUp`. */
   def idleGauge(name: String, f: Endo[IdleGauge.Builder] = identity): Resource[F, IdleGauge[F]]
@@ -176,8 +176,8 @@ object MetricsHub {
       f: HealthCheck.Builder => HealthCheck.Registered[F]): Resource[F, Unit] =
       HealthCheck[F](gaugeParams, name, f)
 
-    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
-      Percentile(gaugeParams, name, f)
+    override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
+      Ratio(gaugeParams, name, f)
 
     // derived
 

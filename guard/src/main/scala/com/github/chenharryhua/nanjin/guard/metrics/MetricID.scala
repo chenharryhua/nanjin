@@ -14,7 +14,7 @@ import squants.{Each, Quantity, UnitOfMeasure}
 sealed trait MetricKind extends Product
 object MetricKind:
   enum Gauge extends MetricKind derives Encoder, Decoder:
-    case Default, HealthCheck, Percentile
+    case Default, HealthCheck, Ratio
 
   enum Counter extends MetricKind derives Encoder, Decoder:
     case Default, Risk
