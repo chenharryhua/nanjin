@@ -23,14 +23,14 @@ import scala.util.control.NoStackTrace
 trait CircuitBreaker[F[_]] {
   def attempt[A](fa: F[A]): F[Either[Throwable, A]]
   def protect[A](fa: F[A]): F[A]
-  def getState: F[CircuitBreaker.State]
+  def state: F[CircuitBreaker.State]
 }
 
 object CircuitBreaker {
   def noop[F[_]: MonadThrow]: CircuitBreaker[F] = new CircuitBreaker[F] {
     override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = fa.attempt
     override def protect[A](fa: F[A]): F[A] = fa
-    override def getState: F[State] = State.Closed(0).pure[F]
+    override def state: F[State] = State.Closed(0).pure[F]
   }
 
   enum State:
@@ -87,9 +87,9 @@ object CircuitBreaker {
       * If it completes, fails, or is canceled, breaker state is left unchanged.
       */
     val stateMachine: Resource[F, CircuitBreaker[F]] = for {
-      state <- Resource.eval(F.ref[MachineState](MachineState(initClosed, 0L)))
+      stateRef <- Resource.eval(F.ref[MachineState](MachineState(initClosed, 0L)))
       _ <- ticks.evalMap { _ =>
-        state.update { ms =>
+        stateRef.update { ms =>
           ms.state match {
             case InternalState.Open => transitionTo(ms, InternalState.HalfOpen)
             case _                  => ms
@@ -98,7 +98,7 @@ object CircuitBreaker {
       }.compile.drain.background
     } yield new CircuitBreaker[F] {
 
-      override val getState: F[State] = state.get.map(ms => toPublicState(ms.state))
+      override val state: F[State] = stateRef.get.map(ms => toPublicState(ms.state))
 
       override def protect[A](fa: F[A]): F[A] = {
 
@@ -116,7 +116,7 @@ object CircuitBreaker {
           case Canceled
 
         val admit: F[Decision] =
-          state.modify {
+          stateRef.modify {
             case ms @ MachineState(InternalState.Open, _) =>
               ms -> Decision.Reject
             case ms @ MachineState(InternalState.HalfOpen, _) =>
@@ -133,7 +133,7 @@ object CircuitBreaker {
           * This prevents stale completions from older fibers from overwriting newer state.
           */
         def updateIfCurrent(versionAtAdmission: Long)(evolve: MachineState => MachineState): F[Unit] =
-          state.update { ms =>
+          stateRef.update { ms =>
             if (ms.version === versionAtAdmission) evolve(ms) else ms
           }
 

@@ -19,7 +19,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
         cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds).repeat)
-        _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
+        _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.state)))
       } yield cb
 
       circuitBreaker.use { cb =>
@@ -37,7 +37,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
         cb <- agent.circuitBreaker(maxFailures = 3, _.fixedDelay(1.seconds).repeat)
-        _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.getState)))
+        _ <- agent.facilitate("test")(_.gauge("circuit.breaker", _.register(cb.state)))
       } yield cb
 
       circuitBreaker.use { cb =>

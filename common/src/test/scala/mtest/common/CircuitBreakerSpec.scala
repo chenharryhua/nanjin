@@ -74,7 +74,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
         for {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err))
-          state <- cb.getState
+          state <- cb.state
         } yield state shouldBe CircuitBreaker.State.Open
       }.unsafeRunSync()
     }
@@ -219,10 +219,10 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           _ <- IO.sleep(30.millis)
           _ <- cb.attempt(IO.raiseError(new RuntimeException("f1")))
           _ <- cb.attempt(IO.raiseError(new RuntimeException("f2")))
-          before <- cb.getState
+          before <- cb.state
           _ <- gate.complete(())
           _ <- slowSuccess.joinWithNever
-          after <- cb.getState
+          after <- cb.state
         } yield {
           before shouldBe CircuitBreaker.State.Closed(2)
           after shouldBe CircuitBreaker.State.Closed(2)
@@ -236,10 +236,10 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           slowFailure <- cb.attempt(gate.get >> IO.raiseError(new RuntimeException("slow"))).start
           _ <- IO.sleep(30.millis)
           _ <- cb.attempt(IO.raiseError(new RuntimeException("f1")))
-          before <- cb.getState
+          before <- cb.state
           _ <- gate.complete(())
           _ <- slowFailure.joinWithNever
-          after <- cb.getState
+          after <- cb.state
         } yield {
           before shouldBe CircuitBreaker.State.Closed(1)
           after shouldBe CircuitBreaker.State.Closed(1)
@@ -256,10 +256,10 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           _ <- cb.attempt(IO.raiseError(new RuntimeException("f2")))
           _ <- IO.sleep(120.millis)
           _ <- cb.attempt(IO.unit)
-          before <- cb.getState
+          before <- cb.state
           _ <- gate.complete(())
           _ <- slowFailure.joinWithNever
-          after <- cb.getState
+          after <- cb.state
         } yield {
           before shouldBe CircuitBreaker.State.Closed(0)
           after shouldBe CircuitBreaker.State.Closed(0)
@@ -302,11 +302,11 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err)) // open
           _ <- IO.sleep(150.millis) // tick -> half-open
-          state1 <- cb.getState
+          state1 <- cb.state
           probe <- cb.attempt(IO.sleep(500.millis)).start
           _ <- IO.sleep(30.millis)
           _ <- probe.cancel // cancel half-open probe
-          state2 <- cb.getState
+          state2 <- cb.state
         } yield {
           state1 shouldBe CircuitBreaker.State.HalfOpen
           state2 shouldBe CircuitBreaker.State.HalfOpen
@@ -336,7 +336,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
           _ <- gate.complete(())
           _ <- slowFromClosed.joinWithNever
           // State should still be HalfOpen (running), not Closed
-          state <- cb.getState
+          state <- cb.state
           _ <- probeFromHalfOpen.cancel
         } yield state shouldBe CircuitBreaker.State.HalfOpen
       }.unsafeRunSync()
