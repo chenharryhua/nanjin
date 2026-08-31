@@ -136,7 +136,8 @@ object SimpleStorageService:
       }
     } yield new SimpleStorageServiceImpl[F](s3, presigner, logger)
 
-  final private class SimpleStorageServiceImpl[F[_]](s3: S3Client, presigner: S3Presigner, logger: Logger[F])(using F: Sync[F])
+  final private class SimpleStorageServiceImpl[F[_]](s3: S3Client, presigner: S3Presigner, logger: Logger[F])(
+    using F: Sync[F])
       extends SimpleStorageService[F] {
 
     override def headObject(hor: HeadObjectRequest): F[HeadObjectResponse] =

@@ -14,7 +14,8 @@ class BatchEncoderTest extends AnyFunSuite {
   private val label = MetricScope("batch", Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)
   private val completed = CompletedJob(job, Duration.ofMillis(12), succeeded = true)
-  private val failed = CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), succeeded = false)
+  private val failed =
+    CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), succeeded = false)
 
   test("quasi and value batches encode kind and result tags") {
     val quasi = QuasiBatch(

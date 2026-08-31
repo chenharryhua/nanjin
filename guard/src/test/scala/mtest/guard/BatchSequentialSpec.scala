@@ -8,9 +8,9 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchKind,
   BatchMode,
-  ValueBatch,
   JobHook,
-  PostConditionUnsatisfied
+  PostConditionUnsatisfied,
+  ValueBatch
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard

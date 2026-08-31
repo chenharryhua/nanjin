@@ -48,7 +48,7 @@ sealed trait Compression extends Product {
     case Compression.Bzip2            => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Gzip             => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Lz4              => CompressionLevel.DEFAULT_COMPRESSION
-    case Compression.Lz4Raw          => CompressionLevel.DEFAULT_COMPRESSION
+    case Compression.Lz4Raw           => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Brotli           => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Lzo              => CompressionLevel.DEFAULT_COMPRESSION
     case Compression.Deflate(level)   => convert(level.value)
@@ -69,7 +69,7 @@ sealed trait ParquetCompression extends Compression {
     case Compression.Snappy       => CompressionCodecName.SNAPPY
     case Compression.Gzip         => CompressionCodecName.GZIP
     case Compression.Lz4          => CompressionCodecName.LZ4
-    case Compression.Lz4Raw      => CompressionCodecName.LZ4_RAW
+    case Compression.Lz4Raw       => CompressionCodecName.LZ4_RAW
     case Compression.Brotli       => CompressionCodecName.BROTLI
     case Compression.Lzo          => CompressionCodecName.LZO
     case Compression.Zstandard(_) => CompressionCodecName.ZSTD
@@ -107,7 +107,7 @@ object Compression {
       case Bzip2                => Json.fromString(Bzip2.shortName)
       case Gzip                 => Json.fromString(Gzip.shortName)
       case Lz4                  => Json.fromString(Lz4.shortName)
-      case Lz4Raw              => Json.fromString(Lz4Raw.shortName)
+      case Lz4Raw               => Json.fromString(Lz4Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
       case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.value}") // hadoop convention
@@ -126,7 +126,7 @@ object Compression {
       case Bzip2.shortName        => Right(Bzip2)
       case Gzip.shortName         => Right(Gzip)
       case Lz4.shortName          => Right(Lz4)
-      case Lz4Raw.shortName      => Right(Lz4Raw)
+      case Lz4Raw.shortName       => Right(Lz4Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
       case s"deflate-${level}"    => convert_level(level).map(Deflate(_))

@@ -180,8 +180,8 @@ object Policy {
     *   agent.circuitBreaker(3, _.fresh(prepared))
     * }}}
     *
-    * The body is intentionally the identity function: `fresh` exists only to occupy the `Policy.type => Policy`
-    * slot, returning the supplied policy unchanged.
+    * The body is intentionally the identity function: `fresh` exists only to occupy the
+    * `Policy.type => Policy` slot, returning the supplied policy unchanged.
     */
   def fresh(policy: Policy): Policy = policy
 

@@ -191,12 +191,7 @@ object Batch:
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-            QuasiBatch(
-              scope = metrics.scope,
-              spent = fd.toJava,
-              mode = mode,
-              batchId = batchId,
-              jobs = jobs)
+            QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
     }
@@ -214,12 +209,7 @@ object Batch:
       Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
         createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
           case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-            ValueBatch(
-              scope = metrics.scope,
-              spent = fd.toJava,
-              mode = mode,
-              batchId = batchId,
-              jobs = jobs)
+            ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
         }
       }
     }

@@ -4,12 +4,7 @@ import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
-import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
-  ActiveGauge,
-  BalanceGauge,
-  IdleGauge,
-  Ratio
-}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{ActiveGauge, BalanceGauge, IdleGauge, Ratio}
 import org.scalatest.funsuite.AnyFunSuite
 
 class MetricsNoopTest extends AnyFunSuite {

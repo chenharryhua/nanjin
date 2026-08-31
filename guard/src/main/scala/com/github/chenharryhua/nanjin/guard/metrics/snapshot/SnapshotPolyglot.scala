@@ -170,8 +170,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
 
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
-      .map(c =>
-        c.metricId -> List(show"${c.metricId.token.name}: ${decimalFormatter.format(c.counter)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.token.name}: ${decimalFormatter.format(c.counter)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
