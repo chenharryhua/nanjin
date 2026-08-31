@@ -4,7 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.google.protobuf.DynamicMessage
 import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
-import io.confluent.kafka.serializers.json.{KafkaJsonSchemaDeserializer, KafkaJsonSchemaSerializer}
+import io.confluent.kafka.serializers.json.{
+  KafkaJsonSchemaDeserializer,
+  KafkaJsonSchemaDeserializerConfig,
+  KafkaJsonSchemaSerializer,
+  KafkaJsonSchemaSerializerConfig
+}
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.generic.GenericRecord
@@ -13,6 +18,7 @@ import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import java.nio.charset.StandardCharsets
+import scala.jdk.CollectionConverters.given
 
 /** Kafka serdes for structured data formats.
   *
@@ -83,10 +89,46 @@ object Structured:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[JsonNode] =
       new Serde[JsonNode]:
         override lazy val serializer: Serializer[JsonNode] =
-          new KafkaJsonSchemaSerializer[JsonNode](srClient)
+          new Serializer[JsonNode]:
+            private val ser = new KafkaJsonSchemaSerializer[JsonNode](srClient)
+            override def serialize(topic: String, data: JsonNode): Array[Byte] =
+              ser.serialize(topic, data)
+
+            override def serialize(topic: String, headers: Headers, data: JsonNode): Array[Byte] =
+              ser.serialize(topic, headers, data)
+
+            override def close(): Unit = ser.close()
+
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit = {
+              val nc =
+                configs.asScala.toMap + (KafkaJsonSchemaSerializerConfig.JSON_ENVELOPE_DETECTION -> true)
+              ser.configure(nc.asJava, isKey)
+            }
+        end serializer
 
         override lazy val deserializer: Deserializer[JsonNode] =
-          new KafkaJsonSchemaDeserializer[JsonNode](srClient)
+          new Deserializer[JsonNode]:
+            private val deSer = new KafkaJsonSchemaDeserializer[JsonNode](srClient)
+            override def deserialize(topic: String, data: Array[Byte]): JsonNode =
+              deSer.deserialize(topic, data)
+
+            override def deserialize(topic: String, headers: Headers, data: Array[Byte]): JsonNode =
+              deSer.deserialize(topic, headers, data)
+
+            override def close(): Unit = deSer.close()
+
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit = {
+              val map = configs.asScala.toMap
+              val nc =
+                if (isKey)
+                  map + (KafkaJsonSchemaDeserializerConfig.JSON_KEY_TYPE -> classOf[JsonNode].getName)
+                else
+                  map + (KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE -> classOf[JsonNode].getName)
+
+              deSer.configure(nc.asJava, isKey)
+            }
+        end deserializer
+
   end jsonSchema
 
   /** Protobuf serde backed by Confluent's Schema Registry. Serializes and deserializes `DynamicMessage`. */
