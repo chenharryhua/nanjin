@@ -82,7 +82,7 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
             MetricDatum
               .builder()
               .dimensions(dimensions)
-              .metricName(mid.token.name)
+              .metricName(mid.token.metricName)
               .unit(unit)
               .timestamp(timestamp)
               .value(value)

@@ -63,11 +63,12 @@ end Squants
   * constructor is private because a `MetricToken` can only be minted through the effectful `apply`; a caller
   * cannot fabricate one and thereby forge an identity or alias an existing instance.
   */
-final case class MetricToken private (name: String, age: Long, uniqueToken: Int) derives Eq, Codec.AsObject
+final case class MetricToken private (metricName: String, age: Long, uniqueToken: Int)
+    derives Eq, Codec.AsObject
 private object MetricToken:
-  def apply[F[_]: {Applicative, Clock, Unique}](name: String): F[MetricToken] =
+  def apply[F[_]: {Applicative, Clock, Unique}](metricName: String): F[MetricToken] =
     (Clock[F].monotonic, Unique[F].unique).mapN((age, token) =>
-      MetricToken(name, age.toNanos, Hash[Unique.Token].hash(token)))
+      MetricToken(metricName, age.toNanos, Hash[Unique.Token].hash(token)))
 end MetricToken
 
 final case class MetricScope(label: MetricScope.Label, domain: Domain, service: Service, task: Task)
