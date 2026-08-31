@@ -154,7 +154,7 @@ sealed trait BatchResult[A] {
   def succeeded: Boolean
 
   /** Completion-only summary suitable for reporting. */
-  def completed: CompletedBatch
+  def summary: CompletedBatch
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -168,7 +168,7 @@ final case class QuasiBatch[A](
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
   override def succeeded: Boolean = jobs.forall(_.record.succeeded)
-  override def completed: CompletedBatch = CompletedBatch(
+  override def summary: CompletedBatch = CompletedBatch(
     scope = scope,
     spent = spent,
     mode = mode,
@@ -211,7 +211,7 @@ final case class ValueBatch[A](
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
   override val succeeded: Boolean = true
-  override def completed: CompletedBatch =
+  override def summary: CompletedBatch =
     CompletedBatch(
       scope = scope,
       spent = spent,
@@ -253,7 +253,7 @@ final case class MonadicBatch[A](
   override val mode: BatchMode = BatchMode.Monadic
   override def succeeded: Boolean = result.isRight
 
-  override def completed: CompletedBatch =
+  override def summary: CompletedBatch =
     CompletedBatch(
       scope = scope,
       spent = spent,
