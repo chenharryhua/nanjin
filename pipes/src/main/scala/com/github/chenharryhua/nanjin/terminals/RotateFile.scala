@@ -83,6 +83,12 @@ object RotateFile {
       )
 }
 
+/** Raised when a write into the current rotated file fails.
+  *
+  * @param offset
+  *   position in the target file at failure time: the number of records already written into this file
+  *   before the failing write. Not a grand total (cf. `RotateFile.recordCount`, the completed file's count).
+  */
 final case class RotateWriteException(create: CreateRotateFile, url: Url, offset: Long, cause: Throwable)
     extends Exception(
       show"fail writing $url offset=$offset, index=${create.index}, create=${create.time}",

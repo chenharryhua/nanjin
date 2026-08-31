@@ -37,7 +37,7 @@ final class Hadoop[F[_]](config: Configuration) {
     * @param path
     *   Path to check
     */
-  def isExist(path: Url)(using F: Sync[F]): F[Boolean] =
+  def exists(path: Url)(using F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
       val fs: FileSystem = hp.getFileSystem(config)

@@ -47,7 +47,7 @@ class HadoopTest extends AnyFunSuite {
         .takeRight(33) === "Year=2023/Month=08/Day=30/Hour=01")
   }
   test("3.exist") {
-    assert(hdp.isExist(p1).unsafeRunSync())
+    assert(hdp.exists(p1).unsafeRunSync())
     assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) >= 4)
   }
 
@@ -59,9 +59,9 @@ class HadoopTest extends AnyFunSuite {
 
   test("5.delete") {
     val delAction = for {
-      before <- hdp.isExist(p1)
+      before <- hdp.exists(p1)
       del <- hdp.delete(p1)
-      after <- hdp.isExist(p1)
+      after <- hdp.exists(p1)
     } yield (before, del, after)
 
     val (before, del, after) = delAction.unsafeRunSync()
@@ -150,14 +150,14 @@ class HadoopTest extends AnyFunSuite {
 
     assert(result.exists(_.status == Retained))
     assert(result.exists(_.status == Removed))
-    assert(hdp.isExist(keep).unsafeRunSync())
-    assert(!hdp.isExist(stale).unsafeRunSync())
+    assert(hdp.exists(keep).unsafeRunSync())
+    assert(!hdp.exists(stale).unsafeRunSync())
   }
 
   test("14.missing paths are handled as empty") {
     val missingRoot = path / "retention" / "missing"
 
-    assert(!hdp.isExist(missingRoot).unsafeRunSync())
+    assert(!hdp.exists(missingRoot).unsafeRunSync())
     assert(hdp.filesIn(missingRoot).unsafeRunSync().isEmpty)
     assert(hdp.dataFolders(missingRoot).unsafeRunSync().isEmpty)
     assert(hdp.emptyFolders(missingRoot).unsafeRunSync().isEmpty)
@@ -176,8 +176,8 @@ class HadoopTest extends AnyFunSuite {
     val copied = hdp.copy(source, target).unsafeRunSync()
 
     assert(copied)
-    assert(hdp.isExist(source).unsafeRunSync())
-    assert(hdp.isExist(target).unsafeRunSync())
+    assert(hdp.exists(source).unsafeRunSync())
+    assert(hdp.exists(target).unsafeRunSync())
     assert(File(target.toString()).contentAsString == "copied-content")
   }
 
@@ -192,8 +192,8 @@ class HadoopTest extends AnyFunSuite {
     val moved = hdp.move(source, target).unsafeRunSync()
 
     assert(moved)
-    assert(!hdp.isExist(source).unsafeRunSync())
-    assert(hdp.isExist(target).unsafeRunSync())
+    assert(!hdp.exists(source).unsafeRunSync())
+    assert(hdp.exists(target).unsafeRunSync())
     assert(File(target.toString()).contentAsString == "moved-content")
   }
 
