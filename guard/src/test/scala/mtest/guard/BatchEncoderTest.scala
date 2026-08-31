@@ -58,7 +58,7 @@ class BatchEncoderTest extends AnyFunSuite {
 
   test("CompletedBatch encoder produces correct JSON") {
     val cb = CompletedBatch(
-      label = label,
+      scope = label,
       spent = Duration.ofMillis(50),
       mode = BatchMode.Sequential,
       batchId = batchId,
@@ -103,7 +103,7 @@ class BatchEncoderTest extends AnyFunSuite {
       List(JobState(completed, Right(1))))
     assert(allDone.done)
     val cb = allDone.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.jobs.size == 1)
     assert(cb.done)
 
@@ -122,7 +122,7 @@ class BatchEncoderTest extends AnyFunSuite {
       BatchValue(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
     assert(bv.done)
     val cb = bv.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.mode == BatchMode.Parallel(2))
     assert(cb.jobs.size == 1)
     assert(cb.done)
@@ -132,7 +132,7 @@ class BatchEncoderTest extends AnyFunSuite {
     val mb = MonadicBatch(label, Duration.ofMillis(30), batchId, List(completed, failed), Right(99))
     assert(mb.done)
     val cb = mb.completed
-    assert(cb.label == label)
+    assert(cb.scope == label)
     assert(cb.mode == BatchMode.Monadic)
     assert(cb.jobs.size == 2)
   }

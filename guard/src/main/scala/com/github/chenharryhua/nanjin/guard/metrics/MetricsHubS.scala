@@ -32,8 +32,8 @@ import io.circe.Encoder
   */
 sealed trait MetricsHubS[F[_]] {
 
-  /** Metric label shared by instruments created from this hub. */
-  def metricLabel: MetricScope
+  /** Metric scope shared by instruments created from this hub. */
+  def scope: MetricScope
 
   /** Register a counter and emit its effectful handle. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Stream[F, Counter[F]]
@@ -82,7 +82,7 @@ object MetricsHubS {
   def apply[F[_]](hub: MetricsHub[F])(using MonadCancel[F, Throwable]): MetricsHubS[F] =
     new MetricsHubS[F] {
 
-      override val metricLabel: MetricScope = hub.metricLabel
+      override val scope: MetricScope = hub.scope
 
       override def counter(name: String, f: Endo[Counter.Builder]): Stream[F, Counter[F]] =
         Stream.resource(hub.counter(name, f))

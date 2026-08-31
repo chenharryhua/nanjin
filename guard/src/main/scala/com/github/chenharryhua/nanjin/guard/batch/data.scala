@@ -51,12 +51,12 @@ end BatchMode
 final case class Job(
   name: String,
   index: Int,
-  label: MetricScope,
+  scope: MetricScope,
   mode: BatchMode,
   kind: BatchKind,
   batchId: UUID):
-  val batch: String = label.label
-  val domain: String = label.domain.value
+  val batch: String = scope.label
+  val domain: String = scope.domain.value
 
   /** Human-readable name combining the job index and configured name. */
   def displayName: String = s"job-$index $name"
@@ -99,7 +99,7 @@ object JobValue:
 
 /** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
-  label: MetricScope,
+  scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -113,9 +113,9 @@ object CompletedBatch:
     Encoder.instance { cb =>
       val (done, fail) = cb.jobs.partition(_.done)
       Json.obj(
-        "batch" -> Json.fromString(cb.label.label),
+        "batch" -> Json.fromString(cb.scope.label),
         "batch_id" -> cb.batchId.asJson,
-        "domain" -> Json.fromString(cb.label.domain.value),
+        "domain" -> Json.fromString(cb.scope.domain.value),
         "mode" -> cb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(cb.spent)),
         "done" -> Json.fromInt(done.length),
@@ -133,8 +133,8 @@ object CompletedBatch:
 
 sealed trait BatchResult[A] {
 
-  /** Batch label and domain. */
-  def label: MetricScope
+  /** Metric scope (label and domain) this batch was run under. */
+  def scope: MetricScope
 
   /** Total elapsed execution time. */
   def spent: Duration
@@ -159,7 +159,7 @@ sealed trait BatchResult[A] {
   * outcome state.
   */
 final case class QuasiBatch[A](
-  label: MetricScope,
+  scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -167,7 +167,7 @@ final case class QuasiBatch[A](
     extends BatchResult[JobState[A]] derives Functor {
   override def done: Boolean = jobs.forall(_.completed.done)
   override def completed: CompletedBatch = CompletedBatch(
-    label = label,
+    scope = scope,
     spent = spent,
     mode = mode,
     batchId = batchId,
@@ -179,9 +179,9 @@ object QuasiBatch:
     Encoder.instance { qb =>
       val (done, fail) = qb.jobs.partition(_.completed.done)
       Json.obj(
-        "batch" -> Json.fromString(qb.label.label),
+        "batch" -> Json.fromString(qb.scope.label),
         "batch_id" -> qb.batchId.asJson,
-        "domain" -> Json.fromString(qb.label.domain.value),
+        "domain" -> Json.fromString(qb.scope.domain.value),
         "mode" -> qb.mode.asJson,
         "kind" -> BatchKind.Quasi.asJson,
         "spent" -> Json.fromString(fmt.format(qb.spent)),
@@ -202,7 +202,7 @@ end QuasiBatch
   * completion metadata.
   */
 final case class BatchValue[A](
-  label: MetricScope,
+  scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
   batchId: UUID,
@@ -211,7 +211,7 @@ final case class BatchValue[A](
   override val done: Boolean = true
   override def completed: CompletedBatch =
     CompletedBatch(
-      label = label,
+      scope = scope,
       spent = spent,
       mode = mode,
       batchId = batchId,
@@ -222,9 +222,9 @@ object BatchValue:
   given [A: Encoder] => Encoder[BatchValue[A]] =
     Encoder.instance { bv =>
       Json.obj(
-        "batch" -> Json.fromString(bv.label.label),
+        "batch" -> Json.fromString(bv.scope.label),
         "batch_id" -> bv.batchId.asJson,
-        "domain" -> Json.fromString(bv.label.domain.value),
+        "domain" -> Json.fromString(bv.scope.domain.value),
         "mode" -> bv.mode.asJson,
         "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
@@ -242,7 +242,7 @@ end BatchValue
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   */
 final case class MonadicBatch[A](
-  label: MetricScope,
+  scope: MetricScope,
   spent: Duration,
   batchId: UUID,
   jobs: List[CompletedJob],
@@ -253,7 +253,7 @@ final case class MonadicBatch[A](
 
   override def completed: CompletedBatch =
     CompletedBatch(
-      label = label,
+      scope = scope,
       spent = spent,
       mode = BatchMode.Monadic,
       batchId = batchId,
@@ -264,9 +264,9 @@ object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
       Json.obj(
-        "batch" -> Json.fromString(mb.label.label),
+        "batch" -> Json.fromString(mb.scope.label),
         "batch_id" -> mb.batchId.asJson,
-        "domain" -> Json.fromString(mb.label.domain.value),
+        "domain" -> Json.fromString(mb.scope.domain.value),
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
         "jobs" -> mb.jobs.map { cj =>

@@ -82,8 +82,8 @@ import java.time.ZoneId
   */
 sealed trait MetricsHub[F[_]] {
 
-  /** Metric label shared by instruments created from this hub. */
-  def metricLabel: MetricScope
+  /** Metric scope shared by instruments created from this hub. */
+  def scope: MetricScope
 
   /** Register a counter; the returned counter is safe to update in `F`. */
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
@@ -134,15 +134,15 @@ sealed trait MetricsHub[F[_]] {
 
 object MetricsHub {
   def apply[F[_]: Async](
-    metricLabel: MetricScope,
+    scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
     meterProvider: MeterProvider[F]): MetricsHub[F] =
-    new Impl[F](metricLabel, metricRegistry, dispatcher, zoneId, meterProvider)
+    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meterProvider)
 
   private class Impl[F[_]: Async](
-    val metricLabel: MetricScope,
+    val scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
@@ -150,26 +150,26 @@ object MetricsHub {
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, metricLabel, name, zoneId, meterProvider, f)
+      Counter[F](metricRegistry, scope, name, zoneId, meterProvider, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Meter[F](metricRegistry, scope, name, meterProvider, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Histogram[F](metricRegistry, scope, name, meterProvider, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, metricLabel, name, meterProvider, f)
+      Timer[F](metricRegistry, scope, name, meterProvider, f)
 
     // gauges
 
-    private val gaugeParams = GaugeParams[F](dispatcher, metricRegistry, metricLabel, zoneId)
+    private val gaugeParams = GaugeParams[F](dispatcher, metricRegistry, scope, zoneId)
 
     override def gauge(name: String, f: Gauge.Builder => Gauge.Registered[F]): Resource[F, Unit] =
       Gauge[F](gaugeParams, name, f)
 
     override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
-      NumericGauge[F](metricRegistry, metricLabel, name, dispatcher, meterProvider, fa, f)
+      NumericGauge[F](metricRegistry, scope, name, dispatcher, meterProvider, fa, f)
 
     override def healthCheck(
       name: String,

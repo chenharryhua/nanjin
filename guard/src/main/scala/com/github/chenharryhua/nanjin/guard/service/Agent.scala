@@ -158,12 +158,12 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickFuture[F](zoneId, f)
 
   override def metricsHub(label: String): MetricsHub[F] = {
-    val metricLabel = MetricScope(
+    val scope = MetricScope(
       label,
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    MetricsHub[F](metricLabel, metricsEventHandler.metricRegistry, dispatcher, zoneId, meterProvider)
+    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, meterProvider)
   }
 
   override def metricsHubS(label: String): MetricsHubS[F] =
@@ -179,12 +179,12 @@ final private class GeneralAgent[F[_]: Async](
     new Batch[F](metricsHub(label), uuidGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
-    val metricLabel = MetricScope(
+    val scope = MetricScope(
       label,
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    new BatchLight[F](metricLabel, uuidGenerator)
+    new BatchLight[F](scope, uuidGenerator)
   }
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
