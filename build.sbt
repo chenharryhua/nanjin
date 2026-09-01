@@ -103,6 +103,7 @@ lazy val common = (project in file("common"))
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
+      "io.circe" %% "circe-optics"                     % "0.15.1",
       "org.scala-lang.modules" %% "scala-xml"          % "2.4.0",
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
@@ -194,7 +195,6 @@ lazy val guard = (project in file("guard"))
     libraryDependencies ++= List(
       "io.github.timwspence" %% "cats-stm"     % "0.13.5",
       "org.typelevel" %% "log4cats-slf4j"      % log4catsV,
-      "io.circe" %% "circe-optics"             % "0.15.1",
       "org.http4s" %% "http4s-core"            % http4sV,
       "org.http4s" %% "http4s-dsl"             % http4sV,
       "org.http4s" %% "http4s-ember-server"    % http4sV,
@@ -204,9 +204,9 @@ lazy val guard = (project in file("guard"))
       // java
       "io.dropwizard.metrics" % "metrics-core" % metricsV,
       // test
-      "org.http4s" %% "http4s-ember-client"       % http4sV           % Test,
-      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV          % Test,
-      "ch.qos.logback"                            % "logback-classic" % logbackV % Test
+      "org.http4s" %% "http4s-ember-client"        % http4sV           % Test,
+      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV           % Test,
+      "ch.qos.logback"                             % "logback-classic" % logbackV % Test
     ) ++ testLib
   )
   .settings {

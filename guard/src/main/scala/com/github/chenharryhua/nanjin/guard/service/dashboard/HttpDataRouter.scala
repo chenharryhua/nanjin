@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service.dashboard
 import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.common.json
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.LogThreshold
 import com.github.chenharryhua.nanjin.guard.event.StopReason
@@ -87,8 +88,8 @@ final private class HttpDataRouter[F[_]](
      */
 
     case GET -> Root / "metrics" / "jvm" =>
-      val json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
-      Ok(json)
+      val prettified = json.prettify(mxBeans.allJvmGauge.value.asJson)
+      Ok(prettified)
 
     case GET -> Root / "metrics" / "report" =>
       val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report", serviceParams))
