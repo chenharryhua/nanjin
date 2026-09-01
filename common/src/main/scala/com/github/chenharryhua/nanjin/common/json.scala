@@ -19,7 +19,7 @@ import java.time.Duration
   *     or the dashboard.
   */
 object json {
-  private val redacted: Json = Json.fromString("redacted(*****)")
+  private val redacted: String = "redacted(*****)"
 
   private val pretty_json: Json => Json = {
     val decimalFormatter = new DecimalFormat("#,###")
@@ -41,21 +41,34 @@ object json {
     */
   def prettify[A: Encoder](a: A): Json = pretty_json(a.asJson)
 
-  /** Replace, at any nesting depth, the value of every object field whose key is in `keys` with a fixed
-    * marker, so sensitive fields do not appear in logs or on-screen output.
+  /** Rewrite, at any nesting depth, the '''string''' value of every object field whose key is in `keys`,
+    * applying `f` to the matched string, so sensitive fields do not appear in logs or on-screen output.
     *
-    * Redaction is keyed on the field name, so the check happens at the object level where the key is
-    * available. `Plated.transform` recurses into nested objects and arrays. For display only, not for
-    * serialization. Pass an existing collection with a splat: `redact(configuredKeys*)`.
+    * Only string values are rewritten. A matching key whose value is an object, array, or number is left
+    * structurally intact — this deliberately preserves shape rather than collapsing a container into a
+    * marker, and `Plated.transform` still recurses into that container, so sensitive string leaves nested
+    * inside it are caught on their own. Redaction is keyed on the field name, checked at the object level
+    * where the key is available. For display only, not for serialization.
     */
-  def redact(keys: String*): Json => Json =
+  def redact(keys: List[String], f: String => String): Json => Json =
     Plated.transform[Json] { js =>
       js.asObject match {
         case Some(obj) =>
           Json.fromJsonObject(obj.toIterable.foldLeft(JsonObject.empty) { case (acc, (key, value)) =>
-            acc.add(key, if (keys.contains(key)) redacted else value)
+            value.asString match {
+              case Some(str) if keys.contains(key) =>
+                acc.add(key, Json.fromString(f(str)))
+              case _ =>
+                acc.add(key, value)
+            }
           })
         case None => js
       }
     }
+
+  /** Replace matched string values with a fixed marker. Pass a held collection with a splat:
+    * `redact(configuredKeys*)`.
+    */
+  def redact(keys: String*): Json => Json =
+    redact(keys.toList, _ => redacted)
 }

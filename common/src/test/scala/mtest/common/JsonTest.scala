@@ -44,11 +44,30 @@ class JsonTest extends AnyFunSuite {
     assert(out.hcursor.get[String]("c").toOption.contains(redacted))
   }
 
-  test("5.redact - redacts a matching key regardless of value type") {
-    val in = Json.obj("secret" -> Json.obj("nested" -> "deep".asJson), "keep" -> 42.asJson)
-    val out = json.redact("secret")(in)
-    assert(out.hcursor.get[String]("secret").toOption.contains(redacted))
+  test("5.redact - only string values are redacted; container structure is preserved") {
+    // a matching key whose value is an object keeps its structure (recursion still visits its leaves),
+    // a matching key whose value is a number is left as-is, and matching string leaves are redacted.
+    val in = Json.obj(
+      "credentials" -> Json.obj("password" -> "p".asJson, "attempts" -> 3.asJson),
+      "password" -> 1234.asJson,
+      "keep" -> 42.asJson)
+    val out = json.redact("credentials", "password")(in)
+    // object-valued match is not collapsed into the marker; it stays an object
+    assert(out.hcursor.downField("credentials").focus.exists(_.isObject))
+    // the string leaf inside it is redacted by recursion
+    assert(out.hcursor.downField("credentials").get[String]("password").toOption.contains(redacted))
+    // its non-string sibling is untouched
+    assert(out.hcursor.downField("credentials").get[Int]("attempts").toOption.contains(3))
+    // a matching key holding a number is left unchanged (only strings are redacted)
+    assert(out.hcursor.get[Int]("password").toOption.contains(1234))
     assert(out.hcursor.get[Int]("keep").toOption.contains(42))
+  }
+
+  test("5a.redact - custom transform is applied to matched string values") {
+    val in = Json.obj("card" -> "4111111111111111".asJson, "keep" -> "visible".asJson)
+    val out = json.redact(List("card"), s => "*" * (s.length - 4) + s.takeRight(4))(in)
+    assert(out.hcursor.get[String]("card").toOption.contains("*" * 12 + "1111"))
+    assert(out.hcursor.get[String]("keep").toOption.contains("visible"))
   }
 
   test("6.redact - no keys is a no-op") {
