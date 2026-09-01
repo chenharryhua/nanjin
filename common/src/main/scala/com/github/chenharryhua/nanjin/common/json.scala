@@ -46,9 +46,9 @@ object json {
     *
     * Redaction is keyed on the field name, so the check happens at the object level where the key is
     * available. `Plated.transform` recurses into nested objects and arrays. For display only, not for
-    * serialization.
+    * serialization. Pass an existing collection with a splat: `redact(configuredKeys*)`.
     */
-  def redact(keys: List[String]): Json => Json =
+  def redact(keys: String*): Json => Json =
     Plated.transform[Json] { js =>
       js.asObject match {
         case Some(obj) =>

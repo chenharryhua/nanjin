@@ -14,14 +14,14 @@ class JsonTest extends AnyFunSuite {
 
   test("1.redact - replaces a matching top-level key") {
     val in = Json.obj("password" -> "secret".asJson, "user" -> "alice".asJson)
-    val out = json.redact(List("password"))(in)
+    val out = json.redact("password")(in)
     assert(out.hcursor.get[String]("password").toOption.contains(redacted))
     assert(out.hcursor.get[String]("user").toOption.contains("alice"))
   }
 
   test("2.redact - replaces matching keys nested inside objects") {
     val in = Json.obj("outer" -> Json.obj("password" -> "p".asJson, "ok" -> 1.asJson))
-    val out = json.redact(List("password"))(in)
+    val out = json.redact("password")(in)
     val outer = out.hcursor.downField("outer")
     assert(outer.get[String]("password").toOption.contains(redacted))
     assert(outer.get[Int]("ok").toOption.contains(1))
@@ -30,15 +30,15 @@ class JsonTest extends AnyFunSuite {
   test("3.redact - replaces matching keys inside array elements") {
     val in =
       Json.obj("items" -> Json.arr(Json.obj("password" -> "x".asJson), Json.obj("password" -> "y".asJson)))
-    val out = json.redact(List("password"))(in)
+    val out = json.redact("password")(in)
     val arr = out.hcursor.downField("items")
     assert(arr.downN(0).get[String]("password").toOption.contains(redacted))
     assert(arr.downN(1).get[String]("password").toOption.contains(redacted))
   }
 
-  test("4.redact - redacts every key in the key list") {
+  test("4.redact - redacts every key given") {
     val in = Json.obj("a" -> "1".asJson, "b" -> "2".asJson, "c" -> "3".asJson)
-    val out = json.redact(List("a", "c"))(in)
+    val out = json.redact("a", "c")(in)
     assert(out.hcursor.get[String]("a").toOption.contains(redacted))
     assert(out.hcursor.get[String]("b").toOption.contains("2"))
     assert(out.hcursor.get[String]("c").toOption.contains(redacted))
@@ -46,24 +46,32 @@ class JsonTest extends AnyFunSuite {
 
   test("5.redact - redacts a matching key regardless of value type") {
     val in = Json.obj("secret" -> Json.obj("nested" -> "deep".asJson), "keep" -> 42.asJson)
-    val out = json.redact(List("secret"))(in)
+    val out = json.redact("secret")(in)
     assert(out.hcursor.get[String]("secret").toOption.contains(redacted))
     assert(out.hcursor.get[Int]("keep").toOption.contains(42))
   }
 
-  test("6.redact - empty key list is a no-op") {
+  test("6.redact - no keys is a no-op") {
     val in = Json.obj("password" -> "secret".asJson, "n" -> Json.arr(1.asJson, 2.asJson))
-    assert(json.redact(Nil)(in) == in)
+    assert(json.redact()(in) == in)
   }
 
   test("7.redact - no matching key leaves json unchanged") {
     val in = Json.obj("a" -> "1".asJson, "b" -> Json.obj("c" -> "2".asJson))
-    assert(json.redact(List("zzz"))(in) == in)
+    assert(json.redact("zzz")(in) == in)
   }
 
   test("8.redact - non-object root is returned unchanged") {
-    assert(json.redact(List("password"))("hello".asJson) == "hello".asJson)
-    assert(json.redact(List("password"))(123.asJson) == 123.asJson)
+    assert(json.redact("password")("hello".asJson) == "hello".asJson)
+    assert(json.redact("password")(123.asJson) == 123.asJson)
+  }
+
+  test("8a.redact - accepts a splatted collection") {
+    val in = Json.obj("password" -> "p".asJson, "user" -> "alice".asJson)
+    val configured = List("password")
+    val out = json.redact(configured*)(in)
+    assert(out.hcursor.get[String]("password").toOption.contains(redacted))
+    assert(out.hcursor.get[String]("user").toOption.contains("alice"))
   }
 
   // ---------------- prettify ----------------
