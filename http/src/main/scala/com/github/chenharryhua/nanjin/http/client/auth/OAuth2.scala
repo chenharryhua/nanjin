@@ -6,7 +6,6 @@ import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
 import io.circe.Codec
 import org.http4s.*
 import org.http4s.Method.POST
@@ -38,9 +37,8 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 final case class ClientCredentials(
   auth_endpoint: Uri,
   client_id: String,
-  client_secret: String,
+  client_secret: Password,
   scope: Option[NonEmptyList[String]] = None)
-    derives Codec.AsObject
 
 /** Credentials for OAuth 2.0 Authorization Code flow.
   *
@@ -63,11 +61,10 @@ final case class ClientCredentials(
 final case class AuthorizationCode(
   auth_endpoint: Uri,
   client_id: String,
-  client_secret: String,
-  code: String,
+  client_secret: Password,
+  code: Password,
   redirect_uri: String,
   scope: Option[NonEmptyList[String]] = None)
-    derives Codec.AsObject
 
 /*
  * private section
@@ -99,7 +96,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     val uf = UrlForm(
       "grant_type" -> "client_credentials",
       "client_id" -> credential.client_id,
-      "client_secret" -> credential.client_secret)
+      "client_secret" -> credential.client_secret.value)
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
@@ -117,7 +114,7 @@ private class ClientCredentialsAuth[F[_]: Async](
                   "grant_type" -> "refresh_token",
                   "refresh_token" -> refresh_token,
                   "client_id" -> credential.client_id,
-                  "client_secret" -> credential.client_secret),
+                  "client_secret" -> credential.client_secret.value),
                 credential.auth_endpoint
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
@@ -171,7 +168,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
     val uf = UrlForm(
       "grant_type" -> "authorization_code",
       "client_id" -> credential.client_id,
-      "code" -> credential.code,
+      "code" -> credential.code.value,
       "redirect_uri" -> credential.redirect_uri
     )
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
@@ -186,7 +183,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
               POST(
                 urlForm,
                 credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret))
+                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
@@ -199,7 +196,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
                   "client_id" -> credential.client_id,
                   "refresh_token" -> pre.refresh_token),
                 credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret))
+                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
               ).putHeaders(`Idempotency-Key`(show"$uuid"))))
           }
 

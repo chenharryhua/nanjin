@@ -1,14 +1,16 @@
 package mtest.http
 
 import cats.data.NonEmptyList
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
   ClientCredentials,
+  Password,
   Salesforce,
   UriJsonCodec
 }
 import io.circe.syntax.given
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.Json
 import munit.FunSuite
 import org.http4s.Uri
 import org.http4s.implicits.*
@@ -20,14 +22,6 @@ class HttpCodecTest extends FunSuite {
   // ---------------------------------------------------------------------------
 
   import UriJsonCodec.given
-
-  /** encode(a) decodes back to a, round-tripping through the JSON AST (no circe-parser dependency).
-    * `assert(== Right(a))` avoids munit's cross-type Compare requirement on the DecodingFailure left side.
-    */
-  private def assertRoundTrip[A: Encoder: Decoder](a: A): Unit = {
-    val json = a.asJson
-    assert(json.as[A] == Right(a), s"round-trip failed for: ${json.noSpaces}")
-  }
 
   private def uriRoundTrip(uri: Uri, rendered: String): Unit = {
     val json = uri.asJson
@@ -71,78 +65,57 @@ class HttpCodecTest extends FunSuite {
   }
 
   // ---------------------------------------------------------------------------
-  // OAuth2 / Salesforce credential codecs (derives Codec.AsObject, snake_case keys,
-  // Uri field routed through UriJsonCodec). These are wire-format sensitive.
+  // Password masking (security): secrets must never render in cleartext, and the
+  // credential types must not derive a JSON codec that could serialize them.
   // ---------------------------------------------------------------------------
 
-  test("9.ClientCredentials - round-trips without scope") {
-    val cc = ClientCredentials(uri"https://auth.example.com/token", "id", "secret")
-    assertRoundTrip(cc)
+  private val secret = "s3cr3t-p@ss"
+
+  test("9.Password.toString and show mask the value") {
+    assert(Password(secret).toString == "***")
+    assert(Password(secret).show == "***")
+    assert(!Password(secret).toString.contains(secret))
   }
 
-  test("10.ClientCredentials - round-trips with scope") {
-    val cc = ClientCredentials(
-      uri"https://auth.example.com/token",
-      "id",
-      "secret",
-      scope = Some(NonEmptyList.of("read", "write")))
-    assertRoundTrip(cc)
+  test("10.Password.value returns the real secret") {
+    assert(Password(secret).value == secret)
   }
 
-  test("11.ClientCredentials - wire keys are snake_case and uri renders as a string") {
-    val cc = ClientCredentials(uri"https://auth.example.com/token", "id", "secret")
-    val obj = cc.asJson.hcursor
-    assertEquals(obj.get[String]("auth_endpoint"), Right("https://auth.example.com/token"))
-    assertEquals(obj.get[String]("client_id"), Right("id"))
-    assertEquals(obj.get[String]("client_secret"), Right("secret"))
+  test("11.ClientCredentials.toString does not leak client_secret") {
+    val cc = ClientCredentials(uri"https://auth.example.com/token", "id", Password(secret))
+    val rendered = cc.toString
+    assert(!rendered.contains(secret), s"secret leaked in: $rendered")
+    assert(rendered.contains("***"))
+    assert(rendered.contains("id")) // non-secret field still visible
   }
 
-  test("12.AuthorizationCode - round-trips without scope") {
+  test("12.AuthorizationCode.toString masks client_secret and code") {
     val ac = AuthorizationCode(
       auth_endpoint = uri"https://auth.example.com/token",
       client_id = "id",
-      client_secret = "secret",
-      code = "auth-code",
-      redirect_uri = "https://example.com/callback"
-    )
-    assertRoundTrip(ac)
-  }
-
-  test("13.AuthorizationCode - round-trips with scope") {
-    val ac = AuthorizationCode(
-      auth_endpoint = uri"https://auth.example.com/token",
-      client_id = "id",
-      client_secret = "secret",
-      code = "auth-code",
+      client_secret = Password(secret),
+      code = Password("auth-code-secret"),
       redirect_uri = "https://example.com/callback",
       scope = Some(NonEmptyList.one("openid"))
     )
-    assertRoundTrip(ac)
+    val rendered = ac.toString
+    assert(!rendered.contains(secret))
+    assert(!rendered.contains("auth-code-secret"))
+    assert(rendered.contains("***"))
   }
 
-  test("14.Salesforce.PasswordGrant - round-trips") {
+  test("13.Salesforce.PasswordGrant.toString masks client_secret and password") {
     val pg = Salesforce.PasswordGrant(
       auth_endpoint = uri"https://login.salesforce.com/services/oauth2/token",
       client_id = "id",
-      client_secret = "secret",
+      client_secret = Password(secret),
       username = "user@example.com",
-      password = "pw"
+      password = Password("pw-secret")
     )
-    assertRoundTrip(pg)
-  }
-
-  test("15.Salesforce.PasswordGrant - wire keys are snake_case") {
-    val pg = Salesforce.PasswordGrant(
-      auth_endpoint = uri"https://login.salesforce.com/services/oauth2/token",
-      client_id = "id",
-      client_secret = "secret",
-      username = "user@example.com",
-      password = "pw"
-    )
-    val obj = pg.asJson.hcursor
-    assertEquals(obj.get[String]("client_id"), Right("id"))
-    assertEquals(obj.get[String]("client_secret"), Right("secret"))
-    assertEquals(obj.get[String]("username"), Right("user@example.com"))
-    assertEquals(obj.get[String]("password"), Right("pw"))
+    val rendered = pg.toString
+    assert(!rendered.contains(secret))
+    assert(!rendered.contains("pw-secret"))
+    assert(rendered.contains("***"))
+    assert(rendered.contains("user@example.com")) // username is not a secret
   }
 }

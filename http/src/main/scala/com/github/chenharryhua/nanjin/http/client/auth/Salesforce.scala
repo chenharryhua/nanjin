@@ -43,9 +43,9 @@ object Salesforce {
     private val urlForm: UrlForm = UrlForm(
       "grant_type" -> "password",
       "client_id" -> credential.client_id,
-      "client_secret" -> credential.client_secret,
+      "client_secret" -> credential.client_secret.value,
       "username" -> credential.username,
-      "password" -> credential.password
+      "password" -> credential.password.value
     )
 
     private case class Token(
@@ -83,10 +83,9 @@ object Salesforce {
   final case class PasswordGrant(
     auth_endpoint: Uri,
     client_id: String,
-    client_secret: String,
+    client_secret: Password,
     username: String,
-    password: String)
-      derives Codec.AsObject
+    password: Password)
 
   /** Create a Salesforce `Login` using the Password Grant flow.
     *
