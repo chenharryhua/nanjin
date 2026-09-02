@@ -45,7 +45,7 @@ object DBConfig {
       cfg.setDriverClassName("org.postgresql.Driver")
       cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database}")
       cfg.setUsername(db.username)
-      cfg.setPassword(db.password)
+      cfg.setPassword(db.password.value)
       cfg
     }
     new DBConfig(initConfig, Nil) {}
@@ -57,7 +57,7 @@ object DBConfig {
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
       cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database}")
       cfg.setUsername(db.username)
-      cfg.setPassword(db.password)
+      cfg.setPassword(db.password.value)
       cfg.addDataSourceProperty("ssl", "true")
       cfg.addDataSourceProperty("sslfactory", "com.amazon.redshift.ssl.NonValidatingFactory")
       cfg
@@ -71,7 +71,7 @@ object DBConfig {
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
       cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database}")
       cfg.setUsername(db.username)
-      cfg.setPassword(db.password)
+      cfg.setPassword(db.password.value)
       cfg
     }
     new DBConfig(initConfig, Nil) {}

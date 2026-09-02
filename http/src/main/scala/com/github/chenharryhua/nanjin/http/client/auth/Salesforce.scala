@@ -5,6 +5,7 @@ import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
 import io.circe.Codec
 import org.http4s.*
@@ -43,9 +44,9 @@ object Salesforce {
     private val urlForm: UrlForm = UrlForm(
       "grant_type" -> "password",
       "client_id" -> credential.client_id,
-      "client_secret" -> credential.client_secret,
+      "client_secret" -> credential.client_secret.value,
       "username" -> credential.username,
-      "password" -> credential.password
+      "password" -> credential.password.value
     )
 
     private case class Token(
@@ -83,10 +84,9 @@ object Salesforce {
   final case class PasswordGrant(
     auth_endpoint: Uri,
     client_id: String,
-    client_secret: String,
+    client_secret: Secret,
     username: String,
-    password: String)
-      derives Codec.AsObject
+    password: Secret)
 
   /** Create a Salesforce `Login` using the Password Grant flow.
     *
