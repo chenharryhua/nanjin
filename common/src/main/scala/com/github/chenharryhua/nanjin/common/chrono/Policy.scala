@@ -145,17 +145,21 @@ object Policy {
   /** Fixed-delay scheduling. Produces one tick per delay in the list, then exhausts. Use `.repeat` to cycle
     * through the delays indefinitely.
     *
-    * All delays must be non-negative, and at least one must be strictly positive.
+    * An empty list is just another way to say [[empty]] — a policy that never ticks — mirroring `limited(0)`.
+    * For a non-empty list, all delays must be non-negative and at least one must be strictly positive.
     */
-  def fixedDelay(nel: NonEmptyList[FiniteDuration]): Policy = {
-    require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
-    require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
-    Policy(Fix(FixedDelay(nel.map(_.toJava))))
-  }
+  def fixedDelay(delays: List[FiniteDuration]): Policy =
+    NonEmptyList.fromList(delays) match {
+      case None      => empty
+      case Some(nel) =>
+        require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
+        require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
+        Policy(Fix(FixedDelay(nel.map(_.toJava))))
+    }
 
-  /** Varargs convenience for `fixedDelay`. */
+  /** Varargs convenience for `fixedDelay`. Requires at least one delay. */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
-    fixedDelay(NonEmptyList.of(head, tail*))
+    fixedDelay(head :: tail.toList)
 
   /** Fixed-rate scheduling. Produces a single tick that maintains a constant period from the previous
     * conclude time. Use `.repeat` for continuous fixed-rate scheduling.

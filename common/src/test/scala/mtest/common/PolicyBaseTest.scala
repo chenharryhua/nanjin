@@ -242,4 +242,12 @@ class PolicyBaseTest extends AnyFunSuite {
       Policy.empty.jitter((-1).second, 1.second)
     }
   }
+
+  test("10.fixedDelay with an empty list is Policy.empty") {
+    assert(Policy.fixedDelay(List.empty[scala.concurrent.duration.FiniteDuration]).eqv(Policy.empty))
+    // a non-empty list still enforces the positivity invariant
+    assertThrows[IllegalArgumentException] {
+      Policy.fixedDelay(List(0.second, 0.second))
+    }
+  }
 }
