@@ -172,8 +172,17 @@ private object CodecPolicy {
       }
     }
 
+    // droste's `Coalgebra[PolicyF, HCursor]` must be a pure `HCursor => PolicyF[HCursor]`; the unfold driven
+    // by `scheme.ana` has no Either/monadic channel to surface a decode failure. We therefore throw the
+    // DecodingFailure here and rely on `decoder` (below) to run this coalgebra inside a try/catch that turns
+    // it back into a `Left`. The exception never escapes `decoder`, so the resulting `Decoder` stays total.
+    //
+    // This coalgebra is `private`, so `decoder` below is its only unfold site today. The invariant to keep:
+    // any future `scheme.ana(decoderCoalgebra)` added in this object must run inside the same catch (or use
+    // `scheme.anaM` over the Either monad), otherwise the throw would leak past a total Decoder boundary.
     Coalgebra[PolicyF, HCursor] { hc =>
       decodeVariant(hc).fold(
+        // caught by `decoder`'s try/catch; see note above
         err => throw err, // scalafix:ok
         identity
       )
@@ -182,6 +191,8 @@ private object CodecPolicy {
 
   val decoder: Decoder[Fix[PolicyF]] =
     (hc: HCursor) =>
+      // This try/catch is the other half of decoderCoalgebra's invariant: it confines the DecodingFailure
+      // that the coalgebra throws mid-unfold and converts it back to a `Left`, keeping this Decoder total.
       try Right(scheme.ana(decoderCoalgebra).apply(hc))
       catch
         case ex: DecodingFailure => Left(ex)
