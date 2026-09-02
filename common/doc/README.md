@@ -209,14 +209,20 @@ cfg.password.value  // "hunter2" — the single, intentional cleartext escape ha
 Why it holds where a plain `String` (or an `opaque type`) would leak:
 - `toString` and `Show` render `***`, never the value.
 - It is a real runtime class, not an `opaque type` — an opaque type erases to `String`, so a case class embedding it would print the underlying value in its default `toString`. The class masks even when nested inside other structures.
-- There is deliberately **no** `Encoder`/`Codec`, which also blocks an enclosing type from deriving one, so a secret can never be serialized to JSON in cleartext.
+- The JSON `Encoder` is a **masking** encoder that emits `"***"`. An enclosing type can therefore auto-derive a codec for logging, and the secret still never reaches JSON in cleartext. There is deliberately **no** `Decoder` — a secret cannot be recovered from its mask, so a masked value can't round-trip back into a real one.
 - `equals`/`hashCode` are value-based, so `Secret` still works as a map key or in comparisons.
 
 The raw value is reachable only through `.value`, used at trust boundaries (building a JDBC config, a token request, ...).
 
+```scala
+import io.circe.syntax.*
+Secret("hunter2").asJson              // "***"
+DbConfig("admin", Secret("hunter2")).asJson  // {"user":"admin","password":"***"}
+```
+
 Drawbacks:
 - `.value` is an unguarded escape hatch — once called, the plain `String` is subject to the usual leak paths. Keep the unwrap as close to the boundary as possible.
-- No JSON codec by design — types embedding a `Secret` cannot auto-derive a full-fidelity codec; the secret field must be handled explicitly at the boundary.
+- The encoder masks on **every** serialization path, including wire payloads. A request that needs the real secret must take it from `.value`; serializing the enclosing type to a wire body will send `"***"`, not the secret.
 
 ### json — Display-Only Transforms
 
