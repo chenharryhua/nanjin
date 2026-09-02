@@ -49,7 +49,14 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
-      _ <- F.background[Nothing](renewToken(authToken).attempt.foreverM)
+      // Background renewal loop. `renewToken` schedules the next fetch via its own `delayBy`
+      // on the success path, but if it fails (network blip, decode error, short-lived token,
+      // ...) that internal delay may never be reached. Without a floor here, a persistently
+      // failing renewal would spin `foreverM` with zero delay, busy-looping the CPU and
+      // hammering the auth endpoint. `handleErrorWith` swallows the failure but enforces a
+      // minimum backoff before the loop retries, guaranteeing progress bounded from below.
+      _ <- F.background[Nothing](
+        renewToken(authToken).handleErrorWith(_ => F.sleep(renewFailureBackoff)).foreverM)
       singleFlight <- Resource.eval(SingleFlight[F, T])
     } yield Client[F] { request =>
       def runWithToken(token: T): Resource[F, Response[F]] =
