@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
+import scala.compiletime.{constValue, erasedValue}
+import scala.deriving.Mirror
 import scala.quoted.*
 
 /** Compile-time typeclass providing the short name of a Scala type. */
@@ -22,3 +24,22 @@ object OpaqueLift:
   inline def lift[A, B, TC[_]](using tc: TC[B]): TC[A] =
     tc.asInstanceOf[TC[A]] // scalafix:ok
 end OpaqueLift
+
+object FieldNames:
+  /** Case-class field names, extracted at compile time from the product mirror's element labels, in
+    * declaration order.
+    *
+    * {{{
+    * final case class Tiger(name: String, age: Int, colour: String)
+    *
+    * FieldNames.of[Tiger] // List("name", "age", "colour")
+    * }}}
+    */
+  inline def of[A](using m: Mirror.ProductOf[A]): List[String] = labels[m.MirroredElemLabels]
+
+  private inline def labels[T <: Tuple]: List[String] =
+    inline erasedValue[T] match {
+      case _: EmptyTuple     => Nil
+      case _: (name *: rest) => constValue[name & String] :: labels[rest]
+    }
+end FieldNames

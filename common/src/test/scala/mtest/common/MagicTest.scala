@@ -1,7 +1,7 @@
 package mtest.common
 
 import cats.Show
-import com.github.chenharryhua.nanjin.common.{OpaqueLift, TypeName}
+import com.github.chenharryhua.nanjin.common.{FieldNames, OpaqueLift, TypeName}
 import org.scalatest.funsuite.AnyFunSuite
 
 object MagicTest {
@@ -46,5 +46,25 @@ class MagicTest extends AnyFunSuite {
     val liftedShow = WrappedInt.given_Show_WrappedInt
     val value = WrappedInt(42)
     assert(liftedShow.show(value) == "42")
+  }
+
+  test("7.FieldNames - returns field names in declaration order") {
+    case class Tiger(name: String, age: Int, colour: String)
+    assert(FieldNames.of[Tiger] == List("name", "age", "colour"))
+  }
+
+  test("8.FieldNames - single-field case class") {
+    case class Wrapper(value: String)
+    assert(FieldNames.of[Wrapper] == List("value"))
+  }
+
+  test("9.FieldNames - order is preserved, not sorted") {
+    case class Ordered(zebra: Int, apple: Int, mango: Int)
+    assert(FieldNames.of[Ordered] == List("zebra", "apple", "mango"))
+  }
+
+  test("10.FieldNames - empty case class yields Nil") {
+    case class Empty()
+    assert(FieldNames.of[Empty] == Nil)
   }
 }
