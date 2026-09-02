@@ -6,6 +6,7 @@ import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
+import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Codec
 import org.http4s.*
 import org.http4s.Method.POST
@@ -37,7 +38,7 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 final case class ClientCredentials(
   auth_endpoint: Uri,
   client_id: String,
-  client_secret: Password,
+  client_secret: Secret,
   scope: Option[NonEmptyList[String]] = None)
 
 /** Credentials for OAuth 2.0 Authorization Code flow.
@@ -61,8 +62,8 @@ final case class ClientCredentials(
 final case class AuthorizationCode(
   auth_endpoint: Uri,
   client_id: String,
-  client_secret: Password,
-  code: Password,
+  client_secret: Secret,
+  code: Secret,
   redirect_uri: String,
   scope: Option[NonEmptyList[String]] = None)
 

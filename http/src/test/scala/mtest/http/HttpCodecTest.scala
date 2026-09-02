@@ -5,10 +5,10 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
   ClientCredentials,
-  Password,
   Salesforce,
   UriJsonCodec
 }
+import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.syntax.given
 import io.circe.Json
 import munit.FunSuite
@@ -65,24 +65,24 @@ class HttpCodecTest extends FunSuite {
   }
 
   // ---------------------------------------------------------------------------
-  // Password masking (security): secrets must never render in cleartext, and the
+  // Secret masking (security): secrets must never render in cleartext, and the
   // credential types must not derive a JSON codec that could serialize them.
   // ---------------------------------------------------------------------------
 
   private val secret = "s3cr3t-p@ss"
 
-  test("9.Password.toString and show mask the value") {
-    assert(Password(secret).toString == "***")
-    assert(Password(secret).show == "***")
-    assert(!Password(secret).toString.contains(secret))
+  test("9.Secret.toString and show mask the value") {
+    assert(Secret(secret).toString == "***")
+    assert(Secret(secret).show == "***")
+    assert(!Secret(secret).toString.contains(secret))
   }
 
-  test("10.Password.value returns the real secret") {
-    assert(Password(secret).value == secret)
+  test("10.Secret.value returns the real secret") {
+    assert(Secret(secret).value == secret)
   }
 
   test("11.ClientCredentials.toString does not leak client_secret") {
-    val cc = ClientCredentials(uri"https://auth.example.com/token", "id", Password(secret))
+    val cc = ClientCredentials(uri"https://auth.example.com/token", "id", Secret(secret))
     val rendered = cc.toString
     assert(!rendered.contains(secret), s"secret leaked in: $rendered")
     assert(rendered.contains("***"))
@@ -93,8 +93,8 @@ class HttpCodecTest extends FunSuite {
     val ac = AuthorizationCode(
       auth_endpoint = uri"https://auth.example.com/token",
       client_id = "id",
-      client_secret = Password(secret),
-      code = Password("auth-code-secret"),
+      client_secret = Secret(secret),
+      code = Secret("auth-code-secret"),
       redirect_uri = "https://example.com/callback",
       scope = Some(NonEmptyList.one("openid"))
     )
@@ -108,9 +108,9 @@ class HttpCodecTest extends FunSuite {
     val pg = Salesforce.PasswordGrant(
       auth_endpoint = uri"https://login.salesforce.com/services/oauth2/token",
       client_id = "id",
-      client_secret = Password(secret),
+      client_secret = Secret(secret),
       username = "user@example.com",
-      password = Password("pw-secret")
+      password = Secret("pw-secret")
     )
     val rendered = pg.toString
     assert(!rendered.contains(secret))

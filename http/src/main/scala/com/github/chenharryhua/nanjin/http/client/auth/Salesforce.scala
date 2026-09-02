@@ -5,6 +5,7 @@ import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.effect.syntax.temporal.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
 import io.circe.Codec
 import org.http4s.*
@@ -83,9 +84,9 @@ object Salesforce {
   final case class PasswordGrant(
     auth_endpoint: Uri,
     client_id: String,
-    client_secret: Password,
+    client_secret: Secret,
     username: String,
-    password: Password)
+    password: Secret)
 
   /** Create a Salesforce `Login` using the Password Grant flow.
     *
