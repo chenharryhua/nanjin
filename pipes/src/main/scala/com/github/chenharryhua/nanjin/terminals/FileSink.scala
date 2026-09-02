@@ -260,7 +260,7 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
 
   override def inputStream(bufferSize: Information): Pipe[F, InputStream, Int] = {
     (ss: Stream[F, InputStream]) =>
-      ss.flatMap(is => readInputStream[F](is.pure[F], bufferSize.value.toInt, true)).through(bytes)
+      ss.flatMap(is => readInputStream[F](is.pure[F], bufferSize.toBytes.toInt, true)).through(bytes)
   }
 
   override val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>

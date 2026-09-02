@@ -11,7 +11,7 @@ import squants.information.InformationConversions.InformationConversions
 
 import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 class FileSinkInputStreamTest extends AnyFunSuite {
 
@@ -59,5 +59,35 @@ class FileSinkInputStreamTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(closed.get())
+  }
+
+  test("inputStream honors the buffer size in bytes for non-byte units") {
+    val path = Url.parse("./data/test/terminals/input-stream/buffer-size.bin")
+    val maxLen = new AtomicInteger(0)
+    // payload larger than one byte so the requested read length is observable
+    val payload = Array.fill[Byte](4096)(7)
+    val input = new InputStream {
+      private val delegate = new ByteArrayInputStream(payload)
+
+      override def read(): Int = delegate.read()
+
+      override def read(b: Array[Byte], off: Int, len: Int): Int = {
+        maxLen.updateAndGet(m => math.max(m, len))
+        delegate.read(b, off, len)
+      }
+    }
+
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emit(input)
+      .covary[IO]
+      .through(hdp.sink(path).inputStream(1.kb)) // 1.kb == 1000 bytes
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    // With the old `bufferSize.value.toInt`, Kilobytes(1).value == 1.0 -> a 1-byte buffer.
+    // With `bufferSize.toBytes.toInt`, the buffer is the intended 1000 bytes.
+    assert(maxLen.get() == 1000, s"expected read buffer size 1000, got ${maxLen.get()}")
   }
 }
