@@ -82,9 +82,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
     val dtr = DateTimeRange(beijingTime).withStartTime(d1).withEndTime("2012-10-28")
 
-    assert(dtr.days.eqv(List(d1, d2, d3)))
+    assert(dtr.days.toList.eqv(List(d1, d2, d3)))
 
-    assert(dtr.withOneDay(d3).days.eqv(List(d3)))
+    assert(dtr.withOneDay(d3).days.toList.eqv(List(d3)))
   }
 
   test("3.start after end") {
@@ -196,7 +196,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
     val sr = dr.subranges(12.hours)
     assert(sr.size == 63)
-    sr.sliding(2).toList.map {
+    sr.sliding(2).map(_.toList).foreach {
       case List(a, b) => assert(a.end === b.start)
       case _          => ()
     }

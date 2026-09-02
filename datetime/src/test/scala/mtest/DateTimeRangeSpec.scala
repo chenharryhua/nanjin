@@ -63,7 +63,7 @@ final class DateTimeRangeSpec extends AnyFunSuite {
     val days = dtr.days
 
     assert(
-      days == List(
+      days.toList == List(
         LocalDate.parse("2024-01-01"),
         LocalDate.parse("2024-01-02"),
         LocalDate.parse("2024-01-03")
