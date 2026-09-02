@@ -147,6 +147,13 @@ object Policy {
     *
     * An empty list is just another way to say [[empty]] — a policy that never ticks — mirroring `limited(0)`.
     * For a non-empty list, all delays must be non-negative and at least one must be strictly positive.
+    *
+    * This `List` overload is the '''runtime''' entry point: use it for a computed, possibly-empty sequence
+    * (e.g. `fixedDelay(fibonacci.take(8).map(_.seconds).toList)`), where empty naturally means [[empty]].
+    * When you have literal delays and know there is at least one, prefer the varargs overload below, which
+    * encodes that "at least one" at '''compile time'''. The two overloads are intentional siblings covering
+    * the two honest contracts (may-be-empty list vs. guaranteed-non-empty literals); they coexist
+    * unambiguously because the varargs form has a mandatory head parameter.
     */
   def fixedDelay(delays: List[FiniteDuration]): Policy =
     NonEmptyList.fromList(delays) match {
@@ -157,7 +164,11 @@ object Policy {
         Policy(Fix(FixedDelay(nel.map(_.toJava))))
     }
 
-  /** Varargs convenience for `fixedDelay`. Requires at least one delay. */
+  /** Varargs convenience for `fixedDelay`, the '''compile-time''' entry point for literal delays. The
+    * mandatory head parameter guarantees at least one delay at the call site (so this form can never produce
+    * [[empty]]) and also keeps it unambiguous with the `List` overload above. For a computed or
+    * possibly-empty sequence, use that `List` overload instead.
+    */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
     fixedDelay(head :: tail.toList)
 
