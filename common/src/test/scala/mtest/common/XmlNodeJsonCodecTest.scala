@@ -156,4 +156,46 @@ class XmlNodeJsonCodecTest extends AnyFunSuite {
 
     assert(encode(decoded) == json)
   }
+
+  test("13.interleaved same-level elements with no text preserve order via #children") {
+    // <a/><b/><a/>: two distinct labels interleaved, no text. Grouping by label alone would lose
+    // that `b` sits between the two `a` elements. #children must capture the original order.
+    val xml = XML.loadString("<root><a>1</a><b>2</b><a>3</a></root>")
+
+    val expected = Json.obj(
+      "root" -> Json.obj(
+        "a" -> List("1", "3").asJson,
+        "b" -> Json.fromString("2"),
+        "#children" -> List(
+          Json.obj("a" -> Json.fromString("1")),
+          Json.obj("b" -> Json.fromString("2")),
+          Json.obj("a" -> Json.fromString("3"))
+        ).asJson
+      ))
+
+    assert(encode(xml) == expected)
+  }
+
+  test("14.interleaved multi-label element survives xml-json-xml-json round trip") {
+    val xml = XML.loadString("<root><a>1</a><b>2</b><a>3</a></root>")
+
+    val encoded = encode(xml)
+    val decoded = decode(encoded)
+
+    // decode must reconstruct the interleaved order, and re-encoding must reproduce the same JSON.
+    assert(encode(decoded) == encoded)
+    assert(decoded.child.collect { case e: scala.xml.Elem => e.label }.toList == List("a", "b", "a"))
+  }
+
+  test("15.single repeated label stays a grouped array without #children") {
+    // Guard the format boundary: one distinct label keeps order within its array, so no #children.
+    val xml = XML.loadString("<root><a>1</a><a>2</a></root>")
+
+    val expected = Json.obj(
+      "root" -> Json.obj(
+        "a" -> List("1", "2").asJson
+      ))
+
+    assert(encode(xml) == expected)
+  }
 }

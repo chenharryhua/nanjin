@@ -130,8 +130,18 @@ private def element(elem: Elem): Json = {
     val textField =
       Option.when(text.nonEmpty)("#text" -> Json.fromString(text)).toSeq
 
+    // Emit the order-preserving "#children" array whenever child order could otherwise be lost:
+    //   - text is interleaved with elements (grouped-by-label form would drop the text position), or
+    //   - there is more than one distinct element label (grouping by label loses the interleaving,
+    //     e.g. <a/><b/><a/> would collapse to {"a":[..],"b":..} and decode back as <a/><a/><b/>).
+    // A single repeated label (e.g. <user/><user/>) keeps order within its own array, so no
+    // "#children" is needed there.
+    val hasText = orderedNodes.exists(_.isLeft)
+    val hasElem = orderedNodes.exists(_.isRight)
+    val multipleLabels = children.map(_.label).distinct.sizeIs > 1
+
     val orderedChildrenField =
-      Option.when(orderedNodes.exists(_.isLeft) && orderedNodes.exists(_.isRight)) {
+      Option.when(hasText && hasElem || multipleLabels) {
         "#children" -> Json.arr(orderedNodes.map {
           case Left(t)      => Json.obj("#text" -> Json.fromString(t))
           case Right(child) => Json.obj(child.label -> element(child))
