@@ -556,10 +556,48 @@ final class AuthLoginSuite extends CatsEffectSuite {
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
       for {
         _ <- authed.expect[String](uri"/a")
-        _ <- IO.sleep(2.seconds) // wait for renewal to fire
+        // expires_in=1 is shorter than the renewal skew, so the scheduled delay is clamped to
+        // the renewMinDelay floor (5s) rather than firing immediately. Wait past that floor.
+        _ <- IO.sleep(6.seconds)
         _ <- authed.expect[String](uri"/b")
         n <- tokenCalls.get
       } yield assert(n >= 2)
+    }
+  }
+
+  test("10a.failing renewal backs off instead of busy-looping the auth endpoint") {
+    // First fetch succeeds with a short-lived token; every subsequent renewal fails. Without a
+    // backoff floor the loop would spin `foreverM` with no delay and hammer the endpoint. With the
+    // fix, renewal attempts over a fixed window are bounded by renewFailureBackoff (~5s).
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+
+    val app = HttpApp[IO] {
+      case POST -> Root / "token" =>
+        tokenCalls.updateAndGet(_ + 1).flatMap { n =>
+          if (n == 1)
+            Ok("""{"access_token":"t1","token_type":"Bearer","expires_in":1}""")
+          else
+            InternalServerError("renewal boom")
+        }
+      case _ => InternalServerError()
+    }
+
+    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = "secret"
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
+      for {
+        _ <- authed.expect[String](uri"/a")
+        _ <- IO.sleep(3.seconds) // shorter than the renewFailureBackoff floor
+        n <- tokenCalls.get
+      } yield
+        // initial fetch (1) + at most a couple of backed-off renewal attempts.
+        // A busy loop would produce hundreds/thousands here.
+        assert(n <= 3, s"expected the renewal loop to back off, but it made $n token calls")
     }
   }
 
