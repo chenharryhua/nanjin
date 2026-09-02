@@ -20,14 +20,55 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.given
 
-private type TimeTypes = Instant | LocalDateTime | String
+/** A time range anchored to a fixed `zoneId`. Every input is resolved to an `Instant` at the setter ("at the
+  * door"), so a stored bound is always a valid, fully-resolved point in time; `start`/`end` are therefore
+  * total. `None` means the bound is unset (an open/infinite side), never "unparseable". The zone is fixed at
+  * construction and cannot be changed afterward.
+  */
+final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zoneId: ZoneId) {
 
-// lazy range
-final case class DateTimeRange(
-  private val reprStart: Option[TimeTypes],
-  private val reprEnd: Option[TimeTypes],
-  zoneId: ZoneId) {
+  /** The start bound as a `ZonedDateTime` in this range's zone, or `None` if the start is unset. */
+  def zonedStartTime: Option[ZonedDateTime] = start.map(_.atZone(zoneId))
 
+  /** The end bound as a `ZonedDateTime` in this range's zone, or `None` if the end is unset. */
+  def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
+
+  /** @return
+    *   lazy sequence of local-dates from start date to end date, both inclusive
+    *
+    * empty if either bound is unset (infinite)
+    */
+  def days: LazyList[LocalDate] =
+    (zonedStartTime, zonedEndTime) match {
+      case (Some(s), Some(e)) =>
+        LazyList.from(s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay)).map(LocalDate.ofEpochDay)
+      case _ => LazyList.empty
+    }
+
+  /** Split this range into consecutive, non-overlapping sub-ranges of the given width, evaluated lazily.
+    *
+    * Each sub-range is `[start, start + interval)`; the final one is clipped so it never extends past this
+    * range's end. Empty if either bound is unset (infinite).
+    *
+    * @param interval
+    *   sub-range width; must be at least one millisecond (throws `IllegalArgumentException` otherwise)
+    */
+  def subranges(interval: FiniteDuration): LazyList[DateTimeRange] = {
+    val millis = interval.toMillis
+    require(millis > 0, s"interval must be at least 1 millisecond, but was $interval")
+    (start, end) match {
+      case (Some(s), Some(e)) =>
+        val startMs = s.toEpochMilli
+        val endMs = e.toEpochMilli
+        LazyList
+          .from(startMs.until(endMs, millis))
+          .map(a => DateTimeRange(zoneId).withStartTime(a).withEndTime(math.min(a + millis, endMs)))
+      case _ => LazyList.empty
+    }
+  }
+
+  // Resolve a string to an Instant against this range's fixed zone. Throws on unparseable input so malformed
+  // strings fail at the setter rather than silently becoming an unset bound.
   private def parseStr(str: String): Instant = {
     val parser: DateTimeParser[Instant] =
       DateTimeParser[Instant] <+>
@@ -43,113 +84,91 @@ final case class DateTimeRange(
     }
   }
 
-  private def calculate(tt: TimeTypes): Instant = tt match {
-    case str: String        => parseStr(str)
-    case ldt: LocalDateTime => ldt.atZone(zoneId).toInstant
-    case ins: Instant       => ins
-  }
-
-  def start: Option[Instant] = reprStart.map(calculate)
-  def end: Option[Instant] = reprEnd.map(calculate)
-
-  def zonedStartTime: Option[ZonedDateTime] = start.map(_.atZone(zoneId))
-  def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
-
-  /** @return
-    *   list of local-date from start date to end date, both inclusive
-    *
-    * empty if infinite
+  /** Set the start bound. Every overload resolves its input to an `Instant` immediately, against this range's
+    * fixed zone where the input lacks one (`LocalTime`/`LocalDate`/`LocalDateTime` are interpreted in
+    * `zoneId`; `LocalTime` is anchored to today, `LocalDate` to the start of the day). `Long` is epoch
+    * milliseconds. The `String` overload parses ISO-8601 date/time formats and throws
+    * `DateTimeParseException` if the text cannot be parsed.
     */
-  def days: List[LocalDate] =
-    (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
-      s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
-    }.flatten
-
-  def subranges(interval: FiniteDuration): List[DateTimeRange] = {
-    val millis = interval.toMillis
-    require(millis > 0, s"interval must be at least 1 millisecond, but was $interval")
-    (start, end).traverseN { (s, e) =>
-      val startMs = s.toEpochMilli
-      val endMs = e.toEpochMilli
-      startMs
-        .until(endMs, millis)
-        .toList
-        .map(a => DateTimeRange(zoneId).withStartTime(a).withEndTime(math.min(a + millis, endMs)))
-    }.flatten
-  }
-
-  def withZoneId(zoneId: ZoneId): DateTimeRange =
-    copy(zoneId = zoneId)
-
-  def withZoneId(zoneId: String): DateTimeRange =
-    withZoneId(ZoneId.of(zoneId))
-
-  // start
   def withStartTime(ts: LocalTime): DateTimeRange =
-    copy(reprStart = Some(ts.atDate(LocalDate.now(zoneId))))
+    withStartTime(ts.atDate(LocalDate.now(zoneId)))
   def withStartTime(ts: LocalDate): DateTimeRange =
-    copy(reprStart = Some(toLocalDateTime(ts)))
+    withStartTime(toLocalDateTime(ts))
   def withStartTime(ts: LocalDateTime): DateTimeRange =
-    copy(reprStart = Some(ts))
+    withStartTime(ts.atZone(zoneId).toInstant)
   def withStartTime(ts: OffsetDateTime): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: ZonedDateTime): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: Instant): DateTimeRange =
-    copy(reprStart = Some(ts))
+    copy(start = Some(ts))
   def withStartTime(ts: Long): DateTimeRange =
-    copy(reprStart = Some(Instant.ofEpochMilli(ts)))
+    withStartTime(Instant.ofEpochMilli(ts))
   def withStartTime(ts: Timestamp): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: String): DateTimeRange =
-    copy(reprStart = Some(ts))
+    withStartTime(parseStr(ts))
 
-  // end
+  /** Set the end bound. Resolution follows the same rules as `withStartTime`: the input is resolved to an
+    * `Instant` at the call, using this range's fixed zone where needed, and the `String` overload throws
+    * `DateTimeParseException` on unparseable text.
+    */
   def withEndTime(ts: LocalTime): DateTimeRange =
-    copy(reprEnd = Some(ts.atDate(LocalDate.now(zoneId))))
+    withEndTime(ts.atDate(LocalDate.now(zoneId)))
   def withEndTime(ts: LocalDate): DateTimeRange =
-    copy(reprEnd = Some(toLocalDateTime(ts)))
+    withEndTime(toLocalDateTime(ts))
   def withEndTime(ts: LocalDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    withEndTime(ts.atZone(zoneId).toInstant)
   def withEndTime(ts: OffsetDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: ZonedDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: Instant): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    copy(end = Some(ts))
   def withEndTime(ts: Long): DateTimeRange =
-    copy(reprEnd = Some(Instant.ofEpochMilli(ts)))
+    withEndTime(Instant.ofEpochMilli(ts))
   def withEndTime(ts: Timestamp): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: String): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    withEndTime(parseStr(ts))
 
+  /** Set the range to the last `seconds` up to now (in this range's zone): start = now − seconds, end = now.
+    */
   def withNSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now(zoneId)
     withStartTime(now.minusSeconds(seconds)).withEndTime(now)
   }
 
+  /** Set both bounds from ISO-8601 strings. Throws `DateTimeParseException` if either cannot be parsed. */
   def withTimeRange(start: String, end: String): DateTimeRange =
     withStartTime(start).withEndTime(end)
 
+  /** Set the range to cover the whole of `ts`: start at the beginning of the day, end at `LocalTime.MAX`. */
   def withOneDay(ts: LocalDate): DateTimeRange =
     withStartTime(ts).withEndTime(LocalDateTime.of(ts, LocalTime.MAX))
 
+  /** Set the range to cover the whole day parsed from `ts` (a `LocalDate` string). Throws
+    * `DateTimeParseException` if the text is not a valid date.
+    */
   def withOneDay(ts: String): DateTimeRange =
     summon[DateTimeParser[LocalDate]].parse(ts).map(withOneDay) match {
       case Left(ex)   => throw ex.parseException(ts) // scalafix:ok
       case Right(day) => day
     }
 
+  /** The range covering today, in this range's zone. */
   def withToday: DateTimeRange = withOneDay(LocalDate.now(zoneId))
+
+  /** The range covering yesterday, in this range's zone. */
   def withYesterday: DateTimeRange = withOneDay(LocalDate.now(zoneId).minusDays(1))
 
-  /** The day before yesterday
-    * @return
-    */
+  /** The range covering the day before yesterday, in this range's zone. */
   def withEreyesterday: DateTimeRange = withOneDay(LocalDate.now(zoneId).minusDays(2))
 
-  // closed start, open end
+  /** Whether `ts` falls within the range, treated as closed on the start and open on the end (`start <= ts <
+    * end`). An unset start is unbounded below, an unset end unbounded above, so an unset range contains
+    * everything.
+    */
   def inBetween(ts: Instant): Boolean =
     (start, end) match {
       case (Some(s), Some(e)) => s.isBefore(ts) && e.isAfter(ts) || s === ts
@@ -158,10 +177,16 @@ final case class DateTimeRange(
       case (None, None)       => true
     }
 
+  /** Calendar period (years/months/days) between the two bounds' local dates, or `None` if either bound is
+    * unset.
+    */
   def period: Option[Period] =
     (zonedStartTime, zonedEndTime).mapN((s, e) => Period.between(s.toLocalDate, e.toLocalDate))
 
+  /** Elapsed time between start and end as a `java.time.Duration`, or `None` if either bound is unset. */
   def javaDuration: Option[Duration] = (start, end).mapN((s, e) => Duration.between(s, e))
+
+  /** Elapsed time between start and end as a Scala `FiniteDuration`, or `None` if either bound is unset. */
   def finiteDuration: Option[FiniteDuration] = javaDuration.map(_.toScala)
 
   override def toString: String =
@@ -176,10 +201,17 @@ final case class DateTimeRange(
 
 object DateTimeRange {
 
+  /** An unbounded range (both bounds unset) in the given zone; add bounds via the `with*` methods. */
   def apply(zoneId: ZoneId): DateTimeRange = DateTimeRange(None, None, zoneId)
+
+  /** The range spanned by a `Tick`: start at its commence, end at its conclude, in the tick's zone. */
   def apply(tick: Tick): DateTimeRange =
     DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
 
+  /** Partial order by containment: `a >= b` when `a` starts no later and ends no earlier than `b` (i.e. `a`
+    * contains `b`), with an unset start/end treated as unbounded. Ranges that neither contains the other are
+    * incomparable (`NaN`).
+    */
   given PartialOrder[DateTimeRange] =
     new PartialOrder[DateTimeRange] {
 
@@ -209,8 +241,12 @@ object DateTimeRange {
         }
     }
 
+  /** `Show` renders the same text as `toString`. */
   given Show[DateTimeRange] = Show.fromToString[DateTimeRange]
 
+  /** JSON object `{ zone_id, start, end }`, where bounds are the zoned `LocalDateTime` (null when unset).
+    * Paired with the `Decoder` below for a round trip.
+    */
   given Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
       Json.obj(
@@ -218,6 +254,9 @@ object DateTimeRange {
         "start" -> a.zonedStartTime.map(_.toLocalDateTime).asJson,
         "end" -> a.zonedEndTime.map(_.toLocalDateTime).asJson)
 
+  /** Reads the `{ zone_id, start, end }` shape produced by the `Encoder`, interpreting the `LocalDateTime`
+    * bounds in the decoded zone.
+    */
   given Decoder[DateTimeRange] =
     (c: HCursor) =>
       for {

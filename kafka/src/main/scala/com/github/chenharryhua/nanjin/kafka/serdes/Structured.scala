@@ -40,7 +40,17 @@ sealed trait Structured[A] extends Unregistered[A]
 object Structured:
   inline def apply[A](using ev: Structured[A]): Structured[A] = ev
 
-  /** Avro serde backed by Confluent's Schema Registry. Serializes and deserializes `GenericRecord`. */
+  /** Avro serde for Apache Avro `GenericRecord`, backed by Confluent's Schema Registry.
+    *
+    * On serialize, the record's writer schema is registered with (or looked up in) the Schema Registry and
+    * the payload is written in Confluent's wire format: a magic byte, the 4-byte schema id, then the
+    * Avro-encoded body. On deserialize, the embedded schema id is resolved against the registry to decode the
+    * bytes back into a `GenericRecord`. A non-`GenericRecord` result is rejected with a
+    * `SerializationException`; a `null` payload passes through as a tombstone.
+    *
+    * The Schema Registry client is supplied at registration time, so schema compatibility and evolution are
+    * governed by the registry, not by this serde.
+    */
   given avro: Structured[GenericRecord] = new Structured[GenericRecord]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[GenericRecord] =
       new Serde[GenericRecord] {
@@ -83,7 +93,17 @@ object Structured:
       }
   end avro
 
-  /** JSON Schema serde backed by Confluent's Schema Registry. Serializes and deserializes Jackson `JsonNode`.
+  /** JSON Schema serde for Jackson `JsonNode`, backed by Confluent's Schema Registry.
+    *
+    * On serialize, the JSON Schema is registered with (or looked up in) the Schema Registry and the payload
+    * is written in Confluent's wire format (magic byte, schema id, JSON body). `JSON_ENVELOPE_DETECTION` is
+    * forced on so a value carrying Confluent's schema envelope is handled correctly. On deserialize,
+    * `JSON_KEY_TYPE` / `JSON_VALUE_TYPE` are pinned to `JsonNode` so the payload is always decoded to a
+    * `JsonNode` rather than to a POJO the deserializer might otherwise infer. These settings are injected in
+    * `configure` and override any caller-supplied values, so the serde stays consistent regardless of how it
+    * is configured.
+    *
+    * Schema compatibility and evolution are governed by the Schema Registry.
     */
   given jsonSchema: Structured[JsonNode] = new Structured[JsonNode]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[JsonNode] =
@@ -131,7 +151,16 @@ object Structured:
 
   end jsonSchema
 
-  /** Protobuf serde backed by Confluent's Schema Registry. Serializes and deserializes `DynamicMessage`. */
+  /** Protobuf serde for Protocol Buffers `DynamicMessage`, backed by Confluent's Schema Registry.
+    *
+    * On serialize, the message's Protobuf schema (`FileDescriptor`) is registered with (or looked up in) the
+    * Schema Registry and the payload is written in Confluent's wire format (magic byte, schema id, then the
+    * Protobuf-encoded body and message indexes). On deserialize, the schema id resolves the descriptor used
+    * to rebuild the `DynamicMessage`. Uses Confluent's serializer/deserializer directly with no extra
+    * configuration.
+    *
+    * Schema compatibility and evolution are governed by the Schema Registry.
+    */
   given protobuf: Structured[DynamicMessage] = new Structured[DynamicMessage]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[DynamicMessage] =
       new Serde[DynamicMessage]:
@@ -143,7 +172,14 @@ object Structured:
 
   end protobuf
 
-  /** Circe JSON serde. Serializes `Json` as compact UTF-8 text without schema registry interaction. */
+  /** Plain JSON serde for circe `Json`, with '''no''' Schema Registry interaction.
+    *
+    * Unlike the other instances, this does not register or look up a schema and produces no Confluent
+    * envelope: on serialize the value is written as compact UTF-8 JSON (`Json.noSpaces`), and on deserialize
+    * the raw bytes are parsed straight back into `Json`. A `null` payload passes through as a tombstone, and
+    * a parse failure is surfaced as a `SerializationException`. `configure` is a no-op since there is nothing
+    * to configure. Use this for self-describing JSON topics where schema governance is not required.
+    */
   given circe: Structured[Json] = new Structured[Json]:
     override protected def registerWith(srClient: SchemaRegistryClient): Serde[Json] =
       new Serde[Json]:

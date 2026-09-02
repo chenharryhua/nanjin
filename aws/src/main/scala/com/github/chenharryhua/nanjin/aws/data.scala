@@ -48,7 +48,14 @@ end KmsArn
 // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
 final case class ParameterStorePath(value: String, isSecure: Boolean = true) derives Codec.AsObject
 
-final case class ParameterStoreContent(value: String) derives Codec.AsObject
+opaque type ParameterStoreContent = String
+object ParameterStoreContent:
+  def apply(psc: String): ParameterStoreContent = psc
+  extension (psc: ParameterStoreContent) inline def value: String = psc
+  given Show[ParameterStoreContent] = OpaqueLift.lift[ParameterStoreContent, String, Show]
+  given Encoder[ParameterStoreContent] = OpaqueLift.lift[ParameterStoreContent, String, Encoder]
+  given Decoder[ParameterStoreContent] = OpaqueLift.lift[ParameterStoreContent, String, Decoder]
+end ParameterStoreContent
 
 /** @param from
   *   sender email address
