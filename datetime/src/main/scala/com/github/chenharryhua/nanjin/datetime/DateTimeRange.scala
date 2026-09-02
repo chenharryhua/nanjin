@@ -20,37 +20,18 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.given
 
-private type TimeTypes = Instant | LocalDateTime | String
-
-// lazy range
+/** A time range anchored to a fixed `zoneId`. Every input is resolved to an `Instant` at the setter ("at the
+  * door"), so a stored bound is always a valid, fully-resolved point in time; `start`/`end` are therefore
+  * total. `None` means the bound is unset (an open/infinite side), never "unparseable". The zone is fixed at
+  * construction and cannot be changed afterwards.
+  */
 final case class DateTimeRange(
-  private val reprStart: Option[TimeTypes],
-  private val reprEnd: Option[TimeTypes],
+  private val reprStart: Option[Instant],
+  private val reprEnd: Option[Instant],
   zoneId: ZoneId) {
 
-  private def parseStr(str: String): Instant = {
-    val parser: DateTimeParser[Instant] =
-      DateTimeParser[Instant] <+>
-        DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
-        DateTimeParser[ZonedDateTime].map(_.toInstant) <+>
-        DateTimeParser[LocalDate].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
-        DateTimeParser[LocalTime].map(_.atDate(LocalDate.now(zoneId)).atZone(zoneId).toInstant) <+>
-        DateTimeParser[LocalDateTime].map(_.atZone(zoneId).toInstant)
-
-    parser.parse(str) match {
-      case Right(r) => r
-      case Left(ex) => throw ex.parseException(str) // scalafix:ok
-    }
-  }
-
-  private def calculate(tt: TimeTypes): Instant = tt match {
-    case str: String        => parseStr(str)
-    case ldt: LocalDateTime => ldt.atZone(zoneId).toInstant
-    case ins: Instant       => ins
-  }
-
-  def start: Option[Instant] = reprStart.map(calculate)
-  def end: Option[Instant] = reprEnd.map(calculate)
+  def start: Option[Instant] = reprStart
+  def end: Option[Instant] = reprEnd
 
   def zonedStartTime: Option[ZonedDateTime] = start.map(_.atZone(zoneId))
   def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
@@ -78,51 +59,62 @@ final case class DateTimeRange(
     }.flatten
   }
 
-  def withZoneId(zoneId: ZoneId): DateTimeRange =
-    copy(zoneId = zoneId)
+  // Resolve a string to an Instant against this range's fixed zone. Throws on unparseable input so malformed
+  // strings fail at the setter rather than silently becoming an unset bound.
+  private def parseStr(str: String): Instant = {
+    val parser: DateTimeParser[Instant] =
+      DateTimeParser[Instant] <+>
+        DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
+        DateTimeParser[ZonedDateTime].map(_.toInstant) <+>
+        DateTimeParser[LocalDate].map(toLocalDateTime(_).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalTime].map(_.atDate(LocalDate.now(zoneId)).atZone(zoneId).toInstant) <+>
+        DateTimeParser[LocalDateTime].map(_.atZone(zoneId).toInstant)
 
-  def withZoneId(zoneId: String): DateTimeRange =
-    withZoneId(ZoneId.of(zoneId))
+    parser.parse(str) match {
+      case Right(r) => r
+      case Left(ex) => throw ex.parseException(str) // scalafix:ok
+    }
+  }
 
   // start
   def withStartTime(ts: LocalTime): DateTimeRange =
-    copy(reprStart = Some(ts.atDate(LocalDate.now(zoneId))))
+    withStartTime(ts.atDate(LocalDate.now(zoneId)))
   def withStartTime(ts: LocalDate): DateTimeRange =
-    copy(reprStart = Some(toLocalDateTime(ts)))
+    withStartTime(toLocalDateTime(ts))
   def withStartTime(ts: LocalDateTime): DateTimeRange =
-    copy(reprStart = Some(ts))
+    withStartTime(ts.atZone(zoneId).toInstant)
   def withStartTime(ts: OffsetDateTime): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: ZonedDateTime): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: Instant): DateTimeRange =
     copy(reprStart = Some(ts))
   def withStartTime(ts: Long): DateTimeRange =
-    copy(reprStart = Some(Instant.ofEpochMilli(ts)))
+    withStartTime(Instant.ofEpochMilli(ts))
   def withStartTime(ts: Timestamp): DateTimeRange =
-    copy(reprStart = Some(ts.toInstant))
+    withStartTime(ts.toInstant)
   def withStartTime(ts: String): DateTimeRange =
-    copy(reprStart = Some(ts))
+    withStartTime(parseStr(ts))
 
   // end
   def withEndTime(ts: LocalTime): DateTimeRange =
-    copy(reprEnd = Some(ts.atDate(LocalDate.now(zoneId))))
+    withEndTime(ts.atDate(LocalDate.now(zoneId)))
   def withEndTime(ts: LocalDate): DateTimeRange =
-    copy(reprEnd = Some(toLocalDateTime(ts)))
+    withEndTime(toLocalDateTime(ts))
   def withEndTime(ts: LocalDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    withEndTime(ts.atZone(zoneId).toInstant)
   def withEndTime(ts: OffsetDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: ZonedDateTime): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: Instant): DateTimeRange =
     copy(reprEnd = Some(ts))
   def withEndTime(ts: Long): DateTimeRange =
-    copy(reprEnd = Some(Instant.ofEpochMilli(ts)))
+    withEndTime(Instant.ofEpochMilli(ts))
   def withEndTime(ts: Timestamp): DateTimeRange =
-    copy(reprEnd = Some(ts.toInstant))
+    withEndTime(ts.toInstant)
   def withEndTime(ts: String): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    withEndTime(parseStr(ts))
 
   def withNSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now(zoneId)

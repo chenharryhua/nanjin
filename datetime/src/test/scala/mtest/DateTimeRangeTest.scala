@@ -61,18 +61,17 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
     val endTime = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
 
-    val param = DateTimeRange(sydneyTime)
+    // zone is fixed at construction; only the order and representation of the bounds should be irrelevant
+    val param = DateTimeRange(zoneId)
 
-    val a = param.withEndTime(endTime).withZoneId(zoneId).withStartTime(startTime)
-    val b = param.withStartTime(startTime).withZoneId(zoneId).withEndTime(endTime)
-    val c = param.withZoneId(zoneId).withStartTime(startTime).withEndTime(endTime)
-    val d = param.withEndTime(endTime).withStartTime(startTime.atZone(zoneId)).withZoneId(zoneId)
-    val e = param.withEndTime("2012-10-26T23:00:00").withStartTime("2012-10-26T18:00:00").withZoneId(zoneId)
+    val a = param.withEndTime(endTime).withStartTime(startTime)
+    val b = param.withStartTime(startTime).withEndTime(endTime)
+    val c = param.withStartTime(startTime.atZone(zoneId)).withEndTime(endTime)
+    val d = param.withEndTime("2012-10-26T23:00:00").withStartTime("2012-10-26T18:00:00")
 
     assert(a.eqv(b))
     assert(a.eqv(c))
     assert(a.eqv(d))
-    assert(a.eqv(e))
     assert(a.zonedStartTime.get.eqv(startTime.atZone(zoneId)))
     assert(a.zonedEndTime.get.eqv(endTime.atZone(zoneId)))
   }
@@ -172,8 +171,6 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       .withEndTime(LocalDateTime.now)
       .withEndTime(ZonedDateTime.now)
       .withEndTime(OffsetDateTime.now)
-      .withZoneId("Australia/Sydney")
-      .withZoneId(sydneyTime)
       .withNSeconds(1000)
       .withTimeRange("2020-12-30", "2020-12-31")
 
