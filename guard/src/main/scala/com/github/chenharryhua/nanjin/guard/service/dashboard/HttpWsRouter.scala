@@ -59,9 +59,15 @@ final private class HttpWsRouter[F[_]: Async](
 
       case GET -> Root        => Ok(home_page)
       case GET -> Root / "ws" =>
-        val preserved = Stream.eval(history.value).flatMap(Stream.emits)
+        // Register the topic subscription *before* snapshotting history, so a sample published in
+        // the window between the two cannot fall into neither. `subscribeAwait` acquires the
+        // subscriber eagerly on Resource acquisition (unlike `subscribe`, which registers lazily
+        // when the stream is first pulled). A sample straddling the boundary may appear in both the
+        // history snapshot and the live stream; a duplicated chart point is harmless, a gap is not.
         val send: Stream[F, WebSocketFrame] =
-          (preserved ++ topic.subscribe(5)).map(text)
+          Stream.resource(topic.subscribeAwait(5)).flatMap { live =>
+            (Stream.evalSeq(history.value) ++ live).map(text)
+          }
 
         val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => ().pure[F])
 
