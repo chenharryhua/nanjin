@@ -23,15 +23,9 @@ import scala.jdk.DurationConverters.given
 /** A time range anchored to a fixed `zoneId`. Every input is resolved to an `Instant` at the setter ("at the
   * door"), so a stored bound is always a valid, fully-resolved point in time; `start`/`end` are therefore
   * total. `None` means the bound is unset (an open/infinite side), never "unparseable". The zone is fixed at
-  * construction and cannot be changed afterwards.
+  * construction and cannot be changed afterward.
   */
-final case class DateTimeRange(
-  private val reprStart: Option[Instant],
-  private val reprEnd: Option[Instant],
-  zoneId: ZoneId) {
-
-  def start: Option[Instant] = reprStart
-  def end: Option[Instant] = reprEnd
+final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zoneId: ZoneId) {
 
   def zonedStartTime: Option[ZonedDateTime] = start.map(_.atZone(zoneId))
   def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
@@ -88,7 +82,7 @@ final case class DateTimeRange(
   def withStartTime(ts: ZonedDateTime): DateTimeRange =
     withStartTime(ts.toInstant)
   def withStartTime(ts: Instant): DateTimeRange =
-    copy(reprStart = Some(ts))
+    copy(start = Some(ts))
   def withStartTime(ts: Long): DateTimeRange =
     withStartTime(Instant.ofEpochMilli(ts))
   def withStartTime(ts: Timestamp): DateTimeRange =
@@ -108,7 +102,7 @@ final case class DateTimeRange(
   def withEndTime(ts: ZonedDateTime): DateTimeRange =
     withEndTime(ts.toInstant)
   def withEndTime(ts: Instant): DateTimeRange =
-    copy(reprEnd = Some(ts))
+    copy(end = Some(ts))
   def withEndTime(ts: Long): DateTimeRange =
     withEndTime(Instant.ofEpochMilli(ts))
   def withEndTime(ts: Timestamp): DateTimeRange =
