@@ -35,7 +35,6 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogenInstant: Cogen[Instant] = Cogen((i: Instant) => i.getEpochSecond)
 
   implicit val eqInstant: Eq[DateTimeParser[Instant]] = new Eq[DateTimeParser[Instant]] {
-    // TODO: how to compare two parsers?
     override def eqv(x: DateTimeParser[Instant], y: DateTimeParser[Instant]): Boolean = true
   }
 
@@ -277,5 +276,203 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val decoded = decoder.decodeJson(json)
     assert(decoded.isRight)
     assert(decoded.toOption.get == dur)
+  }
+
+  // -------------------- edge cases --------------------
+
+  test("20.inBetween - bounded range is closed on start, open on end") {
+    val s = Instant.parse("2021-01-01T00:00:00Z")
+    val e = Instant.parse("2021-01-02T00:00:00Z")
+    val dr = DateTimeRange(utcTime).withStartTime(s).withEndTime(e)
+
+    assert(dr.inBetween(s), "start is inclusive")
+    assert(!dr.inBetween(e), "end is exclusive")
+    assert(dr.inBetween(s.plusSeconds(3600)), "interior point is inside")
+    assert(!dr.inBetween(s.minusSeconds(1)), "before start is outside")
+    assert(!dr.inBetween(e.plusSeconds(1)), "after end is outside")
+  }
+
+  test("21.inBetween - half-open and fully-open ranges") {
+    val s = Instant.parse("2021-01-01T00:00:00Z")
+    val e = Instant.parse("2021-01-02T00:00:00Z")
+    val probe = Instant.parse("2021-06-01T00:00:00Z")
+
+    // start only: unbounded above, inclusive start
+    val startOnly = DateTimeRange(utcTime).withStartTime(s)
+    assert(startOnly.inBetween(s))
+    assert(startOnly.inBetween(probe))
+    assert(!startOnly.inBetween(s.minusSeconds(1)))
+
+    // end only: unbounded below, exclusive end
+    val endOnly = DateTimeRange(utcTime).withEndTime(e)
+    assert(endOnly.inBetween(e.minusSeconds(1)))
+    assert(!endOnly.inBetween(e))
+
+    // unbounded: contains everything
+    val infinite = DateTimeRange(utcTime)
+    assert(infinite.inBetween(probe))
+  }
+
+  test("22.malformed strings fail fast at the setter") {
+    assertThrows[java.time.format.DateTimeParseException] {
+      DateTimeRange(utcTime).withStartTime("not-a-date")
+    }
+    assertThrows[java.time.format.DateTimeParseException] {
+      DateTimeRange(utcTime).withEndTime("2021-99-99")
+    }
+    assertThrows[java.time.format.DateTimeParseException] {
+      DateTimeRange(utcTime).withTimeRange("2021-01-01", "garbage")
+    }
+    assertThrows[java.time.format.DateTimeParseException] {
+      DateTimeRange(utcTime).withOneDay("nope")
+    }
+  }
+
+  test("23.JSON round-trips a bounded range through the AST") {
+    val dr = DateTimeRange(sydneyTime)
+      .withStartTime("2021-01-01T00:00:00")
+      .withEndTime("2021-01-02T00:00:00")
+    assert(dr.asJson.as[DateTimeRange] == Right(dr))
+  }
+
+  test("24.JSON round-trips an unbounded range (null bounds)") {
+    val dr = DateTimeRange(sydneyTime)
+    val json = dr.asJson
+    assert(json.hcursor.get[Option[LocalDateTime]]("start") == Right(None))
+    assert(json.hcursor.get[Option[LocalDateTime]]("end") == Right(None))
+    assert(json.as[DateTimeRange] == Right(dr))
+  }
+
+  test("25.duration accessors are None on an infinite range") {
+    val dr = DateTimeRange(utcTime)
+    assert(dr.period.isEmpty)
+    assert(dr.javaDuration.isEmpty)
+    assert(dr.finiteDuration.isEmpty)
+
+    // start-only range is also infinite for duration purposes
+    val startOnly = DateTimeRange(utcTime).withStartTime(Instant.now)
+    assert(startOnly.javaDuration.isEmpty)
+  }
+
+  test("26.days and duration when start equals end") {
+    val x = Instant.parse("2021-03-14T12:00:00Z")
+    val dr = DateTimeRange(utcTime).withStartTime(x).withEndTime(x)
+    assert(dr.days.toList == List(LocalDate.parse("2021-03-14")))
+    assert(dr.javaDuration.get.isZero)
+    assert(dr.inBetween(x), "single-instant range still includes its start (closed start)")
+  }
+
+  test("27.subranges - interval at least as wide as the span yields one bucket") {
+    val dr = DateTimeRange(utcTime)
+      .withStartTime(Instant.ofEpochMilli(0))
+      .withEndTime(Instant.ofEpochMilli(5000))
+    val sr = dr.subranges(1.hour)
+    assert(sr.size == 1)
+    assert(sr.head.start == dr.start)
+    assert(sr.head.end == dr.end)
+  }
+
+  test("28.subranges is empty when a bound is unset") {
+    assert(DateTimeRange(utcTime).withStartTime(Instant.now).subranges(1.hour).isEmpty)
+    assert(DateTimeRange(utcTime).subranges(1.hour).isEmpty)
+  }
+
+  test("29.withNSeconds(0) produces a zero-width range") {
+    val dr = DateTimeRange(utcTime).withNSeconds(0)
+    assert(dr.start == dr.end)
+    assert(dr.javaDuration.get.isZero)
+  }
+
+  test("30.PartialOrder - containment and incomparability") {
+    val inner = DateTimeRange(utcTime)
+      .withStartTime(Instant.parse("2021-01-10T00:00:00Z"))
+      .withEndTime(Instant.parse("2021-01-20T00:00:00Z"))
+    val outer = DateTimeRange(utcTime)
+      .withStartTime(Instant.parse("2021-01-01T00:00:00Z"))
+      .withEndTime(Instant.parse("2021-02-01T00:00:00Z"))
+
+    // outer contains inner -> outer >= inner
+    assert(outer >= inner)
+    assert(inner <= outer)
+
+    // an unbounded range contains any bounded range
+    assert(DateTimeRange(utcTime) >= outer)
+
+    // overlapping but neither contains the other -> incomparable (partialCompare = NaN)
+    val left = DateTimeRange(utcTime)
+      .withStartTime(Instant.parse("2021-01-01T00:00:00Z"))
+      .withEndTime(Instant.parse("2021-01-15T00:00:00Z"))
+    val right = DateTimeRange(utcTime)
+      .withStartTime(Instant.parse("2021-01-10T00:00:00Z"))
+      .withEndTime(Instant.parse("2021-01-20T00:00:00Z"))
+    assert(left.partialCompare(right).isNaN)
+    assert(!(left <= right) && !(left >= right))
+  }
+
+  // -------------------- string parsing input formats --------------------
+
+  test("31.parse Instant string (UTC 'Z') is zone-independent") {
+    val s = "2021-01-01T00:00:00Z"
+    val expected = Instant.parse(s)
+    // same instant regardless of the range's configured zone
+    assert(DateTimeRange(utcTime).withStartTime(s).start.contains(expected))
+    assert(DateTimeRange(sydneyTime).withStartTime(s).start.contains(expected))
+    assert(DateTimeRange(newyorkTime).withStartTime(s).start.contains(expected))
+  }
+
+  test("32.parse OffsetDateTime string uses its own offset") {
+    val s = "2021-01-01T10:00:00+11:00"
+    val expected = OffsetDateTime.parse(s).toInstant
+    // the offset in the string wins, independent of the range zone
+    assert(DateTimeRange(utcTime).withStartTime(s).start.contains(expected))
+    assert(DateTimeRange(newyorkTime).withStartTime(s).start.contains(expected))
+  }
+
+  test("33.parse ZonedDateTime string uses its own zone") {
+    val s = "2021-01-01T10:00:00+11:00[Australia/Sydney]"
+    val expected = ZonedDateTime.parse(s).toInstant
+    assert(DateTimeRange(utcTime).withStartTime(s).start.contains(expected))
+  }
+
+  test("34.parse LocalDate string is start-of-day in the range's zone") {
+    val s = "2021-06-01"
+    val sydney = DateTimeRange(sydneyTime).withStartTime(s)
+    assert(sydney.start.contains(LocalDate.parse(s).atStartOfDay(sydneyTime).toInstant))
+    // start-of-day differs by zone, so the same string resolves to a different instant
+    val ny = DateTimeRange(newyorkTime).withStartTime(s)
+    assert(ny.start.contains(LocalDate.parse(s).atStartOfDay(newyorkTime).toInstant))
+    assert(sydney.start != ny.start)
+  }
+
+  test("35.parse LocalDateTime string is resolved in the range's zone") {
+    val s = "2021-06-01T14:30:00"
+    val ldt = LocalDateTime.parse(s)
+    assert(DateTimeRange(sydneyTime).withStartTime(s).start.contains(ldt.atZone(sydneyTime).toInstant))
+    assert(DateTimeRange(utcTime).withStartTime(s).start.contains(ldt.atZone(utcTime).toInstant))
+    // same wall-clock string, different zone -> different instant
+    assert(DateTimeRange(sydneyTime).withStartTime(s).start != DateTimeRange(utcTime).withStartTime(s).start)
+  }
+
+  test("36.parse LocalTime string is anchored to today in the range's zone") {
+    val s = "14:30:00"
+    val dr = DateTimeRange(sydneyTime).withStartTime(s)
+    val z = dr.zonedStartTime.get
+    assert(z.getZone == sydneyTime)
+    assert(z.toLocalTime == LocalTime.parse(s))
+    assert(z.toLocalDate == LocalDate.now(sydneyTime))
+  }
+
+  test("37.withTimeRange parses both bounds with the configured zone") {
+    val dr = DateTimeRange(sydneyTime).withTimeRange("2021-01-01T00:00:00", "2021-01-02T00:00:00")
+    assert(dr.start.contains(LocalDateTime.parse("2021-01-01T00:00:00").atZone(sydneyTime).toInstant))
+    assert(dr.end.contains(LocalDateTime.parse("2021-01-02T00:00:00").atZone(sydneyTime).toInstant))
+    assert(dr.javaDuration.get == java.time.Duration.ofDays(1))
+  }
+
+  test("38.withOneDay(String) covers the whole day in the range's zone") {
+    val dr = DateTimeRange(sydneyTime).withOneDay("2021-06-01")
+    assert(dr.days.toList == List(LocalDate.parse("2021-06-01")))
+    assert(dr.zonedStartTime.get.toLocalTime == LocalTime.MIDNIGHT)
+    assert(dr.zonedEndTime.get.toLocalTime == LocalTime.MAX)
   }
 }
