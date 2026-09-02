@@ -140,7 +140,8 @@ val awsLib = List(
   "software.amazon.awssdk" % "ssm",
   "software.amazon.awssdk" % "sns",
   "software.amazon.awssdk" % "ses",
-  "software.amazon.awssdk" % "s3"
+  "software.amazon.awssdk" % "s3",
+  "software.amazon.awssdk" % "appconfigdata"
 ).map(_ % awsV)
 
 lazy val aws = (project in file("aws"))
