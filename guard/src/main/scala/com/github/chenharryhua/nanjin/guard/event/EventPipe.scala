@@ -93,7 +93,16 @@ object EventPipe {
         }
     }
 
-  def indexFilter(divisor: Int): EventPipe =
+  /** Keep every `divisor`-th periodic [[MetricsSnapshot]] (by tick index); other events pass through
+    * unchanged.
+    *
+    * @param divisor
+    *   must be `>= 1`. Validated eagerly so a misconfiguration fails at construction with a clear message,
+    *   rather than throwing `ArithmeticException` (`/ by zero`) or silently misfiltering (negative values) on
+    *   the first periodic snapshot.
+    */
+  def indexFilter(divisor: Int): EventPipe = {
+    require(divisor >= 1, s"indexFilter divisor must be >= 1, but was $divisor")
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
@@ -105,6 +114,7 @@ object EventPipe {
           case other => Some(other)
         }
     }
+  }
 
   def windowFilter(interval: FiniteDuration): EventPipe =
     new EventPipe {

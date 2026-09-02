@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.Periodic
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import cats.syntax.order.catsSyntaxPartialOrder
 import org.scalatest.funsuite.AnyFunSuite
@@ -149,54 +149,18 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
 
   // --- indexFilter divisor=0 ---
 
-  test("8.EventPipe.indexFilter(0) throws ArithmeticException on periodic metrics") {
-    val events = service
-      .eventStream(_ => IO.sleep(2.seconds))
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    // Applying indexFilter(0) to a periodic MetricsSnapshot should throw ArithmeticException (/ by zero)
-    val periodicEvent = events.find {
-      case MetricsSnapshot(_, _, index, _, _) => index.isInstanceOf[Periodic]
-      case _                                  => false
-    }
-    assert(periodicEvent.isDefined)
-    assertThrows[ArithmeticException] {
-      EventPipe.indexFilter(0).filter(periodicEvent.get)
+  test("8.EventPipe.indexFilter(0) is rejected eagerly at construction") {
+    // divisor=0 would divide by zero; the require guard fails fast, before any event is filtered.
+    assertThrows[IllegalArgumentException] {
+      EventPipe.indexFilter(0)
     }
   }
 
-  test("9.EventPipe.indexFilter(0) passes non-periodic events through") {
-    val events = service
-      .eventStream(agent => agent.adhoc.report)
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    val startEvent = events.find(_.isInstanceOf[ServiceStart])
-    assert(startEvent.isDefined)
-    // ServiceStart should pass through even with divisor=0
-    assert(EventPipe.indexFilter(0).filter(startEvent.get))
-  }
-
-  test("10.EventPipe.indexFilter(0) passes adhoc metrics through") {
-    val events = service
-      .eventStream(agent => agent.adhoc.report)
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    val adhocEvent = events.find {
-      case MetricsSnapshot(_, _, index, _, _) => index.isInstanceOf[Adhoc]
-      case _                                  => false
+  test("9.EventPipe.indexFilter with a negative divisor is rejected eagerly at construction") {
+    // negative divisors would silently misfilter; the require guard rejects them up front.
+    assertThrows[IllegalArgumentException] {
+      EventPipe.indexFilter(-1)
     }
-    assert(adhocEvent.isDefined)
-    // Adhoc snapshots should pass through regardless of divisor
-    assert(EventPipe.indexFilter(0).filter(adhocEvent.get))
   }
 
   // --- indexFilter divisor=1 ---
