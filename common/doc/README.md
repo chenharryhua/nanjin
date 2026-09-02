@@ -96,14 +96,14 @@ import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
 CircuitBreaker[IO](zoneId, maxFailures = 5, _.fixedDelay(10.seconds)).use { cb =>
   cb.protect(riskyCall)     // throws RejectedException when open
   cb.attempt(riskyCall)     // returns Either when open
-  cb.getState               // inspect current state
+  cb.state                  // inspect current state
 }
 ```
 
 Drawbacks:
 - `maxFailures` counts consecutive failures in Closed state only. A single success resets the counter — there's no sliding window or rate-based opening.
 - The breaker is scoped to a `Resource` — it can't outlive the resource's lifetime. For long-lived breakers, the enclosing resource must also be long-lived.
-- No half-open concurrency control — multiple fibers can enter half-open simultaneously.
+- Failure counting in Closed is per-round, not per-call: a batch of concurrent failures advances the counter by one, so tripping is governed by *consecutive rounds* of failure rather than the raw number of concurrent failures. Half-open admits exactly one probe at a time (single-flight).
 
 ### Retry
 
@@ -183,6 +183,68 @@ Drawbacks:
 ### LogLevel
 
 Enum with `Error`, `Warn`, `Good`, `Info`, `Debug`. Provides circe codecs, Show, and Order instances. `Good` is specific to nanjin — represents "success worth noting" between Warn and Info severity.
+
+---
+
+## security — Keeping Secrets Out of Logs
+
+Two complementary tools stop sensitive data from leaking into logs, exception messages, and on-screen output: `Secret` prevents leaks at the type level, while `json.redact` scrubs values at display time.
+
+### Secret
+
+A wrapper for a sensitive value (password, client secret, authorization code, token, ...) whose contents are masked in every rendered form.
+
+```scala
+import com.github.chenharryhua.nanjin.common.Secret
+
+final case class DbConfig(user: String, password: Secret)
+
+val cfg = DbConfig("admin", Secret("hunter2"))
+val cfg2 = DbConfig("admin", "hunter2")   // implicit String => Secret at the call site
+
+cfg.toString        // DbConfig(admin,***) — the enclosing case class masks it too
+cfg.password.value  // "hunter2" — the single, intentional cleartext escape hatch
+```
+
+Why it holds where a plain `String` (or an `opaque type`) would leak:
+- `toString` and `Show` render `***`, never the value.
+- It is a real runtime class, not an `opaque type` — an opaque type erases to `String`, so a case class embedding it would print the underlying value in its default `toString`. The class masks even when nested inside other structures.
+- The JSON `Encoder` is a **masking** encoder that emits `"***"`. An enclosing type can therefore auto-derive a codec for logging, and the secret still never reaches JSON in cleartext. There is deliberately **no** `Decoder` — a secret cannot be recovered from its mask, so a masked value can't round-trip back into a real one.
+- `equals`/`hashCode` are value-based, so `Secret` still works as a map key or in comparisons.
+
+The raw value is reachable only through `.value`, used at trust boundaries (building a JDBC config, a token request, ...).
+
+```scala
+import io.circe.syntax.*
+Secret("hunter2").asJson              // "***"
+DbConfig("admin", Secret("hunter2")).asJson  // {"user":"admin","password":"***"}
+```
+
+Drawbacks:
+- `.value` is an unguarded escape hatch — once called, the plain `String` is subject to the usual leak paths. Keep the unwrap as close to the boundary as possible.
+- The encoder masks on **every** serialization path, including wire payloads. A request that needs the real secret must take it from `.value`; serializing the enclosing type to a wire body will send `"***"`, not the secret.
+
+### json — Display-Only Transforms
+
+Transforms for **human-facing output only** (logs, dashboard). They rewrite values for readability and safety, so the result is **not** machine-readable and must never be used as wire format or fed back into a decoder.
+
+```scala
+import com.github.chenharryhua.nanjin.common.json
+
+// redact: replace sensitive string fields (matched by key, at any depth) with a marker
+val scrub = json.redact("password", "client_secret")
+scrub(payload)  // matching string fields become "redacted(*****)"
+
+// redact with a custom function
+json.redact(List("token"), _.take(4) + "…")(payload)
+
+// prettify: group numbers and humanize durations for display
+json.prettify(event)  // 1234567 -> "1,234,567", duration -> "1 minute 5 seconds"
+```
+
+Drawbacks:
+- `redact` matches on **field name** and rewrites **string** values only. A sensitive value nested under a matching key as an object/array/number is left structurally intact (recursion still catches sensitive string leaves inside it) — it does not collapse a whole container into a marker.
+- Both transforms are lossy and display-only. Round-tripping the output through a decoder will not reproduce the original.
 
 ---
 
