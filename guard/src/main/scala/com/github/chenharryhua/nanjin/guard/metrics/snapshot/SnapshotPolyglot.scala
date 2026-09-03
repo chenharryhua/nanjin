@@ -84,7 +84,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
         case time.Minutes.symbol      => fmt.format(time.Minutes(data))
         case time.Hours.symbol        => fmt.format(time.Hours(data))
         case time.Days.symbol         => fmt.format(time.Days(data))
-        case unknown                  => sys.error(s"$unknown - unknown symbol of dimension $dimensionName")
+        case unknown                  => s"$unknown - unknown symbol of dimension $dimensionName"
       }
     } else
       s"${decimalFormatter.format(data)} $unitSymbol"
