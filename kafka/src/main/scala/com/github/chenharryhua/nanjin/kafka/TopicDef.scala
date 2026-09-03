@@ -19,8 +19,15 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
   * fully configured once a `SchemaRegistryClient` is available. Use it to derive consumer settings, producer
   * settings, and registered `TopicSerde` instances.
   */
-final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], value: Unregistered[V]) {
-  def withTopicName(tn: TopicName): TopicDef[K, V] = this.copy(topicName = tn)
+final class TopicDef[K, V] private (
+  val topicName: TopicName,
+  val key: Unregistered[K],
+  val value: Unregistered[V]) {
+  // Not a case class: comparing serde-carrying defs is meaningless, so structural equality is
+  // intentionally omitted. A readable toString is still useful for logs.
+  override def toString: String = s"TopicDef(${topicName.value})"
+
+  def withTopicName(tn: String): TopicDef[K, V] = new TopicDef[K, V](TopicName(tn), key, value)
   def consumerSettings[F[_]: Sync](
     srClient: SchemaRegistryClient,
     srs: SerdeSettings,
@@ -54,4 +61,12 @@ final case class TopicDef[K, V](topicName: TopicName, key: Unregistered[K], valu
     TopicSerde(topicName = topicName, key = KafkaSerde(k, topicName), value = KafkaSerde(v, topicName))
   }
 
+}
+
+object TopicDef {
+
+  /** Construct from a bare topic name (String at the door); the name is wrapped in [[TopicName]].
+    */
+  def apply[K, V](topicName: String, key: Unregistered[K], value: Unregistered[V]): TopicDef[K, V] =
+    new TopicDef(TopicName(topicName), key, value)
 }

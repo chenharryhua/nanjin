@@ -13,7 +13,7 @@ class PushGenericRecordTest extends AnyFunSuite {
     val nj = NJProducerRecord[Foo, Int](topicName, Foo(1, "a"), 1)
 
     val push = ctx.produceGenericRecord(
-      topicName,
+      topicName.value,
       key = Some(SchemaFor[Foo].schema),
       value = Some(SchemaFor[Int].schema)
     ).produceOne(nj.toGenericRecord)

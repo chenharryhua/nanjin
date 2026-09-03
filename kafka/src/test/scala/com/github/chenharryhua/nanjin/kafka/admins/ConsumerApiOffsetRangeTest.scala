@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.kafka.{
   OffsetRange,
   PureConsumerSettings,
   TopicDef,
-  TopicName,
   TopicPartitionMap
 }
 import fs2.Stream
@@ -36,7 +35,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   val pi = Primitive[java.lang.Integer]
   val topic: TopicDef[java.lang.Integer, java.lang.Integer] =
-    TopicDef(TopicName("range.test"), pi, pi)
+    TopicDef("range.test", pi, pi)
 
   val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] =
     ProducerRecord(topic.topicName.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
@@ -52,7 +51,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .through(ctx.produce(topic).sink)
 
   (ctx
-    .admin(topic.topicName)
+    .admin(topic.topicName.value)
     .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()
 

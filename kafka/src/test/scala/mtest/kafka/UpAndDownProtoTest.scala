@@ -19,7 +19,7 @@ class UpAndDownProtoTest extends AnyFunSuite {
 
   private val topic = TopicName("up.and.down.proto")
   private val proto: TopicDef[Integer, ProtoConsumerRecord] =
-    TopicDef(topic, Primitive[Integer], Structured[DynamicMessage].become[ProtoConsumerRecord])
+    TopicDef(topic.value, Primitive[Integer], Structured[DynamicMessage].become[ProtoConsumerRecord])
 
   test("1.proto - schema register") {
     val schema = KafkaCodec.protobuf[ProtoConsumerRecord].schema

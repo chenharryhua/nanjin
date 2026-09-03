@@ -23,7 +23,7 @@ object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
   val avroTopic: TopicDef[Integer, Fs2Kafka] =
     TopicDef[Integer, Fs2Kafka](
-      TopicName("fs2.kafka.test"),
+      "fs2.kafka.test",
       Primitive[Integer].emap(identity)(identity),
       Structured[GenericRecord].become[Fs2Kafka])
 
@@ -107,7 +107,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("4.serde") {
     val serde = ctx.serde(avroTopic)
     ctx
-      .consumeBytes(avroTopic.topicName)
+      .consumeBytes(avroTopic.topicName.value)
       .assign
       .take(1)
       .map { ccr =>
@@ -149,7 +149,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(TopicName("bytes"))
+      .consumeGenericRecord("bytes")
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -221,7 +221,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("11.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(TopicName("telecom_italia_data"))
+      .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
@@ -260,7 +260,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("14.generic record without schema registry") {
     val ret =
       ctx
-        .consumeGenericRecord(avroTopic.topicName, Some(SchemaFor[Int].schema))
+        .consumeGenericRecord(avroTopic.topicName.value, Some(SchemaFor[Int].schema))
         .subscribe
         .take(1)
         .map(_.record)

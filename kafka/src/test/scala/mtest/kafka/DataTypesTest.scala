@@ -106,11 +106,6 @@ class DataTypesTest extends AnyFunSuite {
     assert(tn.show == "my-topic")
   }
 
-  test("16.TopicName - implicit conversion from String") {
-    val tn: TopicName = "converted-topic"
-    assert(tn.value == "converted-topic")
-  }
-
   // --- GroupId ---
 
   test("17.GroupId - JSON round-trip") {
@@ -118,11 +113,6 @@ class DataTypesTest extends AnyFunSuite {
     val decoded = decode[GroupId](gid.asJson.noSpaces)
     assert(decoded == Right(gid))
     assert(gid.show == "consumer-group-1")
-  }
-
-  test("18.GroupId - implicit conversion from String") {
-    val gid: GroupId = "my-group"
-    assert(gid.value == "my-group")
   }
 
   // --- Partition ---
