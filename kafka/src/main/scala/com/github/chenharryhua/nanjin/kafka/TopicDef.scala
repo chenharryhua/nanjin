@@ -12,12 +12,16 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
 // Not a case class: comparing serde-carrying values is meaningless, so structural equality is
 // intentionally omitted. Constructed by the library (via TopicDef.register), not by users.
-final class TopicSerde[K, V] private[kafka] (
+final class TopicSerde[K, V] private (
   val topicName: TopicName,
   val key: KafkaSerde[K],
   val value: KafkaSerde[V])
     extends KafkaRecordSerde(key, value) {
   override def toString: String = s"TopicSerde(${topicName.value})"
+}
+private object TopicSerde {
+  def apply[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V]): TopicSerde[K, V] =
+    new TopicSerde[K, V](topicName, key, value)
 }
 
 /** A topic definition pairing a topic name with key and value serde specifications.
