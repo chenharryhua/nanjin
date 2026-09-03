@@ -28,12 +28,12 @@ import java.util.UUID
   *   - Structured lifecycle events (start, panic, stop) for observability
   *   - An optional embedded HTTP dashboard for live inspection
   *
-  * The user supplies a callback that receives an [[Agent]], which exposes metrics, logging, scheduling,
-  * retry, and circuit-breaker facilities scoped to this service.
+  * The user supplies a callback that receives an `Agent`, which exposes metrics, logging, scheduling, retry,
+  * and circuit-breaker facilities scoped to this service.
   *
   * ===Usage===
   *
-  * Obtain a `ServiceGuard` from [[TaskGuard.service]], configure it, then compile its event stream:
+  * Obtain a `ServiceGuard` from `TaskGuard.service`, configure it, then compile its event stream:
   *
   * {{{
   * import cats.effect.IO
@@ -61,9 +61,9 @@ import java.util.UUID
   *
   * ===Event Stream Variants===
   *
-  *   - [[eventStream]]: accepts `Agent[F] => F[Unit]` — the most common form
-  *   - [[eventStreamS]]: accepts `Agent[F] => Stream[F, A]` — drains the inner stream automatically
-  *   - [[eventStreamR]]: accepts `Agent[F] => Resource[F, A]` — holds the resource open until cancellation
+  *   - `eventStream`: accepts `Agent[F] => F[Unit]` — the most common form
+  *   - `eventStreamS`: accepts `Agent[F] => Stream[F, A]` — drains the inner stream automatically
+  *   - `eventStreamR`: accepts `Agent[F] => Resource[F, A]` — holds the resource open until cancellation
   *
   * All three variants produce the same `Stream[F, Event]` output. The service runs concurrently alongside
   * event emission; observers (SNS, Kafka, database, etc.) can be attached to the event stream via
@@ -73,8 +73,8 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
 
   /** Run application logic as `F[Unit]` and produce an event stream.
     *
-    * The callback receives an [[Agent]] scoped to this service. When the effect completes normally the
-    * service stops; when it fails the restart policy decides whether to retry.
+    * The callback receives an `Agent` scoped to this service. When the effect completes normally the service
+    * stops; when it fails the restart policy decides whether to retry.
     *
     * @param runAgent
     *   the application logic to execute under supervision
@@ -86,7 +86,7 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
   /** Run application logic as a `Stream` and produce an event stream.
     *
     * The inner stream is compiled to drain; completion or failure triggers the same lifecycle as
-    * [[eventStream]].
+    * `eventStream`.
     */
   def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event]
 

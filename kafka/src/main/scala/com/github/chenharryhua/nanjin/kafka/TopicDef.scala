@@ -76,7 +76,7 @@ final class TopicDef[K, V] private (
 
 object TopicDef {
 
-  /** Construct from a bare topic name (String at the door); the name is wrapped in [[TopicName]].
+  /** Construct from a bare topic name (String at the door); the name is wrapped in `TopicName`.
     */
   def apply[K, V](topicName: String, key: Unregistered[K], value: Unregistered[V]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName), key, value)

@@ -218,14 +218,13 @@ private class AuthorizationCodeAuth[F[_]: Async](
 
 /** Renewal-scheduling strategy for token-based auth.
   *
-  * Two floors keep the background renewal loop in [[TokenAuthClient.wrap]] from degenerating into a
-  * zero-delay busy loop:
+  * Two floors keep the background renewal loop in `TokenAuthClient.wrap` from degenerating into a zero-delay
+  * busy loop:
   *
-  *   - [[skewed]] governs the success path: it renews `SKEW` early so a request never races an expiring
-  *     token, but never schedules sooner than [[renewMinDelay]]. A provider issuing short-lived tokens
-  *     (`expires_in <= SKEW`) would otherwise collapse the delay to `0.seconds` and re-fetch immediately,
-  *     forever.
-  *   - [[renewFailureBackoff]] governs the failure path: when a renewal throws before reaching its own
+  *   - `skewed` governs the success path: it renews `SKEW` early so a request never races an expiring token,
+  *     but never schedules sooner than `renewMinDelay`. A provider issuing short-lived tokens (`expires_in <=
+  *     SKEW`) would otherwise collapse the delay to `0.seconds` and re-fetch immediately, forever.
+  *   - `renewFailureBackoff` governs the failure path: when a renewal throws before reaching its own
   *     `delayBy`, the loop waits this long before retrying, bounding CPU and auth-endpoint load.
   */
 
@@ -238,6 +237,6 @@ private val renewMinDelay: FiniteDuration = 5.seconds
 /** Delay before the renewal loop retries after a failed renewal, bounding CPU / auth-endpoint load. */
 private val renewFailureBackoff: FiniteDuration = 5.seconds
 
-/** Schedule delay until the next renewal: `SKEW` before expiry, but never below [[renewMinDelay]]. */
+/** Schedule delay until the next renewal: `SKEW` before expiry, but never below `renewMinDelay`. */
 private def skewed(expire: Long): FiniteDuration =
   (expire.seconds - SKEW).max(renewMinDelay)
