@@ -10,8 +10,15 @@ import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaRecordSerde, KafkaSerde
 import fs2.kafka.{ConsumerSettings, ProducerSettings}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
-final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
-    extends KafkaRecordSerde(key, value)
+// Not a case class: comparing serde-carrying values is meaningless, so structural equality is
+// intentionally omitted. Constructed by the library (via TopicDef.register), not by users.
+final class TopicSerde[K, V] private[kafka] (
+  val topicName: TopicName,
+  val key: KafkaSerde[K],
+  val value: KafkaSerde[V])
+    extends KafkaRecordSerde(key, value) {
+  override def toString: String = s"TopicSerde(${topicName.value})"
+}
 
 /** A topic definition pairing a topic name with key and value serde specifications.
   *
