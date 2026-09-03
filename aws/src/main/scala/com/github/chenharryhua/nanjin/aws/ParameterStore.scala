@@ -32,27 +32,22 @@ trait ParameterStore[F[_]] {
     * }}}
     */
   def fetch(request: GetParametersRequest): F[GetParametersResponse]
+  final def fetch(f: Endo[GetParametersRequest.Builder]): F[GetParametersResponse] =
+    fetch(f(GetParametersRequest.builder()).build())
 
-  /** Fetch a parameter by a typed path, returning its content.
+  /** Fetch a parameter by its path, returning its content. `isSecure` (default `true`) requests decryption
+    * for SecureString parameters.
     *
     * Usage example:
     * {{{
-    * val path = ParameterStorePath("my/secure/parameter", isSecure = true)
-    * val contentF: F[ParameterStoreContent] = parameterStore.fetch(path)
+    * val contentF: F[ParameterStoreContent] = parameterStore.fetch("my/secure/parameter")
     * contentF.map(_.value) // Access the actual parameter value
     * }}}
     */
-  def fetch(path: ParameterStorePath): F[ParameterStoreContent]
+  def fetch(path: String, isSecure: Boolean = true): F[ParameterStoreContent]
 
-  /** Decode the parameter value as Base64.
-    *
-    * Usage example:
-    * {{{
-    * val path = ParameterStorePath("my/secure/parameter", isSecure = true)
-    * val bytesF: F[Array[Byte]] = parameterStore.base64(path)
-    * }}}
-    */
-  def base64(path: ParameterStorePath): F[Array[Byte]]
+  /** Decode the parameter value as Base64. `isSecure` (default `true`) requests decryption. */
+  def base64(path: String, isSecure: Boolean = true): F[Array[Byte]]
 }
 
 object ParameterStore {
@@ -73,12 +68,11 @@ object ParameterStore {
     override def fetch(request: GetParametersRequest): F[GetParametersResponse] =
       blockingF(client.getParameters(request), request.toString, logger)
 
-    override def base64(path: ParameterStorePath): F[Array[Byte]] =
-      fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+    override def base64(path: String, isSecure: Boolean): F[Array[Byte]] =
+      fetch(path, isSecure).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
-    override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
-      val request = GetParametersRequest.builder().names(path.value).withDecryption(path.isSecure).build()
-
+    override def fetch(path: String, isSecure: Boolean): F[ParameterStoreContent] = {
+      val request = GetParametersRequest.builder().names(path).withDecryption(isSecure).build()
       blockingF(
         client
           .getParameters(request)
@@ -88,7 +82,7 @@ object ParameterStore {
           .map(p => ParameterStoreContent(p.value())),
         request.toString,
         logger
-      ).flatMap(psc => F.fromOption(psc, new NoSuchElementException(s"No parameter found at ${path.value}")))
+      ).flatMap(psc => F.fromOption(psc, new NoSuchElementException(s"No parameter found at $path")))
     }
   }
 }

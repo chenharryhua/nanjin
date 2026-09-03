@@ -46,8 +46,6 @@ object KmsArn:
 end KmsArn
 
 // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
-final case class ParameterStorePath(value: String, isSecure: Boolean = true) derives Codec.AsObject
-
 opaque type ParameterStoreContent = String
 object ParameterStoreContent:
   def apply(psc: String): ParameterStoreContent = psc
