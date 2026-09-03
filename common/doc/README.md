@@ -333,6 +333,22 @@ TypeName[List[Int]].value  // "List"
 Drawbacks:
 - Returns the simple symbol name only — `List[Int]` gives `"List"`, not `"List[Int]"`. Type arguments are lost.
 
+### FieldNames
+
+Case-class field names, extracted at compile time from the product mirror in declaration order.
+
+```scala
+import com.github.chenharryhua.nanjin.common.FieldNames
+
+final case class Tiger(name: String, age: Int, colour: String)
+
+FieldNames.of[Tiger]  // List("name", "age", "colour")
+```
+
+Drawbacks:
+- Requires a `Mirror.ProductOf[A]` — works for case classes and product types only, not arbitrary types.
+- Returns the declared Scala field names, not any renamed JSON keys (e.g. a circe `@JsonKey` or custom codec mapping is not reflected).
+
 ### OpaqueLift
 
 Lifts typeclass instances from a representation type to an opaque type via `asInstanceOf`. Used internally to derive Show/Encoder/Decoder/Order for opaque types without boilerplate.

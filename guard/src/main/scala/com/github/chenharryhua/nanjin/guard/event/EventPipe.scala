@@ -93,8 +93,7 @@ object EventPipe {
         }
     }
 
-  /** Keep every `divisor`-th periodic [[MetricsSnapshot]] (by tick index); other events pass through
-    * unchanged.
+  /** Keep every `divisor`-th periodic `MetricsSnapshot` (by tick index); other events pass through unchanged.
     *
     * @param divisor
     *   must be `>= 1`. Validated eagerly so a misconfiguration fails at construction with a clear message,

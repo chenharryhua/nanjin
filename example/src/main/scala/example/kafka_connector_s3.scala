@@ -6,9 +6,9 @@ import cats.effect.kernel.Resource
 import cats.syntax.all.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.connector.PullError
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import fs2.Pipe
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}

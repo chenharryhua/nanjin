@@ -145,17 +145,32 @@ object Policy {
   /** Fixed-delay scheduling. Produces one tick per delay in the list, then exhausts. Use `.repeat` to cycle
     * through the delays indefinitely.
     *
-    * All delays must be non-negative, and at least one must be strictly positive.
+    * An empty list is just another way to say `empty` — a policy that never ticks — mirroring `limited(0)`.
+    * For a non-empty list, all delays must be non-negative and at least one must be strictly positive.
+    *
+    * This `List` overload is the '''runtime''' entry point: use it for a computed, possibly-empty sequence
+    * (e.g. `fixedDelay(fibonacci.take(8).map(_.seconds).toList)`), where empty naturally means `empty`. When
+    * you have literal delays and know there is at least one, prefer the varargs overload below, which encodes
+    * that "at least one" at '''compile time'''. The two overloads are intentional siblings covering the two
+    * honest contracts (may-be-empty list vs. guaranteed-non-empty literals); they coexist unambiguously
+    * because the varargs form has a mandatory head parameter.
     */
-  def fixedDelay(nel: NonEmptyList[FiniteDuration]): Policy = {
-    require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
-    require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
-    Policy(Fix(FixedDelay(nel.map(_.toJava))))
-  }
+  def fixedDelay(delays: List[FiniteDuration]): Policy =
+    NonEmptyList.fromList(delays) match {
+      case None      => empty
+      case Some(nel) =>
+        require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
+        require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
+        Policy(Fix(FixedDelay(nel.map(_.toJava))))
+    }
 
-  /** Varargs convenience for `fixedDelay`. */
+  /** Varargs convenience for `fixedDelay`, the '''compile-time''' entry point for literal delays. The
+    * mandatory head parameter guarantees at least one delay at the call site (so this form can never produce
+    * `empty`) and also keeps it unambiguous with the `List` overload above. For a computed or possibly-empty
+    * sequence, use that `List` overload instead.
+    */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
-    fixedDelay(NonEmptyList.of(head, tail*))
+    fixedDelay(head :: tail.toList)
 
   /** Fixed-rate scheduling. Produces a single tick that maintains a constant period from the previous
     * conclude time. Use `.repeat` for continuous fixed-rate scheduling.

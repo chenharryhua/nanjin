@@ -3,7 +3,7 @@ package mtest
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
 import org.apache.avro.generic.GenericRecord
 
 package object kafka {

@@ -61,6 +61,17 @@ object Counter {
     // cumulative). Zeroing it here would create artificial sawtooth resets that break downstream
     // rate()/increase() calculations. The two backends therefore report different absolute values across a
     // reset tick, which is correct: they answer different questions.
+    //
+    // Reset-boundary race: reset runs on the background policy-tick fiber (see Builder.build) concurrently
+    // with user inc calls. It is a *relative* decrement, not an assignment to zero: it reads getCount and
+    // then dec's exactly that amount. getCount and dec are each atomic (Dropwizard's counter is a LongAdder),
+    // but the pair is not, so an inc(k) landing between the read and the dec is preserved rather than lost:
+    //   read getCount -> N; concurrent inc(k) -> N+k; dec(N) -> k
+    // This is deliberate. Subtracting the observed count (instead of assigning 0) means increments that occur
+    // at the reset instant survive into the next window rather than being silently dropped. The trade-off is
+    // that the counter is not guaranteed to read exactly 0 immediately after a reset tick under concurrency;
+    // it reads the number of increments that raced the reset. For counting semantics, not losing counts is
+    // the property worth keeping.
     val reset: F[Unit] = F.delay(counter.dec(counter.getCount))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void

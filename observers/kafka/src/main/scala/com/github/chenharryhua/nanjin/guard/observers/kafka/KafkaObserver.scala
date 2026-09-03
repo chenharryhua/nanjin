@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import com.github.chenharryhua.nanjin.kafka.serdes.Structured
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import io.circe.syntax.EncoderOps
@@ -33,14 +33,14 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
 
   private val name: String = "Kafka Observer"
 
-  def observe(topicName: TopicName): Pipe[F, Event, Event] = {
+  def observe(topicName: String): Pipe[F, Event, Event] = {
     def translate(evt: Event): F[Option[ProducerRecord[Json, Json]]] =
       translator
         .translate(evt)
         .map(
           _.map(evt =>
             ProducerRecord(
-              topicName.value,
+              topicName,
               EventKey(evt.serviceIdentity.task.value, evt.serviceIdentity.service.value).asJson,
               evt.asJson)))
     val topic = TopicDef(topicName, Structured[Json], Structured[Json])

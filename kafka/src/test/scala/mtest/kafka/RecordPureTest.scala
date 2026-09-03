@@ -34,7 +34,7 @@ class RecordPureTest extends AnyFunSuite {
 
   test("1.NJProducerRecord builder methods") {
     val tn = TopicName("new-topic")
-    assert(basePR.withTopicName(tn).topic === "new-topic")
+    assert(basePR.withTopicName(tn.value).topic === "new-topic")
     assert(basePR.withPartition(5).partition === Some(5))
     assert(basePR.withTimestamp(2000L).timestamp === Some(2000L))
     assert(basePR.withKey("k2").key === Some("k2"))
@@ -106,8 +106,8 @@ class RecordPureTest extends AnyFunSuite {
     assert(backToNJ.timestamp === pr.timestamp)
   }
 
-  test("8.NJProducerRecord from TopicName factory") {
-    val pr = NJProducerRecord(TopicName("t"), "k", "v")
+  test("8.NJProducerRecord from topic-name/key/value factory") {
+    val pr = NJProducerRecord("t", "k", "v")
     assert(pr.topic === "t")
     assert(pr.key === Some("k"))
     assert(pr.value === Some("v"))

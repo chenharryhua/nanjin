@@ -145,34 +145,36 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     )
 
   def consume[K, V](
-    topicName: TopicName,
+    topicName: String,
     k: Resource[F, KeyDeserializer[F, K]],
     v: Resource[F, ValueDeserializer[F, V]])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
-      topicName,
+      TopicName(topicName),
       ConsumerSettings(using k, v).withProperties(settings.consumerSettings.properties)
     )
 
   /** Create a raw byte consumer
     */
-  def consumeBytes(topicName: TopicName)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] =
+  def consumeBytes(topicName: String)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] =
     consume(
       topicName,
       Resource.pure[F, KeyDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]),
       Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]])
     )
 
-  def consumeGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
-    using F: Async[F]): ConsumeGenericRecord[F] =
+  def consumeGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
+    F: Async[F]): ConsumeGenericRecord[F] = {
+    val tn: TopicName = TopicName(topicName)
     ConsumeGenericRecord[F](
-      topicName = topicName,
+      topicName = tn,
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
-      fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(topicName),
+      fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(tn),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]])
         .withProperties(settings.consumerSettings.properties)
     )
+  }
 
   // --------------------------------------------------------------------------
   // Producers
@@ -184,19 +186,18 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       topic.producerSettings[F](schema_registry_internal, settings.serdeSettings, settings.producerSettings))
 
   def produce[K, V](
-    topicName: TopicName,
+    topicName: String,
     k: Resource[F, KeySerializer[F, K]],
     v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
-      topicName,
+      TopicName(topicName),
       ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
-  def produceGenericRecord(topicName: TopicName, key: Option[Schema] = None, value: Option[Schema] = None)(
-    using
+  def produceGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
     F: Async[F],
     ev: Parallel[F]): ProduceGenericRecord[F] =
     ProduceGenericRecord[F](
-      topicName = topicName,
+      topicName = TopicName(topicName),
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
       srClient = schema_registry_internal,
       serdeSettings = settings.serdeSettings,
@@ -243,17 +244,22 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     SnapshotConsumer(topicName, consumerSettings)
   }
 
-  def admin(topicName: TopicName, groupId: GroupId)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+  def admin(topicName: String, groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] = {
+    val tn: TopicName = TopicName(topicName)
+    val gid: GroupId = GroupId(groupId)
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
-      consumer <- snapshotConsumer(topicName, Some(groupId))
-    } yield AdminTopicGroup(admin, consumer, topicName, groupId)
+      consumer <- snapshotConsumer(tn, Some(gid))
+    } yield AdminTopicGroup(admin, consumer, tn, gid)
+  }
 
-  def admin(topicName: TopicName)(using F: Async[F]): Resource[F, AdminTopic[F]] =
+  def admin(topicName: String)(using F: Async[F]): Resource[F, AdminTopic[F]] = {
+    val tn: TopicName = TopicName(topicName)
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
-      consumer <- snapshotConsumer(topicName, None)
-    } yield AdminTopic(admin, consumer, topicName)
+      consumer <- snapshotConsumer(tn, None)
+    } yield AdminTopic(admin, consumer, tn)
+  }
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
     *
@@ -264,18 +270,18 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     * @return
     *   List of topics successfully be removed from the consumer group
     */
-  def ungroup(groupId: GroupId, keeps: List[TopicName] = Nil)(using F: Async[F]): F[List[TopicName]] = {
+  def ungroup(groupId: String, keeps: List[String] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))
     } yield admin
-      .listConsumerGroupOffsets(groupId.value)
+      .listConsumerGroupOffsets(groupId)
       .partitionsToOffsetAndMetadata
       .map(_.keys.map(_.topic()).toList.distinct.diff(keeps))
       .flatMap(
         _.traverse { tn =>
           SnapshotConsumer[F](TopicName(tn), consumer).partitionsFor
-            .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId.value, tps.toSet))
+            .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.toSet))
             .attempt
             .map {
               case Left(_)  => None

@@ -14,7 +14,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TopicSyntaxTest extends AnyFunSuite {
   test("1.topic name") {
-    val _: TopicName = "abc.unsafe"
     val _ = TopicName("abc.checked")
   }
 

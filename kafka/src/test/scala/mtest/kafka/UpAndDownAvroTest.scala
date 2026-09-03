@@ -15,7 +15,7 @@ final case class UpAndDown(a: Int, b: String)
 class UpAndDownAvroTest extends AnyFunSuite {
   private val topic = TopicName("up.and.down.avro")
   private val avro: TopicDef[Integer, UpAndDown] =
-    TopicDef(topic, Primitive[Integer], Structured[GenericRecord].become[UpAndDown])
+    TopicDef(topic.value, Primitive[Integer], Structured[GenericRecord].become[UpAndDown])
 
   test("1.avro - schema register") {
     val schema = KafkaCodec.avro[UpAndDown].schema

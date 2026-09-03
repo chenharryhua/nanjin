@@ -3,13 +3,13 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicName}
 import com.github.chenharryhua.nanjin.guard.observers.kafka.KafkaObserver
+import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import org.scalatest.funsuite.AnyFunSuite
 
 class KafkaObserverTest extends AnyFunSuite {
-  private val topic = TopicName("observer")
+  private val topic = "observer"
   private val ctx = KafkaContext[IO](KafkaSettings.local)
   test("1.observer") {
     TaskGuard[IO]("observer")

@@ -24,7 +24,7 @@ class UpAndDownJsonTest extends AnyFunSuite {
 
   private val topic = TopicName("up.and.down.json2")
   private val json: TopicDef[Integer, UpAndDown] =
-    TopicDef(topic, Primitive[Integer], Structured[JsonNode].become[UpAndDown])
+    TopicDef(topic.value, Primitive[Integer], Structured[JsonNode].become[UpAndDown])
 
   test("1.json - schema register") {
     val schema = summon[KafkaJsonCodec[UpAndDown]].schema

@@ -15,9 +15,6 @@ object TopicName:
   given Show[TopicName] = OpaqueLift.lift[TopicName, String, Show]
   given Encoder[TopicName] = OpaqueLift.lift[TopicName, String, Encoder]
   given Decoder[TopicName] = OpaqueLift.lift[TopicName, String, Decoder]
-
-  given Conversion[String, TopicName] with
-    override def apply(tn: String): TopicName = TopicName(tn)
 end TopicName
 
 opaque type GroupId = String
@@ -28,9 +25,6 @@ object GroupId:
   given Show[GroupId] = OpaqueLift.lift[GroupId, String, Show]
   given Encoder[GroupId] = OpaqueLift.lift[GroupId, String, Encoder]
   given Decoder[GroupId] = OpaqueLift.lift[GroupId, String, Decoder]
-
-  given Conversion[String, GroupId] with
-    override def apply(gid: String): GroupId = GroupId(gid)
 end GroupId
 
 opaque type Offset = Long

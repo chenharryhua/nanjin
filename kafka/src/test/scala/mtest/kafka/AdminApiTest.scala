@@ -2,7 +2,6 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
 import io.circe.syntax.EncoderOps
@@ -13,12 +12,12 @@ import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
   private val topicDef: TopicDef[Integer, Integer] =
-    new TopicDef(TopicName("admin"), Primitive[Integer], Primitive[Integer])
+    TopicDef("admin", Primitive[Integer], Primitive[Integer])
   private val topic = topicDef
   private val mirror = topicDef.withTopicName("admin.mirror")
 
   test("1.newTopic") {
-    val run = ctx.admin(topic.topicName).use { admin =>
+    val run = ctx.admin(topic.topicName.value).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
         _ <- IO.sleep(1.seconds)
@@ -30,8 +29,8 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("2.mirrorTo") {
-    val admin = ctx.admin(topic.topicName)
-    val madmin = ctx.admin(mirror.topicName)
+    val admin = ctx.admin(topic.topicName.value)
+    val madmin = ctx.admin(mirror.topicName.value)
     val run = for {
       _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- IO.sleep(1.seconds)
@@ -66,7 +65,7 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   ignore("4.acls") {
-    val run = ctx.admin(topic.topicName).use { admin =>
+    val run = ctx.admin(topic.topicName.value).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
         _ <- IO.sleep(1.seconds)
