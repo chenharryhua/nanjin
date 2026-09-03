@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class PushGenericRecordTest extends AnyFunSuite {
   private val topicName: TopicName = TopicName("push.generic.record.test")
   test("1.schema") {
-    val nj = NJProducerRecord[Foo, Int](topicName, Foo(1, "a"), 1)
+    val nj = NJProducerRecord[Foo, Int](topicName.value, Foo(1, "a"), 1)
 
     val push = ctx.produceGenericRecord(
       topicName.value,
