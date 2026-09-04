@@ -16,7 +16,7 @@ import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
 import org.http4s.ember.server.EmberServerBuilder
 
-import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 /** A guard that manages the lifecycle of a service and produces a stream of observable events.
   *
@@ -114,7 +114,7 @@ private[guard] object ServiceGuard {
     private case class KickedOff(
       serviceParams: ServiceParams,
       emberServerBuilder: Option[EmberServerBuilder[F]],
-      uuidGenerator: F[UUID])
+      batchIdCounter: AtomicLong)
 
     private def kicking_off: F[KickedOff] =
       SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
@@ -135,13 +135,13 @@ private[guard] object ServiceGuard {
             brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
             host = Host(hostName, esb.map(_.port.value).map(Port(_)))
           )
-          KickedOff(params, esb, UUIDGen.randomUUID[F])
+          KickedOff(params, esb, new AtomicLong(1L))
         }
       }
 
     override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
       for {
-        KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
+        KickedOff(serviceParams, emberServerBuilder, batchIdCounter) <- Stream.eval(kicking_off)
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         meterProvider <- Stream.resource(config.meterProvider)
@@ -155,7 +155,7 @@ private[guard] object ServiceGuard {
             serviceParams = serviceParams,
             channel = channel,
             dispatcher = dispatcher,
-            uuidGenerator = uuidGenerator,
+            batchIdCounter = batchIdCounter,
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
             meterProvider = meterProvider

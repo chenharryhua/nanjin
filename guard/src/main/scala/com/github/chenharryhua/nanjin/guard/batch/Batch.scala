@@ -21,7 +21,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
 import java.time.Duration
-import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -95,7 +95,7 @@ object Batch:
     mode: BatchMode,
     jobHook: JobHook[F, A],
     scope: MetricScope,
-    batchId: UUID,
+    batchId: Long,
     batchPanel: BatchMetrics[F],
     predicate: Reader[A, Boolean]) {
 
@@ -174,13 +174,13 @@ object Batch:
     metrics: MetricsHub[F],
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
-    uuidGenerator: F[UUID])
+    batchIdCounter: AtomicLong)
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobState[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
             JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
@@ -188,17 +188,16 @@ object Batch:
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-        createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
-            QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
-        }
+      val batchId: Long = batchIdCounter.getAndIncrement()
+      createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
+        case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
+          QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
       }
     }
 
     override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobValue[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
             JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runValue
@@ -206,16 +205,15 @@ object Batch:
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
-            ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
-        }
+      val batchId: Long = batchIdCounter.getAndIncrement()
+      createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
+        case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
+          ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
       }
     }
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), metrics, parallelism, jobs, uuidGenerator)
+      new Parallel[F, A](predicate = Reader(f), metrics, parallelism, jobs, batchIdCounter)
   }
 
   /*
@@ -226,33 +224,32 @@ object Batch:
     predicate: Reader[A, Boolean],
     metrics: MetricsHub[F],
     jobs: List[JobNameIndex[F, A]],
-    uuidGenerator: F[UUID])
+    batchIdCounter: AtomicLong)
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobState[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[List[JobState[A]]] =
         jobs.traverse {
           JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
         }.guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-        createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
-          .evalMap(bp => exec(bp, batchId))
-          .map(jobs =>
-            QuasiBatch(
-              scope = metrics.scope,
-              spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
-              mode = mode,
-              batchId = batchId,
-              jobs = jobs))
-      }
+      val batchId: Long = batchIdCounter.getAndIncrement()
+      createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
+        .evalMap(bp => exec(bp, batchId))
+        .map(jobs =>
+          QuasiBatch(
+            scope = metrics.scope,
+            spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            mode = mode,
+            batchId = batchId,
+            jobs = jobs))
     }
 
     override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobValue[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[List[JobValue[A]]] =
         jobs
           .traverse(
             JobExecutor(
@@ -265,20 +262,19 @@ object Batch:
             ).runValue
           ).guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-        createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
-          ValueBatch(
-            scope = metrics.scope,
-            spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
-            mode = mode,
-            batchId = batchId,
-            jobs = jobs)
-        }
+      val batchId: Long = batchIdCounter.getAndIncrement()
+      createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
+        ValueBatch(
+          scope = metrics.scope,
+          spent = jobs.map(_.record.took).foldLeft(Duration.ZERO)(_.plus(_)),
+          mode = mode,
+          batchId = batchId,
+          jobs = jobs)
       }
     }
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = Reader(f), metrics, jobs, uuidGenerator)
+      new Batch.Sequential[F, A](predicate = Reader(f), metrics, jobs, batchIdCounter)
   }
 
   /*
@@ -288,10 +284,10 @@ object Batch:
   final private case class Context[F[_]](
     updatePanel: UpdatePanel[F],
     jobHook: JobHook[F, Json],
-    batchId: UUID)
+    batchId: Long)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
-  final class JobBuilder[F[_]: Async] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID]):
+  final class JobBuilder[F[_]: Async] private[Batch] (metrics: MetricsHub[F], batchIdCounter: AtomicLong):
 
     private val mode: BatchMode = BatchMode.Monadic
 
@@ -331,22 +327,22 @@ object Batch:
         )
 
       /** Execute the monadic batch with lifecycle hooks and JSON job reporting. */
-      def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] =
-        Resource.eval(uuidGenerator).flatMap { (batchId: UUID) =>
-          createMonadicPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
-            kleisli
-              .run(Context[F](updatePanel, jobHook, batchId))
-              .run(1)
-              .guarantee(Resource.eval(activeGauge.deactivate))
-          }.map { case (_, ExecutionState(eoa, history)) =>
-            MonadicBatch(
-              scope = metrics.scope,
-              spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
-              batchId = batchId,
-              jobs = history.reverse,
-              result = eoa)
-          }
+      def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] = {
+        val batchId: Long = batchIdCounter.getAndIncrement()
+        createMonadicPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
+          kleisli
+            .run(Context[F](updatePanel, jobHook, batchId))
+            .run(1)
+            .guarantee(Resource.eval(activeGauge.deactivate))
+        }.map { case (_, ExecutionState(eoa, history)) =>
+          MonadicBatch(
+            scope = metrics.scope,
+            spent = history.map(_.took).foldLeft(Duration.ZERO)(_.plus(_)),
+            batchId = batchId,
+            jobs = history.reverse,
+            result = eoa)
         }
+      }
     end Monadic
     object Monadic:
       given Applicative[Monadic] with
@@ -495,7 +491,7 @@ end Batch
   * results. Acquire `quasiBatch` or `valueBatch` with `.use`; both execution styles report progress and
   * lifecycle events.
   */
-final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {
+final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], batchIdCounter: AtomicLong) {
 
   /** Create a sequential batch from named effects; jobs run in input order.
     */
@@ -507,7 +503,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       predicate = Reader(_ => true),
       metrics = metrics,
       jobs = jobs,
-      uuidGenerator = uuidGenerator)
+      batchIdCounter = batchIdCounter)
   }
 
   /** Create a parallel batch from named effects using the given parallelism.
@@ -524,7 +520,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
       metrics = metrics,
       parallelism = parallelism,
       jobs = jobs,
-      uuidGenerator = uuidGenerator)
+      batchIdCounter = batchIdCounter)
   }
 
   /** Create a parallel batch with parallelism inferred from the job count. */
@@ -533,7 +529,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGener
 
   /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
-    val builder = new Batch.JobBuilder[F](metrics, uuidGenerator)
+    val builder = new Batch.JobBuilder[F](metrics, batchIdCounter)
     f(builder)
   }
 }
