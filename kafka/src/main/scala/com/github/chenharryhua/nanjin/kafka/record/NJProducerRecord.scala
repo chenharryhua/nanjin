@@ -100,8 +100,8 @@ object NJProducerRecord {
         src.topic,
         src.partition.map(Integer.valueOf).orNull,
         src.timestamp.map(java.lang.Long.valueOf).orNull,
-        src.key.orNull,
-        src.value.orNull,
+        src.key.getOrElse(summon[Null <:< K](null)),
+        src.value.getOrElse(summon[Null <:< V](null)),
         src.headers.map(_.into[JavaHeader].transform).asJava
       )
 
@@ -123,8 +123,8 @@ object NJProducerRecord {
         .pure(
           ProducerRecord[K, V](
             src.topic,
-            src.key.orNull,
-            src.value.orNull
+            src.key.getOrElse(summon[Null <:< K](null)),
+            src.value.getOrElse(summon[Null <:< V](null))
           ).withHeaders(Headers.fromSeq(src.headers.map(_.into[Header].transform))))
         .map(pr => src.partition.fold(pr)(pr.withPartition))
         .map(pr => src.timestamp.fold(pr)(pr.withTimestamp))

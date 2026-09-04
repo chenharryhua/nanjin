@@ -310,7 +310,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       Policy.fixedDelay(1.second).expire(0.seconds)
     }
     assertThrows[IllegalArgumentException] {
-      Policy.fixedDelay(1.second).expire(-1.second)
+      Policy.fixedDelay(1.second).expire((-1).second)
     }
   }
 

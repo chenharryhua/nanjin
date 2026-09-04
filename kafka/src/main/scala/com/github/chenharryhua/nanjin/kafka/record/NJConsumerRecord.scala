@@ -137,8 +137,8 @@ object NJConsumerRecord {
         src.serializedKeySize,
         src.serializedValueSize,
 
-        src.key.orNull,
-        src.value.orNull,
+        src.key.getOrElse(summon[Null <:< K](null)),
+        src.value.getOrElse(summon[Null <:< V](null)),
 
         new RecordHeaders(src.headers.map(_.into[JavaHeader].transform).toArray),
         src.leaderEpoch.map(Integer.valueOf).toJava
@@ -173,8 +173,8 @@ object NJConsumerRecord {
             topic = src.topic,
             partition = src.partition,
             offset = src.offset,
-            key = src.key.orNull,
-            value = src.value.orNull
+            key = src.key.getOrElse(summon[Null <:< K](null)),
+            value = src.value.getOrElse(summon[Null <:< V](null))
           ).withTimestamp(src.timestampType match {
             case JavaTimestampType.CREATE_TIME.id =>
               Timestamp.createTime(src.timestamp)
