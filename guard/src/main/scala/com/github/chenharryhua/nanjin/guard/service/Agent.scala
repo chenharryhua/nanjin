@@ -132,7 +132,7 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
-  batchIdCounter: AtomicLong,
+  batchIdGenerator: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
   meterProvider: MeterProvider[F])
@@ -145,7 +145,7 @@ final private class GeneralAgent[F[_]: Async](
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,
-      batchIdCounter = batchIdCounter,
+      batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
       meterProvider = meterProvider
@@ -176,7 +176,7 @@ final private class GeneralAgent[F[_]: Async](
     f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
-    new Batch[F](metricsHub(label), batchIdCounter)
+    new Batch[F](metricsHub(label), batchIdGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(
@@ -184,7 +184,7 @@ final private class GeneralAgent[F[_]: Async](
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    new BatchLight[F](scope, batchIdCounter)
+    new BatchLight[F](scope, batchIdGenerator)
   }
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =

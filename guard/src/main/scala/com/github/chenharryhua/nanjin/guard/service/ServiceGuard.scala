@@ -114,7 +114,7 @@ private[guard] object ServiceGuard {
     private case class KickedOff(
       serviceParams: ServiceParams,
       emberServerBuilder: Option[EmberServerBuilder[F]],
-      batchIdCounter: AtomicLong)
+      batchIdGenerator: AtomicLong)
 
     private def kicking_off: F[KickedOff] =
       SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
@@ -135,14 +135,14 @@ private[guard] object ServiceGuard {
             brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
             host = Host(hostName, esb.map(_.port.value).map(Port(_)))
           )
-          // one counter per service instance; hands out batch ids 1, 2, 3, … via getAndIncrement
+          // one id generator per service instance; hands out batch ids 1, 2, 3, … via getAndIncrement
           KickedOff(params, esb, new AtomicLong(1L))
         }
       }
 
     override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
       for {
-        KickedOff(serviceParams, emberServerBuilder, batchIdCounter) <- Stream.eval(kicking_off)
+        KickedOff(serviceParams, emberServerBuilder, batchIdGenerator) <- Stream.eval(kicking_off)
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         meterProvider <- Stream.resource(config.meterProvider)
@@ -156,7 +156,7 @@ private[guard] object ServiceGuard {
             serviceParams = serviceParams,
             channel = channel,
             dispatcher = dispatcher,
-            batchIdCounter = batchIdCounter,
+            batchIdGenerator = batchIdGenerator,
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
             meterProvider = meterProvider
