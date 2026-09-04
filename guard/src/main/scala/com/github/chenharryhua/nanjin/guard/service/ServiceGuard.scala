@@ -135,6 +135,7 @@ private[guard] object ServiceGuard {
             brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
             host = Host(hostName, esb.map(_.port.value).map(Port(_)))
           )
+          // one counter per service instance; hands out batch ids 1, 2, 3, … via getAndIncrement
           KickedOff(params, esb, new AtomicLong(1L))
         }
       }

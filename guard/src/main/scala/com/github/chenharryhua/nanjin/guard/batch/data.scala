@@ -48,7 +48,12 @@ object BatchMode:
   given Encoder[BatchMode] = Encoder.encodeString.contramap(_.show)
 end BatchMode
 
-/** Metadata describing a single batch step and the execution context in which it ran. */
+/** Metadata describing a single batch step and the execution context in which it ran.
+  *
+  * @param batchId
+  *   identifier of the batch this job belongs to; a per-service-instance monotonic counter starting at 1. See
+  *   [[BatchResult.batchId]] for the full semantics.
+  */
 final case class Job(
   name: String,
   index: Int,
@@ -143,7 +148,17 @@ sealed trait BatchResult[A] {
   /** Sequential, parallel, or monadic execution mode. */
   def mode: BatchMode
 
-  /** Unique identifier for this execution. */
+  /** Identifier for this batch execution.
+    *
+    * A monotonic counter, starting at 1, minted from a single `AtomicLong` created per service instance.
+    * Successive batches within the same instance receive 1, 2, 3, … in the order they are launched, so the
+    * latest value also reveals how many batches the instance has run.
+    *
+    * The id is unique '''within a service instance''', not globally: a new instance (a new `serviceId`, e.g.
+    * on redeploy) starts its counter over at 1. Cross-instance correlation therefore relies on the enclosing
+    * event's `serviceId`, which is why the id is a plain counter rather than a random UUID. It is emitted as
+    * the JSON number `batch_id`.
+    */
   def batchId: Long
 
   /** Per-job result values represented by this result type. */
