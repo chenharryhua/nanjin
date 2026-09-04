@@ -3,6 +3,7 @@ package mtest.database
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
 import org.typelevel.doobie.ConnectionIO
 import fs2.Stream
@@ -13,7 +14,7 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   val postgres: Postgres =
-    Postgres("unknown", "unknown", "localhost", 5432, "postgres")
+    Postgres("unknown", Secret("unknown"), "localhost", 5432, "postgres")
 
   test("1.setter") {
     val username = "postgres"

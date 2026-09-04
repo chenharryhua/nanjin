@@ -10,7 +10,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
 import java.time.Duration
-import java.util.UUID
 import scala.util.control.NoStackTrace
 
 /** Raised when a batch job completes, but the post-condition predicate rejects the value. */
@@ -56,7 +55,7 @@ final case class Job(
   scope: MetricScope,
   mode: BatchMode,
   kind: BatchKind,
-  batchId: UUID):
+  batchId: Long):
   val batch: String = scope.label.value
   val domain: String = scope.domain.value
 
@@ -104,7 +103,7 @@ final case class CompletedBatch(
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: UUID,
+  batchId: Long,
   jobs: List[CompletedJob]) {
 
   /** Whether every job in the batch completed successfully. */
@@ -145,7 +144,7 @@ sealed trait BatchResult[A] {
   def mode: BatchMode
 
   /** Unique identifier for this execution. */
-  def batchId: UUID
+  def batchId: Long
 
   /** Per-job result values represented by this result type. */
   def jobs: List[A]
@@ -164,7 +163,7 @@ final case class QuasiBatch[A](
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: UUID,
+  batchId: Long,
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
   override def succeeded: Boolean = jobs.forall(_.record.succeeded)
@@ -207,7 +206,7 @@ final case class ValueBatch[A](
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: UUID,
+  batchId: Long,
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
   override val succeeded: Boolean = true
@@ -246,7 +245,7 @@ end ValueBatch
 final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
-  batchId: UUID,
+  batchId: Long,
   jobs: List[CompletedJob],
   result: Either[Throwable, A])
     extends BatchResult[CompletedJob] derives Functor {

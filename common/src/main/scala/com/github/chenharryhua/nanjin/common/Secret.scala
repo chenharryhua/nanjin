@@ -44,6 +44,4 @@ object Secret {
     */
   given Encoder[Secret] = s => Json.fromString(s.toString)
 
-  /** Ergonomic construction from a string literal at call sites. */
-  given Conversion[String, Secret] = Secret(_)
 }

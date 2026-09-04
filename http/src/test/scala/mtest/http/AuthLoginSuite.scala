@@ -3,6 +3,7 @@ package mtest.http
 import cats.data.NonEmptyList
 import cats.effect.*
 import cats.syntax.parallel.given
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
@@ -81,7 +82,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       ClientCredentials(
         auth_endpoint = uri"/token",
         client_id = "client-id",
-        client_secret = "secret"
+        client_secret = Secret("secret")
       )
 
     val login =
@@ -109,8 +110,8 @@ final class AuthLoginSuite extends CatsEffectSuite {
       AuthorizationCode(
         auth_endpoint = uri"/token",
         client_id = "client-id",
-        client_secret = "secret",
-        code = "auth-code",
+        client_secret = Secret("secret"),
+        code = Secret("auth-code"),
         redirect_uri = "https://example.com/callback"
       )
 
@@ -152,7 +153,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       ClientCredentials(
         auth_endpoint = uri"/token",
         client_id = "id",
-        client_secret = "secret"
+        client_secret = Secret("secret")
       )
 
     val login =
@@ -204,7 +205,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       ClientCredentials(
         auth_endpoint = uri"/token",
         client_id = "id",
-        client_secret = "secret"
+        client_secret = Secret("secret")
       )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
@@ -257,7 +258,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
@@ -286,7 +287,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(slowClient)).use { authed =>
@@ -320,7 +321,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(alwaysUnauthorized)).use { authed =>
@@ -355,7 +356,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
@@ -420,9 +421,9 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = Salesforce.PasswordGrant(
       auth_endpoint = uri"/token",
       client_id = "client-id",
-      client_secret = "secret",
+      client_secret = Secret("secret"),
       username = "user",
-      password = "pass"
+      password = Secret("pass")
     )
 
     Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
@@ -463,9 +464,9 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = Salesforce.PasswordGrant(
       auth_endpoint = uri"/token",
       client_id = "client-id",
-      client_secret = "secret",
+      client_secret = Secret("secret"),
       username = "user",
-      password = "pass"
+      password = Secret("pass")
     )
 
     Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
@@ -496,7 +497,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret",
+      client_secret = Secret("secret"),
       scope = Some(NonEmptyList.of("read", "write"))
     )
 
@@ -550,7 +551,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
@@ -586,7 +587,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
@@ -638,7 +639,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     auth.clientCredentials[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use {
@@ -662,7 +663,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(
       auth_endpoint = uri"/token",
       client_id = "id",
-      client_secret = "secret"
+      client_secret = Secret("secret")
     )
 
     val clientResource = Resource.pure[IO, Client[IO]](protectedResource)

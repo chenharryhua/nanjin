@@ -57,4 +57,41 @@ class SnapshotPolyglotTest extends AnyFunSuite {
     assert(yaml.contains("invocations:"))
 
   }
+
+  test("domains render in a stable, deterministic order across formats and repeated renders") {
+    // Two distinct domains; metrics are registered in a fixed order so their ages are ordered.
+    // Register the alphabetically-LATER domain ("zulu") FIRST, so registration/age order contradicts name
+    // order. This lets the assertions distinguish age-primary ordering from a mere alphabetical fallback.
+    val snapshot = service.eventStream { agent =>
+      val zulu = agent.withDomain("zulu")
+      val alpha = agent.withDomain("alpha")
+      (
+        zulu.facilitate("m")(_.counter("z-counter")),
+        alpha.facilitate("m")(_.counter("a-counter"))
+      ).tupled.use { case (z, a) =>
+        z.inc(1) >> a.inc(2) >> agent.adhoc.report.void
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
+
+    val polyglot = new SnapshotPolyglot(snapshot.snapshot)
+
+    // Both domains appear.
+    val yaml = polyglot.toYaml
+    assert(yaml.contains("[alpha]:"))
+    assert(yaml.contains("[zulu]:"))
+
+    // Rendering is a pure function of the snapshot: repeated renders are byte-identical. This guards the
+    // domain ordering, which previously relied on nondeterministic groupBy(...).toList order and is now
+    // pinned by an explicit (age, name) sort key.
+    assert(polyglot.toYaml == yaml)
+    val json = polyglot.toPrettyJson.noSpaces
+    assert(polyglot.toPrettyJson.noSpaces == json)
+    assert(new SnapshotPolyglot(snapshot.snapshot).toYaml == yaml)
+    assert(new SnapshotPolyglot(snapshot.snapshot).toPrettyJson.noSpaces == json)
+
+    // zulu registered first, so ordering is by age (registration order), NOT alphabetical: zulu precedes
+    // alpha in both renderers.
+    assert(yaml.indexOf("[zulu]:") < yaml.indexOf("[alpha]:"))
+    assert(json.indexOf("zulu") < json.indexOf("alpha"))
+  }
 }

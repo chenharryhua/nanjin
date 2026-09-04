@@ -1,6 +1,7 @@
 package mtest.database
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
 import munit.CatsEffectSuite
 
@@ -9,7 +10,7 @@ val testDb: Postgres = Postgres(
   port = 5432,
   database = "postgres",
   username = "postgres",
-  password = "postgres"
+  password = Secret("postgres")
 )
 
 class DBConfigSuite extends CatsEffectSuite {
@@ -43,7 +44,7 @@ class DBConfigSuite extends CatsEffectSuite {
     val invalidDb =
       Postgres(
         "unknown",
-        "unknown",
+        Secret("unknown"),
         "localhost",
         5432,
         "postgres"

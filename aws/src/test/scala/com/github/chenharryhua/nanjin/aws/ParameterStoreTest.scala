@@ -41,43 +41,39 @@ class ParameterStoreTest extends AnyFunSuite {
       override def fetch(request: GetParametersRequest): IO[GetParametersResponse] =
         IO.blocking(client.getParameters(request))
 
-      override def fetch(path: ParameterStorePath): IO[ParameterStoreContent] =
+      override def fetch(path: String, isSecure: Boolean): IO[ParameterStoreContent] =
         IO.blocking {
           client
-            .getParameters(
-              GetParametersRequest.builder().names(path.value).withDecryption(path.isSecure).build())
+            .getParameters(GetParametersRequest.builder().names(path).withDecryption(isSecure).build())
             .parameters()
             .asScala
             .headOption match {
             case Some(p) => ParameterStoreContent(p.value())
-            case None    => throw new NoSuchElementException(s"No parameter found at ${path.value}")
+            case None    => throw new NoSuchElementException(s"No parameter found at $path")
           }
         }
-      override def base64(path: ParameterStorePath): IO[Array[Byte]] =
-        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+      override def base64(path: String, isSecure: Boolean): IO[Array[Byte]] =
+        fetch(path, isSecure).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
 
   test("1.fetch returns the correct parameter") {
     val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
-    val path = ParameterStorePath("foo", isSecure = false)
 
-    val result = store.fetch(path).unsafeRunSync()
+    val result = store.fetch("foo", isSecure = false).unsafeRunSync()
     assert(result.value == "bar")
   }
 
   test("2.fetch throws NoSuchElementException for missing parameter") {
     val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
-    val path = ParameterStorePath("missing", isSecure = false)
 
-    assertThrows[NoSuchElementException](store.fetch(path).unsafeRunSync())
+    assertThrows[NoSuchElementException](store.fetch("missing", isSecure = false).unsafeRunSync())
   }
 
   test("3.base64 decodes parameter value") {
     val encoded = java.util.Base64.getEncoder.encodeToString("hello".getBytes)
     val store = createStore(Map("baz" -> encoded)).unsafeRunSync()
-    val path = ParameterStorePath("baz", isSecure = false)
 
-    val result = store.base64(path).unsafeRunSync()
+    val result = store.base64("baz", isSecure = false).unsafeRunSync()
     assert(new String(result) == "hello")
   }
 

@@ -118,7 +118,6 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
     pairs
       .groupBy(_._1.scope.domain) // domain group
       .toList
-      .sortBy(_._1.value) // sort by domain name.
       .map { case (domain, lst) =>
         val arr: List[Json] = lst
           .groupBy(_._1.scope) // group by metric scope
@@ -136,7 +135,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
           .sortBy(_._1)
           .map(_._2)
         val age = lst.map(_._1.token.age).min
-        age -> Json.obj(domain.value -> Json.arr(arr*))
+        (age, domain.value) -> Json.obj(domain.value -> Json.arr(arr*))
       }
       .sortBy(_._1)
       .map(_._2)
@@ -202,7 +201,6 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
     pairs
       .groupBy(_._1.scope.domain) // domain group
       .toList
-      .sortBy(_._1.value)
       .map { case (domain, domains) =>
         val arr: List[String] = domains
           .groupBy(_._1.scope) // group by metric scope
@@ -216,7 +214,7 @@ final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpa
             s"$space2- ${scope.label}:" :: items
           }
         val age = domains.map(_._1.token.age).min
-        (age, show"[$domain]:" :: arr)
+        ((age, domain.value), show"[$domain]:" :: arr)
       }
       .sortBy(_._1)
       .flatMap(_._2)

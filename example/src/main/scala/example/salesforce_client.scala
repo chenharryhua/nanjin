@@ -2,7 +2,7 @@ package example
 
 import cats.effect.{IO, Resource}
 import com.github.chenharryhua.nanjin.aws.ParameterStore
-import com.github.chenharryhua.nanjin.aws.ParameterStorePath
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
 import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
@@ -23,16 +23,16 @@ object salesforce_client {
   private val credential: Resource[IO, Login[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>
       for {
-        id <- ps.fetch(ParameterStorePath("salesforce/client_id"))
-        cs <- ps.fetch(ParameterStorePath("salesforce/client_secret"))
-        un <- ps.fetch(ParameterStorePath("salesforce/username"))
-        pw <- ps.fetch(ParameterStorePath("salesforce/password"))
+        id <- ps.fetch("salesforce/client_id")
+        cs <- ps.fetch("salesforce/client_secret")
+        un <- ps.fetch("salesforce/username")
+        pw <- ps.fetch("salesforce/password")
       } yield Salesforce.PasswordGrant(
         auth_endpoint = uri"https://test.salesforce.com",
         client_id = id.value,
-        client_secret = cs.value,
+        client_secret = Secret(cs.value),
         username = un.value,
-        password = pw.value)
+        password = Secret(pw.value))
     }.flatMap(pg => Salesforce(authClient, pg))
 
   private val client: Resource[IO, Client[IO]] =

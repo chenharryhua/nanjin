@@ -15,7 +15,7 @@ import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
 
 import java.time.ZoneId
-import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 /** Scoped service façade for metrics, batching, scheduling, logging, and resilience.
   *
@@ -132,7 +132,7 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
-  uuidGenerator: F[UUID],
+  batchIdCounter: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
   meterProvider: MeterProvider[F])
@@ -145,7 +145,7 @@ final private class GeneralAgent[F[_]: Async](
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,
-      uuidGenerator = uuidGenerator,
+      batchIdCounter = batchIdCounter,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
       meterProvider = meterProvider
@@ -176,7 +176,7 @@ final private class GeneralAgent[F[_]: Async](
     f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
-    new Batch[F](metricsHub(label), uuidGenerator)
+    new Batch[F](metricsHub(label), batchIdCounter)
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(
@@ -184,7 +184,7 @@ final private class GeneralAgent[F[_]: Async](
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    new BatchLight[F](scope, uuidGenerator)
+    new BatchLight[F](scope, batchIdCounter)
   }
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
