@@ -4,6 +4,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
+import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
 import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
@@ -57,9 +58,9 @@ class SalesforceIotTest extends AnyFunSuite {
     Salesforce.PasswordGrant(
       auth_endpoint = uri"http://127.0.0.1:8080/services/oauth2/token",
       client_id = "a",
-      client_secret = "b",
+      client_secret = Secret("b"),
       username = "c",
-      password = "d"),
+      password = Secret("d")),
     expiresIn = 2.hours
   )
 

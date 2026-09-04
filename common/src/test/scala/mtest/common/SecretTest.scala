@@ -29,11 +29,6 @@ class SecretTest extends AnyFunSuite {
     assert(Secret(secret).hashCode == Secret(secret).hashCode)
   }
 
-  test("5.string literal converts to Secret at a call site") {
-    val s: Secret = "literal-secret"
-    assert(s.value == "literal-secret")
-  }
-
   test("6.json encoder masks the value") {
     val json = Secret(secret).asJson
     assert(json == io.circe.Json.fromString("***"))
