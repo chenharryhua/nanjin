@@ -94,14 +94,16 @@ object NJProducerRecord {
         headers = src.headers().toArray.map(_.into[NJHeader].transform).toList
       )
 
-  given [K, V](using Null <:< K, Null <:< V): Transformer[NJProducerRecord[K, V], JavaProducerRecord[K, V]] =
+  given [K, V](using
+    ek: Null <:< K,
+    ev: Null <:< V): Transformer[NJProducerRecord[K, V], JavaProducerRecord[K, V]] =
     (src: NJProducerRecord[K, V]) =>
       new JavaProducerRecord[K, V](
         src.topic,
         src.partition.map(Integer.valueOf).orNull,
         src.timestamp.map(java.lang.Long.valueOf).orNull,
-        src.key.orNull,
-        src.value.orNull,
+        src.key.getOrElse(ek(null)),
+        src.value.getOrElse(ev(null)),
         src.headers.map(_.into[JavaHeader].transform).asJava
       )
 
@@ -123,8 +125,8 @@ object NJProducerRecord {
         .pure(
           ProducerRecord[K, V](
             src.topic,
-            src.key.orNull,
-            src.value.orNull
+            src.key.getOrElse(summon[Null <:< K](null)),
+            src.value.getOrElse(summon[Null <:< V](null))
           ).withHeaders(Headers.fromSeq(src.headers.map(_.into[Header].transform))))
         .map(pr => src.partition.fold(pr)(pr.withPartition))
         .map(pr => src.timestamp.fold(pr)(pr.withTimestamp))

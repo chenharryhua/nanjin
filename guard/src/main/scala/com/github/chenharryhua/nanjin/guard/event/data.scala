@@ -18,10 +18,9 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   */
 opaque type Correlation = String
 object Correlation:
-  private def iso(s: String): Correlation = s
   def apply(token: Unique.Token): Correlation =
     val id = Integer.toUnsignedLong(Hash[Unique.Token].hash(token))
-    iso(f"$id%010d")
+    f"$id%010d"
   extension (c: Correlation) inline def value: String = c
 
   given Show[Correlation] = OpaqueLift.lift[Correlation, String, Show]

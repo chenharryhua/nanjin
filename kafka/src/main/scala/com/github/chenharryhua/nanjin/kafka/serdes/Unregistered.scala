@@ -53,11 +53,11 @@ trait Unregistered[A] { outer =>
     emap(b.to)(b.from)
 
   // turn null into None
-  final def option(using Null <:< A): Unregistered[Option[A]] =
-    emap(Option(_))(_.orNull)
+  final def option(using ev: Null <:< A): Unregistered[Option[A]] =
+    emap(Option(_))(_.getOrElse(ev(null)))
   // turn Option to A|Null
   final def orNull[A1](using ev: A =:= Option[A1], ev2: Null <:< A1): Unregistered[A1] =
-    emap[A1](_.orNull)(a1 => ev.flip(Option(a1)))
+    emap[A1](_.getOrElse(ev2(null)))(a1 => ev.flip(Option(a1)))
 
   /*
    * Transition

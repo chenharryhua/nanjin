@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.derived.derived
 import cats.syntax.show.{showInterpolator, toShow}
-import cats.{Functor, Show}
+import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
+import com.github.chenharryhua.nanjin.common.OpaqueLift
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.{Decoder, Encoder, Json}
 
 import java.time.Duration
 import scala.util.control.NoStackTrace
@@ -48,6 +49,29 @@ object BatchMode:
   given Encoder[BatchMode] = Encoder.encodeString.contramap(_.show)
 end BatchMode
 
+/** Identifier for a single batch execution.
+  *
+  * A monotonic counter, starting at 1, minted from a single `AtomicLong` created per service instance (the
+  * `batchIdGenerator`). Successive batches within the same instance receive 1, 2, 3, … in the order they are
+  * launched, so the latest value also reveals how many batches the instance has run.
+  *
+  * The id is unique '''within a service instance''', not globally: a new instance (a new `serviceId`, e.g. on
+  * redeploy) starts its counter over at 1. Cross-instance correlation therefore relies on the enclosing
+  * event's `serviceId`, which is why the id is a plain counter rather than a random UUID. It is emitted as
+  * the JSON number `batch_id`.
+  */
+opaque type BatchId = Long
+object BatchId:
+  def apply(value: Long): BatchId = value
+  extension (b: BatchId) inline def value: Long = b
+
+  given Show[BatchId] = OpaqueLift.lift[BatchId, Long, Show]
+  given Order[BatchId] = OpaqueLift.lift[BatchId, Long, Order]
+  given Ordering[BatchId] = Order[BatchId].toOrdering
+  given Encoder[BatchId] = OpaqueLift.lift[BatchId, Long, Encoder]
+  given Decoder[BatchId] = OpaqueLift.lift[BatchId, Long, Decoder]
+end BatchId
+
 /** Metadata describing a single batch step and the execution context in which it ran.
   *
   * @param batchId
@@ -60,7 +84,7 @@ final case class Job(
   scope: MetricScope,
   mode: BatchMode,
   kind: BatchKind,
-  batchId: Long):
+  batchId: BatchId):
   val batch: String = scope.label.value
   val domain: String = scope.domain.value
 
@@ -108,7 +132,7 @@ final case class CompletedBatch(
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: Long,
+  batchId: BatchId,
   jobs: List[CompletedJob]) {
 
   /** Whether every job in the batch completed successfully. */
@@ -148,18 +172,8 @@ sealed trait BatchResult[A] {
   /** Sequential, parallel, or monadic execution mode. */
   def mode: BatchMode
 
-  /** Identifier for this batch execution.
-    *
-    * A monotonic counter, starting at 1, minted from a single `AtomicLong` created per service instance.
-    * Successive batches within the same instance receive 1, 2, 3, … in the order they are launched, so the
-    * latest value also reveals how many batches the instance has run.
-    *
-    * The id is unique '''within a service instance''', not globally: a new instance (a new `serviceId`, e.g.
-    * on redeploy) starts its counter over at 1. Cross-instance correlation therefore relies on the enclosing
-    * event's `serviceId`, which is why the id is a plain counter rather than a random UUID. It is emitted as
-    * the JSON number `batch_id`.
-    */
-  def batchId: Long
+  /** Identifier for this batch execution. See [[BatchId]] for the full semantics. */
+  def batchId: BatchId
 
   /** Per-job result values represented by this result type. */
   def jobs: List[A]
@@ -178,7 +192,7 @@ final case class QuasiBatch[A](
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: Long,
+  batchId: BatchId,
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
   override def succeeded: Boolean = jobs.forall(_.record.succeeded)
@@ -221,7 +235,7 @@ final case class ValueBatch[A](
   scope: MetricScope,
   spent: Duration,
   mode: BatchMode,
-  batchId: Long,
+  batchId: BatchId,
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
   override val succeeded: Boolean = true
@@ -260,7 +274,7 @@ end ValueBatch
 final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
-  batchId: Long,
+  batchId: BatchId,
   jobs: List[CompletedJob],
   result: Either[Throwable, A])
     extends BatchResult[CompletedJob] derives Functor {

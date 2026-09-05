@@ -23,10 +23,12 @@ object observers {
       .withTranslator(_.filter(EventPipe.cronFilter(crontabs.businessHour)))
 
   def emailObserver: EmailObserver[IO] =
-    EmailObserver(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
-      .withPolicy(_.crontab(_.every12Hours).offset(8.hours))
-      .withZoneId(sydneyTime)
-      .withCapacity(200)
+    EmailObserver(
+      EmailObserver
+        .Params(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
+        .withPolicy(_.crontab(_.every12Hours).offset(8.hours))
+        .withZoneId(sydneyTime)
+        .withCapacity(200))
 
   val cloudwatch: CloudWatchObserver[IO] =
     CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))
