@@ -56,11 +56,11 @@ final case class NJConsumerRecord[K, V](
   def flatten[K2, V2](using K <:< Option[K2], V <:< Option[V2]): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
 
-  /** Collapse a nested optional key (see [[flatten]]), leaving the value untouched. */
+  /** Collapse a nested optional key (see `flatten`), leaving the value untouched. */
   def flattenKey[K2](using K <:< Option[K2]): NJConsumerRecord[K2, V] =
     copy(key = key.flatten)
 
-  /** Collapse a nested optional value (see [[flatten]]), leaving the key untouched. */
+  /** Collapse a nested optional value (see `flatten`), leaving the key untouched. */
   def flattenValue[V2](using V <:< Option[V2]): NJConsumerRecord[K, V2] =
     copy(value = value.flatten)
 

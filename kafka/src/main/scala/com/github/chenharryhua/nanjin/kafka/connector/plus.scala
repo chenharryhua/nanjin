@@ -48,15 +48,35 @@ trait ManualCommitStream[F[_], K, V] {
   * `sink` or `pairSink`.
   */
 trait ProducerService[F[_], K, V] {
+
+  /** The producer as a `Resource`: acquired on `use`, closed on release. Prefer for one-shot sends. */
   def clientR: Resource[F, KafkaProducer[F, K, V]]
+
+  /** The producer as a `Stream`: emits a single producer whose lifecycle is bound to the stream. Prefer when
+    * composing with other fs2 stages.
+    */
   def clientS: Stream[F, KafkaProducer[F, K, V]]
 
+  /** Pipe that produces a stream of `(key, value)` pairs to the configured topic, batching by chunk and
+    * running the sends in parallel.
+    */
   def pairSink: Pipe[F, (K, V), ProducerResult[K, V]]
+
+  /** Pipe that produces a stream of fully-formed `ProducerRecord`s (letting the caller set partition,
+    * timestamp, headers, or a different topic).
+    */
   def sink: Pipe[F, ProducerRecord[K, V], ProducerResult[K, V]]
+
+  /** Pipe that produces pre-batched `ProducerRecords`, one Kafka batch per element, sends run in parallel. */
   def chunkSink: Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]]
 
+  /** Produce a single `(key, value)` to the configured topic and return its `RecordMetadata`. */
   def produceOne(k: K, v: V): F[RecordMetadata]
+
+  /** Produce a single fully-formed `ProducerRecord` and return its `RecordMetadata`. */
   def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata]
+
+  /** Produce a batch of `(key, value)` pairs (any `Foldable`) to the configured topic in one call. */
   def produce[G[_]: Foldable](kvs: G[(K, V)]): F[ProducerResult[K, V]]
 
 }
