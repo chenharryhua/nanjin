@@ -17,10 +17,22 @@ import java.time.Instant
 
 /** A Kafka consumer service providing bounded, manual-commit, and unbounded consumption modes.
   *
-  * Implementations create consumer streams assigned to specific topic partitions and offset ranges. Use
-  * `KafkaContext.consume(topic)` to obtain a concrete instance.
+  * Implementations create consumer streams assigned to specific topic partitions and offset ranges. All
+  * streams yield fs2 `CommittableConsumerRecord[F, K, V]`; the `K`/`V` payload depends on the implementation
+  * (typed via deserializers in `ConsumeKafka`, or `Either[PullError, Record]` in `ConsumeGenericRecord`). Use
+  * `KafkaContext.consume(topic)` (or `consumeGenericRecord`) to obtain a concrete instance.
+  *
+  * The modes differ in how partitions are acquired and where consumption stops:
+  *   - `subscribe` uses Kafka's consumer-group subscription (partitions are assigned dynamically and may
+  *     rebalance); the other modes use manual `assign` (fixed partitions, no group rebalancing).
+  *   - `manualCommitStream` disables auto-commit and hands the caller explicit `commitSync`/`commitAsync`.
+  *   - `circumscribedStream` is bounded: it reads only a resolved offset range and then completes.
   */
 trait ConsumerService[F[_], K, V] {
+
+  /** Assign the topic's partitions and seek each to the earliest offset at or after `time` (seeking to the
+    * end when a partition has no such offset). Shared helper for time-based assignment.
+    */
   protected def assignByTime(
     kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
     tn: TopicName,
@@ -40,6 +52,9 @@ trait ConsumerService[F[_], K, V] {
       }
     } yield ()
 
+  /** Assign the partitions named by `map` (partition -> starting offset) and seek each to its offset. Raises
+    * `EmptyTopicPartitionMap` if the map is empty. Shared helper for explicit partition/offset assignment.
+    */
   protected def assignByMap(
     kc: KafkaAssignment[F] & KafkaTopics[F] & KafkaOffsets[F],
     tn: TopicName,
@@ -52,16 +67,42 @@ trait ConsumerService[F[_], K, V] {
     }
   }
 
+  /** Subscribe to the topic as part of a consumer group. Partitions are assigned dynamically and may
+    * rebalance; offsets are auto-committed unless the settings disable it. Unbounded.
+    */
   def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]]
 
+  /** Like `subscribe`, but exposes the per-partition streams separately (keyed by `TopicPartition`) instead
+    * of flattening them, letting the caller process partitions independently or in parallel.
+    */
   def partitionsMapStream: Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]]
 
+  /** Manually assign all of the topic's partitions (no consumer group, no rebalancing) and stream from the
+    * current position. Unbounded.
+    */
   def assign: Stream[F, CommittableConsumerRecord[F, K, V]]
+
+  /** Manually assign the given partitions and seek each to its starting offset (partition -> offset). With no
+    * group rebalancing. Unbounded.
+    */
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]]
+
+  /** Manually assign the topic's partitions and seek each to the first offset at or after `time`. Unbounded.
+    */
   def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]]
 
+  /** Subscribe with auto-commit disabled, exposing per-partition streams together with explicit
+    * `commitSync`/`commitAsync` so the caller controls when offsets are committed.
+    */
   def manualCommitStream: Stream[F, ManualCommitStream[F, K, V]]
 
+  /** Bounded consumption over the offset range covered by `dateTimeRange`: reads from the first offset at or
+    * after the start until the range's end, then completes. Empty range yields an empty stream.
+    */
   def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]]
+
+  /** Bounded consumption over explicit per-partition ranges (partition -> (start, end) offsets): reads each
+    * partition's `[start, end)` and then completes. Empty map yields an empty stream.
+    */
   def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]]
 }

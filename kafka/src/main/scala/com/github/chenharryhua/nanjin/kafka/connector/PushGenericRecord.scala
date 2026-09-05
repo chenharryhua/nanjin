@@ -13,6 +13,14 @@ import org.apache.kafka.common.serialization.Serdes
 import scala.jdk.CollectionConverters.given
 import scala.util.{Failure, Success}
 
+/** Encodes the key and value of an Avro `GenericRecord` into raw Kafka bytes for producing.
+  *
+  * The inverse of `PullGenericRecord`. Each side is serialized according to its Avro schema type: `RECORD`
+  * types via a Confluent `KafkaAvroSerializer` (which registers/looks up the schema in `srClient` and emits
+  * the Confluent wire format), and primitives via the matching Kafka `Serdes`. `null` values serialize to
+  * `null`. A value whose runtime type does not match its schema raises `IllegalArgumentException`;
+  * unsupported schema types raise `UnsupportedOperationException`.
+  */
 final private class PushGenericRecord(
   srClient: SchemaRegistryClient,
   serdeSettings: SerdeSettings,
@@ -27,6 +35,10 @@ final private class PushGenericRecord(
 
   private val topic: String = topicName.value
 
+  /** Build a value-to-byte encoder for one Avro schema type. `isKey` selects key vs value serializer
+    * configuration for the Confluent serializer. `null` encodes to `null`; a runtime type mismatch throws
+    * `IllegalArgumentException`; unsupported schema types throw `UnsupportedOperationException`.
+    */
   private def getEncoder(skm: Schema, isKey: Boolean): AnyRef => Array[Byte] = {
     skm.getType match
       case Schema.Type.RECORD =>
@@ -100,9 +112,11 @@ final private class PushGenericRecord(
   private val key_serialize: AnyRef => Array[Byte] = getEncoder(pair.key.rawSchema(), true)
   private val val_serialize: AnyRef => Array[Byte] = getEncoder(pair.value.rawSchema(), false)
 
-  /** @param gr
-    *   a GenericRecord of NJConsumerRecord
-    * @return
+  /** Extract the `key` and `value` fields from `gr`, serialize each to bytes, and build a byte
+    * `ProducerRecord` targeting the configured topic.
+    *
+    * @param gr
+    *   a `GenericRecord` shaped like `NJConsumerRecord` (its `key`/`value` fields are encoded).
     */
   def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
     ProducerRecord(topic, key_serialize(gr.get("key")), val_serialize(gr.get("value")))

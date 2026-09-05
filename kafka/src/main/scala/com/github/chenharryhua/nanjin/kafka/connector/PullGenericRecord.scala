@@ -20,11 +20,31 @@ import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
+/** A per-record decode failure from `PullGenericRecord`.
+  *
+  * @param isKey
+  *   `true` if the key failed to decode, `false` if the value did.
+  * @param metaInfo
+  *   topic/partition/offset metadata of the offending record, for diagnostics.
+  * @param cause
+  *   the underlying serialization error.
+  */
 final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: SerializationException) {
+
+  /** Render this error as a single-field JSON object keyed `key.error` or `value.error`. */
   def toJson: Json =
     Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
 }
 
+/** Decodes raw Kafka byte records into Avro `GenericRecord`s, given the key/value schema `pair`.
+  *
+  * The inverse of `PushGenericRecord`. Key and value bytes are decoded according to their Avro schema type:
+  * primitives via the matching Kafka `Serdes`, and `RECORD` types via the Confluent wire format (a 1-byte
+  * `0x00` magic byte plus a 4-byte schema id, then the Avro payload), which is validated before decoding. The
+  * result wraps the decoded key/value plus the record metadata (topic, partition, offset, timestamp, headers,
+  * etc.) into a single `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side
+  * yields a `Left(PullError)` rather than throwing.
+  */
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = ""
@@ -32,6 +52,10 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private def unsupportedSchema(skm: Schema): Nothing =
     throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
 
+  /** Build a byte-to-value decoder for one Avro schema type. `null` bytes decode to `null`. For `RECORD` the
+    * Confluent wire format is validated (length >= 5 and magic byte `0x00`) before the payload after the
+    * 5-byte prefix is Avro-decoded; primitives use the matching Kafka `Serdes`. Unsupported types throw.
+    */
   private def getDecoder(skm: Schema): Array[Byte] => Any =
     skm.getType match {
       case Schema.Type.RECORD =>
@@ -80,6 +104,10 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
 
   private val headerSchema = SchemaFor[NJHeader].schema
+
+  /** Decode a raw byte consumer record into a `GenericRecord`, or a `Left(PullError)` if the key or value
+    * fails to decode. The result carries the decoded key/value alongside the record's metadata and headers.
+    */
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullError, Record] =
     for {
       key <- Try(key_decode(ccr.key())).toEither.
@@ -108,6 +136,9 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       record
     }
 
+  /** Convenience overload accepting an fs2-kafka `ConsumerRecord`; converts it to the raw byte record and
+    * decodes as above.
+    */
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullError, Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }

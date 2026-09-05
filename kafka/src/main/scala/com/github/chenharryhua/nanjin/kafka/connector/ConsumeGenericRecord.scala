@@ -17,6 +17,19 @@ import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
 
+/** A `ConsumerService` that reads raw Kafka bytes and decodes each record into an Avro `GenericData.Record`.
+  *
+  * The consumer is byte-based (`Array[Byte]` key and value). For each record it resolves the read schema
+  * (reconciling any caller-supplied `schemaPair` with the schema fetched from the registry) and decodes the
+  * bytes via `PullGenericRecord`. The element type is `Either[PullError, Record]`: a per-record decode
+  * failure becomes a `Left(PullError)` carrying the offending key/value metadata, so one bad record does not
+  * tear down the stream. The commit key is `Unit` (this connector does not project a typed key).
+  *
+  * It inherits all consumption modes from `ConsumerService`, subscribe, assign (by nothing, by
+  * partition/offset map, or by time), manual-commit, and bounded ("circumscribed") streams, each producing
+  * the same `Either[PullError, Record]` payload. Obtain an instance via
+  * `KafkaContext.consumeGenericRecord(...)`.
+  */
 final class ConsumeGenericRecord[F[_]: Async](
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
@@ -31,9 +44,13 @@ final class ConsumeGenericRecord[F[_]: Async](
    */
   override lazy val properties: Map[String, String] = consumerSettings.properties
 
+  /** Return a copy with the underlying byte consumer settings transformed by `f`. */
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F] =
     new ConsumeGenericRecord[F](topicName, schemaPair, fromSchemaRegistry, f(consumerSettings))
 
+  /** The effective Avro read schema for decoded records: the registry schema reconciled with any
+    * caller-supplied `schemaPair`. Evaluated against the schema registry.
+    */
   lazy val schema: F[Schema] =
     fromSchemaRegistry.map(schemaPair.read(_).toSchemaPair.consumerSchema)
 
@@ -41,6 +58,10 @@ final class ConsumeGenericRecord[F[_]: Async](
    * Generic Record
    */
 
+  /** Shared decoding core for the subscribe/assign streams: fetch the schema, build a `PullGenericRecord`,
+    * and per partition map each raw record to `Either[PullError, Record]` (discarding the typed key as
+    * `Unit`).
+    */
   private def partitions_map_stream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])
     : Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>

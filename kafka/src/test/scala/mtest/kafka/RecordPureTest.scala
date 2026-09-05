@@ -378,4 +378,90 @@ class RecordPureTest extends AnyFunSuite {
     assert(back.key === njh.key)
     assert(back.value === njh.value)
   }
+
+  // ================================
+  // Schema builders
+  // ================================
+
+  test("29.NJProducerRecord.schema builds a named record schema") {
+    import com.sksamuel.avro4s.SchemaFor
+    val schema = NJProducerRecord.schema(SchemaFor[String].schema, SchemaFor[Int].schema)
+    assert(schema.getType === org.apache.avro.Schema.Type.RECORD)
+    assert(schema.getName === "NJProducerRecord")
+    assert(schema.getNamespace === "nanjin.kafka")
+    // key and value are present in the schema
+    assert(schema.getField("key") != null)
+    assert(schema.getField("value") != null)
+  }
+
+  test("30.NJConsumerRecord.schema builds a named record schema") {
+    import com.sksamuel.avro4s.SchemaFor
+    val schema = NJConsumerRecord.schema(SchemaFor[String].schema, SchemaFor[String].schema)
+    assert(schema.getType === org.apache.avro.Schema.Type.RECORD)
+    assert(schema.getName === "NJConsumerRecord")
+    assert(schema.getNamespace === "nanjin.kafka")
+    assert(schema.getField("offset") != null)
+  }
+
+  // ================================
+  // None key/value -> null on conversion
+  // ================================
+
+  test("31.NJProducerRecord with None key/value converts to null in Java record") {
+    val pr = NJProducerRecord[String, String]("t", "k", "v").noKey.noValue
+    val javaPR = pr.toJavaProducerRecord
+    assert(javaPR.key() == null)
+    assert(javaPR.value() == null)
+    // no explicit partition/timestamp -> null so the client assigns them
+    assert(javaPR.partition() == null)
+    assert(javaPR.timestamp() == null)
+  }
+
+  test("32.NJConsumerRecord with None key/value converts to null in Java record") {
+    val cr: NJConsumerRecord[String, String] = baseCR.copy(key = None, value = None)
+    val javaCR = cr.toJavaConsumerRecord
+    assert(javaCR.key() == null)
+    assert(javaCR.value() == null)
+    // and round-trips back to None
+    val back = NJConsumerRecord(javaCR)
+    assert(back.key === None)
+    assert(back.value === None)
+  }
+
+  // ================================
+  // Header preservation
+  // ================================
+
+  test("33.NJProducerRecord headers survive Java round-trip") {
+    val pr = basePR.withHeaders(List(NJHeader("a", List(1, 2)), NJHeader("b", List(3))))
+    val back = NJProducerRecord(pr.toJavaProducerRecord)
+    assert(back.headers === pr.headers)
+  }
+
+  test("34.NJConsumerRecord headers survive fs2 round-trip") {
+    val cr = baseCR.copy(headers = List(NJHeader("x", List(9)), NJHeader("y", List(8, 7))))
+    val back = NJConsumerRecord(cr.toConsumerRecord)
+    assert(back.headers === cr.headers)
+  }
+
+  // ================================
+  // Protobuf encoding
+  // ================================
+
+  test("35.NJConsumerRecord toProtobuf maps fields and key/value bytes") {
+    import com.google.protobuf.ByteString
+    val proto = baseCR.toProtobuf(k => ByteString.copyFromUtf8(k), v => ByteString.copyFromUtf8(v))
+    assert(proto.topic === "test-topic")
+    assert(proto.partition === 1)
+    assert(proto.key === Some(ByteString.copyFromUtf8("key1")))
+    assert(proto.value === Some(ByteString.copyFromUtf8("val1")))
+  }
+
+  test("36.NJConsumerRecord toProtobuf with None key/value yields absent fields") {
+    val cr = baseCR.copy(key = None, value = None)
+    val proto =
+      cr.toProtobuf(_ => com.google.protobuf.ByteString.EMPTY, _ => com.google.protobuf.ByteString.EMPTY)
+    assert(proto.key === None)
+    assert(proto.value === None)
+  }
 }

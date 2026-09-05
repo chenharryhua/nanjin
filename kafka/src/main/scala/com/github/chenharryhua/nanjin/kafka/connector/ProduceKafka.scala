@@ -10,9 +10,13 @@ import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
 
-/*
- * Kafka Sink
- */
+/** A `ProducerService` that produces typed `K`/`V` records to a topic using the serializers carried by
+  * `producerSettings`.
+  *
+  * The typed counterpart of `ProduceGenericRecord` (which encodes Avro `GenericRecord`s to bytes). It offers
+  * both streaming sinks (`pairSink`/`sink`/`chunkSink`) and one-shot sends (`produce`/`produceOne`), all
+  * targeting the configured topic. Obtain an instance via `KafkaContext.produce(topic)`.
+  */
 final class ProduceKafka[F[_]: Parallel, K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V])(using F: Async[F])
@@ -24,6 +28,7 @@ final class ProduceKafka[F[_]: Parallel, K, V] private[kafka] (
    */
   override lazy val properties: Map[String, String] = producerSettings.properties
 
+  /** Return a copy with the underlying producer settings transformed by `f`. */
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](topicName, f(producerSettings))
 

@@ -21,9 +21,14 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 
-/*
- * Produce Generic Record
- */
+/** Produces Avro `GenericRecord`s to a topic, encoding them to raw Kafka bytes.
+  *
+  * The producer counterpart of `ConsumeGenericRecord`: it takes Avro `GenericRecord`s, encodes the key and
+  * value to `Array[Byte]` (Confluent wire format, via `PushGenericRecord`), and produces them. Before the
+  * first produce it resolves and validates the write schema against the schema registry, raising
+  * `SchemaIncompatible` if the caller's `schemaPair` is not backward-compatible with the registered schema.
+  * Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
+  */
 final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
@@ -38,9 +43,14 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
    */
   override def properties: Map[String, String] = producerSettings.properties
 
+  /** Return a copy with the underlying byte producer settings transformed by `f`. */
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F] =
     new ProduceGenericRecord[F](topicName, schemaPair, srClient, serdeSettings, f(producerSettings))
 
+  /** Resolve the effective write schema: fetch the registered schema, check the caller's `schemaPair` is
+    * backward-compatible with it, and return the merged pair (preferring the broker's schema). Raises
+    * `SchemaIncompatible` if the check fails.
+    */
   private lazy val validateSchema: F[AvroSchemaPair] =
     SchemaRegistryApi[F](srClient)
       .fetchOptionalAvroSchema(topicName)
@@ -50,11 +60,12 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
         else F.raiseError(SchemaIncompatible(topicName))
       }
 
+  /** The effective Avro schema records will be encoded against, validated against the registry. */
   lazy val schema: F[Schema] = validateSchema.map(_.consumerSchema)
 
-  /*
-   * sink
-   */
+  /** Chunk-oriented producer pipe: for each chunk of records, encode and produce the whole chunk, running the
+    * produce effects in parallel. Validates the schema once before producing.
+    */
   lazy val chunkSink: Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (grStream: Stream[F, Chunk[GenericRecord]]) =>
       for {
@@ -67,9 +78,13 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
       } yield prs
   }
 
+  /** Record-oriented producer pipe; chunks the input and delegates to `chunkSink`. */
   lazy val sink: Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] =
     _.chunks.through(chunkSink)
 
+  /** Encode and produce a single record, returning its `RecordMetadata`. Validates the schema and opens a
+    * short-lived producer for the one send.
+    */
   def produceOne(record: GenericRecord): F[RecordMetadata] =
     for {
       pair <- validateSchema
@@ -79,8 +94,11 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
         .use(_.produceOne_(push.fromGenericRecord(record)).flatten)
     } yield res
 
-  /** @param jackson
-    *   a Json String generated from NJConsumerRecord
+  /** Parse a Jackson-encoded Avro JSON string into a `GenericRecord` (against the resolved schema) and
+    * produce it. Convenience for replaying records serialized as JSON.
+    *
+    * @param jackson
+    *   a JSON string in Jackson/Avro form, e.g. generated from an `NJConsumerRecord`.
     */
   def jackson(jackson: String): F[RecordMetadata] =
     for {
