@@ -32,8 +32,8 @@ import scala.concurrent.duration.DurationInt
   */
 object EmailObserver {
 
-  /** Immutable configuration for an [[EmailObserver]]. Build one with [[Params.apply]] and adjust it with the
-    * `with*` methods, then hand it to [[EmailObserver.apply]].
+  /** Immutable configuration for an `EmailObserver`. Build one with `Params.apply` and adjust it with the
+    * `with*` methods, then hand it to `EmailObserver.apply`.
     *
     * @param client
     *   resource yielding the SES client used to send.
@@ -89,7 +89,7 @@ object EmailObserver {
         zoneId = ZoneId.systemDefault())
   }
 
-  /** Build an observer from a fully configured [[Params]]. */
+  /** Build an observer from a fully configured `Params`. */
   def apply[F[_]: Async](params: Params[F]): EmailObserver[F] =
     new EmailObserver[F](params)
 }

@@ -18,26 +18,45 @@ import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
 object SlackObserver {
+
+  /** Create an observer that renders events as Slack messages using the default `SlackTranslator`. Refine the
+    * translator with `withTranslator`.
+    */
   def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
     new SlackObserver[F](client, SlackTranslator[F])
 }
 
-/** Notes: Slack messages `https://app.slack.com/block-kit-builder`
+/** Observer that renders each event as a Slack message and publishes it to an SNS topic.
+  *
+  * The translator produces a `SlackApp` (Block Kit payload), which is serialized to JSON and published to the
+  * given SNS topic; an SNS-to-Slack subscription then delivers it. Every event is published immediately (no
+  * batching). On stream finalization, a `ServiceStop` is synthesized and published for each service still
+  * running. Publish failures are swallowed so one failure does not tear down the observer.
+  *
+  * Block Kit layouts can be previewed at `https://app.slack.com/block-kit-builder`.
   */
-
 final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
+  /** Transform the event-to-`SlackApp` translator, e.g. to filter events or adjust formatting. */
   override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))
 
+  // Publish one already-rendered message to the SNS topic. attempt swallows failures so a single failed
+  // publish does not terminate the observer stream.
   private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[Unit] = {
     val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn.value).message(msg)
     client.publish(req.build()).attempt.void
   }
 
+  /** Observe events, publishing each rendered Slack message to the given SNS topic. Events pass through
+    * unchanged.
+    *
+    * @param snsArn
+    *   the ARN of the SNS topic subscribed to Slack.
+    */
   def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       sns <- Stream.resource(client)

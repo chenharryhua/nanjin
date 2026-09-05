@@ -14,10 +14,10 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 /** Predicate-based event filter that can be composed and applied to event streams.
   *
-  * Each pipe decides, per [[Event]], whether the event is kept. Pipes are pure and stateless, so the same
+  * Each pipe decides, per `Event`, whether the event is kept. Pipes are pure and stateless, so the same
   * instance can be reused across streams and composed freely. The built-in filters in the companion follow a
   * shared convention: non-`MetricsSnapshot` events pass through unchanged, and among snapshots only
-  * `Periodic` ones are subject to filtering while `Adhoc` snapshots pass through. [[logLevel]] is the
+  * `Periodic` ones are subject to filtering while `Adhoc` snapshots pass through. `logLevel` is the
   * exception, it targets `ReportedEvent` instead.
   */
 trait EventPipe { self =>
