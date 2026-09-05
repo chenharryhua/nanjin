@@ -122,7 +122,9 @@ object NJConsumerRecord {
         leaderEpoch = src.leaderEpoch().toScala.map(_.toInt)
       )
 
-  given [K, V](using Null <:< K, Null <:< V): Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
+  given [K, V](using
+    ek: Null <:< K,
+    ev: Null <:< V): Transformer[NJConsumerRecord[K, V], JavaConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       new JavaConsumerRecord[K, V](
         src.topic,
@@ -137,8 +139,8 @@ object NJConsumerRecord {
         src.serializedKeySize,
         src.serializedValueSize,
 
-        src.key.getOrElse(summon[Null <:< K](null)),
-        src.value.getOrElse(summon[Null <:< V](null)),
+        src.key.getOrElse(ek(null)),
+        src.value.getOrElse(ev(null)),
 
         new RecordHeaders(src.headers.map(_.into[JavaHeader].transform).toArray),
         src.leaderEpoch.map(Integer.valueOf).toJava
