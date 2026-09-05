@@ -87,19 +87,20 @@ class AwsObserverTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.email observer - limited should terminate") {
+  test("6.email observer terminates with the event stream, not the policy") {
+    // A never-ending (repeat) policy would run forever; the observer must still terminate because the event
+    // stream is finite. This exercises the mergeHaltL semantics: lifetime tracks events, not ticks.
     val mail =
       EmailObserver(
         EmailObserver
           .Params(ses_client)
-          .withPolicy(_.fixedDelay(2.seconds).repeat.limited(3))
+          .withPolicy(_.fixedDelay(2.seconds).repeat)
           .withZoneId(sydneyTime))
         .observe(Email("a@b.c"), NonEmptyList.one(Email("b@c.d")), "email")
 
     TaskGuard[IO]("email")
       .service("email")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
-      .eventStream(_ => IO.never)
+      .eventStream(_.logger.info("done"))
       .through(mail)
       .compile
       .drain

@@ -6,11 +6,23 @@ import java.nio.ByteBuffer
 import java.util.UUID
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 
+/** An `Unregistered[A]` for a Kafka primitive type, whose serde is one of Kafka's built-in `Serdes` and
+  * therefore needs no schema registry.
+  *
+  * `registerWith` ignores the supplied `SchemaRegistryClient` and returns the fixed built-in serde. Instances
+  * are provided for the types Kafka ships serdes for; summon one with `Primitive[A]`.
+  */
 sealed trait Primitive[A] extends Unregistered[A]
 
 object Primitive {
+
+  /** Summon the `Primitive` instance for `A`. */
   inline def apply[A](using ev: Primitive[A]): Primitive[A] = ev
 
+  /*
+   * One instance per Kafka built-in primitive serde. Each ignores the registry client and returns the
+   * corresponding `Serdes.*`.
+   */
   given Primitive[String] = new Primitive[String] {
     override def registerWith(srClient: SchemaRegistryClient): Serde[String] = Serdes.String()
   }

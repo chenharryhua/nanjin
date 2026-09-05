@@ -69,3 +69,11 @@ Ensure **consistency with existing patterns**:
 
 - New code should follow conventions already established in the module.
 - Flag one-off styles that diverge from neighboring code without good reason.
+
+### Documentation style
+
+- **Use backtick code spans, not Scaladoc `[[...]]` links.** When referring to a type, method, or
+  identifier in a Scaladoc comment, write it as a backtick code span (`` `EmailObserver` ``,
+  `` `Params.apply` ``) rather than a Scaladoc wiki link (`[[EmailObserver]]`,
+  `[[Params.apply]]`). This applies to references to both project symbols and external library
+  symbols. Convert any existing `[[...]]` to backticks when touching a file.

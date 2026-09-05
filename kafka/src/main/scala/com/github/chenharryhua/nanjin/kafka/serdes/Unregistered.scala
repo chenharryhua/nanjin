@@ -10,7 +10,9 @@ import scala.jdk.CollectionConverters.given
 /** A Kafka serde that is not yet registered with a Schema Registry.
   *
   * Implementations provide a `registerWith` method that creates a fully configured `Serde[A]` once a
-  * `SchemaRegistryClient` is available.
+  * `SchemaRegistryClient` is available. Before registering, the payload type can be reshaped with the
+  * transformation combinators (`emap`, `become`, `option`, `orNull`). Registration then produces a
+  * `Registered[Key, A]` or `Registered[Value, A]` via `asKey`/`asValue`.
   */
 trait Unregistered[A] { outer =>
   protected def registerWith(srClient: SchemaRegistryClient): Serde[A]
@@ -19,6 +21,9 @@ trait Unregistered[A] { outer =>
    *  Transformation
    */
 
+  /** Reshape the payload type from `A` to `B` by mapping in both directions: `f` on deserialize, `g` on
+    * serialize. The resulting serde delegates to this one's serde with the conversion wrapped around it.
+    */
   final def emap[B](f: A => B)(g: B => A): Unregistered[B] =
     new Unregistered[B] {
       protected def registerWith(srClient: SchemaRegistryClient): Serde[B] =
@@ -49,13 +54,19 @@ trait Unregistered[A] { outer =>
         }
     }
 
+  /** Reshape from `A` to `B` using a `BiTransform[A, B]` (see `emap`). */
   final def become[B](using b: BiTransform[A, B]): Unregistered[B] =
     emap(b.to)(b.from)
 
-  // turn null into None
+  /** Make the payload optional: deserialize maps `null` to `None`, serialize maps `None` back to `null` (the
+    * `Null <:< A` evidence witnesses that `A` admits null).
+    */
   final def option(using ev: Null <:< A): Unregistered[Option[A]] =
     emap(Option(_))(_.getOrElse(ev(null)))
-  // turn Option to A|Null
+
+  /** Unwrap an `Option[A1]` payload to `A1`, mapping `null` to `None` on serialize and `None` to `null` on
+    * deserialize. The inverse of `option`.
+    */
   final def orNull[A1](using ev: A =:= Option[A1], ev2: Null <:< A1): Unregistered[A1] =
     emap[A1](_.getOrElse(ev2(null)))(a1 => ev.flip(Option(a1)))
 
@@ -70,6 +81,9 @@ trait Unregistered[A] { outer =>
   private given IsKey[Value] with
     override val value: Boolean = false
 
+  /** Materialize and configure the serde for the `KV` side (key vs value chosen by the `IsKey` evidence),
+    * shared by `asKey`/`asValue`.
+    */
   private def register[KV <: KeyOrValue](
     srClient: SchemaRegistryClient,
     props: Map[String, String]
@@ -87,11 +101,15 @@ trait Unregistered[A] { outer =>
         deSer
     })
 
-  // registered as key
+  /** Register this serde as a record '''key''': materialize the `Serde[A]` against `srClient`, configure it
+    * with `props` in key mode, and tag it `Registered[Key, A]`.
+    */
   final def asKey(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Key, A] =
     register[Key](srClient, props)
 
-  // registered as value
+  /** Register this serde as a record '''value''': as `asKey`, but configured in value mode and tagged
+    * `Registered[Value, A]`.
+    */
   final def asValue(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Value, A] =
     register[Value](srClient, props)
 }

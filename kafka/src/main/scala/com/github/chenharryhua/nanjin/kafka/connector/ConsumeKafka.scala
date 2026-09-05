@@ -13,6 +13,16 @@ import org.apache.kafka.common.TopicPartition
 
 import java.time.Instant
 
+/** A `ConsumerService` that consumes a topic into typed `K`/`V` records using the deserializers carried by
+  * `consumerSettings`.
+  *
+  * Unlike `ConsumeGenericRecord` (which reads raw bytes and decodes to Avro `GenericRecord`), this connector
+  * deserializes directly into the key/value types the settings were built with, so the element type is the
+  * plain fs2 `CommittableConsumerRecord[F, K, V]` with no `PullError` wrapper. It inherits all consumption
+  * modes from `ConsumerService`, subscribe, assign (by nothing, by partition/offset map, or by time),
+  * manual-commit, and bounded ("circumscribed") streams. Obtain an instance via
+  * `KafkaContext.consume(topic)`.
+  */
 final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
@@ -24,9 +34,11 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    */
   override lazy val properties: Map[String, String] = consumerSettings.properties
 
+  /** Return a copy with the underlying consumer settings transformed by `f`. */
   override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
 
+  /** Shared consumer resource stream for the subscribe/assign modes. */
   private lazy val clientS: Stream[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.stream(consumerSettings)
 
@@ -84,6 +96,10 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * Circumscribed Stream
    */
 
+  /** Shared implementation of the bounded streams: resolve the offset range (from a date-time range or an
+    * explicit per-partition range), assign it, and emit a bounded stream; an empty range yields an empty
+    * stream. Auto-commit is disabled for these.
+    */
   private def circumscribed(
     or: Either[DateTimeRange, Map[Int, (Long, Long)]]): Stream[F, CircumscribedStream[F, K, V]] =
     for {
