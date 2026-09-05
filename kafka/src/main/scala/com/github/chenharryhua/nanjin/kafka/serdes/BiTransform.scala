@@ -19,12 +19,38 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import scala.reflect.{classTag, ClassTag}
 
+/** A pair of conversion functions between a Kafka-side representation `A` and an application value `B`.
+  *
+  * `BiTransform` carries no round-trip law. Some instances are true isomorphisms (the primitive
+  * boxed-Java/`Option` pairs, and the `Iso`-derived ones), but the codec-backed instances are not: decoding
+  * then re-encoding (`from(to(a))`) need not reproduce the original `A`, since encoding can reorder fields,
+  * drop unknowns, fill defaults, or add a schema envelope. Treat `to`/`from` as a best-effort bridge in each
+  * direction, not a guaranteed inverse pair.
+  *
+  * The companion supplies instances for the common bridges used when reading/writing Kafka records: circe
+  * `Json`, Avro `GenericRecord`, Protobuf `DynamicMessage`, and Jackson `JsonNode` (all via `KafkaCodec`);
+  * boxed Java primitives to `Option` of the Scala primitive (null becomes `None`); and generic derivations
+  * from a Chimney or Monocle `Iso`, lifted through `Option`.
+  *
+  * @tparam A
+  *   the Kafka-side representation.
+  * @tparam B
+  *   the application value type.
+  */
 sealed trait BiTransform[A, B]:
+
+  /** Convert a Kafka-side value into the application value. */
   def to(a: A): B
+
+  /** Convert an application value back into the Kafka-side representation. */
   def from(b: B): A
 end BiTransform
 
 object BiTransform:
+
+  /** Bridge circe `Json` and any `B` with circe codecs. `to` throws the decode error if the JSON does not
+    * conform to `B`.
+    */
   given [B: {JsonDecoder, JsonEncoder}]: BiTransform[Json, B] =
     new BiTransform[Json, B]:
       private val enc: JsonEncoder[B] = JsonEncoder[B]
@@ -38,15 +64,21 @@ object BiTransform:
       override def from(b: B): Json = enc(b)
   end given
 
+  /** Bridge Avro `GenericRecord` and `B` via the derived `KafkaCodec.avro` codec. */
   given [B: {SchemaFor, Decoder, Encoder}]: BiTransform[GenericRecord, B] =
     KafkaCodec.avro[B]
+
+  /** Bridge Protobuf `DynamicMessage` and a generated message `B` via `KafkaCodec.protobuf`. */
   given [B <: GeneratedMessage: GeneratedMessageCompanion]: BiTransform[DynamicMessage, B] =
     KafkaCodec.protobuf[B]
+
+  /** Bridge Jackson `JsonNode` and `B` via `KafkaCodec.json`, using the given `ObjectMapper`. */
   given [B: ClassTag](using mapper: ObjectMapper): BiTransform[JsonNode, B] =
     KafkaCodec.json(mapper)
 
   /*
-   * Primitive
+   * Primitive: boxed Java primitive <-> Option of the Scala primitive. `null` maps to `None`, `Some` maps to
+   * the boxed value.
    */
   given BiTransform[java.lang.Integer, Option[Int]] with
     override def from(b: Option[Int]): Integer = b.map(Int.box).orNull
@@ -79,20 +111,24 @@ object BiTransform:
   end given
 
   /*
-   * Generic
+   * Generic derivations from an existing isomorphism, and lifting through Option.
    */
+
+  /** Derive a `BiTransform` from a Chimney `Iso[A, B]`. */
   given [A, B](using iso: ChimneyIso[A, B]): BiTransform[A, B] =
     new BiTransform[A, B]:
       override def to(a: A): B = iso.first.transform(a)
       override def from(b: B): A = iso.second.transform(b)
   end given
 
+  /** Derive a `BiTransform` from a Monocle `Iso[A, B]`. */
   given [A, B](using iso: MonocleIso[A, B]): BiTransform[A, B] =
     new BiTransform[A, B]:
       override def to(a: A): B = iso.get(a)
       override def from(b: B): A = iso.reverseGet(b)
   end given
 
+  /** Lift a `BiTransform[A, B]` over `Option`, mapping element-wise (`None` stays `None`). */
   given [A, B](using ab: BiTransform[A, B]): BiTransform[Option[A], Option[B]] =
     new BiTransform[Option[A], Option[B]]:
       override def to(a: Option[A]): Option[B] = a.map(ab.to)

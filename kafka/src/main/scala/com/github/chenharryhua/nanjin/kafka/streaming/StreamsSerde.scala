@@ -6,6 +6,13 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.{Consumed, Grouped, Joined, Produced, Repartitioned, StreamJoined}
 
+/** Builds the Kafka Streams serde-carrying config objects (`Consumed`, `Produced`, `Joined`, etc.) from
+  * nanjin `Unregistered` serdes.
+  *
+  * Each factory registers the given key/value serdes against the schema registry (in key vs value mode as
+  * appropriate) and packages them into the matching Kafka Streams operator config. Handed to `buildTopology`
+  * by `KafkaStreamsBuilder` so a topology can be described without touching raw Kafka `Serde`s.
+  */
 final class StreamsSerde private[kafka] (srClient: SchemaRegistryClient, serdeSettings: SerdeSettings) {
   private val properties: Map[String, String] = serdeSettings.properties
 
@@ -15,27 +22,33 @@ final class StreamsSerde private[kafka] (srClient: SchemaRegistryClient, serdeSe
     value.asValue(srClient, properties).serde
 
   /*
-   * Streams Serde
+   * Streams Serde: each wraps the registered key/value serdes into the corresponding Kafka Streams config.
    */
 
+  /** `Consumed` config for reading a source stream/table with the given key/value serdes. */
   def consumed[K, V](key: Unregistered[K], value: Unregistered[V]): Consumed[K, V] =
     Consumed.`with`(asKey(key), asValue(value))
 
+  /** `Produced` config for writing to a topic with the given key/value serdes. */
   def produced[K, V](key: Unregistered[K], value: Unregistered[V]): Produced[K, V] =
     Produced.`with`(asKey(key), asValue(value))
 
+  /** `Joined` config for a KStream-KTable join: one key serde and the left/right value serdes. */
   def joined[K, VL, VR](key: Unregistered[K], vl: Unregistered[VL], vr: Unregistered[VR]): Joined[K, VL, VR] =
     Joined.`with`(asKey(key), asValue(vl), asValue(vr))
 
+  /** `StreamJoined` config for a KStream-KStream join: one key serde and both stream value serdes. */
   def streamJoined[K, V1, V2](
     key: Unregistered[K],
     v1: Unregistered[V1],
     v2: Unregistered[V2]): StreamJoined[K, V1, V2] =
     StreamJoined.`with`(asKey(key), asValue(v1), asValue(v2))
 
+  /** `Grouped` config for a `groupBy`/`groupByKey` repartition with the given serdes. */
   def grouped[K, V](key: Unregistered[K], value: Unregistered[V]): Grouped[K, V] =
     Grouped.`with`(asKey(key), asValue(value))
 
+  /** `Repartitioned` config for an explicit `repartition` with the given serdes. */
   def repartitioned[K, V](key: Unregistered[K], value: Unregistered[V]): Repartitioned[K, V] =
     Repartitioned.`with`(asKey(key), asValue(value))
 }

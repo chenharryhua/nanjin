@@ -16,7 +16,15 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-/** Builds and manages a Kafka Streams application with startup monitoring and transition notifications. */
+/** Builds and manages a Kafka Streams application with startup monitoring and transition notifications.
+  *
+  * The topology is described by `buildTopology`, which is handed a `StreamsBuilder` and a `StreamsSerde`
+  * (schema-registry-aware serdes). Running the app as an fs2 `Stream` wires a state listener that logs every
+  * state change and translates the lifecycle into stream semantics: the stream emits the `KafkaStreams`
+  * instance once it reaches `RUNNING` (subject to `startupTimeout`), completes normally on `NOT_RUNNING`, and
+  * fails on `ERROR`. The instance is closed (bounded by `closeTimeout`) on release. Configuration is adjusted
+  * immutably through the `with*` methods; obtain a builder via `KafkaStreamsBuilder.apply`.
+  */
 final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
   streamSettings: KafkaStreamSettings,
@@ -28,12 +36,18 @@ final class KafkaStreamsBuilder[F[_]] private (
   log: Log[F])(using F: Async[F])
     extends HasProperties {
 
+  /** Bridges Kafka Streams' synchronous `StateListener` callback into the effect world: on each state change
+    * it logs and, at the terminal states, completes `startup` (unblocking the stream) and `stop` (signalling
+    * normal completion via `Right` or abnormal via `Left`). Effects are run through `dispatcher`, tolerating
+    * the case where it has already shut down.
+    */
   final private class StateTransitionListener(
     dispatcher: Dispatcher[F],
     startup: Deferred[F, Unit],
     stop: Deferred[F, Either[Throwable, Unit]]
   ) extends KafkaStreams.StateListener {
 
+    // Run the effect on the dispatcher, ignoring the case where the dispatcher is already closed.
     private def runOrIgnoreOnShutdown(fa: F[Unit]): Unit =
       try dispatcher.unsafeRunSync(fa)
       catch {
@@ -98,6 +112,9 @@ final class KafkaStreamsBuilder[F[_]] private (
     } yield kafkaStreams
   }
 
+  /** Run the streams application until it stops or the stream is interrupted; never emits. Use when you only
+    * want the app running as a background stage and don't need the `KafkaStreams` handle.
+    */
   def runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never[F]
 
   private def copy(
@@ -116,9 +133,13 @@ final class KafkaStreamsBuilder[F[_]] private (
     log = log
   )
 
+  /** Set how long to wait for the app to reach `RUNNING` before failing with `KafkaStreamsStartupTimeout`.
+    * The default `Duration.Inf` disables the timeout.
+    */
   def withStartupTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     copy(startupTimeout = value)
 
+  /** Set the bound on how long `KafkaStreams.close` may take on shutdown. */
   def withCloseTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     copy(closeTimeout = value)
 
@@ -126,12 +147,18 @@ final class KafkaStreamsBuilder[F[_]] private (
   def withTransitionLog(log: Log[F]): KafkaStreamsBuilder[F] =
     copy(log = log)
 
+  /** Set a single streams config property (key selected from `StreamsConfigKeys`). */
   def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamsBuilder[F] =
     copy(streamSettings = streamSettings.withProperty(f, value))
 
+  /** Merge in a map of streams config properties. */
   def withProperties(map: Map[String, String]): KafkaStreamsBuilder[F] =
     copy(streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) })
 
+  /** The built Kafka Streams `Topology`, produced by running `buildTopology` against a fresh `StreamsBuilder`
+    * and a schema-registry-aware `StreamsSerde`. Useful for inspecting or describing the topology without
+    * running it.
+    */
   lazy val topology: Topology = {
     val streamsBuilder: StreamsBuilder = new StreamsBuilder()
     val streamsSerde: StreamsSerde = new StreamsSerde(srClient, serdeSettings)
@@ -142,6 +169,10 @@ final class KafkaStreamsBuilder[F[_]] private (
 }
 
 object KafkaStreamsBuilder {
+
+  /** Create a builder with default lifecycle settings: no startup timeout (`Duration.Inf`), a 30-second close
+    * timeout, and a no-op transition logger. Adjust with the `with*` methods.
+    */
   def apply[F[_]: Async](
     applicationId: String,
     streamSettings: KafkaStreamSettings,
