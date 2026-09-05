@@ -95,7 +95,7 @@ object Batch:
     mode: BatchMode,
     jobHook: JobHook[F, A],
     scope: MetricScope,
-    batchId: Long,
+    batchId: BatchId,
     batchPanel: BatchMetrics[F],
     predicate: Reader[A, Boolean]) {
 
@@ -180,7 +180,7 @@ object Batch:
 
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[(FiniteDuration, List[JobState[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
             JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
@@ -188,7 +188,7 @@ object Batch:
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
         case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
           QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
@@ -197,7 +197,7 @@ object Batch:
 
     override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[(FiniteDuration, List[JobValue[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
             JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runValue
@@ -205,7 +205,7 @@ object Batch:
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
         case (fd: FiniteDuration, jobs: List[JobValue[A]]) =>
           ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
@@ -230,12 +230,12 @@ object Batch:
     override protected val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch(jobHook: JobHook[F, A]): Resource[F, QuasiBatch[A]] = {
-      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[List[JobState[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[List[JobState[A]]] =
         jobs.traverse {
           JobExecutor(mode, jobHook, metrics.scope, batchId, batchPanel, predicate).runQuasi
         }.guarantee(batchPanel.activeGauge.deactivate)
 
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       createPanel(metrics, jobs.size, BatchKind.Quasi, mode)
         .evalMap(bp => exec(bp, batchId))
         .map(jobs =>
@@ -249,7 +249,7 @@ object Batch:
 
     override def valueBatch(jobHook: JobHook[F, A]): Resource[F, ValueBatch[A]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: Long): F[List[JobValue[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[List[JobValue[A]]] =
         jobs
           .traverse(
             JobExecutor(
@@ -262,7 +262,7 @@ object Batch:
             ).runValue
           ).guarantee(batchPanel.activeGauge.deactivate)
 
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(bp => exec(bp, batchId)).map { jobs =>
         ValueBatch(
           scope = metrics.scope,
@@ -284,7 +284,7 @@ object Batch:
   final private case class Context[F[_]](
     updatePanel: UpdatePanel[F],
     jobHook: JobHook[F, Json],
-    batchId: Long)
+    batchId: BatchId)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
   final class JobBuilder[F[_]: Async] private[Batch] (metrics: MetricsHub[F], batchIdGenerator: AtomicLong):
@@ -328,7 +328,7 @@ object Batch:
 
       /** Execute the monadic batch with lifecycle hooks and JSON job reporting. */
       def monadicBatch(jobHook: JobHook[F, Json]): Resource[F, MonadicBatch[A]] = {
-        val batchId: Long = batchIdGenerator.getAndIncrement()
+        val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         createMonadicPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
           kleisli
             .run(Context[F](updatePanel, jobHook, batchId))

@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
 class BatchEncoderTest extends AnyFunSuite {
-  private val batchId: Long = 1L
+  private val batchId: BatchId = BatchId(1L)
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)

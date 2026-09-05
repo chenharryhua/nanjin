@@ -35,12 +35,12 @@ object BatchLight:
     private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[BatchLight] (
-      private val kleisli: Kleisli[StateT[F, Int, *], Long, ExecutionState[A]]):
+      private val kleisli: Kleisli[StateT[F, Int, *], BatchId, ExecutionState[A]]):
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], Long, ExecutionState[B]] =
-          Kleisli { (batchId: Long) =>
+        val runB: Kleisli[StateT[F, Int, *], BatchId, ExecutionState[B]] =
+          Kleisli { (batchId: BatchId) =>
             StateT { (idx: Int) =>
               kleisli(batchId).run(idx).flatMap { case (nextIdx: Int, execState: ExecutionState[A]) =>
                 execState.eoa match {
@@ -63,7 +63,7 @@ object BatchLight:
       /** Filter a successful monadic value; a rejected value becomes a failed quasi-job. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
-          Kleisli { (batchId: Long) =>
+          Kleisli { (batchId: BatchId) =>
             kleisli(batchId).map { case unchange @ ExecutionState(eoa, history) =>
               eoa match {
                 case Left(_)      => unchange
@@ -81,7 +81,7 @@ object BatchLight:
 
       /** Execute the monadic batch and return its result in `F`. */
       def monadicBatch: F[MonadicBatch[A]] = {
-        val batchId: Long = batchIdGenerator.getAndIncrement()
+        val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         kleisli(batchId)
           .run(1)
           .map { case (_, ExecutionState(eoa, history)) =>
@@ -123,7 +123,7 @@ object BatchLight:
     /** Add a named effect-backed value job. */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
-        Kleisli { (batchId: Long) =>
+        Kleisli { (batchId: BatchId) =>
           StateT { (index: Int) =>
             val job: Job = Job(
               name = name,
@@ -144,7 +144,7 @@ object BatchLight:
     /** Add a boolean job whose failure or false result is retained as a quasi failure. */
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
-        Kleisli { (batchId: Long) =>
+        Kleisli { (batchId: BatchId) =>
           StateT { (index: Int) =>
             val job: Job = Job(
               name = name,
@@ -193,7 +193,7 @@ object BatchLight:
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
     override def quasiBatch: F[QuasiBatch[A]] = {
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobState[A]](parallelism)(jobs) {
         case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, scope, mode, BatchKind.Quasi, batchId)
@@ -213,7 +213,7 @@ object BatchLight:
     }
 
     override def valueBatch: F[ValueBatch[A]] = {
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobValue[A]](parallelism)(jobs) {
         case JobNameIndex(name, idx, fa) =>
           val job = Job(name, idx, scope, mode, BatchKind.Value, batchId)
@@ -251,7 +251,7 @@ object BatchLight:
     private val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch: F[QuasiBatch[A]] = {
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
         val job = Job(name, idx, scope, mode, BatchKind.Quasi, batchId)
         F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
@@ -275,7 +275,7 @@ object BatchLight:
     }
 
     override def valueBatch: F[ValueBatch[A]] = {
-      val batchId: Long = batchIdGenerator.getAndIncrement()
+      val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
         val job = Job(name, idx, scope, mode, BatchKind.Value, batchId)
         F.timed(F.attempt(fa))
