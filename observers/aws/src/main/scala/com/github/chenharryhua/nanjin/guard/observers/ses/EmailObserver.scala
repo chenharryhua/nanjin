@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.{Endo, Eval}
+import cats.{Applicative, Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
@@ -15,7 +14,7 @@ import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
-import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator}
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -24,49 +23,80 @@ import squants.information.{Bytes, Information, Megabytes}
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
+/** Observer that batches events into HTML emails and delivers them via AWS SES.
+  *
+  * Translated events are buffered and flushed as a single email on three occasions: when the buffer reaches
+  * `capacity`, on each scheduled tick of `policy`, and once more on stream finalization (carrying any
+  * remaining buffered events plus a synthesized `ServiceStop` for each service still running). An empty flush
+  * is sent as a heartbeat, confirming the observer is alive even when there is nothing to report.
+  */
 object EmailObserver {
 
-  /** @param client
-    *   Simple Email Service Client
+  /** Immutable configuration for an [[EmailObserver]]. Build one with [[Params.apply]] and adjust it with the
+    * `with*` methods, then hand it to [[EmailObserver.apply]].
+    *
+    * @param client
+    *   resource yielding the SES client used to send.
+    * @param translator
+    *   renders each event into an HTML fragment; events the translator drops are not included.
+    * @param isNewestFirst
+    *   when `true`, the most recent event appears at the top of the email body.
+    * @param capacity
+    *   maximum number of events buffered before an email is flushed.
+    * @param policy
+    *   schedule on which buffered events are flushed; the default never fires, so flushing relies on
+    *   `capacity` and finalization.
+    * @param zoneId
+    *   time zone used to interpret the flush schedule.
     */
-  def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
-    new EmailObserver[F](
-      client = client,
-      translator = HtmlTranslator[F],
-      isNewestFirst = true,
-      capacity = ChunkSize(100),
-      policy = _.fixedDelay(36500.days), // 100 years
-      zoneId = ZoneId.systemDefault()
-    )
+  final case class Params[F[_]](
+    client: Resource[F, SimpleEmailService[F]],
+    translator: Translator[F, Text.TypedTag[String]],
+    isNewestFirst: Boolean,
+    capacity: ChunkSize,
+    policy: Policy.type => Policy,
+    zoneId: ZoneId) {
+
+    /** Order the email body oldest-first instead of the default newest-first. */
+    def withOldestFirst: Params[F] = copy(isNewestFirst = false)
+
+    /** Set the maximum number of buffered events before a flush. */
+    def withCapacity(cs: ChunkSize): Params[F] = copy(capacity = cs)
+
+    /** Set the schedule on which buffered events are flushed. */
+    def withPolicy(f: Policy.type => Policy): Params[F] = copy(policy = f)
+
+    /** Set the time zone used to interpret the flush schedule. */
+    def withZoneId(zoneId: ZoneId): Params[F] = copy(zoneId = zoneId)
+
+    /** Transform the event-to-HTML translator, e.g. to skip certain event kinds. */
+    def withTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): Params[F] =
+      copy(translator = f(translator))
+  }
+
+  object Params {
+
+    /** Default configuration for `client`: HTML translator, newest-first, capacity 100, a schedule that
+      * effectively never fires (so flushing relies on capacity and finalization), and the system time zone.
+      */
+    def apply[F[_]: Applicative](client: Resource[F, SimpleEmailService[F]]): Params[F] =
+      Params(
+        client = client,
+        translator = HtmlTranslator[F],
+        isNewestFirst = true,
+        capacity = ChunkSize(100),
+        policy = _.fixedDelay(36500.days),
+        zoneId = ZoneId.systemDefault())
+  }
+
+  /** Build an observer from a fully configured [[Params]]. */
+  def apply[F[_]: Async](params: Params[F]): EmailObserver[F] =
+    new EmailObserver[F](params)
 }
 
-final class EmailObserver[F[_]] private (
-  client: Resource[F, SimpleEmailService[F]],
-  translator: Translator[F, Text.TypedTag[String]],
-  isNewestFirst: Boolean,
-  capacity: ChunkSize,
-  policy: Policy.type => Policy,
-  zoneId: ZoneId)(using F: Async[F])
-    extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
-
-  private def copy(
-    isNewestFirst: Boolean = this.isNewestFirst,
-    capacity: ChunkSize = this.capacity,
-    policy: Policy.type => Policy = this.policy,
-    zoneId: ZoneId = this.zoneId,
-    translator: Translator[F, Text.TypedTag[String]] = this.translator): EmailObserver[F] =
-    new EmailObserver[F](client, translator, isNewestFirst, capacity, policy, zoneId)
-
-  override def withTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
-    copy(translator = f(translator))
-
-  def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
-  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
-  def withPolicy(f: Policy.type => Policy): EmailObserver[F] = copy(policy = f)
-  def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
-
+final class EmailObserver[F[_]] private (params: EmailObserver.Params[F])(using F: Async[F]) {
   private def translate(evt: Event): F[Option[ColoredTag]] =
-    translator
+    params.translator
       .translate(evt)
       .map(_.map(tag => ColoredTag(tag, eventLogLevel[Eval, LogLevel](evt).eval.value)))
 
@@ -87,7 +117,7 @@ final class EmailObserver[F[_]] private (
 
     val content: List[Text.TypedTag[String]] = {
       val lst = tags.map(tag => hr(tag.tag)).toList
-      if (isNewestFirst) lst.reverse else lst
+      if (params.isNewestFirst) lst.reverse else lst
     }
 
     Letter(warns, errors, notice, content)
@@ -103,7 +133,7 @@ final class EmailObserver[F[_]] private (
 
     val letter = compose_letter(data)
 
-    val content: String = letter.emailBody(capacity)
+    val content: String = letter.emailBody(params.capacity)
 
     val email: EmailContent =
       if (Bytes(content.length) < maximumMessageSize) {
@@ -115,7 +145,10 @@ final class EmailObserver[F[_]] private (
         EmailContent(from, to, subject, msg)
       }
 
-    ses.send(email).attempt.whenA(data.nonEmpty)
+    // Always send, even when data is empty: an empty email is a heartbeat signalling the service is still
+    // running. Send failures are already logged by SimpleEmailService; attempt swallows them so one failed
+    // email does not tear down the observer.
+    ses.send(email).attempt.void
   }
 
   private def good_bye(
@@ -137,6 +170,18 @@ final class EmailObserver[F[_]] private (
       }
     }
 
+  /** Build a pipe that observes events, batches them into HTML emails, and sends them via SES.
+    *
+    * Events pass through unchanged (the pipe is a side-effecting tap). Emails are flushed on capacity, on
+    * each scheduled tick, and on finalization; an empty flush is sent as a heartbeat.
+    *
+    * @param from
+    *   the sender address.
+    * @param to
+    *   the recipient addresses.
+    * @param subject
+    *   the email subject line, applied to every email.
+    */
   def observe(from: Email, to: NonEmptyList[Email], subject: String): Pipe[F, Event, Event] = {
 
     def go(
@@ -150,7 +195,7 @@ final class EmailObserver[F[_]] private (
               val send_and_update: F[Unit] = translate(event).flatMap {
                 case Some(ct) =>
                   cache.flatModify { tags =>
-                    if (tags.size < capacity.value)
+                    if (tags.size < params.capacity.value)
                       (tags ++ Chunk.singleton(ct)) -> F.unit
                     else
                       Chunk.singleton(ct) -> send_email(tags)
@@ -171,7 +216,7 @@ final class EmailObserver[F[_]] private (
 
     (events: Stream[F, Event]) =>
       for {
-        ses <- Stream.resource(client)
+        ses <- Stream.resource(params.client)
         state <- Stream.eval(F.ref(Map.empty[ServiceId, ServiceStart]))
         cache <- Stream.eval(F.ref(Chunk.empty[ColoredTag]))
         monitor = events.evalTap {
@@ -179,7 +224,7 @@ final class EmailObserver[F[_]] private (
           case ss: ServiceStop  => state.update(_.removed(ss.serviceIdentity.serviceId))
           case _                => F.unit
         }.map(Left(_))
-        ticks = tickStream.tickScheduled[F](zoneId, policy).map(Right(_))
+        ticks = tickStream.tickScheduled[F](params.zoneId, params.policy).map(Right(_))
         send_email = publish_one_email(ses, from, to, subject)(_)
         event <- go(monitor.mergeHaltBoth(ticks), send_email, cache).stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))
