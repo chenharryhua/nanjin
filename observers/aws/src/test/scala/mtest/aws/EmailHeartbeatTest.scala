@@ -37,15 +37,17 @@ class EmailHeartbeatTest extends AnyFunSuite {
           EmailObserver(
             EmailObserver
               .Params(recording_client(sent))
-              // fire a few ticks, then stop so the stream terminates
-              .withPolicy(_.fixedDelay(1.second).repeat.limited(2))
+              // a repeating schedule so ticks keep firing while the event stream is open
+              .withPolicy(_.fixedDelay(1.second).repeat)
               .withZoneId(sydneyTime))
             .observe(Email("from@test.com"), NonEmptyList.one(Email("to@test.com")), "heartbeat")
 
-        // an event stream that never emits: every tick flush therefore carries an empty batch, and the
-        // finalizer runs with an empty cache and no open services, so all sends are empty heartbeats
+        // An event source that emits no events but stays open for a few seconds, then completes. Under
+        // mergeHaltL the observer runs until this stream ends. Ticks fire during the window, each flushing an
+        // empty batch, so every send is an empty heartbeat.
         fs2.Stream
-          .never[IO]
+          .sleep[IO](4.seconds)
+          .drain
           .through(mail)
           .compile
           .drain *> sent.get

@@ -21,7 +21,6 @@ import scalatags.Text.all.*
 import squants.information.{Bytes, Information, Megabytes}
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
 
 /** Observer that batches events into HTML emails and delivers them via AWS SES.
   *
@@ -29,6 +28,11 @@ import scala.concurrent.duration.DurationInt
   * `capacity`, on each scheduled tick of `policy`, and once more on stream finalization (carrying any
   * remaining buffered events plus a synthesized `ServiceStop` for each service still running). An empty flush
   * is sent as a heartbeat, confirming the observer is alive even when there is nothing to report.
+  *
+  * The observer's lifetime tracks the incoming event stream: it runs until that stream ends, at which point
+  * the finalizer flush fires. Exhausting `policy` does not stop the observer; it only stops the scheduled
+  * flushes. The default `policy` is empty (no ticks), so out of the box emails are emitted purely on
+  * `capacity` and on finalization.
   */
 object EmailObserver {
 
@@ -44,8 +48,9 @@ object EmailObserver {
     * @param capacity
     *   maximum number of events buffered before an email is flushed.
     * @param policy
-    *   schedule on which buffered events are flushed; the default never fires, so flushing relies on
-    *   `capacity` and finalization.
+    *   schedule on which buffered events are flushed. The default is empty (no ticks), so flushing relies on
+    *   `capacity` and finalization. Exhausting the policy stops scheduled flushes but does not stop the
+    *   observer.
     * @param zoneId
     *   time zone used to interpret the flush schedule.
     */
@@ -76,8 +81,8 @@ object EmailObserver {
 
   object Params {
 
-    /** Default configuration for `client`: HTML translator, newest-first, capacity 100, a schedule that
-      * effectively never fires (so flushing relies on capacity and finalization), and the system time zone.
+    /** Default configuration for `client`: HTML translator, newest-first, capacity 100, an empty schedule (no
+      * ticks, so flushing relies on capacity and finalization), and the system time zone.
       */
     def apply[F[_]: Applicative](client: Resource[F, SimpleEmailService[F]]): Params[F] =
       Params(
@@ -85,7 +90,7 @@ object EmailObserver {
         translator = HtmlTranslator[F],
         isNewestFirst = true,
         capacity = ChunkSize(100),
-        policy = _.fixedDelay(36500.days),
+        policy = _.empty,
         zoneId = ZoneId.systemDefault())
   }
 
@@ -173,7 +178,8 @@ final class EmailObserver[F[_]] private (params: EmailObserver.Params[F])(using 
   /** Build a pipe that observes events, batches them into HTML emails, and sends them via SES.
     *
     * Events pass through unchanged (the pipe is a side-effecting tap). Emails are flushed on capacity, on
-    * each scheduled tick, and on finalization; an empty flush is sent as a heartbeat.
+    * each scheduled tick, and on finalization; an empty flush is sent as a heartbeat. The pipe runs until the
+    * incoming event stream ends; an exhausted `policy` only stops the scheduled flushes.
     *
     * @param from
     *   the sender address.
@@ -226,7 +232,10 @@ final class EmailObserver[F[_]] private (params: EmailObserver.Params[F])(using 
         }.map(Left(_))
         ticks = tickStream.tickScheduled[F](params.zoneId, params.policy).map(Right(_))
         send_email = publish_one_email(ses, from, to, subject)(_)
-        event <- go(monitor.mergeHaltBoth(ticks), send_email, cache).stream
+        // mergeHaltL: the observer's lifetime tracks the event stream, not the tick policy. When the policy
+        // is exhausted the ticks stream ends, but the merge keeps running off events; scheduled flushes
+        // simply stop while capacity flushes and the finalizer flush continue.
+        event <- go(monitor.mergeHaltL(ticks), send_email, cache).stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))
       } yield event
   }
