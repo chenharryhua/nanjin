@@ -181,7 +181,7 @@ lazy val frontend = project.in(file("frontend"))
       "io.circe" %%% "circe-core"      % circeV,
       "io.circe" %%% "circe-jawn"      % circeV,
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
-      "com.raquo" %%% "laminar"        % "17.0.0",
+      "com.raquo" %%% "laminar"        % "17.2.1",
       // test
       "org.scalameta" %%% "munit" % "1.1.0" % Test
     )
@@ -197,17 +197,17 @@ val otel4s_override = List(
 ).map(_ % otel4sV)
 
 val jackson_override = List(
-  "com.fasterxml.jackson.core" % "jackson-core",
-  "com.fasterxml.jackson.core" % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-guava",
+  "com.fasterxml.jackson.core"       % "jackson-core",
+  "com.fasterxml.jackson.core"       % "jackson-databind",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jsr310",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-joda",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-guava",
   "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
-  "com.fasterxml.jackson.module" % "jackson-module-parameter-names",
-  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider",
-  "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations"
+  "com.fasterxml.jackson.module"     % "jackson-module-parameter-names",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module"     % "jackson-module-jaxb-annotations"
 ).map(_ % jacksonV)
 
 lazy val guard = (project in file("guard"))
@@ -427,10 +427,9 @@ lazy val pipes = (project in file("pipes"))
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
-  .settings(
-    Test / PB.targets := List(
-      scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
-    ))
+  .settings(Test / PB.targets := List(
+    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+  ))
 
 // ==========================
 // Example
