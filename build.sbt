@@ -14,10 +14,10 @@ Global / parallelExecution := false
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
 val awsV = "2.54.13"
-val caffeineV = "3.2.4"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
 val circeV = "0.14.16"
+val circeOpticsV = "0.15.1"
 val confluentV = "8.3.1"
 val kafkaV = "8.3.1-ce"
 val cron4sV = "0.8.2"
@@ -30,7 +30,6 @@ val hadoopV = "3.5.0"
 val jacksonV = "2.22.2"
 val jettyV = "12.1.12"
 val http4sV = "0.23.36"
-val kantanV = "0.8.0"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.3"
 val lz4V = "1.11.2"
@@ -39,6 +38,7 @@ val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
 val parquetV = "1.18.1"
 val postgresV = "42.7.13"
+val scalapbV = "0.11.20"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.19"
 
@@ -103,7 +103,7 @@ lazy val common = (project in file("common"))
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
-      "io.circe" %% "circe-optics"                     % "0.15.1",
+      "io.circe" %% "circe-optics"                     % circeOpticsV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
       "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
@@ -187,6 +187,29 @@ lazy val frontend = project.in(file("frontend"))
     )
   )
 
+val otel4s_override = List(
+  "org.typelevel" %% "otel4s-core",
+  "org.typelevel" %% "otel4s-core-common",
+  "org.typelevel" %% "otel4s-core-trace",
+  "org.typelevel" %% "otel4s-core-logs",
+  "org.typelevel" %% "otel4s-semconv",
+  "org.typelevel" %% "otel4s-semconv-metrics"
+).map(_ % otel4sV)
+
+val jackson_override = List(
+  "com.fasterxml.jackson.core" % "jackson-core",
+  "com.fasterxml.jackson.core" % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-guava",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
+  "com.fasterxml.jackson.module" % "jackson-module-parameter-names",
+  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations"
+).map(_ % jacksonV)
+
 lazy val guard = (project in file("guard"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -208,7 +231,7 @@ lazy val guard = (project in file("guard"))
       "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV           % Test,
       "ch.qos.logback"                             % "logback-classic" % logbackV % Test
     ) ++ testLib
-  )
+  ).settings(dependencyOverrides ++= otel4s_override)
   .settings {
     Compile / resourceGenerators += Def.task {
       val js = (frontend / Compile / fullOptJS).value
@@ -332,9 +355,9 @@ lazy val kafka = (project in file("kafka"))
     libraryDependencies ++= List(
       ("org.typelevel" %% "fs2-kafka"             % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
       "io.circe" %% "circe-jawn"                  % circeV,
-      "io.circe" %% "circe-optics"                % "0.15.1",
+      "io.circe" %% "circe-optics"                % circeOpticsV,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
-      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbV,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
       // java
       "org.apache.avro"  % "avro"                         % avroV,
@@ -355,6 +378,7 @@ lazy val kafka = (project in file("kafka"))
       "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
+  .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
   .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
   .settings {
@@ -378,7 +402,7 @@ lazy val pipes = (project in file("pipes"))
       "co.fs2" %% "fs2-io"                                     % fs2V,
       "io.github.kantan-scala" %% "kantan.csv"                 % "0.12.0",
       "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
-      "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
+      "com.thesamet.scalapb" %% "scalapb-runtime"              % scalapbV,
       "io.circe" %% "circe-jawn"                               % circeV,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
       // java
@@ -393,15 +417,16 @@ lazy val pipes = (project in file("pipes"))
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.17.Final", // snky by hadoop-client
-      "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snky by hadoop-client
-      "org.apache.commons" % "commons-configuration2" % "2.15.1", // snky by hadoop-client
+      "io.netty"           % "netty-all"              % "4.2.17.Final", // snyk by hadoop-client
+      "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
+      "org.apache.commons" % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
     ) ++ testLib
   )
+  .settings(dependencyOverrides ++= jackson_override)
   .settings(
     Test / PB.targets := List(
       scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
@@ -449,6 +474,7 @@ lazy val nanjin =
       kafka,
       database,
       guard,
+      frontend,
       observer_aws,
       observer_database,
       observer_kafka,
