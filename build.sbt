@@ -183,7 +183,7 @@ lazy val frontend = project.in(file("frontend"))
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
       "com.raquo" %%% "laminar"        % "17.2.1",
       // test
-      "org.scalameta" %%% "munit" % "1.1.0" % Test
+      "org.scalameta" %%% "munit" % "1.1.1" % Test
     )
   )
 
