@@ -187,6 +187,29 @@ lazy val frontend = project.in(file("frontend"))
     )
   )
 
+val otel4s_override = List(
+  "org.typelevel" %% "otel4s-core",
+  "org.typelevel" %% "otel4s-core-common",
+  "org.typelevel" %% "otel4s-core-trace",
+  "org.typelevel" %% "otel4s-core-logs",
+  "org.typelevel" %% "otel4s-semconv",
+  "org.typelevel" %% "otel4s-semconv-metrics"
+).map(_ % otel4sV)
+
+val jackson_override = List(
+  "com.fasterxml.jackson.core" % "jackson-core",
+  "com.fasterxml.jackson.core" % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-guava",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
+  "com.fasterxml.jackson.module" % "jackson-module-parameter-names",
+  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations"
+).map(_ % jacksonV)
+
 lazy val guard = (project in file("guard"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -208,7 +231,7 @@ lazy val guard = (project in file("guard"))
       "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV           % Test,
       "ch.qos.logback"                             % "logback-classic" % logbackV % Test
     ) ++ testLib
-  )
+  ).settings(dependencyOverrides ++= otel4s_override)
   .settings {
     Compile / resourceGenerators += Def.task {
       val js = (frontend / Compile / fullOptJS).value
@@ -355,6 +378,7 @@ lazy val kafka = (project in file("kafka"))
       "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
     ) ++ testLib)
+  .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
   .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
   .settings {
@@ -402,6 +426,7 @@ lazy val pipes = (project in file("pipes"))
       "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
     ) ++ testLib
   )
+  .settings(dependencyOverrides ++= jackson_override)
   .settings(
     Test / PB.targets := List(
       scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
