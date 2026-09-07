@@ -108,8 +108,10 @@ private[guard] object ServiceGuard {
     config: ServiceConfig[F])(implicit F: Async[F])
       extends ServiceGuard[F] { self =>
 
-    override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
-      new ServiceGuardImpl[F](serviceName, f(config))
+    // sealed hierarchy: ServiceConfigImpl is the only impl of ServiceConfig
+    private val service_config: ServiceConfigImpl[F] = config match {
+      case impl: ServiceConfigImpl[F] => impl
+    }
 
     private case class KickedOff(
       serviceParams: ServiceParams,
@@ -120,18 +122,18 @@ private[guard] object ServiceGuard {
       SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
         for {
           launchTime <- F.realTimeInstant
-          jsons <- config.briefs
+          jsons <- service_config.briefs
           serviceId <- UUIDGen.randomUUID[F]
           hostName <- HostName[F]
         } yield {
           val esb: Option[EmberServerBuilder[F]] =
-            config.httpBuilder.map(
+            service_config.httpBuilder.map(
               _(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
 
-          val params: ServiceParams = config.evalConfig(
+          val params: ServiceParams = service_config.evalConfig(
             serviceName = serviceName,
             serviceId = ServiceId(serviceId),
-            launchTime = LaunchTime(launchTime.atZone(config.zoneId)),
+            launchTime = LaunchTime(launchTime.atZone(service_config.zoneId)),
             brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
             host = Host(hostName, esb.map(_.port.value).map(Port(_)))
           )
@@ -140,16 +142,22 @@ private[guard] object ServiceGuard {
         }
       }
 
+    /*
+     * public
+     */
+    override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
+      new ServiceGuardImpl[F](serviceName, f(config))
+
     override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
       for {
         KickedOff(serviceParams, emberServerBuilder, batchIdGenerator) <- Stream.eval(kicking_off)
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-        meterProvider <- Stream.resource(config.meterProvider)
+        meterProvider <- Stream.resource(service_config.meterProvider)
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
         seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, config.logThreshold)
+        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, service_config.logThreshold)
         meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
