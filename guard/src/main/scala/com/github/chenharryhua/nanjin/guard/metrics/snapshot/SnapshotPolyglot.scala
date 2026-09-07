@@ -23,7 +23,7 @@ private def indentSpace(is: IndentSpace): Char = is match {
   case IndentSpace.Normal => ' '
 }
 
-final class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpace.Normal) {
+final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpace.Normal) {
   private val space: Char = indentSpace(indent)
   private val space2: String = String.valueOf(space) * 2
   private val space4: String = space2 * 2

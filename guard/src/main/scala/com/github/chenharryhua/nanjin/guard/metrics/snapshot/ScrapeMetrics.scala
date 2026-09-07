@@ -18,7 +18,7 @@ enum ScrapeMode:
  * Counter filter out zero
  * Gauge filter out Json.Null
  */
-final class ScrapeMetrics(val metricRegistry: MetricRegistry) {
+final private[guard] class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   /*
    *Counters
    */
