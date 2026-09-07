@@ -70,7 +70,15 @@ sealed trait ServiceConfig[F[_]] {
 
   /** Set the bounded history capacity for panics, errors, and metrics snapshots.
     *
-    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers.
+    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers. A capacity
+    * of zero or negative disables the corresponding history: it retains nothing and always reports empty.
+    *
+    * @param panics
+    *   capacity of the panic history; zero or negative disables it.
+    * @param errors
+    *   capacity of the error history; zero or negative disables it.
+    * @param metrics
+    *   capacity of the metrics-snapshot history; zero or negative disables it.
     */
   def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F]
 
@@ -90,10 +98,17 @@ sealed trait ServiceConfig[F[_]] {
 
   /** Enable the live WebSocket dashboard with a chart showing metered counts over time.
     *
+    * `maxPoints` bounds how many recent data points the chart holds per series: as new points arrive, the
+    * oldest are dropped, so the chart shows a sliding window of roughly the last `maxPoints` samples. Larger
+    * values show more history at the cost of a denser chart.
+    *
+    * A `maxPoints` of 1 or less disables the live chart: the dashboard and its other routes still serve, but
+    * no WebSocket chart is mounted (a single point is not a meaningful time series).
+    *
     * @param maxPoints
-    *   maximum data points retained per series (controls chart density)
+    *   size of the chart's sliding window per series; 1 or less disables the chart.
     * @param f
-    *   policy controlling how often data points are sampled
+    *   policy controlling how often data points are sampled.
     */
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F]
 
