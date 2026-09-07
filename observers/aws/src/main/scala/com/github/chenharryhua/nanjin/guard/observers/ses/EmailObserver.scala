@@ -66,7 +66,7 @@ object EmailObserver {
     def withOldestFirst: Params[F] = copy(isNewestFirst = false)
 
     /** Set the maximum number of buffered events before a flush. */
-    def withCapacity(cs: ChunkSize): Params[F] = copy(capacity = cs)
+    def withCapacity(cs: Int): Params[F] = copy(capacity = ChunkSize(cs))
 
     /** Set the schedule on which buffered events are flushed. */
     def withPolicy(f: Policy.type => Policy): Params[F] = copy(policy = f)
