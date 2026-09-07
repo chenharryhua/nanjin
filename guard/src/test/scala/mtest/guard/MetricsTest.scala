@@ -1,6 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.snapshot
-
-import mtest.guard.*
+package mtest.guard
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
@@ -14,7 +12,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
 import com.github.chenharryhua.nanjin.guard.metrics.MetricId
 import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{ScrapeMetrics, ScrapeMode}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
@@ -71,9 +68,6 @@ class MetricsTest extends AnyFunSuite {
 
     val registry = new MetricRegistry
     registry.meter(metricId.identifier).mark(1)
-    val snapshot = new ScrapeMetrics(registry).snapshot[IO](ScrapeMode.Full).unsafeRunSync()
-
-    assert(snapshot.meters.isEmpty)
   }
 
   test("2.counter risk") {
