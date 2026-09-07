@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.7-SNAPSHOT"
+ThisBuild / version      := "0.21.8-SNAPSHOT"
 ThisBuild / scalaVersion := "3.9.0" // LTS
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -28,7 +28,7 @@ val fs2KafkaV = "4.0.0"
 val fs2V = "3.14.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.2"
-val jettyV = "12.1.12"
+val jettyV = "12.1.13"
 val http4sV = "0.23.36"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.3"
@@ -183,7 +183,7 @@ lazy val frontend = project.in(file("frontend"))
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
       "com.raquo" %%% "laminar"        % "17.2.1",
       // test
-      "org.scalameta" %%% "munit" % "1.1.1" % Test
+      "org.scalameta" %%% "munit" % "1.3.6" % Test
     )
   )
 
@@ -289,7 +289,7 @@ lazy val observer_database = (project in file("observers/database"))
       "org.tpolecat" %% "skunk-circe"               % skunkV,
       "org.typelevel" %% "scalac-compat-annotation" % docV // doc
     ) ++ testLib
-  )
+  ).settings(dependencyOverrides ++= otel4s_override)
 
 lazy val observer_teams = (project in file("observers/teams"))
   .dependsOn(guard)
@@ -310,7 +310,7 @@ lazy val observer_otel4s = (project in file("observers/otel4s"))
     libraryDependencies ++= List(
       "org.typelevel" %% "otel4s-core-logs" % otel4sV
     ) ++ testLib
-  )
+  ).settings(dependencyOverrides ++= otel4s_override)
 
 lazy val observer_splunk = (project in file("observers/splunk"))
   .dependsOn(guard)
