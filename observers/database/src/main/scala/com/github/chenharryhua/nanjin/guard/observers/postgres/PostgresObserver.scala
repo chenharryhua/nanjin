@@ -30,8 +30,9 @@ object PostgresObserver {
     new PostgresObserver[F](session, PrettyJsonTranslator[F])
 }
 
-final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json])(using
-  F: Async[F])
+final class PostgresObserver[F[_]] private (
+  session: Resource[F, Session[F]],
+  translator: Translator[F, Json])(using F: Async[F])
     extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
   private val name: String = "Postgres Observer"

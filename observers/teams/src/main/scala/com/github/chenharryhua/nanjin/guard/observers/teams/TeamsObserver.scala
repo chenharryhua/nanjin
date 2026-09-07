@@ -34,7 +34,7 @@ object TeamsObserver {
   *   eventStream.through(observer.observe(webhook))
   * }}}
   */
-final class TeamsObserver[F[_]: Clock](
+final class TeamsObserver[F[_]: Clock] private (
   client: Resource[F, Client[F]],
   translator: Translator[F, AdaptiveCard])(using F: Concurrent[F])
     extends UpdateTranslator[F, AdaptiveCard, TeamsObserver[F]] with Http4sClientDsl[F] {

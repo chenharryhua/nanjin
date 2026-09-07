@@ -35,7 +35,7 @@ object SlackObserver {
   *
   * Block Kit layouts can be previewed at `https://app.slack.com/block-kit-builder`.
   */
-final class SlackObserver[F[_]: Clock](
+final class SlackObserver[F[_]: Clock] private (
   client: Resource[F, SimpleNotificationService[F]],
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {

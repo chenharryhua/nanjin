@@ -37,7 +37,7 @@ object SqsObserver {
   * crashed service is still reported. Send failures are swallowed (see `send`) so one failed publish does not
   * tear down the observer.
   */
-final class SqsObserver[F[_]: {Clock, UUIDGen}](
+final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
   client: Resource[F, SimpleQueueService[F]],
   translator: Translator[F, Event])(using F: Concurrent[F])
     extends UpdateTranslator[F, Event, SqsObserver[F]] {

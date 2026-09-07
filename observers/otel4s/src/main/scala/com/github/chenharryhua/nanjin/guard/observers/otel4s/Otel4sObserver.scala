@@ -37,8 +37,9 @@ object Otel4sObserver {
     new Otel4sObserver[F, Ctx](provider, PrettyJsonTranslator[F])
 }
 
-final class Otel4sObserver[F[_], Ctx](provider: LoggerProvider[F, Ctx], translator: Translator[F, Json])(using
-  F: Concurrent[F])
+final class Otel4sObserver[F[_], Ctx] private (
+  provider: LoggerProvider[F, Ctx],
+  translator: Translator[F, Json])(using F: Concurrent[F])
     extends UpdateTranslator[F, Json, Otel4sObserver[F, Ctx]] {
 
   override def withTranslator(f: Endo[Translator[F, Json]]): Otel4sObserver[F, Ctx] =
