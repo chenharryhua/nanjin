@@ -1,4 +1,5 @@
 package mtest.aws
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -43,7 +44,7 @@ class AwsObserverTest extends AnyFunSuite {
           .Params(ses_client)
           .withPolicy(_.fixedDelay(5.seconds).repeat)
           .withZoneId(sydneyTime)
-          .withCapacity(200)
+          .withCapacity(ChunkSize(200))
           .withOldestFirst)
 
     service

@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -25,7 +26,7 @@ class NJBinAvroTest extends AnyFunSuite {
 
     hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).binAvro
-    val src = hdp.source(tgt).binAvro(100, pandaSchema)
+    val src = hdp.source(tgt).binAvro(ChunkSize(100), pandaSchema)
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: FileKind).asJson.noSpaces
@@ -33,10 +34,10 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
 
-    hdp.source(tgt).binAvro(100, pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
+    hdp.source(tgt).binAvro(ChunkSize(100), pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
 
     assert(size == data.size)
-    assert(hdp.source(tgt).binAvro(100, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
+    assert(hdp.source(tgt).binAvro(ChunkSize(100), pandaSchema).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = "data/test/terminals/bin_avro/panda"
@@ -66,7 +67,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").binAvro(10, pandaSchema)
+    hdp.source("./does/not/exist").binAvro(ChunkSize(10), pandaSchema)
     hdp.sink("./does/not/exist").binAvro
   }
 
@@ -88,7 +89,7 @@ class NJBinAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).binAvro(ChunkSize(10), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -114,7 +115,7 @@ class NJBinAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).binAvro(ChunkSize(10), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -128,7 +129,9 @@ class NJBinAvroTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).binAvro).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).binAvro(100, pandaSchema).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).binAvro(ChunkSize(100), pandaSchema).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 

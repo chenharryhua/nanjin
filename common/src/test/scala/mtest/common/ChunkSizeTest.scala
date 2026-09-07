@@ -11,12 +11,12 @@ class ChunkSizeTest extends AnyFunSuite {
 
   test("1.chunk size - function") {
     fun(ChunkSize(10))
-    fun(100)
+    fun(ChunkSize(100))
   }
 
   test("2.chunk size - assignment") {
     val cs = ChunkSize(10)
-    val cs2: ChunkSize = 100
+    val cs2: ChunkSize = ChunkSize(100)
     assert(cs.value > 0 && cs2.value > 0)
   }
 
@@ -29,8 +29,7 @@ class ChunkSizeTest extends AnyFunSuite {
     assert(intercept[IllegalArgumentException](ChunkSize(0)).getMessage.contains("but was 0"))
     assert(intercept[IllegalArgumentException](ChunkSize(-100)).getMessage.contains("but was -100"))
     assert(intercept[IllegalArgumentException] {
-      val invalid: ChunkSize = -100
-      invalid
+      ChunkSize(-100)
     }.getMessage.contains("but was -100"))
   }
 

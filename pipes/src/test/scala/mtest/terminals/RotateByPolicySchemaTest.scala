@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -45,7 +46,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).avro(ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -67,7 +68,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).avro(ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -90,7 +91,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).binAvro(100, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).binAvro(ChunkSize(100), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -113,7 +114,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).jackson(100, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jackson(ChunkSize(100), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -136,7 +137,7 @@ class RotateByPolicySchemaTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).parquet(100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).parquet(ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

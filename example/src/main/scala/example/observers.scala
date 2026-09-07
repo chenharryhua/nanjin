@@ -1,4 +1,5 @@
 package example
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.aws.{
@@ -28,7 +29,7 @@ object observers {
         .Params(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
         .withPolicy(_.crontab(_.every12Hours).offset(8.hours))
         .withZoneId(sydneyTime)
-        .withCapacity(200))
+        .withCapacity(ChunkSize(200)))
 
   val cloudwatch: CloudWatchObserver[IO] =
     CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))

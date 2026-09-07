@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -30,13 +31,13 @@ class NJParquetTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val action =
       ts.through(sink).compile.drain >>
-        hdp.source(tgt).parquet(100, _.useBloomFilter()).compile.toList.map(_.toList)
+        hdp.source(tgt).parquet(ChunkSize(100), _.useBloomFilter()).compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
-    assert(hdp.source(tgt).parquet(100).compile.toList.unsafeRunSync().toSet == data)
+    assert(hdp.source(tgt).parquet(ChunkSize(100)).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/parquet/panda")
@@ -73,7 +74,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").parquet(100)
+    hdp.source("./does/not/exist").parquet(ChunkSize(100))
     hdp.sink("./does/not/exist").parquet
   }
 
@@ -96,7 +97,7 @@ class NJParquetTest extends AnyFunSuite {
       hdp
         .dataFolders(path)
         .flatMap(_.flatTraverse(hdp.filesIn))
-        .flatMap(_.traverse(hdp.source(_).parquet(10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).parquet(ChunkSize(10)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -121,7 +122,7 @@ class NJParquetTest extends AnyFunSuite {
       hdp
         .dataFolders(path)
         .flatMap(_.flatTraverse(hdp.filesIn))
-        .flatMap(_.traverse(hdp.source(_).parquet(10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).parquet(ChunkSize(10)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -148,7 +149,9 @@ class NJParquetTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).parquet).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).parquet(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).parquet(ChunkSize(100)).compile.fold(0) { case (s, _) =>
+      s + 1
+    }.unsafeRunSync()
     assert(size == 3000)
   }
 

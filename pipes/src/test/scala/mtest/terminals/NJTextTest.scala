@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -28,7 +29,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
     val sink = hdp.sink(tgt).text
-    val src: Stream[IO, Tiger] = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
+    val src: Stream[IO, Tiger] = hdp.source(tgt).text(ChunkSize(2)).mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -38,7 +39,7 @@ class NJTextTest extends AnyFunSuite {
     assert(
       hdp
         .source(tgt)
-        .text(100)
+        .text(ChunkSize(100))
         .mapFilter(decode[Tiger](_).toOption)
         .compile
         .toList
@@ -73,7 +74,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").text(2)
+    hdp.source("./does/not/exist").text(ChunkSize(2))
     hdp.sink("./does/not/exist").text
   }
 
@@ -97,7 +98,7 @@ class NJTextTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).text(2).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).text(ChunkSize(2)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 10)
@@ -124,7 +125,7 @@ class NJTextTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).text(2).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).text(ChunkSize(2)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 10)
@@ -153,7 +154,7 @@ class NJTextTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).text).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).text(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).text(ChunkSize(100)).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
     assert(size == 15000)
   }
 

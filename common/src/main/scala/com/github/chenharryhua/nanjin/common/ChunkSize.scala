@@ -20,6 +20,4 @@ object ChunkSize:
   given Ordering[ChunkSize] = OpaqueLift.lift[ChunkSize, Int, Ordering]
   given Order[ChunkSize] = OpaqueLift.lift[ChunkSize, Int, Order]
 
-  given Conversion[Int, ChunkSize] with
-    override def apply(cs: Int): ChunkSize = ChunkSize.apply(cs)
 end ChunkSize

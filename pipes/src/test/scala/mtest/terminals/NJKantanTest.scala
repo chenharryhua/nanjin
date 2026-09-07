@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
@@ -40,7 +41,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts = Stream.emits(data.toList).covary[IO].map(encode)
     val sink = hdp.sink(tgt).kantan(csvConfiguration)
-    val src = hdp.source(tgt).kantan(100, csvConfiguration).map(decode).unNone
+    val src = hdp.source(tgt).kantan(ChunkSize(100), csvConfiguration).map(decode).unNone
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -50,7 +51,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(
       hdp
         .source(tgt)
-        .kantan(100, csvConfiguration)
+        .kantan(ChunkSize(100), csvConfiguration)
         .map(decode)
         .unNone
         .compile
@@ -104,7 +105,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("10.laziness") {
-    hdp.source("./does/not/exist").kantan(100, CsvConfiguration.rfc)
+    hdp.source("./does/not/exist").kantan(ChunkSize(100), CsvConfiguration.rfc)
     hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
   }
 
@@ -130,7 +131,7 @@ class NJKantanTest extends AnyFunSuite {
           _.traverse(
             hdp
               .source(_)
-              .kantan(1000, _.withHeader)
+              .kantan(ChunkSize(1000), _.withHeader)
               .map(decode)
               .unNone
               .compile
@@ -162,7 +163,7 @@ class NJKantanTest extends AnyFunSuite {
           _.traverse(
             hdp
               .source(_)
-              .kantan(1000, _.withHeader)
+              .kantan(ChunkSize(1000), _.withHeader)
               .map(decode)
               .unNone
               .compile
@@ -207,7 +208,8 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+        .flatMap(
+          _.traverse(hdp.source(_).kantan(ChunkSize(1000)).map(decode).unNone.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number)
@@ -229,7 +231,8 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+        .flatMap(
+          _.traverse(hdp.source(_).kantan(ChunkSize(1000)).map(decode).unNone.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number)
@@ -256,7 +259,9 @@ class NJKantanTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).kantan(ChunkSize(100)).compile.fold(0) { case (s, _) =>
+      s + 1
+    }.unsafeRunSync()
     assert(size == 15000)
   }
 

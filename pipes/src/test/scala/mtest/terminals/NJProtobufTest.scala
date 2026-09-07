@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -33,14 +34,14 @@ class NJProtobufTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).protobuf
-    val src = hdp.source(tgt).protobuf[TestAnimal](100)
+    val src = hdp.source(tgt).protobuf[TestAnimal](ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
-    assert(hdp.source(tgt).protobuf[TestAnimal](100).compile.toList.unsafeRunSync().toSet == data)
+    assert(hdp.source(tgt).protobuf[TestAnimal](ChunkSize(100)).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/protobuf/animal")
@@ -70,7 +71,7 @@ class NJProtobufTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").protobuf[TestAnimal](100)
+    hdp.source("./does/not/exist").protobuf[TestAnimal](ChunkSize(100))
     hdp.sink("./does/not/exist").protobuf
   }
 
@@ -91,7 +92,7 @@ class NJProtobufTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).protobuf[TestAnimal](100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).protobuf[TestAnimal](ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -115,7 +116,7 @@ class NJProtobufTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).protobuf[TestAnimal](100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).protobuf[TestAnimal](ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -129,7 +130,9 @@ class NJProtobufTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).protobuf).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).protobuf[TestAnimal](100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).protobuf[TestAnimal](ChunkSize(100)).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 }

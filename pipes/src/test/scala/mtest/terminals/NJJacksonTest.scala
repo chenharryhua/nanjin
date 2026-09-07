@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
@@ -24,7 +25,7 @@ class NJJacksonTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).jackson
-    val src = hdp.source(tgt).jackson(10, pandaSchema)
+    val src = hdp.source(tgt).jackson(ChunkSize(10), pandaSchema)
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
@@ -32,10 +33,10 @@ class NJJacksonTest extends AnyFunSuite {
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
 
-    hdp.source(tgt).jackson(100, pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
+    hdp.source(tgt).jackson(ChunkSize(100), pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
 
     assert(size == data.size)
-    assert(hdp.source(tgt).jackson(10, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
+    assert(hdp.source(tgt).jackson(ChunkSize(10), pandaSchema).compile.toList.unsafeRunSync().toSet == data)
 
   }
 
@@ -65,7 +66,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").jackson(10, pandaSchema)
+    hdp.source("./does/not/exist").jackson(ChunkSize(10), pandaSchema)
     hdp.sink("./does/not/exist").jackson
   }
 
@@ -86,7 +87,7 @@ class NJJacksonTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).jackson(10, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jackson(ChunkSize(10), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -114,7 +115,7 @@ class NJJacksonTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).jackson(10, pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jackson(ChunkSize(10), pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -157,7 +158,9 @@ class NJJacksonTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).jackson).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).jackson(100, pandaSchema).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).jackson(ChunkSize(100), pandaSchema).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 

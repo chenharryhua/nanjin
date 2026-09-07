@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -32,7 +33,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data = TestData.tigerSet
     val ts = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
     val sink = hdp.sink(tgt).text
-    val src = hdp.source(tgt).text(100)
+    val src = hdp.source(tgt).text(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     val result = action.unsafeRunSync().flatMap(io.circe.jawn.decode[Tiger](_).toOption).toSet
     assert(result == data)
@@ -47,7 +48,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data = TestData.tigerSet
     val ts: Stream[IO, Json] = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink = hdp.sink(tgt).circe
-    val src = hdp.source(tgt).circe(100)
+    val src = hdp.source(tgt).circe(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     val result = action.unsafeRunSync().flatMap(_.as[Tiger].toOption).toSet
     assert(result == data)
@@ -62,7 +63,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data: Set[GenericRecord] = pandaSet
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).binAvro
-    val src = hdp.source(tgt).binAvro(100, pandaSchema)
+    val src = hdp.source(tgt).binAvro(ChunkSize(100), pandaSchema)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -76,7 +77,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data: Set[GenericRecord] = pandaSet
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).jackson
-    val src = hdp.source(tgt).jackson(100, pandaSchema)
+    val src = hdp.source(tgt).jackson(ChunkSize(100), pandaSchema)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -90,7 +91,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data = TestData.tigerSet
     val ts = Stream.emits(data.toList).covary[IO].map(t => List(t.id.toString, t.zooName.getOrElse("")))
     val sink = hdp.sink(tgt).kantan
-    val src = hdp.source(tgt).kantan(100)
+    val src = hdp.source(tgt).kantan(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     val result = action.unsafeRunSync().flatMap {
       case a :: b :: Nil => scala.util.Try(a.toInt).toOption.map(Tiger(_, if (b.isEmpty) None else Some(b)))
@@ -108,7 +109,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data: Set[GenericRecord] = pandaSet
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).avro(_.Zstandard(_.Three))
-    val src = hdp.source(tgt).avro(100)
+    val src = hdp.source(tgt).avro(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -122,7 +123,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data: Set[GenericRecord] = pandaSet
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).parquet(_.withCompressionCodec(file.compression.codecName))
-    val src = hdp.source(tgt).parquet(100)
+    val src = hdp.source(tgt).parquet(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -136,7 +137,7 @@ class NJCompressionLevelTest extends AnyFunSuite {
     val data: Set[GenericRecord] = pandaSet
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).avro(_.Xz(_.Six))
-    val src = hdp.source(tgt).avro(100)
+    val src = hdp.source(tgt).avro(ChunkSize(100))
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }

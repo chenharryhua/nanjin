@@ -1,4 +1,5 @@
 package mtest.terminals
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -24,7 +25,7 @@ class NJAvroTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).avro(file.compression)
-    val src = hdp.source(tgt).avro(100)
+    val src = hdp.source(tgt).avro(ChunkSize(100))
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -32,9 +33,9 @@ class NJAvroTest extends AnyFunSuite {
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
-    hdp.source(tgt).avro(100, readerSchema).debug().compile.drain.unsafeRunSync()
+    hdp.source(tgt).avro(ChunkSize(100), readerSchema).debug().compile.drain.unsafeRunSync()
     assert(size == data.size)
-    assert(hdp.source(tgt).avro(100).compile.toList.unsafeRunSync().toSet == data)
+    assert(hdp.source(tgt).avro(ChunkSize(100)).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/avro/panda")
@@ -64,7 +65,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").avro(100)
+    hdp.source("./does/not/exist").avro(ChunkSize(100))
     hdp.sink("./does/not/exist").avro(_.Uncompressed)
   }
 
@@ -86,7 +87,7 @@ class NJAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).avro(ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -110,7 +111,7 @@ class NJAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).avro(ChunkSize(100)).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -123,7 +124,7 @@ class NJAvroTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).avro).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).avro(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).avro(ChunkSize(100)).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
     assert(size == 3000)
   }
 
