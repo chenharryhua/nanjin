@@ -128,7 +128,9 @@ class NJBinAvroTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).binAvro).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).binAvro(100, pandaSchema).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).binAvro(100, pandaSchema).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 

@@ -157,7 +157,9 @@ class NJJacksonTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).jackson).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).jackson(100, pandaSchema).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).jackson(100, pandaSchema).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 

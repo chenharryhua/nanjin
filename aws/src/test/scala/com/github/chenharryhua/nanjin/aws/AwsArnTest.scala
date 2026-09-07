@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 import org.scalatest.funsuite.AnyFunSuite
@@ -38,12 +37,6 @@ class AwsArnTest extends AnyFunSuite {
     val address = Email("who@gmail.com")
     println(address.asJson)
     println(address.show)
-  }
-
-  test("6.chunk.size") {
-    val ck: ChunkSize = ChunkSize(100)
-    println(ck.asJson)
-    println(ck.show)
   }
 
   test("7.email content") {

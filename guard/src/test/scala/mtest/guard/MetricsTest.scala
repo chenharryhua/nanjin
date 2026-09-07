@@ -1,4 +1,6 @@
-package mtest.guard
+package com.github.chenharryhua.nanjin.guard.metrics.snapshot
+
+import mtest.guard.*
 
 import cats.effect.IO
 import cats.effect.kernel.Resource

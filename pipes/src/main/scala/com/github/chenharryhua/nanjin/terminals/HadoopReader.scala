@@ -28,7 +28,6 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import com.github.chenharryhua.nanjin.common.ChunkSize
 
 private object HadoopReader {
 

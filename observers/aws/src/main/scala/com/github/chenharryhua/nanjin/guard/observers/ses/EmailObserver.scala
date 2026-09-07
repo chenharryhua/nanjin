@@ -8,10 +8,9 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.{Applicative, Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.config.{Capacity, ServiceId}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator}
@@ -54,19 +53,25 @@ object EmailObserver {
     * @param zoneId
     *   time zone used to interpret the flush schedule.
     */
-  final case class Params[F[_]](
+  final case class Params[F[_]] private (
     client: Resource[F, SimpleEmailService[F]],
     translator: Translator[F, Text.TypedTag[String]],
     isNewestFirst: Boolean,
-    capacity: ChunkSize,
+    capacity: Capacity,
     policy: Policy.type => Policy,
     zoneId: ZoneId) {
 
     /** Order the email body oldest-first instead of the default newest-first. */
     def withOldestFirst: Params[F] = copy(isNewestFirst = false)
 
-    /** Set the maximum number of buffered events before a flush. */
-    def withCapacity(cs: ChunkSize): Params[F] = copy(capacity = cs)
+    /** Set the maximum number of buffered events before a flush.
+      *
+      * Values below 5 are raised to 5, so the buffer always holds at least a few events.
+      *
+      * @param num
+      *   desired buffer capacity; clamped to a minimum of 5.
+      */
+    def withCapacity(num: Int): Params[F] = copy(capacity = Capacity(num.max(5)))
 
     /** Set the schedule on which buffered events are flushed. */
     def withPolicy(f: Policy.type => Policy): Params[F] = copy(policy = f)
@@ -89,7 +94,7 @@ object EmailObserver {
         client = client,
         translator = HtmlTranslator[F],
         isNewestFirst = true,
-        capacity = ChunkSize(100),
+        capacity = Capacity(100),
         policy = _.empty,
         zoneId = ZoneId.systemDefault())
   }

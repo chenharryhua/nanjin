@@ -123,4 +123,17 @@ class Performance extends AnyFunSuite {
     println(s"cost:  ${fd.toNanos / i} nano")
     println(s"speed: ${i / fd.toMillis} k/s")
   }
+
+  test("9.performance batch") {
+    var i: Int = 0
+    service
+      .eventStream(agent => agent.batchLight("batch").monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
+  }
 }

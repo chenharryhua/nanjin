@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.Capacity
 import scalatags.Text
 import scalatags.Text.all.*
 
@@ -22,8 +22,8 @@ final private case class Letter(
         }
       """))
 
-  def emailBody(chunkSize: ChunkSize): String = {
-    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/$chunkSize")))
+  def emailBody(capacity: Capacity): String = {
+    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/$capacity")))
     html(email_header, body(notice, content, foot)).render
   }
 }

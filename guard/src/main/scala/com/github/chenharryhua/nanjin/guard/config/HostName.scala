@@ -4,8 +4,9 @@ import cats.Show
 import cats.effect.kernel.{Resource, Sync}
 import cats.kernel.Eq
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.functor.toFunctorOps
+import cats.syntax.eq.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import io.circe.Codec
 
 import java.net.{HttpURLConnection, InetAddress, URI, URL}
@@ -57,6 +58,9 @@ object HostName {
         Try(Option(InetAddress.getLocalHost.getHostName).filter(_.trim.nonEmpty)).toOption.flatten
       }
 
-    F.flatMap(aws_ec2_ipv4)(aws => F.map(local_host)(local => new HostName(aws, local)))
+    for {
+      ec2 <- aws_ec2_ipv4
+      local <- local_host
+    } yield new HostName(ec2, local)
   }
 }

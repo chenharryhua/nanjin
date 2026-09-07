@@ -148,7 +148,9 @@ class NJParquetTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).parquet).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).parquet(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).parquet(100).compile.fold(0) { case (s, _) =>
+      s + 1
+    }.unsafeRunSync()
     assert(size == 3000)
   }
 

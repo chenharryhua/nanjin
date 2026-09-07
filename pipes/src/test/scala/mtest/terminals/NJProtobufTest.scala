@@ -129,7 +129,9 @@ class NJProtobufTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).protobuf).compile.drain).unsafeRunSync()
     val size =
-      hdp.source(path).protobuf[TestAnimal](100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+      hdp.source(path).protobuf[TestAnimal](100).compile.fold(0) { case (s, _) =>
+        s + 1
+      }.unsafeRunSync()
     assert(size == 3000)
   }
 }

@@ -256,7 +256,9 @@ class NJKantanTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) =>
+      s + 1
+    }.unsafeRunSync()
     assert(size == 15000)
   }
 
