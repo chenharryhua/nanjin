@@ -30,20 +30,183 @@ import org.apache.kafka.streams.StreamsBuilder
 import scala.jdk.CollectionConverters.given
 import scala.util.Try
 
-/** Context for Kafka operations including producers, consumers, schema registry, Kafka Streams, and
-  * administrative tasks.
+/** Entry point for Kafka operations: producers, consumers, schema registry, Kafka Streams, and administrative
+  * tasks, all derived from a single KafkaSettings.
   *
-  * @param settings
-  *   KafkaSettings containing configuration for producers, consumers, schema registry, streams, and admin.
+  * A context is cheap to hold and immutable; updateConfig returns a new context with adjusted settings. The
+  * factory methods build effectful producers/consumers/admin resources that run later. The schema registry
+  * client is created lazily on first use and shared across the operations that need it. Obtain one via
+  * KafkaContext[F](settings) or settings.context[F].
+  *
   * @tparam F
-  *   Effect type
+  *   effect type
   */
-final class KafkaContext[F[_]](val settings: KafkaSettings)
-    extends UpdateConfig[KafkaSettings, KafkaContext[F]] {
+sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext[F]] {
 
-  // --------------------------------------------------------------------------
-  // Schema Registry
-  // --------------------------------------------------------------------------
+  /** The Kafka settings backing this context. */
+  def settings: KafkaSettings
+
+  /** Returns a new KafkaContext with updated settings. */
+  override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F]
+
+  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
+    *
+    * @throws java.lang.IllegalStateException
+    *   if the URL config is absent
+    */
+  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F]
+
+  /** Register the key/value Serdes for a topic against the schema registry.
+    *
+    * @param topic
+    *   the topic definition carrying key/value schema information
+    */
+  def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V]
+
+  /** Create Kafka Streams state stores for a topic, using its registered Serdes.
+    *
+    * @param topic
+    *   the topic definition carrying key/value schema information
+    */
+  def store[K, V](topic: TopicDef[K, V]): StateStores[K, V]
+
+  /** Register an unregistered Serde as a topic key Serde against the schema registry. */
+  def asKey[A](rs: Unregistered[A]): Registered[Key, A]
+
+  /** Register an unregistered Serde as a topic value Serde against the schema registry. */
+  def asValue[A](rs: Unregistered[A]): Registered[Value, A]
+
+  /** Create a typed consumer for a topic, deserializing keys and values via its registered Serdes.
+    *
+    * @param topic
+    *   the topic definition to consume
+    */
+  def consume[K, V](topic: TopicDef[K, V])(using F: Async[F]): ConsumeKafka[F, K, V]
+
+  /** Like consume, but each key and value is decoded independently and deserialization failures surface as
+    * Left rather than aborting the stream. Useful for tolerating poison records.
+    *
+    * @param topic
+    *   the topic definition to consume
+    */
+  def attemptConsume[K, V](topic: TopicDef[K, V])(using
+    F: Async[F]): ConsumeKafka[F, Either[Throwable, K], Either[Throwable, V]]
+
+  /** Create a typed consumer from explicit key/value deserializers, bypassing the schema registry.
+    *
+    * @param topicName
+    *   the topic to consume
+    * @param k
+    *   key deserializer resource
+    * @param v
+    *   value deserializer resource
+    */
+  def consume[K, V](
+    topicName: String,
+    k: Resource[F, KeyDeserializer[F, K]],
+    v: Resource[F, ValueDeserializer[F, V]])(using F: Async[F]): ConsumeKafka[F, K, V]
+
+  /** Create a raw consumer that yields the topic bytes without deserialization.
+    *
+    * @param topicName
+    *   the topic to consume
+    */
+  def consumeBytes(topicName: String)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]]
+
+  /** Consume Avro GenericRecords, resolving schemas from the registry and/or the optional overrides.
+    *
+    * @param topicName
+    *   the topic to consume
+    * @param key
+    *   optional key reader schema; when absent the registry schema is used
+    * @param value
+    *   optional value reader schema; when absent the registry schema is used
+    */
+  def consumeGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
+    F: Async[F]): ConsumeGenericRecord[F]
+
+  /** Create a typed producer for a topic, serializing keys and values via its registered Serdes.
+    *
+    * @param topic
+    *   the topic definition to produce to
+    */
+  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V]
+
+  /** Create a typed producer from explicit key/value serializers, bypassing the schema registry.
+    *
+    * @param topicName
+    *   the topic to produce to
+    * @param k
+    *   key serializer resource
+    * @param v
+    *   value serializer resource
+    */
+  def produce[K, V](
+    topicName: String,
+    k: Resource[F, KeySerializer[F, K]],
+    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V]
+
+  /** Produce Avro GenericRecords, registering/resolving schemas via the registry and optional overrides.
+    *
+    * @param topicName
+    *   the topic to produce to
+    * @param key
+    *   optional key schema override
+    * @param value
+    *   optional value schema override
+    */
+  def produceGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
+    F: Async[F],
+    ev: Parallel[F]): ProduceGenericRecord[F]
+
+  /** Build a Kafka Streams topology under the given application id.
+    *
+    * @param applicationId
+    *   Kafka Streams application id
+    * @param topology
+    *   builds the topology; receives a StreamsBuilder and a StreamsSerde for registry-backed Serdes
+    */
+  def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(using
+    F: Async[F]): KafkaStreamsBuilder[F]
+
+  /** A raw Kafka AdminClient resource for cluster/topic administration. */
+  def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]]
+
+  /** An admin view scoped to a single topic and consumer group, backed by an admin client and a snapshot
+    * consumer.
+    *
+    * @param topicName
+    *   the topic to administer
+    * @param groupId
+    *   the consumer group to inspect
+    */
+  def admin(topicName: String, groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]]
+
+  /** An admin view scoped to a single topic, backed by an admin client and a snapshot consumer.
+    *
+    * @param topicName
+    *   the topic to administer
+    */
+  def admin(topicName: String)(using F: Async[F]): Resource[F, AdminTopic[F]]
+
+  /** Remove a consumer groups committed offsets for every topic except those in keeps.
+    *
+    * @param groupId
+    *   the consumer group to prune
+    * @param keeps
+    *   topics whose offsets are preserved
+    * @return
+    *   the topics whose offsets were removed from the group
+    */
+  def ungroup(groupId: String, keeps: List[String] = Nil)(using F: Async[F]): F[List[TopicName]]
+}
+
+object KafkaContext {
+  def apply[F[_]](settings: KafkaSettings): KafkaContext[F] =
+    new KafkaContextImpl[F](settings)
+}
+
+final private[kafka] class KafkaContextImpl[F[_]](val settings: KafkaSettings) extends KafkaContext[F] {
 
   private lazy val schema_registry_internal: SchemaRegistryClient = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
@@ -65,76 +228,31 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       Map.empty.asJava)
   }
 
-  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
-    *
-    * @throws java.lang.IllegalStateException
-    *   if the URL config is absent
-    */
-  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
+  override def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
     SchemaRegistryApi[F](schema_registry_internal)
 
-  // --------------------------------------------------------------------------
-  // Configure
-  // --------------------------------------------------------------------------
-
-  /** Returns a new KafkaContext with updated settings. */
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
-    new KafkaContext[F](f(settings))
+    new KafkaContextImpl[F](f(settings))
 
-  // --------------------------------------------------------------------------
-  // State Stores and Serdes
-  // --------------------------------------------------------------------------
-
-  /** Returns the registered Serde pair for a topic.
-    *
-    * @param topic
-    *   Topic to register Serde for
-    * @tparam K
-    *   Key type
-    * @tparam V
-    *   Value type
-    */
-  def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
+  override def serde[K, V](topic: TopicDef[K, V]): TopicSerde[K, V] =
     topic.register(schema_registry_internal, settings.serdeSettings)
 
-  /** Create state stores for the given topic.
-    *
-    * @param topic
-    *   Topic with schema information
-    * @tparam K
-    *   Key type
-    * @tparam V
-    *   Value type
-    * @return
-    *   StateStores instance
-    */
-  def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
+  override def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
     StateStores[K, V](serde(topic))
 
-  def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
+  override def asKey[A](rs: Unregistered[A]): Registered[Key, A] =
     rs.asKey(schema_registry_internal, settings.serdeSettings.properties)
 
-  def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
+  override def asValue[A](rs: Unregistered[A]): Registered[Value, A] =
     rs.asValue(schema_registry_internal, settings.serdeSettings.properties)
 
-  // --------------------------------------------------------------------------
-  // Consumers
-  // --------------------------------------------------------------------------
-
-  /** Create a typed consumer for the topic.
-    *
-    * @param topic
-    *   KafkaTopic to consume
-    * @return
-    *   ConsumeKafka instance
-    */
-  def consume[K, V](topic: TopicDef[K, V])(using F: Async[F]): ConsumeKafka[F, K, V] =
+  override def consume[K, V](topic: TopicDef[K, V])(using F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
       topic.consumerSettings(schema_registry_internal, settings.serdeSettings, settings.consumerSettings)
     )
 
-  def attemptConsume[K, V](topic: TopicDef[K, V])(using
+  override def attemptConsume[K, V](topic: TopicDef[K, V])(using
     F: Async[F]): ConsumeKafka[F, Either[Throwable, K], Either[Throwable, V]] =
     new ConsumeKafka(
       topic.topicName,
@@ -144,7 +262,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         settings.consumerSettings)
     )
 
-  def consume[K, V](
+  override def consume[K, V](
     topicName: String,
     k: Resource[F, KeyDeserializer[F, K]],
     v: Resource[F, ValueDeserializer[F, V]])(using F: Async[F]): ConsumeKafka[F, K, V] =
@@ -153,17 +271,17 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       ConsumerSettings(using k, v).withProperties(settings.consumerSettings.properties)
     )
 
-  /** Create a raw byte consumer
-    */
-  def consumeBytes(topicName: String)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] =
+  override def consumeBytes(topicName: String)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]] =
     consume(
       topicName,
       Resource.pure[F, KeyDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]]),
       Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]])
     )
 
-  def consumeGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
-    F: Async[F]): ConsumeGenericRecord[F] = {
+  override def consumeGenericRecord(
+    topicName: String,
+    key: Option[Schema] = None,
+    value: Option[Schema] = None)(using F: Async[F]): ConsumeGenericRecord[F] = {
     val tn: TopicName = TopicName(topicName)
     ConsumeGenericRecord[F](
       topicName = tn,
@@ -176,16 +294,13 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     )
   }
 
-  // --------------------------------------------------------------------------
-  // Producers
-  // --------------------------------------------------------------------------
-
-  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
+  override def produce[K, V](
+    topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
       topic.producerSettings[F](schema_registry_internal, settings.serdeSettings, settings.producerSettings))
 
-  def produce[K, V](
+  override def produce[K, V](
     topicName: String,
     k: Resource[F, KeySerializer[F, K]],
     v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
@@ -193,9 +308,10 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       TopicName(topicName),
       ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
-  def produceGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
-    F: Async[F],
-    ev: Parallel[F]): ProduceGenericRecord[F] =
+  override def produceGenericRecord(
+    topicName: String,
+    key: Option[Schema] = None,
+    value: Option[Schema] = None)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F] =
     ProduceGenericRecord[F](
       topicName = TopicName(topicName),
       schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
@@ -206,18 +322,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
           .withProperties(settings.producerSettings.properties)
     )
 
-  // --------------------------------------------------------------------------
-  // Kafka Streams
-  // --------------------------------------------------------------------------
-
-  /** Build a Kafka Streams topology.
-    *
-    * @param applicationId
-    *   Kafka Streams application ID
-    * @param topology
-    *   Function to build the topology, receives a `StreamsBuilder` and `StreamsSerde`.
-    */
-  def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(using
+  override def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(using
     F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](
       applicationId,
@@ -226,11 +331,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.serdeSettings,
       topology)
 
-  // --------------------------------------------------------------------------
-  // Admin
-  // --------------------------------------------------------------------------
-
-  def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
+  override def admin(using F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
   private def snapshotConsumer(topicName: TopicName, groupId: Option[GroupId])(using
@@ -244,7 +345,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     SnapshotConsumer(topicName, consumerSettings)
   }
 
-  def admin(topicName: String, groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] = {
+  override def admin(
+    topicName: String,
+    groupId: String)(using F: Async[F]): Resource[F, AdminTopicGroup[F]] = {
     val tn: TopicName = TopicName(topicName)
     val gid: GroupId = GroupId(groupId)
     for {
@@ -253,7 +356,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     } yield AdminTopicGroup(admin, consumer, tn, gid)
   }
 
-  def admin(topicName: String)(using F: Async[F]): Resource[F, AdminTopic[F]] = {
+  override def admin(topicName: String)(using F: Async[F]): Resource[F, AdminTopic[F]] = {
     val tn: TopicName = TopicName(topicName)
     for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
@@ -261,16 +364,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     } yield AdminTopic(admin, consumer, tn)
   }
 
-  /** Remove consumer group offsets for all topics except those in `keeps`.
-    *
-    * @param groupId
-    *   Consumer group ID
-    * @param keeps
-    *   List of topics to preserve
-    * @return
-    *   List of topics successfully be removed from the consumer group
-    */
-  def ungroup(groupId: String, keeps: List[String] = Nil)(using F: Async[F]): F[List[TopicName]] = {
+  override def ungroup(groupId: String, keeps: List[String] = Nil)(using F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {
       admin <- KafkaAdminClient.resource[F](settings.adminSettings)
       consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))

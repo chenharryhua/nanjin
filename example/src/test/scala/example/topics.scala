@@ -1,7 +1,7 @@
 package example
 
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
-import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import org.apache.avro.generic.GenericRecord
 
 final case class Foo(a: Int, b: String)
@@ -14,8 +14,8 @@ object topics {
   val bar = Structured[GenericRecord].become[Bar]
 
   val fooTopic: TopicDef[Integer, Foo] =
-    TopicDef[Integer, Foo](TopicName("example.foo"), Primitive[Integer], foo)
+    TopicDef[Integer, Foo]("example.foo", Primitive[Integer], foo)
   val barTopic: TopicDef[Integer, Bar] =
-    TopicDef[Integer, Bar](TopicName("example.bar"), Primitive[Integer], bar) // compile time check
+    TopicDef[Integer, Bar]("example.bar", Primitive[Integer], bar) // compile time check
   // val foobarTopic: TopicDef[Integer, FooBar] = TopicDef[Integer, FooBar]("example.foobar",Primitive[Integer]) // runtime check
 }

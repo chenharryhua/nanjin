@@ -123,7 +123,7 @@ final case class KafkaSettings(
   def withAdminClient(f: AdminClientSettings => AdminClientSettings): KafkaSettings =
     copy(adminSettings = f(adminSettings))
 
-  def context[F[_]]: KafkaContext[F] = new KafkaContext[F](this)
+  def context[F[_]]: KafkaContext[F] = KafkaContext[F](this)
 }
 
 object KafkaSettings {
