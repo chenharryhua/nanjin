@@ -1,5 +1,4 @@
 package mtest.terminals
-import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -27,7 +26,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).jsonNode(objectMapper.writer())
-    val src = hdp.source(tgt).jsonNode(ChunkSize(10), objectMapper.reader())
+    val src = hdp.source(tgt).jsonNode(10, objectMapper.reader())
     val ts = Stream.emits(data.toList.flatMap(genericRecord2JsonNode(_).toOption)).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
       .map(_.flatMap(jsonNode2GenericRecord(_, pandaSchema).toOption))
@@ -36,13 +35,13 @@ class NJJsonNodeTest extends AnyFunSuite {
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
 
-    hdp.source(tgt).jsonNode(ChunkSize(100), objectMapper.reader()).debug().compile.drain.unsafeRunSync()
+    hdp.source(tgt).jsonNode(100, objectMapper.reader()).debug().compile.drain.unsafeRunSync()
 
     assert(size == data.size)
     assert(
       hdp
         .source(tgt)
-        .jsonNode(ChunkSize(10), objectMapper.reader())
+        .jsonNode(10, objectMapper.reader())
         .compile
         .toList
         .unsafeRunSync()
@@ -93,8 +92,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(
-          _.traverse(hdp.source(_).jsonNode(ChunkSize(10), objectMapper.reader()).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jsonNode(10, objectMapper.reader()).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
@@ -120,7 +118,7 @@ class NJJsonNodeTest extends AnyFunSuite {
       .unsafeRunSync()
 
     // Read back — should skip blank lines and return all records
-    val result = hdp.source(tgt).jsonNode(ChunkSize(10), objectMapper.reader()).compile.toList.unsafeRunSync()
+    val result = hdp.source(tgt).jsonNode(10, objectMapper.reader()).compile.toList.unsafeRunSync()
     val roundTripped = result.flatMap(jsonNode2GenericRecord(_, pandaSchema).toOption).toSet
     assert(roundTripped == pandaSet)
   }
@@ -144,7 +142,7 @@ class NJJsonNodeTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).jackson(ChunkSize(10), pandaSchema).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jackson(10, pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

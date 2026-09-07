@@ -1,5 +1,4 @@
 package mtest.terminals
-import com.github.chenharryhua.nanjin.common.ChunkSize
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -31,18 +30,17 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts: Stream[IO, Json] = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink: Pipe[IO, Json, Int] = hdp.sink(tgt).circe
-    val src: Stream[IO, Tiger] = hdp.source(tgt).circe(ChunkSize(10)).mapFilter(_.as[Tiger].toOption)
+    val src: Stream[IO, Tiger] = hdp.source(tgt).circe(10).mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.source(tgt).text(ChunkSize(32)).compile.fold(0) { case (s, _) => s + 1 }
+    val lines = hdp.source(tgt).text(32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
     assert(
-      hdp.source(tgt).circe(ChunkSize(10)).mapFilter(
-        _.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
+      hdp.source(tgt).circe(10).mapFilter(_.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/circe/tiger")
@@ -72,7 +70,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("7.laziness") {
-    hdp.source("./does/not/exist").circe(ChunkSize(10))
+    hdp.source("./does/not/exist").circe(10)
     hdp.sink("./does/not/exist").circe
   }
 
@@ -95,7 +93,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).circe(ChunkSize(10)).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).circe(10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
@@ -142,7 +140,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).circe(ChunkSize(10)).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).circe(10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
@@ -192,7 +190,7 @@ class NJCirceTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).circe).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).circe(ChunkSize(10)).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).circe(10).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
     assert(size == 15000)
   }
 
