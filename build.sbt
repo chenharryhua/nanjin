@@ -69,6 +69,29 @@ lazy val commonSettings = List(
   Test / scalafixConfig       := Option((ThisBuild / baseDirectory).value / ".scalafix-test.conf")
 )
 
+val otel4s_override = List(
+  "org.typelevel" %% "otel4s-core",
+  "org.typelevel" %% "otel4s-core-common",
+  "org.typelevel" %% "otel4s-core-trace",
+  "org.typelevel" %% "otel4s-core-logs",
+  "org.typelevel" %% "otel4s-semconv",
+  "org.typelevel" %% "otel4s-semconv-metrics"
+).map(_ % otel4sV)
+
+val jackson_override = List(
+  "com.fasterxml.jackson.core"       % "jackson-core",
+  "com.fasterxml.jackson.core"       % "jackson-databind",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jsr310",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-joda",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-guava",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
+  "com.fasterxml.jackson.module"     % "jackson-module-parameter-names",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module"     % "jackson-module-jaxb-annotations"
+).map(_ % jacksonV)
+
 val testLib = List(
   "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
   "org.typelevel" %% "cats-effect-testkit"           % "3.7.1",
@@ -128,6 +151,7 @@ lazy val http = (project in file("http"))
     "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
     "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
   ) ++ testLib)
+  .settings(dependencyOverrides ++= otel4s_override)
 
 // ==========================
 // Aws
@@ -186,29 +210,6 @@ lazy val frontend = project.in(file("frontend"))
       "org.scalameta" %%% "munit" % "1.3.6" % Test
     )
   )
-
-val otel4s_override = List(
-  "org.typelevel" %% "otel4s-core",
-  "org.typelevel" %% "otel4s-core-common",
-  "org.typelevel" %% "otel4s-core-trace",
-  "org.typelevel" %% "otel4s-core-logs",
-  "org.typelevel" %% "otel4s-semconv",
-  "org.typelevel" %% "otel4s-semconv-metrics"
-).map(_ % otel4sV)
-
-val jackson_override = List(
-  "com.fasterxml.jackson.core"       % "jackson-core",
-  "com.fasterxml.jackson.core"       % "jackson-databind",
-  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jsr310",
-  "com.fasterxml.jackson.datatype"   % "jackson-datatype-joda",
-  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.datatype"   % "jackson-datatype-guava",
-  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
-  "com.fasterxml.jackson.module"     % "jackson-module-parameter-names",
-  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-json-provider",
-  "com.fasterxml.jackson.module"     % "jackson-module-jaxb-annotations"
-).map(_ % jacksonV)
 
 lazy val guard = (project in file("guard"))
   .dependsOn(common)
