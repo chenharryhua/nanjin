@@ -12,7 +12,7 @@ class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
-      .updateConfig(_.withMetricsReport(_.crontab(_.hourly).repeat))
+      .updateConfig(_.withReportPolicy(_.crontab(_.hourly).repeat))
 
   test("1.tick") {
     TaskGuard[IO]("tick")

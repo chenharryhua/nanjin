@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong
   *   .service("my-service")
   *   .updateConfig(
   *     _.withRestartPolicy(30.seconds, _.fixedDelay(5.seconds).limited(10))
-  *       .withMetricsReport(_.crontab(_.hourly))
+  *       .withReportPolicy(_.crontab(_.hourly))
   *   )
   *   .eventStream { agent =>
   *     // application logic using agent.batch, agent.retry, agent.logger, etc.

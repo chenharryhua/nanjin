@@ -26,7 +26,7 @@ import fs2.io.net.Network
   *     .updateConfig(
   *       _.withZoneId(java.time.ZoneId.of("Australia/Sydney"))
   *         .withRestartPolicy(1.minute, _.fixedDelay(5.seconds))
-  *         .withMetricsReport(_.crontab(_.hourly))
+  *         .withReportPolicy(_.crontab(_.hourly))
   *     )
   *
   *   val run: IO[Unit] =

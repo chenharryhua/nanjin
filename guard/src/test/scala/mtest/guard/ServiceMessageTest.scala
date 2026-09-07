@@ -16,7 +16,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .service("Forward")
       .updateConfig(
         _.withLogThreshold(_.Debug, _.Debug)
-          .withMetricsReport(_.fixedRate(100.milliseconds).repeat))
+          .withReportPolicy(_.fixedRate(100.milliseconds).repeat))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     val log = agent.logger

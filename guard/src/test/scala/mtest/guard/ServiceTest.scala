@@ -144,7 +144,7 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(_.withRestartPolicy(2.seconds, _.fixedDelay(1.second).repeat)
-        .withMetricsReport(_.crontab(_.secondly).repeat))
+        .withReportPolicy(_.crontab(_.secondly).repeat))
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
       .compile

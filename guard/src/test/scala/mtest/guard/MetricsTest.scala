@@ -325,7 +325,7 @@ class MetricsTest extends AnyFunSuite {
   test("13b.periodic reports stop with downstream cancellation") {
     val reports = TaskGuard[IO]("periodic-metrics")
       .service("periodic-metrics")
-      .updateConfig(_.withMetricsReport(_.fixedDelay(100.millis).repeat))
+      .updateConfig(_.withReportPolicy(_.fixedDelay(100.millis).repeat))
       .eventStream(_ => IO.never)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)

@@ -17,7 +17,7 @@ class EventPipeEdgeCaseTest extends AnyFunSuite {
   private val service =
     TaskGuard[IO]("pipe.edge")
       .service("pipe.edge")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat).withLogThreshold(_.Debug, _.Debug))
+      .updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat).withLogThreshold(_.Debug, _.Debug))
 
   // --- identity ---
 

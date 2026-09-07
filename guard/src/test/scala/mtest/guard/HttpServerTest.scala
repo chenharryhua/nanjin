@@ -48,7 +48,7 @@ class HttpServerTest extends AnyFunSuite {
     val run =
       guard
         .service("http stop")
-        .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat)
+        .updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat)
           .withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
