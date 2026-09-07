@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.Sync
 import com.fasterxml.jackson.databind.{JsonNode, ObjectReader}
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import io.circe.Json
 import io.lemonlabs.uri.Url
