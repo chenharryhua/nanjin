@@ -60,8 +60,9 @@ sealed trait ServiceConfig[F[_]] {
 
   /** Attach an effectful brief to the service metadata.
     *
-    * Briefs are JSON documents that travel with every lifecycle event (start, panic, stop). Use them for
-    * deployment context, build info, or custom annotations.
+    * Briefs are JSON documents that travel with the service lifecycle events (start, panic, stop); they are
+    * not attached to metrics-snapshot or reported events. Use them for deployment context, build info, or
+    * custom annotations.
     */
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F]
 
