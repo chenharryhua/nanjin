@@ -215,11 +215,11 @@ opaque type LogLink = String
 object LogLink:
   def apply(str: String): LogLink = str
 
-  private val window: Duration = 30.seconds.toJava
+  private val WINDOW: Duration = 30.seconds.toJava
   extension (ll: LogLink)
     def locate(timestamp: Timestamp): String = {
-      val start = timestamp.minus(window).toInstant.toEpochMilli
-      val end = timestamp.plus(window).toInstant.toEpochMilli
+      val start = timestamp.minus(WINDOW).toInstant.toEpochMilli
+      val end = timestamp.plus(WINDOW).toInstant.toEpochMilli
       ll + s"$$3Fstart$$3D$start$$26end$$3D$end"
     }
 

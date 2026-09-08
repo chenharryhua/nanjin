@@ -69,7 +69,7 @@ class AwsObserverTest extends AnyFunSuite {
 
     TaskGuard[IO]("aws")
       .service("cloudwatch")
-      .updateConfig(_.withMetricsReport(_.crontab(_.secondly).repeat))
+      .updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat))
       .eventStreamS { agent =>
         val work = agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
           m.mark(1) >> IO.sleep(1.second) >>

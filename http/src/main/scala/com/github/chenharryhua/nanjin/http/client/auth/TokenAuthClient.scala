@@ -56,7 +56,7 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
       // hammering the auth endpoint. `handleErrorWith` swallows the failure but enforces a
       // minimum backoff before the loop retries, guaranteeing progress bounded from below.
       _ <- F.background[Nothing](
-        renewToken(authToken).handleErrorWith(_ => F.sleep(renewFailureBackoff)).foreverM)
+        renewToken(authToken).handleErrorWith(_ => F.sleep(RENEW_FAILURE_BACKOFF)).foreverM)
       singleFlight <- Resource.eval(SingleFlight[F, T])
     } yield Client[F] { request =>
       def runWithToken(token: T): Resource[F, Response[F]] =

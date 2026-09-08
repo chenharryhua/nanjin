@@ -55,7 +55,7 @@ object Ratio {
     override def incBoth(numerator: Long, denominator: Long): F[Unit] = ().pure
   }
 
-  private class Impl[F[_]](ref: Ref[F, Ior[Long, Long]]) extends Ratio[F] {
+  private class Impl[F[_]] private[Ratio] (ref: Ref[F, Ior[Long, Long]]) extends Ratio[F] {
 
     private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
 

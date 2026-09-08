@@ -69,7 +69,7 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
 
   // Resolve a string to an Instant against this range's fixed zone. Throws on unparseable input so malformed
   // strings fail at the setter rather than silently becoming an unset bound.
-  private def parseStr(str: String): Instant = {
+  private def parse_str(str: String): Instant = {
     val parser: DateTimeParser[Instant] =
       DateTimeParser[Instant] <+>
         DateTimeParser[OffsetDateTime].map(_.toInstant) <+>
@@ -107,7 +107,7 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
   def withStartTime(ts: Timestamp): DateTimeRange =
     withStartTime(ts.toInstant)
   def withStartTime(ts: String): DateTimeRange =
-    withStartTime(parseStr(ts))
+    withStartTime(parse_str(ts))
 
   /** Set the end bound. Resolution follows the same rules as `withStartTime`: the input is resolved to an
     * `Instant` at the call, using this range's fixed zone where needed, and the `String` overload throws
@@ -130,11 +130,11 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
   def withEndTime(ts: Timestamp): DateTimeRange =
     withEndTime(ts.toInstant)
   def withEndTime(ts: String): DateTimeRange =
-    withEndTime(parseStr(ts))
+    withEndTime(parse_str(ts))
 
   /** Set the range to the last `seconds` up to now (in this range's zone): start = now − seconds, end = now.
     */
-  def withNSeconds(seconds: Long): DateTimeRange = {
+  def withLastSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now(zoneId)
     withStartTime(now.minusSeconds(seconds)).withEndTime(now)
   }
@@ -215,14 +215,14 @@ object DateTimeRange {
   given PartialOrder[DateTimeRange] =
     new PartialOrder[DateTimeRange] {
 
-      private def lessStart(a: Option[Instant], b: Option[Instant]): Boolean =
+      private def less_start(a: Option[Instant], b: Option[Instant]): Boolean =
         (a, b) match {
           case (None, _)          => true
           case (_, None)          => false
           case (Some(x), Some(y)) => x <= y
         }
 
-      private def biggerEnd(a: Option[Instant], b: Option[Instant]): Boolean =
+      private def bigger_end(a: Option[Instant], b: Option[Instant]): Boolean =
         (a, b) match {
           case (None, _)          => true
           case (_, None)          => false
@@ -233,9 +233,9 @@ object DateTimeRange {
         (x, y) match {
           case (a, b) if a.end === b.end && a.start === b.start =>
             0.0
-          case (a, b) if lessStart(a.start, b.start) && biggerEnd(a.end, b.end) =>
+          case (a, b) if less_start(a.start, b.start) && bigger_end(a.end, b.end) =>
             1.0
-          case (a, b) if lessStart(b.start, a.start) && biggerEnd(b.end, a.end) =>
+          case (a, b) if less_start(b.start, a.start) && bigger_end(b.end, a.end) =>
             -1.0
           case _ => Double.NaN
         }

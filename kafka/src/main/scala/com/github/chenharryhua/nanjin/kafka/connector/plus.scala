@@ -13,16 +13,26 @@ import org.apache.kafka.common.TopicPartition
 /** A bounded Kafka consumer stream that reads a fixed offset range per partition.
   *
   * The stream terminates automatically when all partitions have been consumed up to their configured end
-  * offsets. Call `stopConsuming` to force an early shutdown.
+  * offsets. Call `stopConsuming` to stop early and let buffered records drain.
   */
 trait CircumscribedStream[F[_], K, V] {
+
+  /** Signal the underlying consumer to stop fetching new records. Already-fetched records continue to be
+    * emitted and the stream then completes gracefully; it does not abort in flight or close the consumer.
+    * Invoked automatically as the finalizer of `stream`.
+    */
   def stopConsuming: F[Unit]
 
+  /** One bounded stream per partition range; each ends when its partition reaches its end offset. */
   def rangedStreams: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]]
 
+  /** All per-partition ranged streams merged, running in parallel, finalizing with `stopConsuming`. The
+    * merged stream terminates once every partition has been consumed to its end offset.
+    */
   final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     Stream.iterable(rangedStreams.values).parJoinUnbounded.onFinalize(stopConsuming)
 
+  /** The offset range being consumed per partition. */
   final def offsets: TopicPartitionMap[OffsetRange] =
     TopicPartitionMap(rangedStreams.keySet.map(pr => pr.topicPartition -> pr.offsetRange))
 }
@@ -33,11 +43,19 @@ trait CircumscribedStream[F[_], K, V] {
   * `commitSync` or `commitAsync`.
   */
 trait ManualCommitStream[F[_], K, V] {
+
+  /** Synchronously commit the supplied offsets, blocking until the broker acknowledges. */
   def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
+
+  /** Asynchronously commit the supplied offsets, returning once the request is enqueued. */
   def commitAsync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit]
 
+  /** One stream per partition; records carry offset information but are not auto-committed. */
   def partitionsMapStream: TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, K, V]]]
 
+  /** All per-partition streams merged, running in parallel. Offsets must be committed by the caller via
+    * `commitSync`/`commitAsync`.
+    */
   final def stream(using F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     Stream.iterable(partitionsMapStream.treeMap.values).parJoinUnbounded
 }

@@ -16,7 +16,7 @@ class ServiceMessageTest extends AnyFunSuite {
       .service("Forward")
       .updateConfig(
         _.withLogThreshold(_.Debug, _.Debug)
-          .withMetricsReport(_.fixedRate(100.milliseconds).repeat))
+          .withReportPolicy(_.fixedRate(100.milliseconds).repeat))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     val log = agent.logger
@@ -45,7 +45,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("1.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
+      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
       .eventStream(info)
       .compile
       .drain
@@ -54,7 +54,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("2.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json))
+      .updateConfig(_.withLogFormat(_.ConsoleJson))
       .eventStream(info)
       .compile
       .drain
@@ -63,7 +63,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("3.warn json no spaces") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json))
+      .updateConfig(_.withLogFormat(_.ConsoleJson))
       .eventStream(warn)
       .compile
       .drain
@@ -71,14 +71,14 @@ class ServiceMessageTest extends AnyFunSuite {
   }
 
   test("4.warn console plain text") {
-    service.updateConfig(_.withLogFormat(_.Console_PlainText))
+    service.updateConfig(_.withLogFormat(_.ConsolePlainText))
       .eventStream(warn)
       .compile.drain.unsafeRunSync()
   }
 
   test("5.mix") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
+      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
       .eventStream(mix)
       .compile
       .drain

@@ -78,7 +78,7 @@ trait SimpleEmailService[F[_]] {
 
 object SimpleEmailService {
 
-  private val name: String = "aws.SES"
+  private val NAME: String = "aws.SES"
 
   /** Creates a resource managing an SES client and the SimpleEmailService wrapper.
     *
@@ -91,9 +91,9 @@ object SimpleEmailService {
   def apply[F[_]](f: Endo[SesClientBuilder])(using F: Sync[F]): Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SesClient.builder()).build())) {
+      client <- Resource.make(logger.info(s"initialize $NAME") >> F.blocking(f(SesClient.builder()).build())) {
         client =>
-          shutdown(name, logger)(client.close())
+          shutdown(NAME, logger)(client.close())
       }
     } yield new SimpleEmailServiceImpl[F](client, logger)
 

@@ -41,7 +41,7 @@ trait CloudWatch[F[_]] {
 
 object CloudWatch {
 
-  private val name: String = "aws.CloudWatch"
+  private val NAME: String = "aws.CloudWatch"
 
   /** Creates a managed CloudWatch client.
     *
@@ -58,8 +58,8 @@ object CloudWatch {
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(
-        logger.info(s"initialize $name") >> F.blocking(f(CloudWatchClient.builder()).build())) { cw =>
-        shutdown(name, logger)(cw.close())
+        logger.info(s"initialize $NAME") >> F.blocking(f(CloudWatchClient.builder()).build())) { cw =>
+        shutdown(NAME, logger)(cw.close())
       }
     } yield new CloudWatchImpl[F](client, logger)
 

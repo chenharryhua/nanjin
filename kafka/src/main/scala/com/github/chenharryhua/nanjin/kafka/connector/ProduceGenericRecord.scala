@@ -5,7 +5,7 @@ import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.admins.SchemaRegistryApi
+import com.github.chenharryhua.nanjin.kafka.admins.TopicSchemaRegistry
 import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.utils.jackson2GenericRecord
 import com.github.chenharryhua.nanjin.kafka.{
@@ -52,8 +52,8 @@ final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
     * `SchemaIncompatible` if the check fails.
     */
   private lazy val validateSchema: F[AvroSchemaPair] =
-    SchemaRegistryApi[F](srClient)
-      .fetchOptionalAvroSchema(topicName)
+    TopicSchemaRegistry[F](srClient, topicName)
+      .fetchOptionalAvroSchema
       .flatMap { skm =>
         if (schemaPair.isBackwardCompatible(skm))
           F.pure(schemaPair.write(skm).toSchemaPair)

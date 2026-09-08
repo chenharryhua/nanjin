@@ -31,7 +31,7 @@ object Meter {
     override def mark(num: Long): F[Unit] = ().pure
   }
 
-  private class Impl[F[_]](
+  private class Impl[F[_]] private[Meter] (
     scope: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,

@@ -16,11 +16,11 @@ class LogFormatCodecTest extends AnyFunSuite {
   }
 
   test("2.LogFormat encodes to string matching productPrefix") {
-    assert(LogFormat.Console_PlainText.asJson.asString.contains("Console_PlainText"))
-    assert(LogFormat.Console_Json.asJson.asString.contains("Console_Json"))
-    assert(LogFormat.Console_Json_MultiLine.asJson.asString.contains("Console_Json_MultiLine"))
-    assert(LogFormat.Console_Json_Verbose.asJson.asString.contains("Console_Json_Verbose"))
-    assert(LogFormat.Slf4j_Json.asJson.asString.contains("Slf4j_Json"))
+    assert(LogFormat.ConsolePlainText.asJson.asString.contains("ConsolePlainText"))
+    assert(LogFormat.ConsoleJson.asJson.asString.contains("ConsoleJson"))
+    assert(LogFormat.ConsoleJsonMultiLine.asJson.asString.contains("ConsoleJsonMultiLine"))
+    assert(LogFormat.ConsoleJsonVerbose.asJson.asString.contains("ConsoleJsonVerbose"))
+    assert(LogFormat.Slf4jJson.asJson.asString.contains("Slf4jJson"))
   }
 
   test("3.invalid string produces decoding failure") {

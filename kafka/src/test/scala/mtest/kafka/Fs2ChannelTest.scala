@@ -74,7 +74,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("1.register") {
     val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
-    ctx.schemaRegistry.register(avroTopic.topicName, value = v).void.unsafeRunSync()
+    ctx.schemaRegistry(avroTopic.topicName.value).register(value = v).void.unsafeRunSync()
   }
 
   test("2.should be able to consume avro topic") {

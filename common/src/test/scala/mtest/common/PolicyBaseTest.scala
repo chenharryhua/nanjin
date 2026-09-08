@@ -30,7 +30,7 @@ class PolicyBaseTest extends AnyFunSuite {
   test("2.fibonacci") {
     assert(fibonacci.take(10).toList == List(1L, 1L, 2L, 3L, 5L, 8L, 13L, 21L, 34L, 55L))
     assert(exponential.take(10).toList == List(1L, 2L, 4L, 8L, 16L, 32L, 64L, 128L, 256L, 512L))
-    assert(primes.take(10).toList == List(2, 3, 5, 7, 11, 13, 17, 19, 23, 29))
+    assert(primes.take(10).toList == List(2L, 3L, 5L, 7L, 11L, 13L, 17L, 19L, 23L, 29L))
   }
 
   test("3.fixed delay") {

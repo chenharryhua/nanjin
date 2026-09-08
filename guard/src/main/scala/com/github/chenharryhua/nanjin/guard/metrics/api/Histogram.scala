@@ -37,7 +37,7 @@ object Histogram {
     override def update(num: Long): F[Unit] = ().pure
   }
 
-  private class Impl[F[_]](
+  private class Impl[F[_]] private[Histogram] (
     scope: MetricScope,
     metricRegistry: MetricRegistry,
     squants: Squants,

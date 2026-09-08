@@ -65,8 +65,8 @@ object SplunkObserver {
   *   eventStream.through(observer.observe(config))
   * }}}
   */
-final class SplunkObserver[F[_]](client: Resource[F, Client[F]], translator: Translator[F, Json])(using
-  F: Concurrent[F])
+final class SplunkObserver[F[_]] private (client: Resource[F, Client[F]], translator: Translator[F, Json])(
+  using F: Concurrent[F])
     extends UpdateTranslator[F, Json, SplunkObserver[F]] with Http4sClientDsl[F] {
 
   override def withTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F] =

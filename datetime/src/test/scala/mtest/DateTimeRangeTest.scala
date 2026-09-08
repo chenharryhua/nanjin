@@ -170,7 +170,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       .withEndTime(LocalDateTime.now)
       .withEndTime(ZonedDateTime.now)
       .withEndTime(OffsetDateTime.now)
-      .withNSeconds(1000)
+      .withLastSeconds(1000)
       .withTimeRange("2020-12-30", "2020-12-31")
 
     dr.period
@@ -201,10 +201,10 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     }
   }
 
-  test("12.withNSeconds uses configured zoneId, not system default") {
+  test("12.withLastSeconds uses configured zoneId, not system default") {
     // Use a zone far from system default to detect incorrect zone usage
     val zoneId = ZoneId.of("Pacific/Auckland")
-    val dr = DateTimeRange(zoneId).withNSeconds(60)
+    val dr = DateTimeRange(zoneId).withLastSeconds(60)
     val startZoned = dr.zonedStartTime.get
     val endZoned = dr.zonedEndTime.get
     assert(startZoned.getZone == zoneId)
@@ -377,8 +377,8 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(DateTimeRange(utcTime).subranges(1.hour).isEmpty)
   }
 
-  test("29.withNSeconds(0) produces a zero-width range") {
-    val dr = DateTimeRange(utcTime).withNSeconds(0)
+  test("29.withLastSeconds(0) produces a zero-width range") {
+    val dr = DateTimeRange(utcTime).withLastSeconds(0)
     assert(dr.start == dr.end)
     assert(dr.javaDuration.get.isZero)
   }

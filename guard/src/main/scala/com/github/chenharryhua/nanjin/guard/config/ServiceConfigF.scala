@@ -40,48 +40,7 @@ sealed trait ServiceConfig[F[_]] {
     * @param f
     *   builder for the reporting schedule
     */
-  def withMetricsReport(f: Policy.type => Policy): ServiceConfig[F]
-
-  /** Set the service homepage URL, shown in dashboard and observer output. */
-  def withHomepage(hp: String): ServiceConfig[F]
-
-  /** Set the time zone used by ticks, policies, and timestamp formatting. */
-  def withZoneId(zoneId: ZoneId): ServiceConfig[F]
-
-  /** Set the time zone using a builder function over the predefined `zones` object. */
-  def withZoneId(f: zones.type => ZoneId): ServiceConfig[F]
-
-  /** Enable the embedded HTTP dashboard server with a custom Ember server builder.
-    *
-    * The server exposes REST endpoints for metrics, params, health checks, log level control, and optionally
-    * a WebSocket-based live chart.
-    */
-  def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F]
-
-  /** Attach an effectful brief to the service metadata.
-    *
-    * Briefs are JSON documents that travel with the service lifecycle events (start, panic, stop); they are
-    * not attached to metrics-snapshot or reported events. Use them for deployment context, build info, or
-    * custom annotations.
-    */
-  def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F]
-
-  /** Attach a by-name brief to the service metadata. */
-  def addBrief[A: Encoder](a: => A): ServiceConfig[F]
-
-  /** Set the bounded history capacity for panics, errors, and metrics snapshots.
-    *
-    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers. A capacity
-    * of zero or negative disables the corresponding history: it retains nothing and always reports empty.
-    *
-    * @param panics
-    *   capacity of the panic history; zero or negative disables it.
-    * @param errors
-    *   capacity of the error history; zero or negative disables it.
-    * @param metrics
-    *   capacity of the metrics-snapshot history; zero or negative disables it.
-    */
-  def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F]
+  def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F]
 
   /** Set the log output format (console plain text, JSON, SLF4J, etc.). */
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F]
@@ -96,6 +55,33 @@ sealed trait ServiceConfig[F[_]] {
   def withLogThreshold(
     logger: LogLevel.type => LogLevel,
     channel: LogLevel.type => LogLevel): ServiceConfig[F]
+
+  /** Set the time zone used by ticks, policies, and timestamp formatting. */
+  def withZoneId(zoneId: ZoneId): ServiceConfig[F]
+
+  /** Set the time zone using a builder function over the predefined `zones` object. */
+  def withZoneId(f: zones.type => ZoneId): ServiceConfig[F]
+
+  /** Set the service homepage URL, shown in dashboard and observer output. */
+  def withHomepage(hp: String): ServiceConfig[F]
+
+  /** Attach an effectful brief to the service metadata.
+    *
+    * Briefs are JSON documents that travel with the service lifecycle events (start, panic, stop); they are
+    * not attached to metrics-snapshot or reported events. Use them for deployment context, build info, or
+    * custom annotations.
+    */
+  def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F]
+
+  /** Attach a by-name brief to the service metadata. */
+  def addBrief[A: Encoder](a: => A): ServiceConfig[F]
+
+  /** Enable the embedded HTTP dashboard server with a custom Ember server builder.
+    *
+    * The server exposes REST endpoints for metrics, params, health checks, log level control, and optionally
+    * a WebSocket-based live chart.
+    */
+  def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F]
 
   /** Enable the live WebSocket dashboard with a chart showing metered counts over time.
     *
@@ -112,6 +98,20 @@ sealed trait ServiceConfig[F[_]] {
     *   policy controlling how often data points are sampled.
     */
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F]
+
+  /** Set the bounded history capacity for panics, errors, and metrics snapshots.
+    *
+    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers. A capacity
+    * of zero or negative disables the corresponding history: it retains nothing and always reports empty.
+    *
+    * @param panics
+    *   capacity of the panic history; zero or negative disables it.
+    * @param errors
+    *   capacity of the error history; zero or negative disables it.
+    * @param metrics
+    *   capacity of the metrics-snapshot history; zero or negative disables it.
+    */
+  def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F]
 
   /** Supply an OpenTelemetry `org.typelevel.otel4s.metrics.MeterProvider` for recording metrics.
     *
@@ -142,7 +142,7 @@ sealed private trait ServiceConfigF[X] extends Product derives Functor
 private object ServiceConfigF {
 
   final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
-  final case class WithMetricsReport[K](policy: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithReportPolicy[K](policy: Policy, cont: K) extends ServiceConfigF[K]
   final case class WithHomepage[K](homepage: Option[Homepage], cont: K) extends ServiceConfigF[K]
   final case class WithLogFormat[K](format: LogFormat, cont: K) extends ServiceConfigF[K]
 
@@ -173,7 +173,7 @@ private object ServiceConfigF {
         )
 
       case WithRestartPolicy(p, t, c)      => c.focus(_.policies.restart).replace(RestartPolicy(p, t))
-      case WithMetricsReport(p, c)         => c.focus(_.policies.report).replace(p)
+      case WithReportPolicy(p, c)          => c.focus(_.policies.report).replace(p)
       case WithHomepage(v, c)              => c.focus(_.serviceIdentity.homepage).replace(v)
       case WithLogFormat(v, c)             => c.focus(_.logFormat).replace(Some(v))
       case WithHistoryCapacity(p, e, m, c) => c.focus(_.history).replace(Some(HistoryCapacity(p, e, m)))
@@ -181,78 +181,10 @@ private object ServiceConfigF {
     }
 }
 
-final private[guard] case class ServiceConfigImpl[F[_]: Applicative](
-  cont: Fix[ServiceConfigF],
-  zoneId: ZoneId,
-  httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  briefs: F[List[Json]],
-  logThreshold: LogThreshold,
-  meterProvider: Resource[F, MeterProvider[F]])
-    extends ServiceConfig[F] {
-  import ServiceConfigF.*
-
-  override def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
-
-  override def withMetricsReport(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricsReport(f(Policy), cont)))
-
-  override def withHomepage(hp: String): ServiceConfig[F] =
-    copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
-
-  override def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
-    copy(zoneId = zoneId)
-
-  override def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
-    withZoneId(f(zones))
-
-  override def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
-    copy(httpBuilder = Some(f))
-
-  override def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] =
-    copy(briefs = (fa, briefs).mapN(_.asJson :: _))
-
-  override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
-
-  override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
-    copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
-
-  override def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
-    copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
-
-  override def withLogThreshold(
-    logger: LogLevel.type => LogLevel,
-    channel: LogLevel.type => LogLevel): ServiceConfig[F] =
-    copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
-
-  override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
-
-  override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
-    copy(meterProvider = meterProvider)
-
-  def evalConfig(
-    serviceName: Service,
-    serviceId: ServiceId,
-    launchTime: LaunchTime,
-    brief: Brief,
-    host: Host): ServiceParams =
-    scheme
-      .cata(
-        algebra(
-          serviceName = serviceName,
-          serviceId = serviceId,
-          launchTime = launchTime,
-          brief = brief,
-          host = host
-        ))
-      .apply(cont)
-}
-
 private[guard] object ServiceConfig {
 
   def apply[F[_]: Applicative](taskName: Task): ServiceConfig[F] =
-    ServiceConfigImpl[F](
+    Impl[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
@@ -260,4 +192,73 @@ private[guard] object ServiceConfig {
       logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
       meterProvider = Resource.pure(MeterProvider.noop[F])
     )
+
+  final private[guard] case class Impl[F[_]: Applicative] private[ServiceConfig] (
+    cont: Fix[ServiceConfigF],
+    zoneId: ZoneId,
+    httpBuilder: Option[Endo[EmberServerBuilder[F]]],
+    briefs: F[List[Json]],
+    logThreshold: LogThreshold,
+    meterProvider: Resource[F, MeterProvider[F]])
+      extends ServiceConfig[F] {
+
+    import ServiceConfigF.*
+
+    override def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
+
+    override def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithReportPolicy(f(Policy), cont)))
+
+    override def withHomepage(hp: String): ServiceConfig[F] =
+      copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
+
+    override def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
+      copy(zoneId = zoneId)
+
+    override def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
+      withZoneId(f(zones))
+
+    override def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
+      copy(httpBuilder = Some(f))
+
+    override def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] =
+      copy(briefs = (fa, briefs).mapN(_.asJson :: _))
+
+    override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
+
+    override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
+      copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
+
+    override def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
+      copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
+
+    override def withLogThreshold(
+      logger: LogLevel.type => LogLevel,
+      channel: LogLevel.type => LogLevel): ServiceConfig[F] =
+      copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
+
+    override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
+
+    override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
+      copy(meterProvider = meterProvider)
+
+    def evalConfig(
+      serviceName: Service,
+      serviceId: ServiceId,
+      launchTime: LaunchTime,
+      brief: Brief,
+      host: Host): ServiceParams =
+      scheme
+        .cata(
+          algebra(
+            serviceName = serviceName,
+            serviceId = serviceId,
+            launchTime = launchTime,
+            brief = brief,
+            host = host
+          ))
+        .apply(cont)
+  }
 }

@@ -44,14 +44,14 @@ trait SecretsManager[F[_]] {
 
 object SecretsManager {
 
-  private val name = "aws.SecretsManager"
+  private val NAME = "aws.SecretsManager"
 
   def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(using F: Sync[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(
-        logger.info(s"initialize $name") >> F.blocking(f(SecretsManagerClient.builder()).build())) { sm =>
-        shutdown(name, logger)(sm.close())
+        logger.info(s"initialize $NAME") >> F.blocking(f(SecretsManagerClient.builder()).build())) { sm =>
+        shutdown(NAME, logger)(sm.close())
       }
     } yield new SecretsManagerImpl(client, logger)
 

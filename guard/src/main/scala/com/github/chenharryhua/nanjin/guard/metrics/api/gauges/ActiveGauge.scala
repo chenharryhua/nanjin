@@ -21,7 +21,7 @@ object ActiveGauge:
     override def deactivate: F[Unit] = ().pure
   }
 
-  final class Builder(isEnabled: Boolean) extends EnableConfig[Builder] {
+  final class Builder private[ActiveGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
 
     /** Enable or disable active-gauge registration. */
     override def enable(isEnabled: Boolean): Builder = new Builder(isEnabled)

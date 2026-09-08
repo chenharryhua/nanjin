@@ -18,9 +18,9 @@ class PushGenericRecordTest extends AnyFunSuite {
       value = Some(SchemaFor[Int].schema)
     ).produceOne(nj.toGenericRecord)
 
-    val schema = ctx.schemaRegistry.delete(topicName) >>
+    val schema = ctx.schemaRegistry(topicName.value).delete >>
       push >>
-      ctx.schemaRegistry.fetchOptionalAvroSchema(topicName)
+      ctx.schemaRegistry(topicName.value).fetchOptionalAvroSchema
 
     val res = schema.unsafeRunSync()
     assert(res.key.get == KafkaCodec.avro[Foo].schema)

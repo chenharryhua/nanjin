@@ -39,14 +39,14 @@ trait AppConfig[F[_]] {
 
 object AppConfig {
 
-  private val name = "aws.AppConfig"
+  private val NAME = "aws.AppConfig"
 
   def apply[F[_]](g: Endo[AppConfigDataClientBuilder])(using F: Async[F]): Resource[F, AppConfig[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       client <- Resource.make(
-        logger.info(s"initialize $name") >> F.blocking(g(AppConfigDataClient.builder()).build())) { client =>
-        shutdown(name, logger)(client.close())
+        logger.info(s"initialize $NAME") >> F.blocking(g(AppConfigDataClient.builder()).build())) { client =>
+        shutdown(NAME, logger)(client.close())
       }
     } yield new AppConfigImpl[F](client, logger)
 

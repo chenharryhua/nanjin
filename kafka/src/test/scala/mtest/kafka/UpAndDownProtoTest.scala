@@ -23,8 +23,8 @@ class UpAndDownProtoTest extends AnyFunSuite {
 
   test("1.proto - schema register") {
     val schema = KafkaCodec.protobuf[ProtoConsumerRecord].schema
-    ctx.schemaRegistry
-      .register(topic, value = Some(schema))
+    ctx.schemaRegistry(topic.value)
+      .register(value = Some(schema))
       .unsafeRunSync()
   }
 
@@ -37,7 +37,7 @@ class UpAndDownProtoTest extends AnyFunSuite {
   }
 
   test("4.get schema") {
-    ctx.schemaRegistry.fetchOptionalJsonSchema(proto.topicName).void.unsafeRunSync()
+    ctx.schemaRegistry(proto.topicName.value).fetchOptionalJsonSchema.void.unsafeRunSync()
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()
   }

@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong
   *   .service("my-service")
   *   .updateConfig(
   *     _.withRestartPolicy(30.seconds, _.fixedDelay(5.seconds).limited(10))
-  *       .withMetricsReport(_.crontab(_.hourly))
+  *       .withReportPolicy(_.crontab(_.hourly))
   *   )
   *   .eventStream { agent =>
   *     // application logic using agent.batch, agent.retry, agent.logger, etc.
@@ -108,9 +108,9 @@ private[guard] object ServiceGuard {
     config: ServiceConfig[F])(implicit F: Async[F])
       extends ServiceGuard[F] { self =>
 
-    // sealed hierarchy: ServiceConfigImpl is the only impl of ServiceConfig
-    private val service_config: ServiceConfigImpl[F] = config match {
-      case impl: ServiceConfigImpl[F] => impl
+    // sealed hierarchy: ServiceConfig.Impl is the only impl of ServiceConfig
+    private val service_config: ServiceConfig.Impl[F] = config match {
+      case impl: ServiceConfig.Impl[F] => impl
     }
 
     private case class KickedOff(

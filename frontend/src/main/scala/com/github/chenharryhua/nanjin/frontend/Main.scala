@@ -28,11 +28,11 @@ object Main {
       display.flex,
       justifyContent.center,
       alignItems.center,
-      padding        := "8px",
+      padding         := "8px",
       backgroundColor := "#e74c3c",
-      color          := "white",
+      color           := "white",
       fontWeight.bold,
-      fontSize       := "14px",
+      fontSize := "14px",
       display <-- connector.connected.signal.map(if (_) "none" else "flex"),
       "Disconnected — reconnecting..."
     )

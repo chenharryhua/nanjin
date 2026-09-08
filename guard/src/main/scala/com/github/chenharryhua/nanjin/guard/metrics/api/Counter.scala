@@ -31,7 +31,7 @@ end Counter
 
 object Counter {
 
-  private class Impl[F[_]](
+  private class Impl[F[_]] private[Counter] (
     scope: MetricScope,
     metricRegistry: MetricRegistry,
     isRisk: Boolean,

@@ -27,11 +27,11 @@ object KafkaObserver {
     new KafkaObserver[F](ctx, Translator.idTranslator[F])
 }
 
-final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Translator[F, Event])(using
-  F: Async[F])
+final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], translator: Translator[F, Event])(
+  using F: Async[F])
     extends UpdateTranslator[F, Event, KafkaObserver[F]] {
 
-  private val name: String = "Kafka Observer"
+  private val NAME: String = "Kafka Observer"
 
   def observe(topicName: String): Pipe[F, Event, Event] = {
     def translate(evt: Event): F[Option[ProducerRecord[Json, Json]]] =
@@ -48,7 +48,7 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
       for {
         client <- ctx.produce(topic).clientS
         log <- Stream.eval(Slf4jLogger.create[F])
-        _ <- Stream.eval(log.info(s"initialize $name"))
+        _ <- Stream.eval(log.info(s"initialize $NAME"))
         ofm <- Stream.eval(
           F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- ss
@@ -57,11 +57,11 @@ final class KafkaObserver[F[_]: Parallel](ctx: KafkaContext[F], translator: Tran
             translate(_)
               .flatMap(_.traverse(client.produceOne(_).flatten))
               .void
-              .recoverWith(ex => log.error(ex)(name))
+              .recoverWith(ex => log.error(ex)(NAME))
           }
           .onFinalize {
             ofm.terminated.flatMap(client.produce(_).flatten) *>
-              log.info(s"$name was closed")
+              log.info(s"$NAME was closed")
           }
       } yield event
   }

@@ -28,8 +28,8 @@ class UpAndDownJsonTest extends AnyFunSuite {
 
   test("1.json - schema register") {
     val schema = summon[KafkaJsonCodec[UpAndDown]].schema
-    ctx.schemaRegistry
-      .register(topic, value = Some(schema))
+    ctx.schemaRegistry(topic.value)
+      .register(value = Some(schema))
       .unsafeRunSync()
   }
 
@@ -42,7 +42,7 @@ class UpAndDownJsonTest extends AnyFunSuite {
   }
 
   test("4.get schema") {
-    ctx.schemaRegistry.fetchOptionalJsonSchema(json.topicName).void.unsafeRunSync()
+    ctx.schemaRegistry(json.topicName.value).fetchOptionalJsonSchema.void.unsafeRunSync()
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()
   }

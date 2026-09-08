@@ -1,18 +1,20 @@
-package mtest.kafka
+package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.IO
+import cats.effect.{IO, Ref}
 import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings}
 import com.github.chenharryhua.nanjin.kafka.streaming.{
   KafkaStreamsAbnormallyStopped,
   KafkaStreamsBuilder,
   StateTransition
 }
 import fs2.Stream
+import io.circe.Encoder
 import io.confluent.kafka.schemaregistry.ParsedSchema
-import io.confluent.kafka.schemaregistry.client.SchemaMetadata
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import io.confluent.kafka.schemaregistry.client.{SchemaMetadata, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.client.rest.entities.SchemaReference
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams.State
@@ -23,12 +25,7 @@ import org.scalatest.matchers.should.Matchers
 import java.util
 import java.util.Optional
 import java.util.concurrent.TimeUnit
-import cats.effect.Ref
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
-import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings}
-import io.circe.Encoder
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
 class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
