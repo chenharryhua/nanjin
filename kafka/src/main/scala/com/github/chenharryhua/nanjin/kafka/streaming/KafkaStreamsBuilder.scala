@@ -61,7 +61,7 @@ sealed trait KafkaStreamsBuilder[F[_]] extends HasProperties {
   def topology: Topology
 }
 
-object KafkaStreamsBuilder {
+private[kafka] object KafkaStreamsBuilder {
 
   /** Create a builder with default lifecycle settings: no startup timeout (Duration.Inf), a 30-second close
     * timeout, and a no-op transition logger. Adjust with the with* methods.

@@ -19,8 +19,8 @@ class UpAndDownAvroTest extends AnyFunSuite {
 
   test("1.avro - schema register") {
     val schema = KafkaCodec.avro[UpAndDown].schema
-    ctx.schemaRegistry
-      .register(topic, value = Some(schema))
+    ctx.schemaRegistry(topic.value)
+      .register(value = Some(schema))
       .unsafeRunSync()
   }
 

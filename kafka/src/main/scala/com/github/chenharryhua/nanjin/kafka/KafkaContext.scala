@@ -11,8 +11,8 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,
   AdminTopicGroup,
-  SchemaRegistryApi,
-  SnapshotConsumer
+  SnapshotConsumer,
+  TopicSchemaRegistry
 }
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.connector.*
@@ -49,12 +49,12 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
   /** Returns a new KafkaContext with updated settings. */
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F]
 
-  /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
+  /** Returns a TopicSchemaRegistry for interacting with the configured Schema Registry.
     *
     * @throws java.lang.IllegalStateException
     *   if the URL config is absent
     */
-  def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F]
+  def schemaRegistry(topicName: String)(using F: Sync[F]): TopicSchemaRegistry[F]
 
   /** Register the key/value Serdes for a topic against the schema registry.
     *
@@ -227,8 +227,8 @@ object KafkaContext {
         Map.empty.asJava)
     }
 
-    override def schemaRegistry(using F: Sync[F]): SchemaRegistryApi[F] =
-      SchemaRegistryApi[F](schema_registry_internal)
+    override def schemaRegistry(topicName: String)(using F: Sync[F]): TopicSchemaRegistry[F] =
+      TopicSchemaRegistry[F](schema_registry_internal, TopicName(topicName))
 
     override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
       new Impl[F](f(settings))
@@ -286,7 +286,7 @@ object KafkaContext {
       ConsumeGenericRecord[F](
         topicName = tn,
         schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
-        fromSchemaRegistry = schemaRegistry.fetchOptionalAvroSchema(tn),
+        fromSchemaRegistry = schemaRegistry(topicName).fetchOptionalAvroSchema,
         ConsumerSettings[F, Array[Byte], Array[Byte]](
           Deserializer[F, Array[Byte]],
           Deserializer[F, Array[Byte]])
