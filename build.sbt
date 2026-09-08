@@ -377,7 +377,7 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
       "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.10" // snyk by wire-runtime-jvm
+      "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.20" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
