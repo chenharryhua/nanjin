@@ -57,7 +57,7 @@ object Timer {
     override def timing[A](fa: F[A]): F[A] = fa
   }
 
-  private class Impl[F[_]](
+  private class Impl[F[_]] private[Timer] (
     scope: MetricScope,
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
