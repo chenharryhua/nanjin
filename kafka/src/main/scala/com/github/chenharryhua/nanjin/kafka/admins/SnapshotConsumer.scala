@@ -33,17 +33,28 @@ import scala.jdk.CollectionConverters.*
   * synchronous offset commits. All operations run against a pre-assigned consumer.
   */
 sealed trait KafkaConsumerOps[F[_]] {
+
+  /** The partitions of the topic. */
   def partitionsFor: F[TopicPartitionList]
+
+  /** The earliest available offset per partition (`None` where unavailable). */
   def beginningOffsets: F[TopicPartitionMap[Option[Offset]]]
+
+  /** The next-to-be-produced (end) offset per partition (`None` where unavailable). */
   def endOffsets: F[TopicPartitionMap[Option[Offset]]]
+
+  /** The earliest offset per partition whose record timestamp is at or after `ts`. */
   def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]]
 
+  /** Fetch the single record at `partition`/`offset`, or `None` if there is none. */
   def retrieveRecord(
     partition: Partition,
     offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
 
+  /** Synchronously commit the given offsets for this consumer group. */
   def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
 
+  /** The underlying consumer's metrics. */
   def metrics: F[Map[MetricName, Metric]]
 }
 
@@ -109,17 +120,37 @@ private object KafkaConsumerOps {
   * A `SnapshotConsumer` operates on a single topic and is typically obtained from `KafkaContext.admin`.
   */
 sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
+
+  /** Per-partition offset range bounding the wall-clock `DateTimeRange`: from the range start (or beginning
+    * if unset) to the range end (or current end if unset). `None` for a partition with no data in range.
+    */
   def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
+
+  /** Per-partition offset range between the two timestamps. */
   def offsetRangeFor(start: Instant, end: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
+
+  /** Per-partition offset range covering all available data (beginning to end). */
   def offsetRangeForAll: F[TopicPartitionMap[Option[OffsetRange]]]
 
+  /** The last record of each partition (skipping empty partitions), sorted by partition. */
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  /** The first record of each partition (skipping empty partitions), sorted by partition. */
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  /** The first record at or after `ts` in each partition. */
   def retrieveRecordsForTimes(ts: Instant): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  /** Per-partition offset range from the first offset at or after `ts` to the current end. */
   def offsetRangeSince(ts: Instant): F[TopicPartitionMap[Option[OffsetRange]]]
 
+  /** Commit this group's offsets to each partition's beginning. */
   def resetOffsetsToBegin: F[Unit]
+
+  /** Commit this group's offsets to each partition's end. */
   def resetOffsetsToEnd: F[Unit]
+
+  /** Commit this group's offsets to the first offset at or after `ts` in each partition. */
   def resetOffsetsForTimes(ts: Instant): F[Unit]
 }
 
