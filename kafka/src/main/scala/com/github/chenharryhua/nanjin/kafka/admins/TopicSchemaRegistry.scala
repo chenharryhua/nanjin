@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.kernel.Sync
-import cats.syntax.traverse.given
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.kafka.{
   OptionalAvroSchemaPair,
   OptionalJsonSchemaPair,
@@ -64,20 +64,21 @@ private[kafka] object TopicSchemaRegistry {
   def apply[F[_]: Sync](client: SchemaRegistryClient, topicName: TopicName): TopicSchemaRegistry[F] =
     new TopicSchemaRegistryImpl[F](client, topicName)
 
-  final private class TopicSchemaRegistryImpl[F[_]](client: SchemaRegistryClient, topicName: TopicName)(using
-    F: Sync[F])
+  final private class TopicSchemaRegistryImpl[F[_]] private[TopicSchemaRegistry] (
+    client: SchemaRegistryClient,
+    topicName: TopicName)(using F: Sync[F])
       extends TopicSchemaRegistry[F] {
 
     private val key_loc: String = s"${topicName.value}-key"
     private val val_loc: String = s"${topicName.value}-value"
 
-    private def key_meta_data: F[SchemaMetadata] =
+    private val key_meta_data: F[SchemaMetadata] =
       F.blocking(client.getLatestSchemaMetadata(key_loc))
 
-    private def val_meta_data: F[SchemaMetadata] =
+    private val val_meta_data: F[SchemaMetadata] =
       F.blocking(client.getLatestSchemaMetadata(val_loc))
 
-    override def fetchAvroSchema: F[(AvroSchema, AvroSchema)] =
+    override val fetchAvroSchema: F[(AvroSchema, AvroSchema)] =
       for {
         key <- key_meta_data
         value <- val_meta_data
@@ -89,21 +90,21 @@ private[kafka] object TopicSchemaRegistry {
         value <- val_meta_data.attempt.map(_.toOption.filter(_.getSchemaType === schemaType))
       } yield (key.map(_.getSchema), value.map(_.getSchema))
 
-    override def fetchOptionalAvroSchema: F[OptionalAvroSchemaPair] =
+    override val fetchOptionalAvroSchema: F[OptionalAvroSchemaPair] =
       fetch_optional_schema("AVRO").map { case (k, v) =>
         val ks = k.map(new AvroSchema(_))
         val vs = v.map(new AvroSchema(_))
         OptionalAvroSchemaPair(ks, vs)
       }
 
-    override def fetchOptionalJsonSchema: F[OptionalJsonSchemaPair] =
+    override val fetchOptionalJsonSchema: F[OptionalJsonSchemaPair] =
       fetch_optional_schema("JSON").map { case (k, v) =>
         val ks = k.map(new JsonSchema(_))
         val vs = v.map(new JsonSchema(_))
         OptionalJsonSchemaPair(ks, vs)
       }
 
-    override def fetchOptionalProtobufSchema: F[OptionalProtobufSchemaPair] =
+    override val fetchOptionalProtobufSchema: F[OptionalProtobufSchemaPair] =
       fetch_optional_schema("PROTOBUF").map { case (k, v) =>
         val ks = k.map(new ProtobufSchema(_))
         val vs = v.map(new ProtobufSchema(_))
@@ -117,7 +118,7 @@ private[kafka] object TopicSchemaRegistry {
         RegisteredSchemaId(key.map(client.register(key_loc, _)), value.map(client.register(val_loc, _)))
       }
 
-    override def delete: F[(List[Integer], List[Integer])] =
+    override val delete: F[(List[Integer], List[Integer])] =
       for {
         k <- F
           .blocking(client.deleteSubject(key_loc))
