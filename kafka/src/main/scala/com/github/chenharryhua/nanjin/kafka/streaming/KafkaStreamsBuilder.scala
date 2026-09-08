@@ -18,12 +18,12 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 /** Builds and manages a Kafka Streams application with startup monitoring and transition notifications.
   *
-  * The topology is described by buildTopology, which is handed a StreamsBuilder and a StreamsSerde
-  * (schema-registry-aware serdes). Running the app as an fs2 Stream wires a state listener that logs every
-  * state change and translates the lifecycle into stream semantics: the stream emits the KafkaStreams
-  * instance once it reaches RUNNING (subject to startupTimeout), completes normally on NOT_RUNNING, and fails
-  * on ERROR. The instance is closed (bounded by closeTimeout) on release. Configuration is adjusted immutably
-  * through the with* methods; obtain a builder via KafkaStreamsBuilder.apply.
+  * The topology is described by `buildTopology`, which is handed a `StreamsBuilder` and a `StreamsSerde`
+  * (schema-registry-aware serdes). Running the app as an fs2 `Stream` wires a state listener that logs every
+  * state change and translates the lifecycle into stream semantics: the stream emits the `KafkaStreams`
+  * instance once it reaches `RUNNING` (subject to `startupTimeout`), completes normally on `NOT_RUNNING`, and fails
+  * on `ERROR`. The instance is closed (bounded by `closeTimeout`) on release. Configuration is adjusted immutably
+  * through the `with*` methods; obtain a builder via `KafkaStreamsBuilder.apply`.
   */
 sealed trait KafkaStreamsBuilder[F[_]] extends HasProperties {
 
