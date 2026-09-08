@@ -49,7 +49,7 @@ trait SimpleNotificationService[F[_]] {
 
 object SimpleNotificationService {
 
-  private val name: String = "aws.SNS"
+  private val NAME: String = "aws.SNS"
 
   /** Creates a resource managing an SNS client and the SimpleNotificationService wrapper.
     *
@@ -70,9 +70,9 @@ object SimpleNotificationService {
   ): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SnsClient.builder).build())) {
+      client <- Resource.make(logger.info(s"initialize $NAME") >> F.blocking(f(SnsClient.builder).build())) {
         cw =>
-          shutdown(name, logger)(cw.close())
+          shutdown(NAME, logger)(cw.close())
       }
     } yield new SimpleNotificationServiceImpl[F](client, logger)
 

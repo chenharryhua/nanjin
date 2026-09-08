@@ -52,13 +52,13 @@ trait ParameterStore[F[_]] {
 
 object ParameterStore {
 
-  private val name = "aws.ParameterStore"
+  private val NAME = "aws.ParameterStore"
 
   def apply[F[_]](f: Endo[SsmClientBuilder])(using F: Sync[F]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(f(SsmClient.builder()).build())) {
-        client => shutdown(name, logger)(client.close())
+      client <- Resource.make(logger.info(s"initialize $NAME") >> F.blocking(f(SsmClient.builder()).build())) {
+        client => shutdown(NAME, logger)(client.close())
       }
     } yield new ParameterStoreImpl[F](client, logger)
 

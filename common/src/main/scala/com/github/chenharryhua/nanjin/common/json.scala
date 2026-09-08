@@ -19,7 +19,7 @@ import java.time.Duration
   *     or the dashboard.
   */
 object json {
-  private val redacted: String = "redacted(*****)"
+  private val REDACTED: String = "redacted(*****)"
 
   private val pretty_json: Json => Json = {
     val decimalFormatter = new DecimalFormat("#,###")
@@ -70,5 +70,5 @@ object json {
     * `redact(configuredKeys*)`.
     */
   def redact(keys: String*): Json => Json =
-    redact(keys.toList, _ => redacted)
+    redact(keys.toList, _ => REDACTED)
 }

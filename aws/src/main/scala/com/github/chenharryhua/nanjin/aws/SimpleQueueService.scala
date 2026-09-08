@@ -101,15 +101,15 @@ trait SimpleQueueService[F[_]] {
 
 object SimpleQueueService {
 
-  private val name: String = "aws.SQS"
+  private val NAME: String = "aws.SQS"
 
   def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(using
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name") >> F.blocking(g(SqsClient.builder()).build())) {
+      client <- Resource.make(logger.info(s"initialize $NAME") >> F.blocking(g(SqsClient.builder()).build())) {
         cw =>
-          shutdown(name, logger)(cw.close())
+          shutdown(NAME, logger)(cw.close())
       }
     } yield new SimpleQueueServiceImpl[F](client, f(Policy), zoneId, logger)
 
@@ -124,7 +124,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       def receiving(status: PolicyTick[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
-        Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
+        Pull.eval(blockingF(client.receiveMessage(request), NAME, logger)).flatMap { rmr =>
           val messages: List[Message] = rmr.messages.asScala.toList
           val size: Int = messages.size
           if (size > 0) {

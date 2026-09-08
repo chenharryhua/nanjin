@@ -35,7 +35,7 @@ final class PostgresObserver[F[_]] private (
   translator: Translator[F, Json])(using F: Async[F])
     extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
-  private val name: String = "Postgres Observer"
+  private val NAME: String = "Postgres Observer"
 
   override def withTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F] =
     new PostgresObserver[F](session, f(translator))
@@ -48,7 +48,7 @@ final class PostgresObserver[F[_]] private (
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       log <- Stream.eval(Slf4jLogger.create[F])
-      _ <- Stream.eval(log.info(s"initialize $name"))
+      _ <- Stream.eval(log.info(s"initialize $NAME"))
       ofm <- Stream.eval(
         F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- events
@@ -57,10 +57,10 @@ final class PostgresObserver[F[_]] private (
           translator
             .translate(evt)
             .flatMap(_.traverse_(execute(pg, _)))
-            .recoverWith(ex => log.error(ex)(name))
+            .recoverWith(ex => log.error(ex)(NAME))
         }
         .onFinalize {
-          ofm.terminated.flatMap(_.traverse_(execute(pg, _))) *> log.info(s"$name was closed")
+          ofm.terminated.flatMap(_.traverse_(execute(pg, _))) *> log.info(s"$NAME was closed")
         }
     } yield event
   }

@@ -113,15 +113,15 @@ trait SimpleStorageService[F[_]] {
 }
 
 object SimpleStorageService:
-  private val s3Name = "aws.s3"
-  private val presignerName = "aws.s3.presigner"
+  private val S3_NAME = "aws.s3"
+  private val PRESIGNER_NAME = "aws.s3.presigner"
 
   /** Create a managed S3 client and presigner resource using the supplied client-builder configuration. */
   def apply[F[_]](f: Endo[S3ClientBuilder])(using F: Sync[F]): Resource[F, SimpleStorageService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       (s3, presigner) <- Resource.make(
-        logger.info(s"initialize $presignerName/$s3Name") >>
+        logger.info(s"initialize $PRESIGNER_NAME/$S3_NAME") >>
           F.blocking {
             val s3 = f(S3Client.builder()).build()
             val conf = s3.serviceClientConfiguration()
@@ -131,8 +131,8 @@ object SimpleStorageService:
             conf.endpointOverride().ifPresent(uri => pb.endpointOverride(uri): Unit)
             s3 -> pb.build()
           }) { (s3, presigner) =>
-        shutdown(presignerName, logger)(presigner.close()) >>
-          shutdown(s3Name, logger)(s3.close())
+        shutdown(PRESIGNER_NAME, logger)(presigner.close()) >>
+          shutdown(S3_NAME, logger)(s3.close())
       }
     } yield new SimpleStorageServiceImpl[F](s3, presigner, logger)
 
