@@ -20,6 +20,10 @@ import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+
+// number-formatting pattern shared by the presentation renderers (SnapshotPolyglot, JsonView)
+private val decimalFormat: "#,###" = "#,###"
+
 def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
   ContT.pure[F, A, Event](evt).map {
     case _: ServiceStart => LogLevel.Info

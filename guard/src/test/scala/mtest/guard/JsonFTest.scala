@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.snapshot
+package com.github.chenharryhua.nanjin.guard.translator
 
 import io.circe.Json
 import io.circe.syntax.EncoderOps

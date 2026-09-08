@@ -20,7 +20,7 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Codec, Json}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-final case class EventKey(task: String, service: String) derives Codec.AsObject
+final private case class EventKey(task: String, service: String) derives Codec.AsObject
 
 object KafkaObserver {
   def apply[F[_]: {Async, Parallel}](ctx: KafkaContext[F]): KafkaObserver[F] =

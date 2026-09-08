@@ -4,7 +4,7 @@ import cats.syntax.eq.catsSyntaxEq
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.{information, time, Dimensionless, Dozen, Each, Gross, Percent, Score}
 
-object CloudWatchTimeUnit {
+private object CloudWatchTimeUnit {
 
   def toStandardUnit(unitSymbol: String, dimensionName: String, data: Double): (StandardUnit, Double) = {
     unitSymbol match {

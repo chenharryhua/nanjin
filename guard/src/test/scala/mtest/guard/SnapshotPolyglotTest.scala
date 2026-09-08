@@ -7,7 +7,8 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{retrieve, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
+import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
 

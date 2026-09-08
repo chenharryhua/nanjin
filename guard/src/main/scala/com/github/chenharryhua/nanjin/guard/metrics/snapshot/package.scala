@@ -5,5 +5,3 @@ import squants.time.{Frequency, Hertz}
 
 given hertzEncoder: Encoder[Frequency] = Encoder.instance(h => Json.fromDoubleOrNull(h.toHertz))
 given hertzDecoder: Decoder[Frequency] = Decoder.decodeDouble.map(Hertz(_))
-
-private val decimalFormat: "#,###" = "#,###"

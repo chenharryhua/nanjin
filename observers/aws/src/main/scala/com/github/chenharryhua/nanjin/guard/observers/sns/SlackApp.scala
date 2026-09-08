@@ -4,8 +4,8 @@ import com.github.chenharryhua.nanjin.guard.translator.TextEntry
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
-final case class TextField(tag: String, value: String)
-object TextField {
+final private case class TextField(tag: String, value: String)
+private object TextField {
   def apply(te: TextEntry): TextField = TextField(te.tag, te.text)
 
   given Encoder[TextField] = tf => {
@@ -14,8 +14,8 @@ object TextField {
   }
 }
 // slack format
-sealed trait Section
-object Section {
+sealed private trait Section
+private object Section {
   given Encoder[Section] = Encoder.instance {
     case JuxtaposeSection(first, second) =>
       Json.obj("type" -> Json.fromString("section"), "fields" -> List(first, second).asJson)
@@ -39,14 +39,14 @@ object Section {
   }
 }
 
-final case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Encoder
-final case class TagValueSection(tag: String, value: String) extends Section derives Encoder
-final case class MarkdownSection(text: String) extends Section derives Encoder
-final case class HeaderSection(text: String) extends Section derives Encoder
+final private case class JuxtaposeSection(first: TextField, second: TextField) extends Section derives Encoder
+final private case class TagValueSection(tag: String, value: String) extends Section derives Encoder
+final private case class MarkdownSection(text: String) extends Section derives Encoder
+final private case class HeaderSection(text: String) extends Section derives Encoder
 
-final case class Attachment(color: String, blocks: List[Section]) derives Encoder
+final private case class Attachment(color: String, blocks: List[Section]) derives Encoder
 
-final case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder {
+final private case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder {
   // before first section
   def prependMarkdown(text: String): SlackApp =
     SlackApp(

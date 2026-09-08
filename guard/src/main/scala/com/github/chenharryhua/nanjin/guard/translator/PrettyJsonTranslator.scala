@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 import io.circe.Json
 
 object PrettyJsonTranslator {

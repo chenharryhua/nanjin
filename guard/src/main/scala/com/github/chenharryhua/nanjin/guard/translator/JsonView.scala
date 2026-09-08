@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.snapshot
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
