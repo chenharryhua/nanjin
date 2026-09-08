@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.SnapshotPolyglot
 
 import scala.io.AnsiColor
 

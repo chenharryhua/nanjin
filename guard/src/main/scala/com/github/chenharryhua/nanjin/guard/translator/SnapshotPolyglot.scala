@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.metrics.snapshot
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.NonEmptyList
 import cats.syntax.eq.catsSyntaxEq
@@ -6,7 +6,7 @@ import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.guard.config.NbspChar
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{JsonView, Snapshot}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricId, Squants}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -74,7 +74,8 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     }
 
   private def interpret_histogram[A: Numeric](squants: Squants, data: A): String = {
-    val Squants(unitSymbol, dimensionName) = squants
+    val unitSymbol: String = squants.unitSymbol
+    val dimensionName: String = squants.dimensionName
     if (dimensionName === time.Time.name) {
       unitSymbol match {
         case time.Nanoseconds.symbol  => fmt.format(time.Nanoseconds(data))

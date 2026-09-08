@@ -5,12 +5,13 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{Snapshot, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
   panicText,
   Attribute,
+  SnapshotPolyglot,
   TextEntry,
   Translator
 }
