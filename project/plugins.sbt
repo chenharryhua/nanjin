@@ -11,7 +11,7 @@ addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.7.0")
 addSbtPlugin("com.orrsella"     % "sbt-stats"     % "1.0.7")
 addSbtPlugin("com.eed3si9n"     % "sbt-buildinfo" % "0.13.1")
 
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.7")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.8")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.22.0")
