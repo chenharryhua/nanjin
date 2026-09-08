@@ -200,6 +200,9 @@ lazy val frontend = project.in(file("frontend"))
   .settings(name := "nj-frontend")
   .settings(coverageEnabled := false)
   .settings(
+    // Scala.js interop legitimately needs var / asInstanceOf / == that the shared .scalafix.conf
+    // DisableSyntax rule forbids, so scalafix is skipped for this module (keeps `scalafixAll` green).
+    scalafix / skip := true,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
       "io.circe" %%% "circe-core"      % circeV,
