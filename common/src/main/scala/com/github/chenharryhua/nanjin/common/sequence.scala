@@ -41,8 +41,8 @@ object sequence {
     * primes already found (checking divisors up to the square root).
     */
   val primes: LazyList[Long] =
-    2L #:: LazyList.iterate(3L)(_ + 1L).filter(i =>
-      primes.takeWhile(p => (p * p) <= i).forall(p => (i % p) > 0))
+    2L #:: LazyList.iterate(3L)(_ + 2L).filter(i =>
+      primes.takeWhile(p => p <= i / p).forall(p => (i % p) != 0))
 
   /** `primes` reinterpreted as durations in `tu`. See the range caveat on `sequence`. */
   def primes(tu: TimeUnit): LazyList[FiniteDuration] =
