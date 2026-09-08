@@ -134,7 +134,7 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
 
   /** Set the range to the last `seconds` up to now (in this range's zone): start = now − seconds, end = now.
     */
-  def withNSeconds(seconds: Long): DateTimeRange = {
+  def withLastSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now(zoneId)
     withStartTime(now.minusSeconds(seconds)).withEndTime(now)
   }

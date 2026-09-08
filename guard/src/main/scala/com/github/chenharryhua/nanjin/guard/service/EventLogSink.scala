@@ -68,15 +68,15 @@ private object EventLogSink:
 
   private def eventLogSink[F[_]: {Console, Sync}](logFormat: LogFormat, loggerName: LoggerName): LogSink[F] =
     logFormat match {
-      case LogFormat.Console_PlainText =>
+      case LogFormat.ConsolePlainText =>
         consoleLogSink[F](loggerName, AnsiTextTranslator[F])
-      case LogFormat.Console_Json =>
+      case LogFormat.ConsoleJson =>
         consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.noSpaces))
-      case LogFormat.Console_Json_MultiLine =>
+      case LogFormat.ConsoleJsonMultiLine =>
         consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.spaces2))
-      case LogFormat.Console_Json_Verbose =>
+      case LogFormat.ConsoleJsonVerbose =>
         consoleLogSink[F](loggerName, Translator.idTranslator[F].map(_.asJson.spaces2))
-      case LogFormat.Slf4j_Json =>
+      case LogFormat.Slf4jJson =>
         slf4JLogSink[F](
           Slf4jLogger.getLoggerFromName[F](loggerName.value),
           PrettyJsonTranslator[F].map(_.noSpaces))

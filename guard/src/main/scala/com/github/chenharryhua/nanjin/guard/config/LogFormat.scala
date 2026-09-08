@@ -5,11 +5,11 @@ import cats.syntax.all.catsSyntaxEq
 import io.circe.{Decoder, Encoder}
 
 enum LogFormat:
-  case Console_PlainText,
-    Console_Json,
-    Console_Json_MultiLine,
-    Console_Json_Verbose,
-    Slf4j_Json
+  case ConsolePlainText,
+    ConsoleJson,
+    ConsoleJsonMultiLine,
+    ConsoleJsonVerbose,
+    Slf4jJson
 end LogFormat
 
 object LogFormat:
