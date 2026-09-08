@@ -14,18 +14,20 @@ final class ChartManager(maxSizePerSeries: Int) {
   // Deterministic color from label name — stable across page refreshes
   private val colorMap: mutable.Map[String, String] = mutable.Map.empty
   private def colorFor(name: String): String =
-    colorMap.getOrElseUpdate(name, {
-      // FNV-1a 32-bit hash for better distribution than hashCode
-      var hash: Long = 2166136261L
-      name.foreach { c =>
-        hash ^= c.toLong
-        hash = (hash * 16777619L) & 0xFFFFFFFFL
+    colorMap.getOrElseUpdate(
+      name, {
+        // FNV-1a 32-bit hash for better distribution than hashCode
+        var hash: Long = 2166136261L
+        name.foreach { c =>
+          hash ^= c.toLong
+          hash = (hash * 16777619L) & 0xffffffffL
+        }
+        val hue = (hash % 360).toDouble
+        val saturation = 55 + (hash / 360 % 20) // 55-74%
+        val lightness = 40 + (hash / 7200 % 20) // 40-59%
+        s"hsl($hue, $saturation%, $lightness%)"
       }
-      val hue = (hash % 360).toDouble
-      val saturation = 55 + (hash / 360 % 20) // 55-74%
-      val lightness = 40 + (hash / 7200 % 20) // 40-59%
-      s"hsl($hue, $saturation%, $lightness%)"
-    })
+    )
 
   private val data: mutable.Map[String, mutable.Queue[Point]] = mutable.Map.empty
   private val baseline: mutable.Queue[Point] = mutable.Queue.empty
