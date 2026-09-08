@@ -10,9 +10,9 @@ import io.circe.{Encoder, Json}
   *   [[https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#send-adaptive-cards-using-an-incoming-webhook]]
   */
 
-sealed trait CardElement
+sealed private trait CardElement
 
-object CardElement {
+private object CardElement {
   given Encoder[CardElement] = Encoder.instance {
     case t: TextBlock       => t.asJson(using TextBlock.encoder)
     case b: BolderTextBlock => b.asJson(using BolderTextBlock.encoder)
@@ -24,8 +24,8 @@ object CardElement {
   }
 }
 
-final case class JsonBlock(codeSnippet: Json) extends CardElement
-object JsonBlock {
+final private case class JsonBlock(codeSnippet: Json) extends CardElement
+private object JsonBlock {
   val encoder: Encoder[JsonBlock] = (cb: JsonBlock) =>
     Json.obj(
       "type" -> Json.fromString("CodeBlock"),
@@ -34,8 +34,8 @@ object JsonBlock {
     )
 }
 
-final case class StackTraceBlock(stackTrace: StackTrace) extends CardElement
-object StackTraceBlock {
+final private case class StackTraceBlock(stackTrace: StackTrace) extends CardElement
+private object StackTraceBlock {
   val encoder: Encoder[StackTraceBlock] = (stb: StackTraceBlock) =>
     val fields = List(
       "type" -> Json.fromString("TextBlock"),
@@ -46,8 +46,8 @@ object StackTraceBlock {
     Json.obj(fields*)
 }
 
-final case class BolderTextBlock(text: String) extends CardElement
-object BolderTextBlock {
+final private case class BolderTextBlock(text: String) extends CardElement
+private object BolderTextBlock {
   val encoder: Encoder[BolderTextBlock] = (tb: BolderTextBlock) => {
     val fields = List(
       "type" -> Json.fromString("TextBlock"),
@@ -60,14 +60,14 @@ object BolderTextBlock {
   }
 }
 
-final case class TextBlock(
+final private case class TextBlock(
   text: String,
   color: String = "Default",
   weight: Option[String] = None,
   size: Option[String] = None)
     extends CardElement
 
-object TextBlock {
+private object TextBlock {
   val encoder: Encoder[TextBlock] = (tb: TextBlock) => {
     val fields = List(
       "type" -> Json.fromString("TextBlock"),
@@ -83,23 +83,23 @@ object TextBlock {
   }
 }
 
-final case class Fact(title: String, value: String)
+final private case class Fact(title: String, value: String)
 
-object Fact {
+private object Fact {
   given Encoder[Fact] = (f: Fact) =>
     Json.obj("title" -> Json.fromString(f.title + ":"), "value" -> Json.fromString(f.value))
 }
 
-final case class FactSet(facts: List[Fact]) extends CardElement
+final private case class FactSet(facts: List[Fact]) extends CardElement
 
-object FactSet {
+private object FactSet {
   val encoder: Encoder[FactSet] = (fs: FactSet) =>
     Json.obj("type" -> Json.fromString("FactSet"), "facts" -> fs.facts.asJson)
 }
 
-final case class Column(items: List[CardElement], width: String = "stretch")
+final private case class Column(items: List[CardElement], width: String = "stretch")
 
-object Column {
+private object Column {
   given Encoder[Column] = (c: Column) =>
     Json.obj(
       "type" -> Json.fromString("Column"),
@@ -108,16 +108,16 @@ object Column {
     )
 }
 
-final case class ColumnSet(columns: List[Column]) extends CardElement
+final private case class ColumnSet(columns: List[Column]) extends CardElement
 
-object ColumnSet {
+private object ColumnSet {
   val encoder: Encoder[ColumnSet] = (cs: ColumnSet) =>
     Json.obj("type" -> Json.fromString("ColumnSet"), "columns" -> cs.columns.asJson)
 }
 
-final case class Container(items: List[CardElement], style: Option[String] = None) extends CardElement
+final private case class Container(items: List[CardElement], style: Option[String] = None) extends CardElement
 
-object Container {
+private object Container {
   val encoder: Encoder[Container] = (c: Container) => {
     val fields = List(
       "type" -> Json.fromString("Container"),
@@ -128,11 +128,11 @@ object Container {
 }
 
 /** The complete Adaptive Card payload for Teams webhook. */
-final case class AdaptiveCard(body: List[CardElement]) {
+final private case class AdaptiveCard(body: List[CardElement]) {
   def appendElement(elem: CardElement): AdaptiveCard = copy(body = body :+ elem)
 }
 
-object AdaptiveCard {
+private object AdaptiveCard {
   given Encoder[AdaptiveCard] = (card: AdaptiveCard) =>
     Json.obj(
       "type" -> Json.fromString("message"),
