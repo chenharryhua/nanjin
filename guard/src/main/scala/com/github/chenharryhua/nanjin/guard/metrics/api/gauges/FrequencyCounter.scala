@@ -11,6 +11,8 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import io.circe.Json
 import io.circe.syntax.given
 
+import scala.collection.immutable.TreeMap
+
 /** A tag-based frequency counter that tracks how many times each tag is observed.
   *
   * Reported as a `Map[String, Long]` gauge in metrics snapshots. Use the policy-based reset to clear counts
@@ -57,14 +59,15 @@ object FrequencyCounter {
 
     def build[F[_]: Async](gp: GaugeParams[F], name: String): Resource[F, FrequencyCounter[F]] =
       for {
-        ref <- Resource.eval(Ref.of[F, Map[String, Long]](Map.empty))
+        // TreeMap keeps tags sorted so the gauge JSON emits keys in a stable, deterministic order
+        ref <- Resource.eval(Ref.of[F, TreeMap[String, Long]](TreeMap.empty))
         _ <- Gauge(
           gp,
           name,
           _.withKind(_.Default).enable(isEnabled).register(ref.get.map { m =>
             if (m.isEmpty) Json.Null else m.asJson
           }))
-        _ <- tickStream.tickScheduled(gp.zoneId, _.fresh(policy)).evalMap(_ => ref.set(Map.empty))
+        _ <- tickStream.tickScheduled(gp.zoneId, _.fresh(policy)).evalMap(_ => ref.set(TreeMap.empty))
           .compile.drain.background
       } yield new FrequencyCounter[F] {
         override def inc(tag: String, num: Long): F[Unit] =
