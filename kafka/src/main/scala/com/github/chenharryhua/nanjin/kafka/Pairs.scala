@@ -77,7 +77,7 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   }
 }
 
-final private[kafka] case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema])
+final case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema])
     extends SchemaCompatibility[OptionalAvroSchemaPair] {
 
   override def isBackwardCompatible(broker: OptionalAvroSchemaPair): Boolean =
