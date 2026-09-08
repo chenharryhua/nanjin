@@ -21,37 +21,45 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 
 import scala.jdk.CollectionConverters.*
 
-/** Algebra for interacting with Confluent Schema Registry.
+/** Confluent Schema Registry operations scoped to a single Kafka topic.
   *
-  * This API provides:
-  *   - schema discovery (required and optional)
-  *   - schema registration for Kafka topics
-  *   - schema deletion (key/value subjects)
+  * An instance is bound to one topic at construction (obtain one via `KafkaContext.schemaRegistry(topic)`),
+  * so the methods take no topic argument. Key and value schemas are addressed under the standard subject
+  * names `<topic>-key` and `<topic>-value`.
   *
-  * ## Subject naming Schemas are resolved using the standard subject naming convention:
+  * ==Optional vs required==
+  * `fetchAvroSchema` requires both key and value schemas to be present. The `fetchOptional*` variants return
+  * `None` for a side whose schema is absent or is not of the requested type, which suits topics whose key
+  * and/or value is a primitive (and therefore has no registered schema).
   *
-  *   - `<topic>-key`
-  *   - `<topic>-value`
-  *
-  * ## Primitive handling For topics whose key and/or value is a primitive type:
-  *   - schemas are not registered
-  *   - missing schemas may be tolerated when fetching optional schemas
-  *
-  * ## Error semantics
-  *   - Missing required schemas result in `SchemaNotFound`
-  *   - Deletion failures are wrapped in `DeleteSchemaException`
-  *
-  * All interactions with the underlying Schema Registry client are performed in a blocking-safe manner.
+  * All calls run on the blocking pool, since the underlying Confluent client is synchronous.
   */
 sealed trait TopicSchemaRegistry[F[_]] {
+
+  /** Fetch the latest key and value Avro schemas; both must be present. */
   def fetchAvroSchema: F[(AvroSchema, AvroSchema)]
 
+  /** Fetch the latest key/value Avro schemas, each `None` if absent or not Avro. */
   def fetchOptionalAvroSchema: F[OptionalAvroSchemaPair]
+
+  /** Fetch the latest key/value JSON schemas, each `None` if absent or not JSON. */
   def fetchOptionalJsonSchema: F[OptionalJsonSchemaPair]
+
+  /** Fetch the latest key/value Protobuf schemas, each `None` if absent or not Protobuf. */
   def fetchOptionalProtobufSchema: F[OptionalProtobufSchemaPair]
 
+  /** Register key and/or value schemas for this topic, returning the assigned registry ids.
+    *
+    * @param key
+    *   schema to register under the `-key` subject, or `None` to skip
+    * @param value
+    *   schema to register under the `-value` subject, or `None` to skip
+    */
   def register(key: Option[ParsedSchema] = None, value: Option[ParsedSchema] = None): F[RegisteredSchemaId]
 
+  /** Delete both the `-key` and `-value` subjects for this topic, returning the deleted schema-id lists (key,
+    * value). Missing subjects yield empty lists rather than failing.
+    */
   def delete: F[(List[Integer], List[Integer])]
 }
 
