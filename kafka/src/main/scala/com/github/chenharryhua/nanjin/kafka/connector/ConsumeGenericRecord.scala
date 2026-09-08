@@ -30,7 +30,7 @@ import java.time.Instant
   * the same `Either[PullError, Record]` payload. Obtain an instance via
   * `KafkaContext.consumeGenericRecord(...)`.
   */
-final class ConsumeGenericRecord[F[_]: Async](
+final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
   fromSchemaRegistry: F[OptionalAvroSchemaPair],
