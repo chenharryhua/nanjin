@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
+import cats.syntax.eq.catsSyntaxEq
+
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 /** Infinite lazy numeric sequences and their `FiniteDuration` views.
@@ -42,7 +44,7 @@ object sequence {
     */
   val primes: LazyList[Long] =
     2L #:: LazyList.iterate(3L)(_ + 2L).filter(i =>
-      primes.takeWhile(p => p <= i / p).forall(p => (i % p) != 0))
+      primes.takeWhile(p => p <= i / p).forall(p => (i % p) =!= 0))
 
   /** `primes` reinterpreted as durations in `tu`. See the range caveat on `sequence`. */
   def primes(tu: TimeUnit): LazyList[FiniteDuration] =

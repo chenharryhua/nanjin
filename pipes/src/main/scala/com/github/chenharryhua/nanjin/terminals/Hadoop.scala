@@ -153,206 +153,209 @@ sealed trait Hadoop[F[_]] {
 
 object Hadoop {
   def apply[F[_]](config: Configuration): Hadoop[F] =
-    new HadoopImpl[F](config)
-}
+    new Impl[F](config)
 
-final private class HadoopImpl[F[_]](config: Configuration) extends Hadoop[F] {
+  final private class Impl[F[_]] private[Hadoop] (config: Configuration) extends Hadoop[F] {
 
-  override def delete(path: Url)(using F: Sync[F]): F[Boolean] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      fs.delete(hp, true)
-    }
-
-  override def exists(path: Url)(using F: Sync[F]): F[Boolean] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      fs.exists(hp)
-    }
-
-  override def locatedFileStatus(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      if (!fs.exists(hp)) Nil
-      else {
-        val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-        val lb = mutable.ListBuffer.empty[LocatedFileStatus]
-        while (ri.hasNext) lb.addOne(ri.next()) // scalafix:ok
-        lb.toList
+    override def delete(path: Url)(using F: Sync[F]): F[Boolean] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        fs.delete(hp, true)
       }
-    }
 
-  override def dataFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      if (!fs.exists(hp)) Nil
-      else {
-        val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-        val lb: mutable.Set[Path] = collection.mutable.Set.empty
-
-        while (ri.hasNext) lb.addOne(ri.next().getPath.getParent) // scalafix:ok
-
-        lb.toList.map(p => Uri(p.toUri).toUrl)
+    override def exists(path: Url)(using F: Sync[F]): F[Boolean] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        fs.exists(hp)
       }
-    }
 
-  override def emptyFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-
-      if (!fs.exists(hp)) Nil
-      else {
-        val result = mutable.ListBuffer.empty[Path]
-        val stack = mutable.Stack(hp)
-
-        while (stack.nonEmpty) { // scalafix:ok
-          val current = stack.pop()
-          val status = fs.getFileStatus(current)
-
-          if (status.isDirectory) {
-            val children = fs.listStatus(current)
-            if (children.isEmpty) {
-              result += current
-            } else {
-              children.foreach { child =>
-                if (child.isDirectory)
-                  stack.push(child.getPath)
-              }
-            }
-          }
+    override def locatedFileStatus(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        if (!fs.exists(hp)) Nil
+        else {
+          val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+          val lb = mutable.ListBuffer.empty[LocatedFileStatus]
+          while (ri.hasNext) lb.addOne(ri.next()) // scalafix:ok
+          lb.toList
         }
-        result.toList.map(p => Uri(p.toUri).toUrl)
       }
-    }
 
-  override def filesIn(path: Url, filter: PathFilter)(using F: Sync[F]): F[List[Url]] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      if (!fs.exists(hp)) Nil
-      else {
-        val stat: FileStatus = fs.getFileStatus(hp)
-        if (stat.isFile)
-          List(Uri(stat.getPath.toUri).toUrl)
-        else
-          fs.listStatus(hp, filter)
-            .filter(_.isFile)
-            .sortBy(_.getModificationTime)
-            .map(s => Uri(s.getPath.toUri).toUrl)
-            .toList
+    override def dataFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        if (!fs.exists(hp)) Nil
+        else {
+          val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+          val lb: mutable.Set[Path] = collection.mutable.Set.empty
+
+          while (ri.hasNext) lb.addOne(ri.next().getPath.getParent) // scalafix:ok
+
+          lb.toList.map(p => Uri(p.toUri).toUrl)
+        }
       }
-    }
 
-  override def filesIn(path: Url)(using F: Sync[F]): F[List[Url]] =
-    filesIn(path, HiddenFileFilter.INSTANCE)
+    override def emptyFolders(path: Url)(using F: Sync[F]): F[List[Url]] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
 
-  override def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(using
-    F: Sync[F],
-    Ord: Ordering[T]): F[Option[Url]] =
-    F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      if (!fs.exists(hp)) None
-      else {
-        @tailrec
-        def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
-          js match {
-            case f :: tail =>
-              fs.listStatus(hp)
-                .filter(_.isDirectory)
-                .flatMap(s => f(s.getPath.getName).map((_, s)))
-                .maxByOption(_._1)
-                .map(_._2) match {
-                case Some(status) => go(status.getPath, tail)
-                case None         => None
+        if (!fs.exists(hp)) Nil
+        else {
+          val result = mutable.ListBuffer.empty[Path]
+          val stack = mutable.Stack(hp)
+
+          while (stack.nonEmpty) { // scalafix:ok
+            val current = stack.pop()
+            val status = fs.getFileStatus(current)
+
+            if (status.isDirectory) {
+              val children = fs.listStatus(current)
+              if (children.isEmpty) {
+                result += current
+              } else {
+                children.foreach { child =>
+                  if (child.isDirectory)
+                    stack.push(child.getPath)
+                }
               }
-            case Nil => Some(hp)
-          }
-        go(hp, rules.toList).map(p => Uri(p.toUri).toUrl)
-      }
-    }
-
-  override def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{day, month, year}
-    best[Int](path, NonEmptyList.of(year, month, day))
-  }
-
-  override def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{day, hour, month, year}
-    best[Int](path, NonEmptyList.of(year, month, day, hour))
-  }
-
-  override def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{day, month, year}
-    best(path, NonEmptyList.of[String => Option[Int]](year, month, day))(using F, Ordering[Int].reverse)
-  }
-
-  override def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-    import partitionPath.{day, hour, month, year}
-    best(path, NonEmptyList.of[String => Option[Int]](year, month, day, hour))(using F, Ordering[Int].reverse)
-  }
-
-  override def dateFolderRetention(path: Url, keeps: List[LocalDate])(using
-    F: Sync[F]): F[List[FolderRetentionResult]] =
-    dataFolders(path).flatMap(_.traverse { url =>
-      extractDate(url) match {
-        case Some(date) =>
-          if (keeps.contains(date))
-            F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
-          else {
-            delete(url).map {
-              case true  => FolderRetentionResult(url, RetentionStatus.Removed)
-              case false => FolderRetentionResult(url, RetentionStatus.RemoveFailed)
             }
           }
-        case None => F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
+          result.toList.map(p => Uri(p.toUri).toUrl)
+        }
       }
-    })
 
-  override def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(using
-    F: Sync[F]): F[List[FolderRetentionResult]] = {
-    val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
-    dateFolderRetention(path, keeps)
-  }
+    override def filesIn(path: Url, filter: PathFilter)(using F: Sync[F]): F[List[Url]] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        if (!fs.exists(hp)) Nil
+        else {
+          val stat: FileStatus = fs.getFileStatus(hp)
+          if (stat.isFile)
+            List(Uri(stat.getPath.toUri).toUrl)
+          else
+            fs.listStatus(hp, filter)
+              .filter(_.isFile)
+              .sortBy(_.getModificationTime)
+              .map(s => Uri(s.getPath.toUri).toUrl)
+              .toList
+        }
+      }
 
-  private def copy_file(source: Url, target: Url, delete_source: Boolean)(using F: Sync[F]): F[Boolean] =
-    F.blocking {
-      val src = toHadoopPath(source)
-      val tgt = toHadoopPath(target)
+    override def filesIn(path: Url)(using F: Sync[F]): F[List[Url]] =
+      filesIn(path, HiddenFileFilter.INSTANCE)
 
-      val srcFs = src.getFileSystem(config)
-      val tgtFs = tgt.getFileSystem(config)
+    override def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(using
+      F: Sync[F],
+      Ord: Ordering[T]): F[Option[Url]] =
+      F.blocking {
+        val hp: Path = toHadoopPath(path)
+        val fs: FileSystem = hp.getFileSystem(config)
+        if (!fs.exists(hp)) None
+        else {
+          @tailrec
+          def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
+            js match {
+              case f :: tail =>
+                fs.listStatus(hp)
+                  .filter(_.isDirectory)
+                  .flatMap(s => f(s.getPath.getName).map((_, s)))
+                  .maxByOption(_._1)
+                  .map(_._2) match {
+                  case Some(status) => go(status.getPath, tail)
+                  case None         => None
+                }
+              case Nil => Some(hp)
+            }
 
-      FileUtil.copy(srcFs, src, tgtFs, tgt, delete_source, true, config)
+          go(hp, rules.toList).map(p => Uri(p.toUri).toUrl)
+        }
+      }
+
+    override def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+      import partitionPath.{day, month, year}
+      best[Int](path, NonEmptyList.of(year, month, day))
     }
 
-  override def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copy_file(source, target, false)
+    override def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+      import partitionPath.{day, hour, month, year}
+      best[Int](path, NonEmptyList.of(year, month, day, hour))
+    }
 
-  override def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
-    copy_file(source, target, true)
+    override def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+      import partitionPath.{day, month, year}
+      best(path, NonEmptyList.of[String => Option[Int]](year, month, day))(using F, Ordering[Int].reverse)
+    }
 
-  override def source(url: Url)(using F: Sync[F]): FileSource[F] = new FileSourceImpl[F](config, url)
+    override def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
+      import partitionPath.{day, hour, month, year}
+      best(path, NonEmptyList.of[String => Option[Int]](year, month, day, hour))(using
+        F,
+        Ordering[Int].reverse)
+    }
 
-  override def sink(url: Url)(using F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
+    override def dateFolderRetention(path: Url, keeps: List[LocalDate])(using
+      F: Sync[F]): F[List[FolderRetentionResult]] =
+      dataFolders(path).flatMap(_.traverse { url =>
+        extractDate(url) match {
+          case Some(date) =>
+            if (keeps.contains(date))
+              F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
+            else {
+              delete(url).map {
+                case true  => FolderRetentionResult(url, RetentionStatus.Removed)
+                case false => FolderRetentionResult(url, RetentionStatus.RemoveFailed)
+              }
+            }
+          case None => F.pure(FolderRetentionResult(url, RetentionStatus.Retained))
+        }
+      })
 
-  override def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(
-    using F: Async[F]): RotateByPolicy[F] = {
-    val crfs: Stream[F, CreateRotateFile] =
-      tickStream.tickFuture[F](zoneId, f).map { tick =>
-        CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
+    override def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(using
+      F: Sync[F]): F[List[FolderRetentionResult]] = {
+      val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
+      dateFolderRetention(path, keeps)
+    }
+
+    private def copy_file(source: Url, target: Url, delete_source: Boolean)(using F: Sync[F]): F[Boolean] =
+      F.blocking {
+        val src = toHadoopPath(source)
+        val tgt = toHadoopPath(target)
+
+        val srcFs = src.getFileSystem(config)
+        val tgtFs = tgt.getFileSystem(config)
+
+        FileUtil.copy(srcFs, src, tgtFs, tgt, delete_source, true, config)
       }
-    new RotateByPolicyImpl[F](config, pathBuilder, crfs)
-  }
 
-  override def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(using
-    F: Async[F]): RotateBySize[F] = {
-    require(size > 0L, "size must be positive")
-    new RotateBySizeImpl[F](config, zoneId, pathBuilder, size)
+    override def copy(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
+      copy_file(source, target, false)
+
+    override def move(source: Url, target: Url)(using F: Sync[F]): F[Boolean] =
+      copy_file(source, target, true)
+
+    override def source(url: Url)(using F: Sync[F]): FileSource[F] = new FileSourceImpl[F](config, url)
+
+    override def sink(url: Url)(using F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
+
+    override def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(
+      using F: Async[F]): RotateByPolicy[F] = {
+      val crfs: Stream[F, CreateRotateFile] =
+        tickStream.tickFuture[F](zoneId, f).map { tick =>
+          CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
+        }
+      new RotateByPolicyImpl[F](config, pathBuilder, crfs)
+    }
+
+    override def rotateSink(zoneId: ZoneId, size: Long)(pathBuilder: CreateRotateFile => Url)(using
+      F: Async[F]): RotateBySize[F] = {
+      require(size > 0L, "size must be positive")
+      new RotateBySizeImpl[F](config, zoneId, pathBuilder, size)
+    }
   }
 }

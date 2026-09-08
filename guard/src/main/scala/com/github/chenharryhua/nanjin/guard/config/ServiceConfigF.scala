@@ -181,78 +181,10 @@ private object ServiceConfigF {
     }
 }
 
-final private[guard] case class ServiceConfigImpl[F[_]: Applicative](
-  cont: Fix[ServiceConfigF],
-  zoneId: ZoneId,
-  httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  briefs: F[List[Json]],
-  logThreshold: LogThreshold,
-  meterProvider: Resource[F, MeterProvider[F]])
-    extends ServiceConfig[F] {
-  import ServiceConfigF.*
-
-  override def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
-
-  override def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithReportPolicy(f(Policy), cont)))
-
-  override def withHomepage(hp: String): ServiceConfig[F] =
-    copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
-
-  override def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
-    copy(zoneId = zoneId)
-
-  override def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
-    withZoneId(f(zones))
-
-  override def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
-    copy(httpBuilder = Some(f))
-
-  override def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] =
-    copy(briefs = (fa, briefs).mapN(_.asJson :: _))
-
-  override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
-
-  override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
-    copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
-
-  override def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
-    copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
-
-  override def withLogThreshold(
-    logger: LogLevel.type => LogLevel,
-    channel: LogLevel.type => LogLevel): ServiceConfig[F] =
-    copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
-
-  override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
-
-  override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
-    copy(meterProvider = meterProvider)
-
-  def evalConfig(
-    serviceName: Service,
-    serviceId: ServiceId,
-    launchTime: LaunchTime,
-    brief: Brief,
-    host: Host): ServiceParams =
-    scheme
-      .cata(
-        algebra(
-          serviceName = serviceName,
-          serviceId = serviceId,
-          launchTime = launchTime,
-          brief = brief,
-          host = host
-        ))
-      .apply(cont)
-}
-
 private[guard] object ServiceConfig {
 
   def apply[F[_]: Applicative](taskName: Task): ServiceConfig[F] =
-    ServiceConfigImpl[F](
+    Impl[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
@@ -260,4 +192,73 @@ private[guard] object ServiceConfig {
       logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
       meterProvider = Resource.pure(MeterProvider.noop[F])
     )
+
+  final private[guard] case class Impl[F[_]: Applicative] private[ServiceConfig] (
+    cont: Fix[ServiceConfigF],
+    zoneId: ZoneId,
+    httpBuilder: Option[Endo[EmberServerBuilder[F]]],
+    briefs: F[List[Json]],
+    logThreshold: LogThreshold,
+    meterProvider: Resource[F, MeterProvider[F]])
+      extends ServiceConfig[F] {
+
+    import ServiceConfigF.*
+
+    override def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
+
+    override def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithReportPolicy(f(Policy), cont)))
+
+    override def withHomepage(hp: String): ServiceConfig[F] =
+      copy(cont = Fix(WithHomepage(Some(Homepage(hp)), cont)))
+
+    override def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
+      copy(zoneId = zoneId)
+
+    override def withZoneId(f: zones.type => ZoneId): ServiceConfig[F] =
+      withZoneId(f(zones))
+
+    override def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
+      copy(httpBuilder = Some(f))
+
+    override def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] =
+      copy(briefs = (fa, briefs).mapN(_.asJson :: _))
+
+    override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
+
+    override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
+      copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
+
+    override def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
+      copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
+
+    override def withLogThreshold(
+      logger: LogLevel.type => LogLevel,
+      channel: LogLevel.type => LogLevel): ServiceConfig[F] =
+      copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
+
+    override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
+      copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
+
+    override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
+      copy(meterProvider = meterProvider)
+
+    def evalConfig(
+      serviceName: Service,
+      serviceId: ServiceId,
+      launchTime: LaunchTime,
+      brief: Brief,
+      host: Host): ServiceParams =
+      scheme
+        .cata(
+          algebra(
+            serviceName = serviceName,
+            serviceId = serviceId,
+            launchTime = launchTime,
+            brief = brief,
+            host = host
+          ))
+        .apply(cont)
+  }
 }
