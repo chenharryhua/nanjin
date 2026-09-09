@@ -8,9 +8,18 @@ import cats.syntax.apply.given
 import java.time.*
 import java.time.format.DateTimeParseException
 
+/** The names of the parsers that failed to parse an input, accumulated so a combined parser can report every
+  * alternative it tried.
+  *
+  * @param parserNames
+  *   the failing parser names, most-recently-tried appended last
+  */
 final case class FailedParsers(parserNames: NonEmptyList[String]) extends AnyVal {
+
+  /** Merges two failure sets, keeping this one's names first. */
   def concat(other: FailedParsers): FailedParsers = FailedParsers(parserNames ::: other.parserNames)
 
+  /** Builds a `DateTimeParseException` for `str` whose message lists every attempted parser. */
   def parseException(str: String): DateTimeParseException =
     new DateTimeParseException(
       s"""can not parse "$str" by any of [${parserNames.toList.mkString(",")}]""",
@@ -19,16 +28,32 @@ final case class FailedParsers(parserNames: NonEmptyList[String]) extends AnyVal
 }
 
 object FailedParsers {
+
+  /** A single-name failure set. */
   def apply(parser: String): FailedParsers = FailedParsers(NonEmptyList.one(parser))
 }
 
+/** A typeclass for parsing a `String` into a date/time value of type `A`.
+  *
+  * Parsing returns `Either[FailedParsers, A]` rather than throwing, so failures carry the names of the
+  * parsers that were tried. This is what lets instances be combined (via the `Alternative` instance) to
+  * attempt several formats and report all of them on total failure.
+  *
+  * @tparam A
+  *   the parsed value type
+  */
 sealed trait DateTimeParser[A] { self =>
+
+  /** Parses `str`, yielding the value on success or the failing parser name(s) on failure. */
   def parse(str: String): Either[FailedParsers, A]
 }
 
 object DateTimeParser {
+
+  /** Summons the `DateTimeParser` instance for `A`. */
   def apply[A](using ev: DateTimeParser[A]): DateTimeParser[A] = ev
 
+  /** Parses a `LocalDate` via `LocalDate.parse`; failures are tagged `"LocalDate"`. */
   given DateTimeParser[LocalDate] =
     new DateTimeParser[LocalDate] {
 
@@ -38,6 +63,7 @@ object DateTimeParser {
           .leftMap(_ => FailedParsers("LocalDate"))
     }
 
+  /** Parses a `LocalTime` via `LocalTime.parse`; failures are tagged `"LocalTime"`. */
   given DateTimeParser[LocalTime] =
     new DateTimeParser[LocalTime] {
 
@@ -47,6 +73,7 @@ object DateTimeParser {
           .leftMap(_ => FailedParsers("LocalTime"))
     }
 
+  /** Parses a `LocalDateTime` via `LocalDateTime.parse`; failures are tagged `"LocalDateTime"`. */
   given DateTimeParser[LocalDateTime] =
     new DateTimeParser[LocalDateTime] {
 
@@ -56,6 +83,7 @@ object DateTimeParser {
           .leftMap(_ => FailedParsers("LocalDateTime"))
     }
 
+  /** Parses an `Instant` via `Instant.parse`; failures are tagged `"Instant"`. */
   given DateTimeParser[Instant] =
     new DateTimeParser[Instant] {
 
@@ -63,6 +91,7 @@ object DateTimeParser {
         Either.catchOnly[DateTimeParseException](Instant.parse(str)).leftMap(_ => FailedParsers("Instant"))
     }
 
+  /** Parses a `ZonedDateTime` via `ZonedDateTime.parse`; failures are tagged `"ZonedDateTime"`. */
   given DateTimeParser[ZonedDateTime] =
     new DateTimeParser[ZonedDateTime] {
 
@@ -72,6 +101,7 @@ object DateTimeParser {
           .leftMap(_ => FailedParsers("ZonedDateTime"))
     }
 
+  /** Parses an `OffsetDateTime` via `OffsetDateTime.parse`; failures are tagged `"OffsetDateTime"`. */
   given DateTimeParser[OffsetDateTime] =
     new DateTimeParser[OffsetDateTime] {
 
@@ -81,6 +111,14 @@ object DateTimeParser {
           .leftMap(_ => FailedParsers("OffsetDateTime"))
     }
 
+  /** `Alternative` instance enabling parsers to be combined and run together.
+    *
+    *   - `empty`: always fails, tagged `"EmptyParser"`.
+    *   - `combineK`: tries the first parser, falling back to the second; if both fail their failure names are
+    *     concatenated.
+    *   - `pure`: ignores the input and always succeeds with the given value.
+    *   - `ap`: runs both parsers on the same input and applies the parsed function to the parsed argument.
+    */
   given Alternative[DateTimeParser] =
     new Alternative[DateTimeParser] {
 
