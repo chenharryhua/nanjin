@@ -176,7 +176,7 @@ final private class GeneralAgent[F[_]: Async](
     f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
-    new Batch[F](metricsHub(label), batchIdGenerator)
+    new Batch[F](logger, metricsHub(label), batchIdGenerator)
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

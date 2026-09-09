@@ -121,6 +121,10 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
     "sum of per-job took equals spent (gaps redistributed)" in {
       // monadicHistory rewrites each job's start to the previous job's end, so the
       // per-job took values are contiguous and telescope exactly to spent.
+      //
+      // Alignment guard: BatchLight and Batch share the same timing model. This exact-nanos
+      // equality must hold identically here and in BatchTest "25.monadic sum of per-job took
+      // equals spent". If one changes, both must — do not let the two variants drift apart.
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-took-sum")

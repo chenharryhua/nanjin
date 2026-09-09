@@ -110,9 +110,18 @@ object Job {
   * successfully.
   *
   * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
-  * `end - start`. For monadic batches the boundaries are post-processed (see `monadicHistory`) so that a
-  * job's `took` also absorbs the wall-clock spent by any preceding invisible `lift`/`pure` steps, keeping the
-  * per-job durations contiguous and summing to the batch `spent`.
+  * `end - start`. In `Batch` the window brackets the job's own kickoff log and its effect, so `took` includes
+  * the kickoff; in `BatchLight` there is no kickoff log, so `took` is the effect alone. Either way the
+  * completion log (when present) is written after `end` and is therefore not part of `took`. Kickoff and
+  * completion are internal, non-throwing framework log writes, so their cost is negligible: the batch `spent`
+  * is at least the sum of the per-job `took`s, but the difference (completion logging plus batch framing) is
+  * tiny in practice, not a place where meaningful time hides. Apart from that negligible kickoff delta,
+  * `Batch` and `BatchLight` share the same timing model.
+  *
+  * For monadic batches the boundaries are post-processed (see `monadicHistory`, shared by both `Batch` and
+  * `BatchLight`) so that a job's `took` also absorbs the wall-clock spent before it that belongs to no job of
+  * its own — chiefly preceding invisible `lift`/`pure` steps (and, negligibly, the previous job's completion
+  * log). This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
   *
   * @param job
   *   the job metadata this record describes

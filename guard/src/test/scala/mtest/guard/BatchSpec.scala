@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{JobHook, PostConditionUnsatisfied}
+import com.github.chenharryhua.nanjin.guard.batch.PostConditionUnsatisfied
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -28,7 +28,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .monadicBatch(JobHook.noop[IO, io.circe.Json])
+          .monadicBatch
           .use { monadicResult =>
             monadicResult.result match {
               case Left(ex) => IO.raiseError[Int](ex)
@@ -51,7 +51,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
             combined
           }
-          .monadicBatch(JobHook.noop[IO, io.circe.Json])
+          .monadicBatch
           .use(qr => agent.adhoc.report.as(qr))
 
         result.asserting(_.result.shouldBe(Right(3))) >>
@@ -69,7 +69,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           Applicative[job.Monadic].ap(Applicative[job.Monadic].pure((x: Int) => x))(job("a", IO(1)))
         }
-        .monadicBatch(JobHook.noop[IO, io.circe.Json])
+        .monadicBatch
         .use(_.result match {
           case Right(value) => IO.pure(value)
           case Left(ex)     => IO.raiseError(ex)
@@ -80,7 +80,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           job("a", IO(1))
         }
-        .monadicBatch(JobHook.noop[IO, io.circe.Json])
+        .monadicBatch
         .use(_.result match {
           case Right(value) => IO.pure(value)
           case Left(ex)     => IO.raiseError(ex)
@@ -110,7 +110,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .monadicBatch(JobHook.noop[IO, io.circe.Json])
+        .monadicBatch
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.result.shouldBe(Right(3))) >>

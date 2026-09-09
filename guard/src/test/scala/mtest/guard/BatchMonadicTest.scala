@@ -3,19 +3,10 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
-import cats.syntax.group.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{
-  BatchKind,
-  BatchMode,
-  Job,
-  JobHook,
-  JobState,
-  PostConditionUnsatisfied
-}
+import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -38,7 +29,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .monadicBatch(JobHook.noop[IO, Json] |+| JobHook(agent.logger).json)
+        .monadicBatch
         .evalTap { mb =>
           IO {
             // pure steps create no job entry; only the three plain apply jobs are recorded
@@ -53,10 +44,6 @@ class BatchMonadicTest extends AnyFunSuite {
   }
 
   test("2.exception") {
-    var completedJob: JobState[Json] = null
-    val tracer = JobHook.noop[IO, Json].onComplete { jo =>
-      IO { completedJob = jo }
-    }
     val se = service.eventStreamR { agent =>
       agent
         .batch("exception")
@@ -67,21 +54,19 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .monadicBatch(tracer)
+        .monadicBatch
         .map { monadicValue =>
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[Exception])
+          // the failing job (index 2) is recorded and marked unsuccessful
+          val failed = monadicValue.jobs.find(_.job.index == 2).get
+          assert(!failed.succeeded)
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    assert(!completedJob.record.succeeded)
-    assert(completedJob.record.job.index == 2)
   }
 
   test("3.invincible - exception") {
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer = JobHook.noop[IO, Json]
-      .onComplete(jo => IO { completedJob = jo :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -92,29 +77,28 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .monadicBatch(tracer)
+        .monadicBatch
+        .evalTap { mb =>
+          IO {
+            val sorted = mb.jobs.sortBy(_.job.index)
+            assert(sorted.size == 3)
+
+            assert(sorted.head.succeeded)
+            assert(sorted.head.job.index == 1)
+
+            assert(!sorted(1).succeeded)
+            assert(sorted(1).job.index == 2)
+
+            assert(sorted(2).succeeded)
+            assert(sorted(2).job.index == 3)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    val sorted = completedJob.reverse
-
-    assert(sorted.nonEmpty)
-
-    assert(sorted.head.record.succeeded)
-    assert(sorted.head.record.job.index == 1)
-
-    assert(!sorted(1).record.succeeded)
-    assert(sorted(1).record.job.index == 2)
-
-    assert(sorted(2).record.succeeded)
-    assert(sorted(2).record.job.index == 3)
   }
 
   test("4.invincible - false") {
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -125,22 +109,25 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .monadicBatch(tracer)
+        .monadicBatch
+        .evalTap { mb =>
+          IO {
+            val sorted = mb.jobs.sortBy(_.job.index)
+
+            assert(sorted.head.succeeded)
+            assert(sorted.head.job.index == 1)
+
+            // failSafe with a false result is recorded as unsuccessful but does not abort the batch
+            assert(!sorted(1).succeeded)
+            assert(sorted(1).job.index == 2)
+
+            assert(sorted(2).succeeded)
+            assert(sorted(2).job.index == 3)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    val sorted = completedJob.reverse
-
-    assert(sorted.head.record.succeeded)
-    assert(sorted.head.record.job.index == 1)
-
-    assert(sorted(1).result.isRight)
-    assert(!sorted(1).record.succeeded)
-    assert(sorted(1).record.job.index == 2)
-
-    assert(sorted(2).record.succeeded)
-    assert(sorted(2).record.job.index == 3)
   }
 
   test("4a.withFilter on a pure value should fail without crashing") {
@@ -150,7 +137,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           job.pure(1).withFilter(_ => false)
         }
-        .monadicBatch(JobHook.noop)
+        .monadicBatch
         .map { monadicValue =>
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
@@ -160,11 +147,7 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("4b.failSafe should emit boolean json to job hook") {
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
-
+  test("4b.failSafe records boolean jobs as quasi with success reflecting the result") {
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible-json")
@@ -176,30 +159,27 @@ class BatchMonadicTest extends AnyFunSuite {
             d <- job("d", IO(4))
           } yield a + d + (if (ok) 10 else 0) + (if (ko) 100 else 0)
         }
-        .monadicBatch(tracer)
+        .monadicBatch
+        .evalTap { mb =>
+          IO {
+            val sorted = mb.jobs.sortBy(_.job.index)
+
+            assert(sorted.size == 4)
+            assert(sorted.head.succeeded)
+            assert(sorted(1).job.kind == BatchKind.Quasi)
+            assert(sorted(1).succeeded)
+            assert(sorted(2).job.kind == BatchKind.Quasi)
+            assert(!sorted(2).succeeded)
+            assert(sorted(3).succeeded)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    val sorted = completedJob.reverse
-
-    assert(sorted.size == 4)
-    assert(sorted.head.result == Right(Json.fromInt(1)))
-    assert(sorted(1).record.job.kind == BatchKind.Quasi)
-    assert(sorted(1).record.succeeded)
-    assert(sorted(1).result == Right(Json.True))
-    assert(sorted(2).record.job.kind == BatchKind.Quasi)
-    assert(!sorted(2).record.succeeded)
-    assert(sorted(2).result == Right(Json.False))
-    assert(sorted(3).result == Right(Json.fromInt(4)))
   }
 
-  test("4c.failSafe should expose the thrown exception to the hook") {
+  test("4c.failSafe records a thrown exception as an unsuccessful quasi job without aborting") {
     val errorMessage = "boom"
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
-
     val se = service.eventStreamR { agent =>
       agent
         .batch("fail-safe-exception")
@@ -210,24 +190,21 @@ class BatchMonadicTest extends AnyFunSuite {
             _ <- job("c", IO(3))
           } yield ()
         }
-        .monadicBatch(tracer)
+        .monadicBatch
+        .evalTap { mb =>
+          IO {
+            val sorted = mb.jobs.sortBy(_.job.index)
+            assert(sorted.size == 3)
+            assert(sorted(1).job.kind == BatchKind.Quasi)
+            assert(!sorted(1).succeeded)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    val sorted = completedJob
-
-    assert(sorted.size == 3)
-    assert(sorted(1).record.job.kind == BatchKind.Quasi)
-    assert(!sorted(1).record.succeeded)
-    assert(sorted(1).result.isLeft)
-    assert(sorted(1).result.left.toOption.get.getMessage == errorMessage)
   }
 
   test("5.filter") {
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer =
-      JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("exception")
@@ -239,27 +216,25 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + c
         }
-        .monadicBatch(tracer)
+        .monadicBatch
         .map { monadicValue =>
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+
+          val sorted = monadicValue.jobs.sortBy(_.job.index)
+          assert(sorted.size == 2)
+          assert(sorted.head.succeeded)
+          assert(sorted.head.job.index == 1)
+          assert(sorted(1).succeeded)
+          assert(sorted(1).job.index == 2)
         }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    assert(completedJob.size == 2)
-    val sorted = completedJob.reverse
-
-    assert(sorted.head.record.succeeded)
-    assert(sorted.head.record.job.index == 1)
-    assert(sorted(1).record.succeeded)
-    assert(sorted(1).record.job.index == 2)
   }
 
   test("5b.filter should preserve post-condition failure in job state") {
     var cExecuted = false
-    var completedJob: List[JobState[Json]] = Nil
-    val tracer = JobHook.noop[IO, Json].onComplete(jo => IO { completedJob = jo :: completedJob })
 
     val se = service.eventStreamR { agent =>
       agent
@@ -272,31 +247,24 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO { cExecuted = true; 3 })
           } yield a + c
         }
-        .monadicBatch(tracer)
+        .monadicBatch
         .map { monadicValue =>
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+
+          val sorted = monadicValue.jobs.sortBy(_.job.index)
+          assert(sorted.size == 2)
+          assert(sorted.head.succeeded)
+          assert(sorted(1).succeeded)
+          assert(sorted(1).job.index == 2)
         }
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(!cExecuted)
-
-    val sorted = completedJob.reverse
-    assert(sorted.size == 2)
-    assert(sorted.head.result == Right(Json.fromInt(1)))
-    assert(sorted(1).result == Right(Json.False))
-    assert(sorted(1).record.succeeded)
-    assert(sorted(1).record.job.index == 2)
   }
 
   test("6.cancel") {
-    var completedJob: List[JobState[Json]] = Nil
-    var canceledJob: Job = null
-    val tracer = JobHook
-      .noop[IO, Json]
-      .onCancel(bj => IO { canceledJob = bj }).onComplete(jrv => IO { completedJob = jrv :: completedJob })
-
     val se = service.eventStream { agent =>
       agent
         .batch("good")
@@ -308,14 +276,12 @@ class BatchMonadicTest extends AnyFunSuite {
             d <- job("d", IO(4).delayBy(1.second))
           } yield a + b + c + d
         }
-        .monadicBatch(tracer)
+        .monadicBatch
         .memoizedAcquire
         .use(_.timeout(3.second))
         .attempt
         .void
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    assert(completedJob.size == 2)
-    assert(canceledJob.index == 3)
   }
 }
