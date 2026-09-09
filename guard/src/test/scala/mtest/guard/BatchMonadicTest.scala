@@ -7,6 +7,7 @@ import cats.syntax.group.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchKind,
+  BatchMode,
   Job,
   JobHook,
   JobState,
@@ -38,6 +39,15 @@ class BatchMonadicTest extends AnyFunSuite {
           } yield a + b + c
         }
         .monadicBatch(JobHook.noop[IO, Json] |+| JobHook(agent.logger).json)
+        .evalTap { mb =>
+          IO {
+            // pure steps create no job entry; only the three plain apply jobs are recorded
+            assert(mb.jobs.map(_.job.name) == List("a", "b", "c"))
+            // a plain monadic apply job is Value (contrast with failSafe -> Quasi)
+            assert(mb.jobs.map(_.job.kind) == List.fill(3)(BatchKind.Value))
+            assert(mb.jobs.map(_.job.mode) == List.fill(3)(BatchMode.Monadic))
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }

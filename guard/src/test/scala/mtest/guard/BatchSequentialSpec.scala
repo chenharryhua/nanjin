@@ -72,7 +72,16 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).valueBatch(JobHook.noop)
+        agent
+          .batch("good job")
+          .sequential(jobs*)
+          .valueBatch(JobHook.noop)
+          .evalTap { bv =>
+            IO {
+              bv.jobs.map(_.record.job.kind).shouldBe(List.fill(5)(BatchKind.Value))
+              bv.jobs.map(_.record.job.mode).shouldBe(List.fill(5)(BatchMode.Sequential))
+            }
+          }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }

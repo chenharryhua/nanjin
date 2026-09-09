@@ -5,6 +5,7 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
+import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
@@ -13,9 +14,9 @@ class BatchEncoderTest extends AnyFunSuite {
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)
-  private val completed = CompletedJob(job, Duration.ofMillis(12), succeeded = true)
+  private val completed = CompletedJob(job, 0.millis, 12.millis, succeeded = true)
   private val failed =
-    CompletedJob(job.copy(kind = BatchKind.Value), Duration.ofMillis(12), succeeded = false)
+    CompletedJob(job.copy(kind = BatchKind.Value), 0.millis, 12.millis, succeeded = false)
 
   test("quasi and value batches encode kind and result tags") {
     val quasi = QuasiBatch(
@@ -140,7 +141,7 @@ class BatchEncoderTest extends AnyFunSuite {
 
   test("MonadicBatch encoder non-fatal severity for quasi failed job") {
     val quasiJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Quasi, batchId)
-    val quasiFailed = CompletedJob(quasiJob, Duration.ofMillis(5), succeeded = false)
+    val quasiFailed = CompletedJob(quasiJob, 0.millis, 5.millis, succeeded = false)
     val mb: MonadicBatch[Int] =
       MonadicBatch(label, Duration.ofMillis(10), batchId, List(quasiFailed), Right(0))
     val json = mb.asJson

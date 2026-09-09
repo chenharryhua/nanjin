@@ -11,6 +11,8 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
 
 import java.time.Duration
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.NoStackTrace
 
 /** Raised when a batch job completes, but the post-condition predicate rejects the value. */
@@ -76,7 +78,7 @@ end BatchId
   *
   * @param batchId
   *   identifier of the batch this job belongs to; a per-service-instance monotonic counter starting at 1. See
-  *   [[BatchResult.batchId]] for the full semantics.
+  *   `BatchResult.batchId` for the full semantics.
   */
 final case class Job(
   name: String,
@@ -104,8 +106,29 @@ object Job {
   }
 }
 
-/** A completed job record that captures its identity, elapsed time, and whether it finished successfully. */
-final case class CompletedJob(job: Job, took: Duration, succeeded: Boolean)
+/** A completed job record that captures its identity, timing boundaries, and whether it finished
+  * successfully.
+  *
+  * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
+  * `end - start`. For monadic batches the boundaries are post-processed (see `monadicHistory`) so that a
+  * job's `took` also absorbs the wall-clock spent by any preceding invisible `lift`/`pure` steps, keeping the
+  * per-job durations contiguous and summing to the batch `spent`.
+  *
+  * @param job
+  *   the job metadata this record describes
+  * @param start
+  *   monotonic clock reading at the start of the job (or the previous job's `end`, after monadic
+  *   redistribution)
+  * @param end
+  *   monotonic clock reading at the end of the job
+  * @param succeeded
+  *   whether the job completed successfully and satisfied its post-condition
+  */
+final case class CompletedJob(job: Job, start: FiniteDuration, end: FiniteDuration, succeeded: Boolean) {
+
+  /** Elapsed time for this job, derived as `end - start`. */
+  val took: Duration = (end - start).toJava
+}
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](record: CompletedJob, result: Either[Throwable, A]) derives Functor {
@@ -166,13 +189,19 @@ sealed trait BatchResult[A] {
   /** Metric scope (label and domain) this batch was run under. */
   def scope: MetricScope
 
-  /** Total elapsed execution time. */
+  /** Total elapsed execution time, measured from the first job onward.
+    *
+    * The clock starts when the first job starts, so any work performed before it is not counted: pre-batch
+    * `IO` for sequential and parallel batches, or a leading `lift`/`pure` step for monadic batches. For
+    * sequential and parallel this is measured directly around job execution; for monadic it is the span from
+    * the first job's start to the last job's end (see `MonadicBatch`).
+    */
   def spent: Duration
 
   /** Sequential, parallel, or monadic execution mode. */
   def mode: BatchMode
 
-  /** Identifier for this batch execution. See [[BatchId]] for the full semantics. */
+  /** Identifier for this batch execution. See `BatchId` for the full semantics. */
   def batchId: BatchId
 
   /** Per-job result values represented by this result type. */
@@ -270,6 +299,10 @@ object ValueBatch:
 end ValueBatch
 
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
+  *
+  * `spent` is the wall-clock span from the first job's start to the last job's end, so it includes the time
+  * consumed by invisible `lift`/`pure` steps between jobs. Each recorded job's `took` is adjusted to absorb
+  * the preceding gap (see `CompletedJob`), so the per-job durations sum to `spent`.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,

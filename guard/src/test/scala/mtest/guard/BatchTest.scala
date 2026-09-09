@@ -521,4 +521,47 @@ class BatchTest extends AnyFunSuite {
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
   }
+
+  test("24.monadic spent counts invisible lift steps between jobs") {
+    // Regression: the old spent summed per-job took, dropping wall-clock consumed by
+    // invisible lift/pure steps. spent is now the full span, so a 200ms lifted sleep
+    // between two fast jobs must be reflected in spent.
+    val se = service.eventStreamR { agent =>
+      agent.batch("monadic-invisible-lift").monadic { job =>
+        val result = for {
+          a <- job("a", IO(1))
+          _ <- job.lift(IO.sleep(200.millis))
+          b <- job("b", IO(2))
+        } yield a + b
+        result.monadicBatch(JobHook.noop).map { mb =>
+          assert(mb.result == Right(3))
+          assert(mb.jobs.map(_.job.name) == List("a", "b"))
+          assert(mb.spent.toMillis >= 200L)
+        }
+      }
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("25.monadic sum of per-job took equals spent (gaps redistributed)") {
+    // monadicHistory rewrites each job's start to the previous job's end, so per-job
+    // took values are contiguous and telescope exactly to spent.
+    val se = service.eventStreamR { agent =>
+      agent.batch("monadic-took-sum").monadic { job =>
+        val result = for {
+          a <- job("a", IO.sleep(30.millis).as(1))
+          _ <- job.pure(())
+          _ <- job.lift(IO.sleep(80.millis))
+          b <- job("b", IO.sleep(30.millis).as(2))
+          c <- job("c", IO.sleep(30.millis).as(3))
+        } yield a + b + c
+        result.monadicBatch(JobHook.noop).map { mb =>
+          assert(mb.result == Right(6))
+          val sumTook = mb.jobs.map(_.took.toNanos).sum
+          assert(sumTook == mb.spent.toNanos)
+        }
+      }
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
 }
