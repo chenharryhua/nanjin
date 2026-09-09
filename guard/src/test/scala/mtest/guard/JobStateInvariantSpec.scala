@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{JobHook, JobState}
+import com.github.chenharryhua.nanjin.guard.batch.JobState
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -31,7 +31,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
       agent
         .batch("quasi.parallel.mixed")
         .parallel(jobs*)
-        .quasiBatch(JobHook.noop)
+        .quasiBatch
         .use(qb => IO(qb.jobs.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -44,7 +44,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .batch("quasi.parallel.predicate")
         .parallel(jobs*)
         .withPostCondition(_ > 2)
-        .quasiBatch(JobHook.noop)
+        .quasiBatch
         .use(qb => IO(qb.jobs.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -57,7 +57,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
       agent
         .batch("quasi.sequential.mixed")
         .sequential(jobs*)
-        .quasiBatch(JobHook.noop)
+        .quasiBatch
         .use(qb => IO(qb.jobs.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -70,48 +70,44 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .batch("quasi.sequential.predicate")
         .sequential(jobs*)
         .withPostCondition(_ > 3)
-        .quasiBatch(JobHook.noop)
+        .quasiBatch
         .use(qb => IO(qb.jobs.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("value sequential - every completed job state is aligned") {
-    var completed: List[JobState[Int]] = Nil
-    val tracer = JobHook.noop[IO, Int].onComplete(js => IO { completed = js :: completed })
+  test("sequential - every completed job state is aligned") {
     val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
         .batch("value.sequential.mixed")
         .sequential(jobs*)
-        .valueBatch(tracer)
-        .attempt
-        .use(e => IO(assert(e.isLeft)))
-        .void
+        .quasiBatch
+        .use { qb =>
+          IO {
+            assert(qb.jobs.nonEmpty)
+            qb.jobs.foreach(check_aligned)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    assert(completed.nonEmpty)
-    completed.foreach(check_aligned)
   }
 
-  test("value parallel - every completed job state is aligned") {
-    var completed: List[JobState[Int]] = Nil
-    val tracer = JobHook.noop[IO, Int].onComplete(js => IO { completed = js :: completed })
+  test("parallel - every completed job state is aligned") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
         .batch("value.parallel.predicate")
         .parallel(jobs*)
         .withPostCondition(_ < 2)
-        .valueBatch(tracer)
-        .attempt
-        .use(e => IO(assert(e.isLeft)))
-        .void
+        .quasiBatch
+        .use { qb =>
+          IO {
+            assert(qb.jobs.nonEmpty)
+            qb.jobs.foreach(check_aligned)
+          }
+        }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
-    assert(completed.nonEmpty)
-    completed.foreach(check_aligned)
   }
 }

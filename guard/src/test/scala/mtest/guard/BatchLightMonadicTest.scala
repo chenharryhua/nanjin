@@ -91,6 +91,110 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
+    "spent counts invisible lift steps between jobs" in {
+      // Regression: the old spent summed per-job took, which dropped the wall-clock
+      // consumed by invisible lift/pure steps. spent is now the full span, so a 200ms
+      // lifted sleep sandwiched between two fast jobs must show up in spent.
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-invisible-lift")
+          .monadic { job =>
+            for {
+              a <- job("a", IO(1))
+              _ <- job.lift(IO.sleep(200.millis))
+              b <- job("b", IO(2))
+            } yield a + b
+          }
+          .monadicBatch
+          .map { mb =>
+            // only the two visible jobs are recorded
+            mb.jobs.map(_.job.name) shouldBe List("a", "b")
+            // the invisible 200ms sleep is captured in the span
+            mb.spent.toMillis should be >= 200L
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "sum of per-job took equals spent (gaps redistributed)" in {
+      // monadicHistory rewrites each job's start to the previous job's end, so the
+      // per-job took values are contiguous and telescope exactly to spent.
+      //
+      // Alignment guard: BatchLight and Batch share the same timing model. This exact-nanos
+      // equality must hold identically here and in BatchTest "25.monadic sum of per-job took
+      // equals spent". If one changes, both must — do not let the two variants drift apart.
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-took-sum")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.sleep(30.millis).as(1))
+              _ <- job.pure(())
+              _ <- job.lift(IO.sleep(80.millis))
+              b <- job("b", IO.sleep(30.millis).as(2))
+              c <- job("c", IO.sleep(30.millis).as(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .map { mb =>
+            val sumTook = mb.jobs.map(_.took.toNanos).sum
+            sumTook shouldBe mb.spent.toNanos
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "a later job's took absorbs the preceding invisible gap" in {
+      // The gap left by an invisible step lands in the following visible job's took.
+      // Here b runs ~20ms but is preceded by a 150ms invisible sleep, so b's took
+      // must reflect the gap, not just b's own execution time.
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-gap-absorb")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.sleep(20.millis).as(1))
+              _ <- job.lift(IO.sleep(150.millis))
+              b <- job("b", IO.sleep(20.millis).as(2))
+            } yield a + b
+          }
+          .monadicBatch
+          .map { mb =>
+            val tookByName = mb.jobs.map(js => js.job.name -> js.took.toMillis).toMap
+            // b absorbs the 150ms gap plus its own ~20ms
+            tookByName("b") should be >= 150L
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
+    "single-job monadic batch spent matches that job's took" in {
+      // Edge of monadicHistory: with one visible job there is nothing to redistribute,
+      // so spent equals the single job's took exactly.
+      val se = service.eventStream { agent =>
+        agent
+          .batchLight("light-single-job")
+          .monadic { job =>
+            job("only", IO.sleep(40.millis).as(1))
+          }
+          .monadicBatch
+          .map { mb =>
+            mb.jobs.size shouldBe 1
+            mb.jobs.head.took.toNanos shouldBe mb.spent.toNanos
+            mb.spent.toMillis should be >= 40L
+            ()
+          }
+      }.compile.lastOrError.unsafeRunSync()
+
+      se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
+    }
+
     "exception" in {
       var aExecuted = false
       var bExecuted = false
@@ -278,7 +382,11 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { monadicValue =>
             monadicValue.result shouldBe Right(104)
             monadicValue.jobs.size shouldBe 3
+            // plain apply jobs are Value; only failSafe is Quasi
+            monadicValue.jobs(0).job.kind shouldBe BatchKind.Value
             monadicValue.jobs(1).job.kind shouldBe BatchKind.Quasi
+            monadicValue.jobs(2).job.kind shouldBe BatchKind.Value
+            monadicValue.jobs.map(_.job.mode) shouldBe List.fill(3)(BatchMode.Monadic)
             monadicValue.jobs(1).succeeded.shouldBe(true)
             ()
           }
@@ -355,6 +463,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             bv.jobs.size shouldBe 3
             bv.jobs.map(_.result) shouldBe List(10, 20, 30)
             bv.mode shouldBe BatchMode.Sequential
+            bv.jobs.map(_.record.job.kind) shouldBe List.fill(3)(BatchKind.Value)
+            bv.jobs.map(_.record.job.mode) shouldBe List.fill(3)(BatchMode.Sequential)
             bv.succeeded shouldBe true
             ()
           }
@@ -430,6 +540,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { value =>
             value.jobs.size shouldBe 2
             value.mode shouldBe BatchMode.Parallel(1)
+            value.jobs.map(_.record.job.kind) shouldBe List.fill(2)(BatchKind.Value)
+            value.jobs.map(_.record.job.mode) shouldBe List.fill(2)(BatchMode.Parallel(1))
             value.jobs.map(_.result).sum shouldBe 3
             ()
           }

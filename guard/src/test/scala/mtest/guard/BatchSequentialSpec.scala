@@ -3,15 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.testing.scalatest.AsyncIOSpec
-import cats.implicits.catsSyntaxApplicativeByName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{
-  BatchKind,
-  BatchMode,
-  JobHook,
-  PostConditionUnsatisfied,
-  ValueBatch
-}
+import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied, ValueBatch}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -21,13 +14,11 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("sequential")
 
-  private val tracer = JobHook.noop[IO, Int]
-
   "quasi" - {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).quasiBatch(JobHook.noop)
+        agent.batch("good job").sequential(jobs*).quasiBatch
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -36,7 +27,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs =
         List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        val result = agent.batch("exception").sequential(jobs*).quasiBatch(JobHook.noop)
+        val result = agent.batch("exception").sequential(jobs*).quasiBatch
         result.asserting { mb =>
           mb.jobs.head.record.succeeded.shouldBe(true)
           mb.jobs.head.record.job.mode.shouldBe(BatchMode.Sequential)
@@ -55,7 +46,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
         val result =
-          agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch(JobHook.noop)
+          agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch
         result.asserting { mb =>
           mb.jobs.head.record.succeeded.shouldBe(false)
           mb.jobs(1).record.succeeded.shouldBe(false)
@@ -72,7 +63,16 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).valueBatch(JobHook.noop)
+        agent
+          .batch("good job")
+          .sequential(jobs*)
+          .valueBatch
+          .evalTap { bv =>
+            IO {
+              bv.jobs.map(_.record.job.kind).shouldBe(List.fill(5)(BatchKind.Value))
+              bv.jobs.map(_.record.job.mode).shouldBe(List.fill(5)(BatchMode.Sequential))
+            }
+          }
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -89,13 +89,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .valueBatch(tracer.onComplete { jo =>
-            IO {
-              assert(jo.result.isLeft)
-              assert(!jo.record.succeeded)
-              assert(jo.result.left.toOption.get.getMessage == "abc")
-            }.whenA(jo.record.job.index == 2)
-          })
+          .valueBatch
         result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -110,12 +104,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPostCondition(_ > 3)
-            .valueBatch(tracer.onComplete { jo =>
-              IO {
-                assert(!jo.record.succeeded)
-                assert(jo.record.job.index == 1)
-              }.void
-            })
+            .valueBatch
         result.assertThrowsError[PostConditionUnsatisfied](_.job.map(_.index).shouldBe(Some(1)))
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))

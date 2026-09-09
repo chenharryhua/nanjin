@@ -15,20 +15,47 @@ import squants.time
 
 import java.text.DecimalFormat
 
+/** Selects the character used to indent rendered output.
+  *
+  *   - `Nbsp`: a non-breaking space (`NbspChar`), for targets that collapse ordinary whitespace (e.g. Teams
+  *     Adaptive Cards, HTML).
+  *   - `Normal`: an ordinary space, for plain-text targets.
+  */
 enum IndentSpace:
   case Nbsp, Normal
 
+/** Maps an `IndentSpace` to its concrete indent character. */
 private def indentSpace(is: IndentSpace): Char = is match {
   case IndentSpace.Nbsp   => NbspChar
   case IndentSpace.Normal => ' '
 }
 
+/** Renders a metrics `Snapshot` into several human- or machine-facing presentation formats.
+  *
+  * The same snapshot can be emitted as:
+  *   - `toVanillaJson`: JSON keyed by encoder-derived field names, suitable for persistence.
+  *   - `toPrettyJson`: JSON with unit-formatted string values for screen display; null gauges are dropped.
+  *   - `toYaml`: a homemade YAML-ish string for screen display.
+  *
+  * All three group metrics by domain, then by scope, ordering entries by metric age so output is stable and
+  * reads oldest-first. The private `*_str`/`meters`/`timers`/`histograms` helpers turn each metric family
+  * into label/value rows with unit-aware formatting; the JSON and YAML paths then assemble those rows.
+  *
+  * @param snapshot
+  *   the metrics snapshot to render
+  * @param indent
+  *   the indentation style (space vs non-breaking space); defaults to `IndentSpace.Normal`
+  */
 final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSpace = IndentSpace.Normal) {
   private val space: Char = indentSpace(indent)
   private val space2: String = String.valueOf(space) * 2
   private val space4: String = space2 * 2
   private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
 
+  /** Renders a per-second rate using the largest time unit that keeps the value above 1, so a slow rate reads
+    * as e.g. `"5 x/day"` rather than a tiny per-second figure. Falls through seconds -> minutes -> hours ->
+    * days.
+    */
   private def adaptable_mean_rate(data: Double, symbol: String): String =
     if (data > 1)
       s"${decimalFormatter.format(data)} $symbol/${time.Seconds.symbol}"
@@ -39,6 +66,9 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     else
       s"${decimalFormatter.format(data * 86400)} $symbol/${time.Days.symbol}"
 
+  /** Formatted label/value rows for each meter: aggregate plus mean and 1/5/15-minute rates, using the
+    * meter's own unit symbol.
+    */
   private def meters: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
       val unit = m.meter.squants.unitSymbol
@@ -51,6 +81,9 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       )
     }
 
+  /** Formatted label/value rows for each timer: invocation count, rates, and the min/max/mean plus percentile
+    * durations, with durations rendered via the shared duration formatter.
+    */
   private def timers: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
       val unit = s"calls/${time.Seconds.symbol}"
@@ -73,6 +106,11 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       )
     }
 
+  /** Formats a single histogram statistic according to its `Squants` dimension: time-dimensioned values are
+    * converted from their unit symbol and rendered via the duration formatter; all other dimensions render as
+    * the formatted number followed by the unit symbol. An unrecognized time symbol produces a diagnostic
+    * string rather than throwing.
+    */
   private def interpret_histogram[A: Numeric](squants: Squants, data: A): String = {
     val unitSymbol: String = squants.unitSymbol
     val dimensionName: String = squants.dimensionName
@@ -91,6 +129,9 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       s"${decimalFormatter.format(data)} $unitSymbol"
   }
 
+  /** Formatted label/value rows for each histogram: update count plus min/max/mean/stddev and percentiles,
+    * each rendered by `interpret_histogram`.
+    */
   private def histograms: List[(MetricId, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
       val histo = h.histogram
@@ -109,12 +150,20 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       )
     }
 
+  /** Collapses each metric's label/value rows into a single JSON object, merging the per-row objects so all
+    * labels sit under one object per metric.
+    */
   private def json_list(lst: List[(MetricId, NonEmptyList[(String, String)])]): List[(MetricId, Json)] =
     lst.map { case (id, items) =>
       id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.toList.reduce[Json]((a, b) =>
         b.deepMerge(a))
     }
 
+  /** Assembles per-metric JSON into the final tree: grouped by domain, then by scope within each domain, with
+    * metrics ordered by age (oldest first). Each scope becomes an object keyed by its label, and each domain
+    * becomes an array of those scope objects. The overall ordering is driven by the minimum age within each
+    * group.
+    */
   private def group_json(pairs: List[(MetricId, Json)]): Json =
     pairs
       .groupBy(_._1.scope.domain) // domain group
@@ -142,6 +191,9 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       .map(_._2)
       .asJson
 
+  /** JSON view intended for persistence (e.g. a database): every metric family is encoded with its own circe
+    * `Encoder`, keeping raw numeric values, then grouped by domain and scope.
+    */
   // for database etc
   def toVanillaJson: Json = {
     val counters = snapshot.counters.map(c => c.metricId -> c.counter.asJson)
@@ -152,6 +204,10 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     group_json(counters ::: gauges ::: meters ::: histograms ::: timers)
   }
 
+  /** JSON view intended for screen display: counters and gauges keep their raw JSON, while meters,
+    * histograms, and timers are rendered as unit-formatted strings. Null-valued gauges are omitted. Grouped
+    * by domain and scope.
+    */
   // for screen display
   def toPrettyJson: Json = {
     val counters: List[(MetricId, Json)] =
@@ -168,11 +224,15 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
   /** Homemade Yaml
     */
 
+  /** One YAML line per counter: `metricName: formattedCount`. */
   private def counter_str: List[(MetricId, List[String])] =
     snapshot.counters
       .map(c =>
         c.metricId -> List(show"${c.metricId.token.metricName}: ${decimalFormatter.format(c.counter)}"))
 
+  /** YAML lines for each gauge, rendered via `JsonView.yml`. Gauges that render to nothing (e.g. null) are
+    * dropped.
+    */
   private def gauge_str: List[(MetricId, List[String])] =
     snapshot.gauges.mapFilter { g =>
       val content = JsonView.yml(g.metricId.token.metricName, g.gauge.value, space)
@@ -181,23 +241,34 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
         Some(g.metricId -> content)
     }
 
+  /** Renders label/value rows as `key: value` lines indented four spaces, with keys left-padded to the widest
+    * key so values align.
+    */
   private def padded(data: NonEmptyList[(String, String)]): NonEmptyList[String] = {
     val pad = data.map(_._1.length).toList.max
     data.map { case (k, v) => s"$space4${StringUtils.leftPad(k, pad, space)}: $v" }
   }
 
+  /** Prefixes a metric's rendered lines with a `metricName:` header line. */
   private def named(id: MetricId, data: NonEmptyList[String]): List[String] =
     s"${id.token.metricName}:" :: data.toList
 
+  /** YAML lines for each meter: a name header over aligned rate rows. */
   private def meter_str: List[(MetricId, List[String])] =
     meters.map { case (id, data) => id -> named(id, padded(data)) }
 
+  /** YAML lines for each timer: a name header over aligned rate/duration rows. */
   private def timer_str: List[(MetricId, List[String])] =
     timers.map { case (id, data) => id -> named(id, padded(data)) }
 
+  /** YAML lines for each histogram: a name header over aligned statistic rows. */
   private def histogram_str: List[(MetricId, List[String])] =
     histograms.map { case (id, data) => id -> named(id, padded(data)) }
 
+  /** Assembles per-metric YAML lines into the final document: grouped by domain, then by scope (each
+    * introduced by a `- label:` bullet), with metrics ordered by age (oldest first) and indentation applied
+    * per level. Ordering within and across groups is driven by minimum age.
+    */
   private def group_yaml(pairs: List[(MetricId, List[String])]): List[String] =
     pairs
       .groupBy(_._1.scope.domain) // domain group
@@ -220,6 +291,9 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       .sortBy(_._1)
       .flatMap(_._2)
 
+  /** Homemade YAML view intended for screen display: counters, gauges, meters, histograms, and timers
+    * rendered as aligned lines, grouped by domain and scope, joined with newlines.
+    */
   // for screen display
   def toYaml: String = {
     val lst: List[(MetricId, List[String])] =

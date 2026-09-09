@@ -1,10 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[CompletedJob]) {
+import java.time.Duration
+import scala.jdk.DurationConverters.ScalaDurationOps
+
+final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobRecord]) {
   def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
 
   // reversed order
@@ -27,3 +31,17 @@ private def resultTag(succeeded: Boolean): String =
 
 private val SeverityNonFatal: "nonfatal" = "nonfatal"
 private val SeverityCritical: "critical" = "critical"
+
+// expects newest-first history (as accumulated by prependHistory)
+private def monadicSpent(history: List[JobRecord]): Duration =
+  (history.headOption, history.lastOption)
+    .mapN((last_end, first_start) => (last_end.end - first_start.start).toJava)
+    .getOrElse(Duration.ZERO)
+
+// expects chronological (oldest-first) history; rewrites each job's start to the
+// previous job's end so per-job took absorbs the gap left by invisible lift/pure steps
+private def monadicHistory(history: List[JobRecord]): List[JobRecord] =
+  history match {
+    case head :: next => head :: next.zip(history).map((job, prev_job) => job.copy(start = prev_job.end))
+    case Nil          => Nil
+  }
