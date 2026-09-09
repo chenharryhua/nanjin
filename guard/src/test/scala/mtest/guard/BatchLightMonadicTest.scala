@@ -101,7 +101,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadic { job =>
             for {
               a <- job("a", IO(1))
-              _ <- job.lift(IO.sleep(200.millis))
+              _ <- job.untracked(IO.sleep(200.millis))
               b <- job("b", IO(2))
             } yield a + b
           }
@@ -132,7 +132,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             for {
               a <- job("a", IO.sleep(30.millis).as(1))
               _ <- job.pure(())
-              _ <- job.lift(IO.sleep(80.millis))
+              _ <- job.untracked(IO.sleep(80.millis))
               b <- job("b", IO.sleep(30.millis).as(2))
               c <- job("c", IO.sleep(30.millis).as(3))
             } yield a + b + c
@@ -158,7 +158,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadic { job =>
             for {
               a <- job("a", IO.sleep(20.millis).as(1))
-              _ <- job.lift(IO.sleep(150.millis))
+              _ <- job.untracked(IO.sleep(150.millis))
               b <- job("b", IO.sleep(20.millis).as(2))
             } yield a + b
           }

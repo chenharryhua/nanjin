@@ -417,13 +417,13 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStreamR { agent =>
       agent.batch("lift").monadic { job =>
         val result = for {
-          config <- job.lift(IO("hello"))
+          config <- job.untracked(IO("hello"))
           len <- job("length", IO(config.length))
         } yield len
         result.monadicBatch.map { mb =>
           assert(mb.succeeded)
           assert(mb.result == Right(5))
-          // lift does not create a job entry; only "length" appears
+          // untracked does not create a job entry; only "length" appears
           assert(mb.jobs.size == 1)
           assert(mb.jobs.head.job.name == "length")
         }
@@ -436,7 +436,7 @@ class BatchTest extends AnyFunSuite {
     val result = service.eventStreamR { agent =>
       agent.batchLight("lift-light").monadic { job =>
         val batch = for {
-          x <- job.lift(IO(42))
+          x <- job.untracked(IO(42))
           y <- job("double", IO(x * 2))
         } yield y
         cats.effect.Resource.eval(batch.monadicBatch).map { mb =>
@@ -454,7 +454,7 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStream { agent =>
       agent.batch("lift-error").monadic { job =>
         val result = for {
-          _ <- job.lift(IO.raiseError[Int](new Exception("boom")))
+          _ <- job.untracked(IO.raiseError[Int](new Exception("boom")))
           _ <- job("should-not-run", IO(1))
         } yield ()
         result.monadicBatch.use_
@@ -468,7 +468,7 @@ class BatchTest extends AnyFunSuite {
     val result = service.eventStream { agent =>
       agent.batchLight("lift-light-error").monadic { job =>
         val batch = for {
-          _ <- job.lift(IO.raiseError[String](new Exception("oops")))
+          _ <- job.untracked(IO.raiseError[String](new Exception("oops")))
           _ <- job("unreachable", IO(99))
         } yield ()
         batch.monadicBatch.void
@@ -482,7 +482,7 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStreamR { agent =>
       agent.batch("lift-resource").monadic { job =>
         val result = for {
-          ref <- job.lift(cats.effect.Resource.eval(cats.effect.Ref[IO].of(0)))
+          ref <- job.untracked(cats.effect.Resource.eval(cats.effect.Ref[IO].of(0)))
           _ <- job("increment", ref.update(_ + 1))
           _ <- job("increment2", ref.update(_ + 10))
           v <- job("read", ref.get)
@@ -502,7 +502,8 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStream { agent =>
       agent.batch("lift-resource-error").monadic { job =>
         val result = for {
-          _ <- job.lift(cats.effect.Resource.raiseError[IO, Int, Throwable](new Exception("acquire fail")))
+          _ <- job.untracked(
+            cats.effect.Resource.raiseError[IO, Int, Throwable](new Exception("acquire fail")))
           _ <- job("unreachable", IO(1))
         } yield ()
         result.monadicBatch.use_
@@ -519,7 +520,7 @@ class BatchTest extends AnyFunSuite {
       agent.batch("monadic-invisible-lift").monadic { job =>
         val result = for {
           a <- job("a", IO(1))
-          _ <- job.lift(IO.sleep(200.millis))
+          _ <- job.untracked(IO.sleep(200.millis))
           b <- job("b", IO(2))
         } yield a + b
         result.monadicBatch.map { mb =>
@@ -544,7 +545,7 @@ class BatchTest extends AnyFunSuite {
         val result = for {
           a <- job("a", IO.sleep(30.millis).as(1))
           _ <- job.pure(())
-          _ <- job.lift(IO.sleep(80.millis))
+          _ <- job.untracked(IO.sleep(80.millis))
           b <- job("b", IO.sleep(30.millis).as(2))
           c <- job("c", IO.sleep(30.millis).as(3))
         } yield a + b + c

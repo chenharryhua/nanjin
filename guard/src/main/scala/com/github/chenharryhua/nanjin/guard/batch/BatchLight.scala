@@ -34,22 +34,23 @@ object BatchLight:
     private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[BatchLight] (
-      private val kleisli: Kleisli[StateT[F, Int, *], BatchId, ExecutionState[A]]):
+      private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], BatchId, ExecutionState[B]] =
+        val runB: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[B]] =
           Kleisli { (batchId: BatchId) =>
-            StateT { (idx: Int) =>
-              kleisli(batchId).run(idx).flatMap { case (nextIdx: Int, execState: ExecutionState[A]) =>
-                execState.eoa match {
-                  case Left(ex) => (nextIdx -> execState.update[B](ex)).pure[F]
-                  case Right(a) =>
-                    f(a).kleisli(batchId).run(nextIdx).map {
-                      case (finalIdx: Int, nextState: ExecutionState[B]) =>
-                        finalIdx -> execState.prependHistory[B](nextState)
-                    }
-                }
+            StateT { (cursor: JobCursor) =>
+              kleisli(batchId).run(cursor).flatMap {
+                case (nextCursor: JobCursor, execState: ExecutionState[A]) =>
+                  execState.eoa match {
+                    case Left(ex) => (nextCursor -> execState.update[B](ex)).pure[F]
+                    case Right(a) =>
+                      f(a).kleisli(batchId).run(nextCursor).map {
+                        case (finalCursor: JobCursor, nextState: ExecutionState[B]) =>
+                          finalCursor -> execState.prependHistory[B](nextState)
+                      }
+                  }
               }
             }
           }
@@ -81,16 +82,15 @@ object BatchLight:
       /** Execute the monadic batch and return its result in `F`. */
       def monadicBatch: F[MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
-        kleisli(batchId)
-          .run(1)
-          .map { case (_, ExecutionState(eoa, history)) =>
-            MonadicBatch(
-              scope = scope,
-              spent = monadicSpent(history),
-              batchId = batchId,
-              jobs = monadicHistory(history.reverse),
-              result = eoa)
-          }
+        for {
+          start <- Async[F].monotonic
+          (_, ExecutionState(eoa, history)) <- kleisli(batchId).run(JobCursor(1, start))
+        } yield MonadicBatch(
+          scope = scope,
+          spent = monadicSpent(history),
+          batchId = batchId,
+          jobs = history.reverse,
+          result = eoa)
       }
     end Monadic
     object Monadic:
@@ -103,27 +103,27 @@ object BatchLight:
 
     // job constructors
 
-    /** Lift a pure value into the monadic batch without creating a job. */
+    /** Add a pure value to the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure[F])
+        StateT(cursor => (cursor -> ExecutionState(Right(a), Nil)).pure[F])
       })
 
-    /** Lift an effectful value into the monadic batch without creating a job.
+    /** Add an effectful value to the monadic batch without creating a job.
       *
       * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
       * crashes the batch.
       */
-    def lift[A](fa: F[A]): Monadic[A] =
+    def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(idx => fa.map(a => idx -> ExecutionState(Right(a), Nil)))
+        StateT(cursor => fa.map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
     /** Add a named effect-backed value job. */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
-          StateT { (index: Int) =>
+          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job = Job(
               name = name,
               index = index,
@@ -133,12 +133,11 @@ object BatchLight:
               batchId = batchId)
 
             for {
-              start <- Async[F].monotonic
               eoa <- fa.attempt
               end <- Async[F].monotonic
             } yield {
               val completed = JobRecord(job, start, end, eoa.isRight)
-              index + 1 -> ExecutionState(eoa = eoa, history = List(completed))
+              JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
         }
@@ -148,7 +147,7 @@ object BatchLight:
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { (batchId: BatchId) =>
-          StateT { (index: Int) =>
+          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job = Job(
               name = name,
               index = index,
@@ -158,13 +157,12 @@ object BatchLight:
               batchId = batchId)
 
             for {
-              start <- Async[F].monotonic
               eoa <- fa.attempt
               end <- Async[F].monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, identity)
               val completed = JobRecord(job, start, end, succeeded)
-              index + 1 -> ExecutionState(eoa = Right(succeeded), history = List(completed))
+              JobCursor(index + 1, end) -> ExecutionState(eoa = Right(succeeded), history = List(completed))
             }
           }
         }

@@ -119,16 +119,17 @@ object Job {
   * tiny in practice, not a place where meaningful time hides. Apart from that negligible kickoff delta,
   * `Batch` and `BatchLight` share the same timing model.
   *
-  * For monadic batches the boundaries are post-processed (see `monadicHistory`, shared by both `Batch` and
-  * `BatchLight`) so that a job's `took` also absorbs the wall-clock spent before it that belongs to no job of
-  * its own — chiefly preceding invisible `lift`/`pure` steps (and, negligibly, the previous job's completion
-  * log). This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
+  * For monadic batches (both `Batch` and `BatchLight`) each job's `start` is carried over from the previous
+  * job's `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
+  * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
+  * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
+  * This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
   *
   * @param job
   *   the job metadata this record describes
   * @param start
-  *   monotonic clock reading at the start of the job (or the previous job's `end`, after monadic
-  *   redistribution)
+  *   monotonic clock reading at the start of the job (for monadic batches, the previous job's `end`, or the
+  *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
   * @param succeeded
@@ -190,7 +191,7 @@ sealed trait BatchResult[A] {
   /** Total elapsed execution time, measured from the first job onward.
     *
     * The clock starts when the first job starts, so any work performed before it is not counted: pre-batch
-    * `IO` for sequential and parallel batches, or a leading `lift`/`pure` step for monadic batches. For
+    * `IO` for sequential and parallel batches, or a leading `untracked`/`pure` step for monadic batches. For
     * sequential and parallel this is measured directly around job execution; for monadic it is the span from
     * the first job's start to the last job's end (see `MonadicBatch`).
     */
@@ -299,8 +300,8 @@ end ValueBatch
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   *
   * `spent` is the wall-clock span from the first job's start to the last job's end, so it includes the time
-  * consumed by invisible `lift`/`pure` steps between jobs. Each recorded job's `took` is adjusted to absorb
-  * the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
+  * consumed by invisible `untracked`/`pure` steps between jobs. Each recorded job's `took` is adjusted to
+  * absorb the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,

@@ -314,14 +314,14 @@ object Batch:
     private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[Batch] (
-      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Context[F], ExecutionState[A]]):
+      private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[Resource[F, *], Int, *], Context[F], ExecutionState[B]] =
+        val runB: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[B]] =
           kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
             execState.eoa match {
-              case Left(ex) => StateT((idx: Int) => (idx -> execState.update[B](ex)).pure)
+              case Left(ex) => StateT((cursor: JobCursor) => (cursor -> execState.update[B](ex)).pure)
               case Right(a) => f(a).kleisli(ctx).map(execState.prependHistory[B])
             }
           }
@@ -351,19 +351,19 @@ object Batch:
       /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON. */
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
-        createMonadicPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
-          kleisli
+        for {
+          BatchMetrics(updatePanel, activeGauge) <- createMonadicPanel[F](metrics)
+          start <- Resource.eval(Async[F].monotonic)
+          (_, ExecutionState(eoa, history)) <- kleisli
             .run(Context[F](updatePanel, log, batchId))
-            .run(1)
+            .run(JobCursor(1, start))
             .guarantee(Resource.eval(activeGauge.deactivate))
-        }.map { case (_, ExecutionState(eoa, history)) =>
-          MonadicBatch(
-            scope = metrics.scope,
-            spent = monadicSpent(history),
-            batchId = batchId,
-            jobs = monadicHistory(history.reverse),
-            result = eoa)
-        }
+        } yield MonadicBatch(
+          scope = metrics.scope,
+          spent = monadicSpent(history),
+          batchId = batchId,
+          jobs = history.reverse,
+          result = eoa)
       }
     end Monadic
     object Monadic:
@@ -376,31 +376,31 @@ object Batch:
 
     // job constructors
 
-    /** Lift a pure value into the monadic batch without creating a job. */
+    /** Add a pure value to the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(idx => (idx -> ExecutionState(Right(a), Nil)).pure)
+        StateT(cursor => (cursor -> ExecutionState(Right(a), Nil)).pure)
       })
 
-    /** Lift an effectful value into the monadic batch without creating a job.
+    /** Add an effectful value to the monadic batch without creating a job.
       *
       * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
       * crashes the batch.
       */
-    def lift[A](fa: F[A]): Monadic[A] =
+    def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(idx => Resource.eval(fa).map(a => idx -> ExecutionState(Right(a), Nil)))
+        StateT(cursor => Resource.eval(fa).map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
-    /** Lift a resource into the monadic batch without creating a job.
+    /** Add a resource to the monadic batch without creating a job.
       *
       * The resource is acquired when this step runs and released when the batch's resource scope closes. It
       * is not tracked, timed, or reported. If acquisition fails, the exception propagates uncaught and
       * crashes the batch.
       */
-    def lift[A](ra: Resource[F, A]): Monadic[A] =
+    def untracked[A](ra: Resource[F, A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(idx => ra.map(a => idx -> ExecutionState(Right(a), Nil)))
+        StateT(cursor => ra.map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
     private def handleOutcome[A](log: Log[F], job: Job, updatePanel: UpdatePanel[F], translate: A => Json)(
@@ -427,7 +427,7 @@ object Batch:
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, log, batchId) =>
-          StateT { (index: Int) =>
+          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
               Job(
                 name = name,
@@ -438,7 +438,6 @@ object Batch:
                 batchId = batchId)
 
             val compute = for {
-              start <- Resource.eval(Async[F].monotonic)
               eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
             } yield JobState(JobRecord(job, start, end, eoa.isRight), eoa)
@@ -446,7 +445,7 @@ object Batch:
             compute
               .guaranteeCase(handleOutcome(log, job, updatePanel, Encoder[A].apply))
               .map { js =>
-                index + 1 -> ExecutionState(js.result, List(js.record))
+                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.record))
               }
           }
         }
@@ -471,7 +470,7 @@ object Batch:
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Context(updatePanel, log, batchId) =>
-          StateT { (index: Int) =>
+          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
               Job(
                 name = name,
@@ -481,7 +480,6 @@ object Batch:
                 kind = BatchKind.Quasi,
                 batchId = batchId)
             val compute = for {
-              start <- Resource.eval(Async[F].monotonic)
               eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
             } yield {
@@ -492,7 +490,8 @@ object Batch:
             compute
               .guaranteeCase(handleOutcome(log, job, updatePanel, Json.fromBoolean))
               .map { js =>
-                index + 1 -> ExecutionState(Right(js.record.succeeded), List(js.record))
+                JobCursor(index + 1, js.record.end) ->
+                  ExecutionState(Right(js.record.succeeded), List(js.record))
               }
           }
         }
