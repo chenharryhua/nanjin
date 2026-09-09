@@ -137,7 +137,7 @@ object BatchLight:
               eoa <- fa.attempt
               end <- Async[F].monotonic
             } yield {
-              val completed = CompletedJob(job, start, end, eoa.isRight)
+              val completed = JobRecord(job, start, end, eoa.isRight)
               index + 1 -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
@@ -163,7 +163,7 @@ object BatchLight:
               end <- Async[F].monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, identity)
-              val completed = CompletedJob(job, start, end, succeeded)
+              val completed = JobRecord(job, start, end, succeeded)
               index + 1 -> ExecutionState(eoa = Right(succeeded), history = List(completed))
             }
           }
@@ -204,7 +204,7 @@ object BatchLight:
             else
               Left(PostConditionUnsatisfied(Some(job)))
           }
-        JobState(CompletedJob(job, start, end, result.isRight), result)
+        JobState(JobRecord(job, start, end, result.isRight), result)
       }
     }
   }

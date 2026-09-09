@@ -8,7 +8,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.Duration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[CompletedJob]) {
+final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobRecord]) {
   def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
 
   // reversed order
@@ -33,14 +33,14 @@ private val SeverityNonFatal: "nonfatal" = "nonfatal"
 private val SeverityCritical: "critical" = "critical"
 
 // expects newest-first history (as accumulated by prependHistory)
-private def monadicSpent(history: List[CompletedJob]): Duration =
+private def monadicSpent(history: List[JobRecord]): Duration =
   (history.headOption, history.lastOption)
     .mapN((last_end, first_start) => (last_end.end - first_start.start).toJava)
     .getOrElse(Duration.ZERO)
 
 // expects chronological (oldest-first) history; rewrites each job's start to the
 // previous job's end so per-job took absorbs the gap left by invisible lift/pure steps
-private def monadicHistory(history: List[CompletedJob]): List[CompletedJob] =
+private def monadicHistory(history: List[JobRecord]): List[JobRecord] =
   history match {
     case head :: next => head :: next.zip(history).map((job, prev_job) => job.copy(start = prev_job.end))
     case Nil          => Nil

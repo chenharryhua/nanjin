@@ -43,10 +43,10 @@ object Batch:
       }
   }
 
-  private def toJson(results: List[CompletedJob]): Json =
+  private def toJson(results: List[JobRecord]): Json =
     if (results.isEmpty) Json.Null
     else {
-      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: CompletedJob) =>
+      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: JobRecord) =>
         val took: String = defaultFormatter.format(cj.took)
         val result: String = if (cj.succeeded) took else s"$took (failed)"
         cj.job.displayName -> result.asJson
@@ -54,7 +54,7 @@ object Batch:
       Json.obj(pairs*)
     }
 
-  private type UpdatePanel[F[_]] = Kleisli[F, CompletedJob, Unit]
+  private type UpdatePanel[F[_]] = Kleisli[F, JobRecord, Unit]
 
   final private case class BatchMetrics[F[_]](updatePanel: UpdatePanel[F], activeGauge: ActiveGauge[F])
 
@@ -65,10 +65,10 @@ object Batch:
       ratio <- mtx
         .ratio(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
-      progress <- Resource.eval(F.ref[List[CompletedJob]](Nil))
+      progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
       _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
-      Kleisli { (cj: CompletedJob) =>
+      Kleisli { (cj: JobRecord) =>
         F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
       },
       active)
@@ -76,32 +76,30 @@ object Batch:
   private def createMonadicPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("Active")
-      progress <- Resource.eval(F.ref[List[CompletedJob]](Nil))
+      progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(toJson)))
     } yield BatchMetrics(
-      Kleisli((cj: CompletedJob) => F.uncancelable(_ => progress.update(_.appended(cj)))),
+      Kleisli((cj: JobRecord) => F.uncancelable(_ => progress.update(_.appended(cj)))),
       active)
 
   // Lifecycle logging, formerly the JobHook SPI. The logger (Log[F]) never throws — its writes are
   // wrapped in attempt internally — so these are safe to call inside finalizers and outside `attempt`.
 
   private def logKickoff[F[_]](log: Log[F], job: Job): F[Unit] =
-    log.info(Json.obj("kickoff" -> job.asJson))
+    log.info(JobLog.Kickoff(job): JobLog)
 
   private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
-    log.warn(Json.obj("canceled" -> job.asJson))
+    log.warn(JobLog.Canceled(job): JobLog)
 
-  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] = {
-    val json: Json = js.map(translate).asJson
+  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] =
     js.result match {
       case Left(ex) =>
         js.record.job.kind match {
-          case BatchKind.Quasi => log.warn(Json.obj(SeverityNonFatal -> json), ex)
-          case BatchKind.Value => log.error(Json.obj(SeverityCritical -> json), ex)
+          case BatchKind.Quasi => log.warn(JobLog.Nonfatal(js.record, ex): JobLog, ex)
+          case BatchKind.Value => log.error(JobLog.Critical(js.record, ex): JobLog, ex)
         }
-      case Right(_) => log.good(Json.obj("succeeded" -> json))
+      case Right(a) => log.good(JobLog.Succeeded(js.record, translate(a)): JobLog)
     }
-  }
 
   private def handleOutcome[F[_], A](
     log: Log[F],
@@ -141,7 +139,7 @@ object Batch:
             else
               Left(PostConditionUnsatisfied(Some(job)))
           }
-        JobState(CompletedJob(job, start, end, result.isRight), result)
+        JobState(JobRecord(job, start, end, result.isRight), result)
       }
       job -> compute
     }
@@ -443,7 +441,7 @@ object Batch:
               start <- Resource.eval(Async[F].monotonic)
               eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
-            } yield JobState(CompletedJob(job, start, end, eoa.isRight), eoa)
+            } yield JobState(JobRecord(job, start, end, eoa.isRight), eoa)
 
             compute
               .guaranteeCase(handleOutcome(log, job, updatePanel, Encoder[A].apply))
@@ -488,7 +486,7 @@ object Batch:
               end <- Resource.eval(Async[F].monotonic)
             } yield {
               val succeeded = eoa.fold(_ => false, identity)
-              JobState(CompletedJob(job, start, end, succeeded), eoa)
+              JobState(JobRecord(job, start, end, succeeded), eoa)
             }
 
             compute

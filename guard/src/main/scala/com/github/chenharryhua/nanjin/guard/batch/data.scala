@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -133,31 +134,19 @@ object Job {
   * @param succeeded
   *   whether the job completed successfully and satisfied its post-condition
   */
-final case class CompletedJob(job: Job, start: FiniteDuration, end: FiniteDuration, succeeded: Boolean) {
+final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration, succeeded: Boolean) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
 }
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
-final case class JobState[A](record: CompletedJob, result: Either[Throwable, A]) derives Functor {
+final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
   val succeeded: Boolean = result.isRight
 }
-object JobState:
-  given [A: Encoder] => Encoder[JobState[A]] = Encoder.instance { a =>
-    Json.obj("took" -> Json.fromString(fmt.format(a.record.took)), resultTag(a.succeeded) -> a.result.asJson)
-      .deepMerge(a.record.job.asJson)
-  }
 
 /** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: CompletedJob, result: A) derives Functor
-object JobValue:
-  given [A: Encoder] => Encoder[JobValue[A]] = Encoder.instance { a =>
-    Json.obj(
-      "took" -> Json.fromString(fmt.format(a.record.took)),
-      resultTag(a.record.succeeded) -> a.result.asJson)
-      .deepMerge(a.record.job.asJson)
-  }
+final case class JobValue[A](record: JobRecord, result: A) derives Functor
 
 /** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
@@ -165,7 +154,7 @@ final case class CompletedBatch(
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  jobs: List[CompletedJob]) {
+  jobs: List[JobRecord]) {
 
   /** Whether every job in the batch completed successfully. */
   def succeeded: Boolean = jobs.forall(_.succeeded)
@@ -311,15 +300,15 @@ end ValueBatch
   *
   * `spent` is the wall-clock span from the first job's start to the last job's end, so it includes the time
   * consumed by invisible `lift`/`pure` steps between jobs. Each recorded job's `took` is adjusted to absorb
-  * the preceding gap (see `CompletedJob`), so the per-job durations sum to `spent`.
+  * the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
   batchId: BatchId,
-  jobs: List[CompletedJob],
+  jobs: List[JobRecord],
   result: Either[Throwable, A])
-    extends BatchResult[CompletedJob] derives Functor {
+    extends BatchResult[JobRecord] derives Functor {
   override val mode: BatchMode = BatchMode.Monadic
   override def succeeded: Boolean = result.isRight
 
@@ -363,3 +352,34 @@ object MonadicBatch:
       )
     }
 end MonadicBatch
+
+sealed private trait JobLog
+private object JobLog {
+  given Encoder[JobLog] = Encoder.instance {
+    case Kickoff(job)              => Json.obj("kickoff" -> job.asJson)
+    case Canceled(job)             => Json.obj("canceled" -> job.asJson)
+    case Succeeded(record, result) =>
+      Json.obj(
+        "succeeded" -> record.job.asJson,
+        "took" -> Json.fromString(fmt.format(record.took)),
+        "result" -> result)
+
+    case Nonfatal(record, error) =>
+      Json.obj(
+        "nonfatal" -> record.job.asJson,
+        "took" -> Json.fromString(fmt.format(record.took)),
+        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+
+    case Critical(record, error) =>
+      Json.obj(
+        "critical" -> record.job.asJson,
+        "took" -> Json.fromString(fmt.format(record.took)),
+        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+  }
+
+  final case class Kickoff(job: Job) extends JobLog
+  final case class Canceled(job: Job) extends JobLog
+  final case class Succeeded(record: JobRecord, result: Json) extends JobLog
+  final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
+  final case class Critical(record: JobRecord, error: Throwable) extends JobLog
+}
