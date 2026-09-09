@@ -45,7 +45,7 @@ private object JsonView {
   /** Formats a JSON number with the shared `decimalFormat` grouping pattern, falling back to the number's own
     * string form when it has no `BigDecimal` representation.
     */
-  private def format_json_umber(jn: JsonNumber): String =
+  private def format_json_number(jn: JsonNumber): String =
     jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
 
   /** Renders a `Json` value as a list of YAML-ish lines under a given label.
@@ -56,7 +56,7 @@ private object JsonView {
     *
     * Behavior by top-level shape:
     *   - Null: renders to nothing (an empty list), so null-valued entries are omitted.
-    *   - Boolean / number / string: a single `"$name: $value"` line. Numbers use `format_json_umber`.
+    *   - Boolean / number / string: a single `"$name: $value"` line. Numbers use `format_json_number`.
     *   - Array: a single inline line `"$name: [a, b, c]"`, each element in its compact JSON form.
     *   - Object: a `"$name:"` header line followed by one line per field, each indented by four `space`
     *     characters and with keys right-padded to the widest key for alignment. Field values render as
@@ -76,7 +76,7 @@ private object JsonView {
     json.foldWith(unfolded) match {
       case NullView()         => Nil
       case BooleanView(bool)  => List(show"$name: $bool")
-      case NumberView(number) => List(show"$name: ${format_json_umber(number)}")
+      case NumberView(number) => List(show"$name: ${format_json_number(number)}")
       case StringView(str)    => List(show"$name: $str")
       case ArrayView(values)  =>
         List(show"$name: ${values.map(_.noSpaces).mkString("[", ", ", "]")}")
@@ -86,7 +86,7 @@ private object JsonView {
           val jsStr: String = js.foldWith(unfolded) match {
             case NullView()         => "null"
             case BooleanView(bool)  => bool.toString
-            case NumberView(number) => format_json_umber(number)
+            case NumberView(number) => format_json_number(number)
             case StringView(str)    => str
             case ArrayView(values)  => values.map(_.noSpaces).mkString("[", ", ", "]")
             case ObjectView(fields) => Json.obj(fields*).noSpaces
