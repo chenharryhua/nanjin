@@ -104,8 +104,8 @@ object Batch:
     private def singleJob(jni: JobNameIndex[F, A], kind: BatchKind): (Job, F[JobState[A]]) = {
       val job: Job = batchJob(jni, kind)
       val compute: F[JobState[A]] = for {
-        start <- F.monotonic
         _ <- jobHook.kickoff(job)
+        start <- F.monotonic
         eoa <- jni.fa.attempt
         end <- F.monotonic
       } yield {
