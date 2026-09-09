@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.syntax.all.catsSyntaxTuple2Semigroupal
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
