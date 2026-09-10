@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -43,16 +43,16 @@ private object JsonKeys {
   val CANCELED = "canceled"
 }
 
-private def toJobLogEntry[A: Encoder](js: JobState[A]): JobLogEntry =
+private def toLogEntry[A: Encoder](js: JobState[A]): LogEntry[JobLog] =
   js.result match {
     case Left(ex) =>
       js.record.job.kind match {
-        case BatchKind.Quasi => JobLogEntry(JobLog.Nonfatal(js.record, ex), Some(ex), LogLevel.Warn)
-        case BatchKind.Value => JobLogEntry(JobLog.Critical(js.record, ex), Some(ex), LogLevel.Error)
+        case BatchKind.Quasi => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
+        case BatchKind.Value => LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
       }
     case Right(a) =>
       if (js.record.succeeded)
-        JobLogEntry(JobLog.Succeeded(js.record, a.asJson), None, LogLevel.Good)
+        LogEntry(JobLog.Succeeded(js.record, a.asJson), LogLevel.Good, None)
       else
-        JobLogEntry(JobLog.Unsatisfied(js.record, a.asJson), None, LogLevel.Warn)
+        LogEntry(JobLog.Unsatisfied(js.record, a.asJson), LogLevel.Warn, None)
   }

@@ -92,10 +92,8 @@ object Batch:
   private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
     log.warn(JobLog.Canceled(job).standalone)
 
-  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] = {
-    val entry = toJobLogEntry(js.map(translate))
-    log.emit(entry.jobLog.standalone, entry.logLevel, entry.error)
-  }
+  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] =
+    log.emit(toLogEntry(js.map(translate)).map(_.standalone))
 
   private def handleOutcome[F[_], A](
     log: Log[F],

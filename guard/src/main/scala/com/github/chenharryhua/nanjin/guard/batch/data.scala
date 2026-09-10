@@ -5,7 +5,6 @@ import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
@@ -248,7 +247,7 @@ object QuasiBatch:
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "succeeded" -> Json.fromInt(succeeded.length),
         "failed" -> Json.fromInt(failed.length),
-        "jobs" -> qb.jobs.map(js => toJobLogEntry(js).jobLog.inBatch).asJson
+        "jobs" -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -283,7 +282,7 @@ object ValueBatch:
         "mode" -> bv.mode.asJson,
         "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "jobs" -> bv.jobs.map(js => toJobLogEntry(js.jobState).jobLog.inBatch).asJson
+        "jobs" -> bv.jobs.map(js => toLogEntry(js.jobState).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -317,6 +316,7 @@ final case class MonadicBatch[A](
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
+      val tag = if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR
       Json.obj(
         "batch" -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
@@ -336,9 +336,7 @@ object MonadicBatch:
             )
         }
           .asJson,
-        (if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR) -> mb.result.fold(
-          StackTrace(_).asJson,
-          _.asJson)
+        tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
 end MonadicBatch
@@ -413,5 +411,3 @@ private object JobLog {
   final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
   final case class Critical(record: JobRecord, error: Throwable) extends JobLog
 }
-
-final private case class JobLogEntry(jobLog: JobLog, error: Option[Throwable], logLevel: LogLevel)
