@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.{Applicative, Endo}
-import cats.data.Ior
+import cats.data.{Ior, Reader}
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.applicative.given
 import cats.syntax.eq.given
@@ -68,7 +68,7 @@ object Ratio {
   }
 
   /** Default translator that renders the accumulated ratio as a percentage. */
-  val translator: Ior[Long, Long] => Json = {
+  val translator: Reader[Ior[Long, Long], Json] = Reader {
     case Ior.Left(_)    => Json.fromString("n/a")
     case Ior.Right(_)   => Json.fromString("0.0%")
     case Ior.Both(a, b) =>
@@ -82,11 +82,11 @@ object Ratio {
 
   final class Builder private[Ratio] (
     isEnabled: Boolean,
-    translator: Ior[Long, Long] => Json
+    translator: Reader[Ior[Long, Long], Json]
   ) extends EnableConfig[Builder] {
 
     /** Customize the JSON value derived from accumulated numerator and denominator counts. */
-    def withTranslator(translator: Ior[Long, Long] => Json): Builder =
+    def withTranslator(translator: Reader[Ior[Long, Long], Json]): Builder =
       new Builder(isEnabled, translator)
 
     /** Enable or disable ratio registration; disabled gauges become no-ops. */
@@ -98,7 +98,7 @@ object Ratio {
 
       def impl: Resource[F, Ratio[F]] = for {
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
-        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Default).register(ref.get.map(translator)))
+        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Default).register(ref.get.map(translator.run)))
       } yield new Impl[F](ref)
 
       if (isEnabled) impl else noop.pure

@@ -31,7 +31,7 @@ object Batch:
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
 
-  private val translator: Ior[Long, Long] => Json = {
+  private val translator: Reader[Ior[Long, Long], Json] = Reader {
     case Ior.Left(a)    => Json.fromString(s"$a/0")
     case Ior.Right(b)   => Json.fromString(s"0/$b")
     case Ior.Both(a, b) =>
