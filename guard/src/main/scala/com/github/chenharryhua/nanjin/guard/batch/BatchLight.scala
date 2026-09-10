@@ -240,8 +240,8 @@ object BatchLight:
    * Parallel
    */
   final class Parallel[F[_], A] private[BatchLight] (
-    scope: MetricScope,
     predicate: Reader[A, Boolean],
+    scope: MetricScope,
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
     batchIdGenerator: AtomicLong)(implicit F: Async[F])
@@ -273,15 +273,15 @@ object BatchLight:
     }
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](scope, predicate = Reader(f), parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = Reader(f), scope, parallelism, jobs, batchIdGenerator)
   }
 
   /*
    * Sequential
    */
   final class Sequential[F[_], A] private[BatchLight] (
-    scope: MetricScope,
     predicate: Reader[A, Boolean],
+    scope: MetricScope,
     jobs: List[JobNameIndex[F, A]],
     batchIdGenerator: AtomicLong)(implicit F: Temporal[F])
       extends BatchRunner[F, A] {
@@ -311,7 +311,7 @@ object BatchLight:
     }
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Sequential[F, A](scope, predicate = Reader(f), jobs, batchIdGenerator)
+      new Sequential[F, A](predicate = Reader(f), scope, jobs, batchIdGenerator)
   }
 
 end BatchLight
@@ -328,7 +328,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Sequential[F, A](scope, Reader(_ => true), jobs, batchIdGenerator)
+    new BatchLight.Sequential[F, A](Reader(_ => true), scope, jobs, batchIdGenerator)
   }
 
   /** Create a parallel batch with an explicit positive parallelism. */
@@ -337,7 +337,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Parallel[F, A](scope, Reader(_ => true), parallelism, jobs, batchIdGenerator)
+    new BatchLight.Parallel[F, A](Reader(_ => true), scope, parallelism, jobs, batchIdGenerator)
   }
 
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =

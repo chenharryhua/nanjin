@@ -99,22 +99,23 @@ object Batch:
     log: Log[F],
     job: Job,
     updatePanel: UpdatePanel[F],
-    translate: A => Json)(outcome: Outcome[F, Throwable, JobState[A]])(using F: MonadThrow[F]): F[Unit] =
+    translate: Reader[A, Json])(outcome: Outcome[F, Throwable, JobState[A]])(using
+    F: MonadThrow[F]): F[Unit] =
     outcome.fold(
       canceled = logCanceled(log, job),
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       errored = ex => F.raiseError(shouldNeverHappenException(ex)),
-      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate)))
+      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate.run)))
     )
 
   private class JobExecutor[F[_], A](
+    predicate: Reader[A, Boolean],
+    translate: Reader[A, Json],
     mode: BatchMode,
     log: Log[F],
-    translate: A => Json,
     scope: MetricScope,
-    batchId: BatchId,
     batchPanel: BatchMetrics[F],
-    predicate: Reader[A, Boolean])(using F: Temporal[F]) {
+    batchId: BatchId)(using F: Temporal[F]) {
 
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
       Job(jni.name, jni.index, scope, mode, kind, batchId)
@@ -199,8 +200,9 @@ object Batch:
   /*
    * Parallel
    */
-  final class Parallel[F[_]: Async, A: Encoder] private[Batch] (
+  final class Parallel[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
+    translate: Reader[A, Json],
     log: Log[F],
     metrics: MetricsHub[F],
     parallelism: Int,
@@ -209,14 +211,12 @@ object Batch:
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    private val translate: A => Json = Encoder[A].apply
-
     override def quasiBatch: Resource[F, QuasiBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, log, translate, metrics.scope, batchId, batchPanel, predicate).runQuasi
+            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -233,7 +233,7 @@ object Batch:
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(mode, log, translate, metrics.scope, batchId, batchPanel, predicate).runValue
+            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runValue
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -246,15 +246,16 @@ object Batch:
     }
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), log, metrics, parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = Reader(f), translate, log, metrics, parallelism, jobs, batchIdGenerator)
   }
 
   /*
    * Sequential
    */
 
-  final class Sequential[F[_]: Async, A: Encoder] private[Batch] (
+  final class Sequential[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
+    translate: Reader[A, Json],
     log: Log[F],
     metrics: MetricsHub[F],
     jobs: List[JobNameIndex[F, A]],
@@ -263,13 +264,11 @@ object Batch:
 
     override protected val mode: BatchMode = BatchMode.Sequential
 
-    private val translate: A => Json = Encoder[A].apply
-
     override def quasiBatch: Resource[F, QuasiBatch[A]] = {
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .traverse {
-            JobExecutor(mode, log, translate, metrics.scope, batchId, batchPanel, predicate).runQuasi
+            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -287,13 +286,13 @@ object Batch:
         jobs
           .traverse(
             JobExecutor(
+              predicate = predicate,
+              translate = translate,
               mode = mode,
               log = log,
-              translate = translate,
               scope = metrics.scope,
-              batchId = batchId,
               batchPanel = batchPanel,
-              predicate = predicate
+              batchId = batchId
             ).runValue
           )
           .timed
@@ -307,7 +306,7 @@ object Batch:
     }
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = Reader(f), log, metrics, jobs, batchIdGenerator)
+      new Batch.Sequential[F, A](predicate = Reader(f), translate, log, metrics, jobs, batchIdGenerator)
   }
 
   /*
@@ -547,6 +546,7 @@ final class Batch[F[_]: Async] private[guard] (
     }
     new Batch.Sequential[F, A](
       predicate = Reader(_ => true),
+      translate = Reader(_.asJson),
       log = log,
       metrics = metrics,
       jobs = jobs,
@@ -564,6 +564,7 @@ final class Batch[F[_]: Async] private[guard] (
     }
     new Batch.Parallel[F, A](
       predicate = Reader(_ => true),
+      translate = Reader(_.asJson),
       log = log,
       metrics = metrics,
       parallelism = parallelism,
