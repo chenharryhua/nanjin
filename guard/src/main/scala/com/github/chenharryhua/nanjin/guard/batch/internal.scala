@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobRecord]) {
   def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
@@ -31,11 +29,30 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
     case Right(value) => value.asJson
   }
 
-private def resultTag(succeeded: Boolean): String =
-  if succeeded then "result" else "error"
+// JSON object keys shared by the JobLog renderings and the batch-report encoders
+private object JsonKeys {
+  val TOOK = "took"
+  val RESULT = "result"
+  val ERROR = "error"
+  val FAILED = "failed"
+  val SUCCEEDED = "succeeded"
+  val UNSATISFIED = "unsatisfied"
+  val NONFATAL = "nonfatal"
+  val CRITICAL = "critical"
+  val KICKOFF = "kickoff"
+  val CANCELED = "canceled"
+}
 
-// expects newest-first history (as accumulated by prependHistory)
-private def monadicSpent(history: List[JobRecord]): Duration =
-  (history.headOption, history.lastOption)
-    .mapN((last_end, first_start) => (last_end.end - first_start.start).toJava)
-    .getOrElse(Duration.ZERO)
+private def toJobLogEntry[A: Encoder](js: JobState[A]): JobLogEntry =
+  js.result match {
+    case Left(ex) =>
+      js.record.job.kind match {
+        case BatchKind.Quasi => JobLogEntry(JobLog.Nonfatal(js.record, ex), Some(ex), LogLevel.Warn)
+        case BatchKind.Value => JobLogEntry(JobLog.Critical(js.record, ex), Some(ex), LogLevel.Error)
+      }
+    case Right(a) =>
+      if (js.record.succeeded)
+        JobLogEntry(JobLog.Succeeded(js.record, a.asJson), None, LogLevel.Good)
+      else
+        JobLogEntry(JobLog.Unsatisfied(js.record, a.asJson), None, LogLevel.Warn)
+  }

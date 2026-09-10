@@ -21,6 +21,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -86,24 +87,15 @@ object Batch:
   // wrapped in attempt internally — so these are safe to call inside finalizers and outside `attempt`.
 
   private def logKickoff[F[_]](log: Log[F], job: Job): F[Unit] =
-    log.info(JobLog.Kickoff(job): JobLog)
+    log.info(JobLog.Kickoff(job).standalone)
 
   private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
-    log.warn(JobLog.Canceled(job): JobLog)
+    log.warn(JobLog.Canceled(job).standalone)
 
-  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] =
-    js.result match {
-      case Left(ex) =>
-        js.record.job.kind match {
-          case BatchKind.Quasi => log.warn(JobLog.Nonfatal(js.record, ex): JobLog, ex)
-          case BatchKind.Value => log.error(JobLog.Critical(js.record, ex): JobLog, ex)
-        }
-      case Right(a) =>
-        if (js.record.succeeded)
-          log.good(JobLog.Succeeded(js.record, translate(a)): JobLog)
-        else
-          log.warn(JobLog.Unsatisfied(js.record, translate(a)): JobLog)
-    }
+  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] = {
+    val entry = toJobLogEntry(js.map(translate))
+    log.emit(entry.jobLog.standalone, entry.logLevel, entry.error)
+  }
 
   private def handleOutcome[F[_], A](
     log: Log[F],
@@ -129,8 +121,10 @@ object Batch:
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
       Job(jni.name, jni.index, scope, mode, kind, batchId)
 
-    private def singleJob(jni: JobNameIndex[F, A], kind: BatchKind): (Job, F[JobState[A]]) = {
-      val job: Job = batchJob(jni, kind)
+    // Value job: a predicate miss folds into Left(PostConditionUnsatisfied) so runValue can raise it and
+    // abort the batch. An exception is likewise a Left.
+    private def singleValueJob(jni: JobNameIndex[F, A]): (Job, F[JobState[A]]) = {
+      val job: Job = batchJob(jni, BatchKind.Value)
       val compute: F[JobState[A]] = for {
         start <- F.monotonic
         eoa <- (logKickoff(log, job) >> jni.fa).attempt
@@ -148,8 +142,23 @@ object Batch:
       job -> compute
     }
 
+    // Quasi job: a predicate miss records `succeeded = false` but keeps the value as the result, so runQuasi
+    // retains the outcome and the batch completes. An exception stays a Left.
+    private def singleQuasiJob(jni: JobNameIndex[F, A]): (Job, F[JobState[A]]) = {
+      val job: Job = batchJob(jni, BatchKind.Quasi)
+      val compute: F[JobState[A]] = for {
+        start <- F.monotonic
+        eoa <- (logKickoff(log, job) >> jni.fa).attempt
+        end <- F.monotonic
+      } yield {
+        val succeeded = eoa.fold(_ => false, predicate.run)
+        JobState(JobRecord(job, start, end, succeeded), eoa)
+      }
+      job -> compute
+    }
+
     def runValue(jni: JobNameIndex[F, A]): F[JobValue[A]] =
-      val (job, compute) = singleJob(jni, BatchKind.Value)
+      val (job, compute) = singleValueJob(jni)
       compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel, translate))
         .flatMap(js =>
           js.result match {
@@ -158,7 +167,7 @@ object Batch:
           })
 
     def runQuasi(jni: JobNameIndex[F, A]): F[JobState[A]] =
-      val (job, compute) = singleJob(jni, BatchKind.Quasi)
+      val (job, compute) = singleQuasiJob(jni)
       compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel, translate))
   }
 
@@ -364,10 +373,11 @@ object Batch:
             .guarantee(Resource.eval(activeGauge.deactivate))
         } yield MonadicBatch(
           scope = metrics.scope,
-          spent = monadicSpent(history),
+          spent = history.headOption.map(_.end - start).map(_.toJava).getOrElse(Duration.ZERO),
           batchId = batchId,
           jobs = history.reverse,
-          result = eoa)
+          result = eoa
+        )
       }
     end Monadic
     object Monadic:

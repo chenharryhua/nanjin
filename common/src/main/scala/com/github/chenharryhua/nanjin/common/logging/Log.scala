@@ -20,7 +20,7 @@ abstract class Log[F[_]: MonadThrow]:
    * Log API
    */
 
-  private def log[S: Encoder](
+  def emit[S: Encoder](
     message: => S,
     level: LogLevel,
     stackTrace: Option[Throwable]
@@ -29,22 +29,22 @@ abstract class Log[F[_]: MonadThrow]:
     enabled(level).ifM(process, ().pure[F])
   }
 
-  final def error[S: Encoder](msg: => S): F[Unit] = log[S](msg, LogLevel.Error, None)
+  final def error[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Error, None)
   final def error[S: Encoder](msg: => S, ex: Throwable): F[Unit] =
-    log[S](msg, LogLevel.Error, Some(ex))
+    emit[S](msg, LogLevel.Error, Some(ex))
 
-  final def warn[S: Encoder](msg: => S): F[Unit] = log[S](msg, LogLevel.Warn, None)
+  final def warn[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Warn, None)
   final def warn[S: Encoder](msg: => S, ex: Throwable): F[Unit] =
-    log[S](msg, LogLevel.Warn, Some(ex))
+    emit[S](msg, LogLevel.Warn, Some(ex))
 
-  final def good[S: Encoder](msg: => S): F[Unit] = log[S](msg, LogLevel.Good, None)
-  final def info[S: Encoder](msg: => S): F[Unit] = log[S](msg, LogLevel.Info, None)
+  final def good[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Good, None)
+  final def info[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Info, None)
 
-  final def debug[S: Encoder](msg: => S): F[Unit] = log[S](msg, LogLevel.Debug, None)
+  final def debug[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Debug, None)
   final def debug[S: Encoder](msg: F[S]): F[Unit] =
     msg.attempt.flatMap {
-      case Left(ex)     => log[String]("Debug Error", LogLevel.Debug, Some(ex))
-      case Right(value) => log[S](value, LogLevel.Debug, None)
+      case Left(ex)     => emit[String]("Debug Error", LogLevel.Debug, Some(ex))
+      case Right(value) => emit[S](value, LogLevel.Debug, None)
     }
 end Log
 

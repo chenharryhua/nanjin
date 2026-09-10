@@ -53,8 +53,8 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(
       quasiJson.hcursor.downField("jobs").downArray.get[String]("error").toOption.exists(_.endsWith("boom")))
     assert(monadicJson.hcursor.downField("jobs").downArray.get[String]("job-1").toOption.contains("work"))
-    assert(
-      monadicJson.hcursor.downField("jobs").downArray.get[String]("failed").toOption.contains("critical"))
+    // the monadic summary no longer carries per-job severity; a failed job is flagged with "failed": true
+    assert(monadicJson.hcursor.downField("jobs").downArray.get[Boolean]("failed").toOption.contains(true))
     assert(monadicJson.hcursor.get[List[String]]("error").toOption.exists(_.exists(_.contains("boom"))))
   }
 
@@ -131,13 +131,15 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(cb.jobs.size == 2)
   }
 
-  test("MonadicBatch encoder non-fatal severity for quasi failed job") {
-    val quasiJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Quasi, batchId)
-    val quasiFailed = JobRecord(quasiJob, 0.millis, 5.millis, succeeded = false)
+  test("MonadicBatch encoder flags a failed job without severity") {
+    val monadicJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Value, batchId)
+    val monadicFailed = JobRecord(monadicJob, 0.millis, 5.millis, succeeded = false)
     val mb: MonadicBatch[Int] =
-      MonadicBatch(label, Duration.ofMillis(10), batchId, List(quasiFailed), Right(0))
+      MonadicBatch(label, Duration.ofMillis(10), batchId, List(monadicFailed), Right(0))
     val json = mb.asJson
     val jobJson = json.hcursor.downField("jobs").downArray
-    assert(jobJson.get[String]("failed").toOption.contains("nonfatal"))
+    // monadic jobs are all Value and the summary carries no per-job severity
+    assert(jobJson.get[Boolean]("failed").toOption.contains(true))
+    assert(jobJson.get[String]("job-1").toOption.contains("check"))
   }
 }

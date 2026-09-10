@@ -41,7 +41,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
-        .use(_ => ga.adhoc.report)
+        .use(b => ga.logger.good(b) >> ga.adhoc.report)
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }

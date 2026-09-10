@@ -5,6 +5,7 @@ import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
@@ -147,7 +148,9 @@ final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) de
 }
 
 /** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: JobRecord, result: A) derives Functor
+final case class JobValue[A](record: JobRecord, result: A) derives Functor {
+  val jobState: JobState[A] = JobState(record, Right(result))
+}
 
 /** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
@@ -245,13 +248,7 @@ object QuasiBatch:
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "succeeded" -> Json.fromInt(succeeded.length),
         "failed" -> Json.fromInt(failed.length),
-        "jobs" -> qb.jobs.map { js =>
-          Json.obj(
-            show"job-${js.record.job.index}" -> Json.fromString(js.record.job.name),
-            "took" -> Json.fromString(fmt.format(js.record.took)),
-            resultTag(js.succeeded) -> js.result.asJson
-          )
-        }.asJson
+        "jobs" -> qb.jobs.map(js => toJobLogEntry(js).jobLog.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -286,13 +283,7 @@ object ValueBatch:
         "mode" -> bv.mode.asJson,
         "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "jobs" -> bv.jobs.map(js =>
-          Json.obj(
-            show"job-${js.record.job.index}" -> Json.fromString(js.record.job.name),
-            "took" -> Json.fromString(fmt.format(js.record.took)),
-            resultTag(js.record.succeeded) -> js.result.asJson
-          ))
-          .asJson
+        "jobs" -> bv.jobs.map(js => toJobLogEntry(js.jobState).jobLog.inBatch).asJson
       )
     }
 end ValueBatch
@@ -322,6 +313,7 @@ final case class MonadicBatch[A](
       jobs = jobs
     )
 }
+
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
@@ -335,49 +327,85 @@ object MonadicBatch:
           if (cj.succeeded)
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              "took" -> Json.fromString(fmt.format(cj.took)))
+              JsonKeys.TOOK -> Json.fromString(fmt.format(cj.took)))
           else
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              "took" -> Json.fromString(fmt.format(cj.took)),
-              "failed" -> Json.True
+              JsonKeys.TOOK -> Json.fromString(fmt.format(cj.took)),
+              JsonKeys.FAILED -> Json.True
             )
         }
           .asJson,
-        resultTag(mb.succeeded) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        (if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR) -> mb.result.fold(
+          StackTrace(_).asJson,
+          _.asJson)
       )
     }
 end MonadicBatch
 
-sealed private trait JobLog
-private object JobLog {
-  given Encoder[JobLog] = Encoder.instance {
-    case Kickoff(job)              => Json.obj("kickoff" -> job.asJson)
-    case Canceled(job)             => Json.obj("canceled" -> job.asJson)
-    case Succeeded(record, result) =>
-      Json.obj(
-        "succeeded" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "result" -> result)
-    case Unsatisfied(record, result) =>
-      Json.obj(
-        "unsatisfied" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "result" -> result)
+sealed private trait JobLog {
 
-    case Nonfatal(record, error) =>
+  def standalone: Json = this match {
+    case JobLog.Kickoff(job)              => Json.obj(JsonKeys.KICKOFF -> job.asJson)
+    case JobLog.Canceled(job)             => Json.obj(JsonKeys.CANCELED -> job.asJson)
+    case JobLog.Succeeded(record, result) =>
       Json.obj(
-        "nonfatal" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+        JsonKeys.SUCCEEDED -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result)
+    case JobLog.Unsatisfied(record, result) =>
+      Json.obj(
+        JsonKeys.UNSATISFIED -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result)
 
-    case Critical(record, error) =>
+    case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        "critical" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+        JsonKeys.NONFATAL -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+
+    case JobLog.Critical(record, error) =>
+      Json.obj(
+        JsonKeys.CRITICAL -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
   }
 
+  def inBatch: Json = this match {
+    case JobLog.Kickoff(job)              => Json.Null
+    case JobLog.Canceled(job)             => Json.Null
+    case JobLog.Succeeded(record, result) =>
+      Json.obj(
+        JsonKeys.SUCCEEDED -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result)
+
+    case JobLog.Unsatisfied(record, result) =>
+      Json.obj(
+        JsonKeys.UNSATISFIED -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result)
+
+    case JobLog.Nonfatal(record, error) =>
+      Json.obj(
+        JsonKeys.NONFATAL -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+
+    case JobLog.Critical(record, error) =>
+      Json.obj(
+        JsonKeys.CRITICAL -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+  }
+}
+
+private object JobLog {
   final case class Kickoff(job: Job) extends JobLog
   final case class Canceled(job: Job) extends JobLog
   final case class Succeeded(record: JobRecord, result: Json) extends JobLog
@@ -385,3 +413,5 @@ private object JobLog {
   final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
   final case class Critical(record: JobRecord, error: Throwable) extends JobLog
 }
+
+final private case class JobLogEntry(jobLog: JobLog, error: Option[Throwable], logLevel: LogLevel)
