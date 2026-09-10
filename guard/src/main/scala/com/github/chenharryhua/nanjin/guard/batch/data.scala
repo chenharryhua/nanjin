@@ -119,16 +119,17 @@ object Job {
   * tiny in practice, not a place where meaningful time hides. Apart from that negligible kickoff delta,
   * `Batch` and `BatchLight` share the same timing model.
   *
-  * For monadic batches the boundaries are post-processed (see `monadicHistory`, shared by both `Batch` and
-  * `BatchLight`) so that a job's `took` also absorbs the wall-clock spent before it that belongs to no job of
-  * its own — chiefly preceding invisible `lift`/`pure` steps (and, negligibly, the previous job's completion
-  * log). This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
+  * For monadic batches (both `Batch` and `BatchLight`) each job's `start` is carried over from the previous
+  * job's `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
+  * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
+  * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
+  * This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
   *
   * @param job
   *   the job metadata this record describes
   * @param start
-  *   monotonic clock reading at the start of the job (or the previous job's `end`, after monadic
-  *   redistribution)
+  *   monotonic clock reading at the start of the job (for monadic batches, the previous job's `end`, or the
+  *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
   * @param succeeded
@@ -146,7 +147,9 @@ final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) de
 }
 
 /** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: JobRecord, result: A) derives Functor
+final case class JobValue[A](record: JobRecord, result: A) derives Functor {
+  val jobState: JobState[A] = JobState(record, Right(result))
+}
 
 /** Summary of all jobs completed by a batch execution. */
 final case class CompletedBatch(
@@ -190,7 +193,7 @@ sealed trait BatchResult[A] {
   /** Total elapsed execution time, measured from the first job onward.
     *
     * The clock starts when the first job starts, so any work performed before it is not counted: pre-batch
-    * `IO` for sequential and parallel batches, or a leading `lift`/`pure` step for monadic batches. For
+    * `IO` for sequential and parallel batches, or a leading `untracked`/`pure` step for monadic batches. For
     * sequential and parallel this is measured directly around job execution; for monadic it is the span from
     * the first job's start to the last job's end (see `MonadicBatch`).
     */
@@ -244,13 +247,7 @@ object QuasiBatch:
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "succeeded" -> Json.fromInt(succeeded.length),
         "failed" -> Json.fromInt(failed.length),
-        "jobs" -> qb.jobs.map { js =>
-          Json.obj(
-            show"job-${js.record.job.index}" -> Json.fromString(js.record.job.name),
-            "took" -> Json.fromString(fmt.format(js.record.took)),
-            resultTag(js.succeeded) -> js.result.asJson
-          )
-        }.asJson
+        "jobs" -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -285,13 +282,7 @@ object ValueBatch:
         "mode" -> bv.mode.asJson,
         "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "jobs" -> bv.jobs.map(js =>
-          Json.obj(
-            show"job-${js.record.job.index}" -> Json.fromString(js.record.job.name),
-            "took" -> Json.fromString(fmt.format(js.record.took)),
-            resultTag(js.record.succeeded) -> js.result.asJson
-          ))
-          .asJson
+        "jobs" -> bv.jobs.map(js => toLogEntry(js.jobState).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -299,8 +290,8 @@ end ValueBatch
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   *
   * `spent` is the wall-clock span from the first job's start to the last job's end, so it includes the time
-  * consumed by invisible `lift`/`pure` steps between jobs. Each recorded job's `took` is adjusted to absorb
-  * the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
+  * consumed by invisible `untracked`/`pure` steps between jobs. Each recorded job's `took` is adjusted to
+  * absorb the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,
@@ -321,65 +312,90 @@ final case class MonadicBatch[A](
       jobs = jobs
     )
 }
+
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
+      val tag = if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR
       Json.obj(
         "batch" -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.scope.domain.value),
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map { cj =>
-          if (cj.succeeded)
-            Json.obj(
-              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              "took" -> Json.fromString(fmt.format(cj.took)))
-          else {
-            val severity = cj.job.kind match {
-              case BatchKind.Quasi => Json.fromString(SeverityNonFatal)
-              case BatchKind.Value => Json.fromString(SeverityCritical)
-            }
-            Json.obj(
-              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              "took" -> Json.fromString(fmt.format(cj.took)),
-              "failed" -> severity
-            )
-          }
-        }
-          .asJson,
-        resultTag(mb.succeeded) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(Json.Null))).message.inBatch).asJson,
+        tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
 end MonadicBatch
 
-sealed private trait JobLog
-private object JobLog {
-  given Encoder[JobLog] = Encoder.instance {
-    case Kickoff(job)              => Json.obj("kickoff" -> job.asJson)
-    case Canceled(job)             => Json.obj("canceled" -> job.asJson)
-    case Succeeded(record, result) =>
-      Json.obj(
-        "succeeded" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "result" -> result)
+sealed private trait JobLog {
 
-    case Nonfatal(record, error) =>
+  def standalone: Json = this match {
+    case JobLog.Kickoff(job)              => Json.obj(JsonKeys.KICKOFF -> job.asJson)
+    case JobLog.Canceled(job)             => Json.obj(JsonKeys.CANCELED -> job.asJson)
+    case JobLog.Succeeded(record, result) =>
       Json.obj(
-        "nonfatal" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+        JsonKeys.SUCCEEDED -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+    case JobLog.Unsatisfied(record, result) =>
+      Json.obj(
+        JsonKeys.UNSATISFIED -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
 
-    case Critical(record, error) =>
+    case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        "critical" -> record.job.asJson,
-        "took" -> Json.fromString(fmt.format(record.took)),
-        "error" -> Json.fromString(ExceptionUtils.getMessage(error)))
+        JsonKeys.NONFATAL -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+
+    case JobLog.Critical(record, error) =>
+      Json.obj(
+        JsonKeys.CRITICAL -> record.job.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
   }
 
+  def inBatch: Json = this match {
+    case JobLog.Kickoff(job)              => Json.Null
+    case JobLog.Canceled(job)             => Json.Null
+    case JobLog.Succeeded(record, result) =>
+      Json.obj(
+        JsonKeys.SUCCEEDED -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+
+    case JobLog.Unsatisfied(record, result) =>
+      Json.obj(
+        JsonKeys.UNSATISFIED -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+
+    case JobLog.Nonfatal(record, error) =>
+      Json.obj(
+        JsonKeys.NONFATAL -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+
+    case JobLog.Critical(record, error) =>
+      Json.obj(
+        JsonKeys.CRITICAL -> record.job.displayName.asJson,
+        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      )
+  }
+}
+
+private object JobLog {
   final case class Kickoff(job: Job) extends JobLog
   final case class Canceled(job: Job) extends JobLog
   final case class Succeeded(record: JobRecord, result: Json) extends JobLog
+  final case class Unsatisfied(record: JobRecord, result: Json) extends JobLog
   final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
   final case class Critical(record: JobRecord, error: Throwable) extends JobLog
 }

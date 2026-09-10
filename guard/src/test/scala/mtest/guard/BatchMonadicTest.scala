@@ -34,7 +34,7 @@ class BatchMonadicTest extends AnyFunSuite {
           IO {
             // pure steps create no job entry; only the three plain apply jobs are recorded
             assert(mb.jobs.map(_.job.name) == List("a", "b", "c"))
-            // a plain monadic apply job is Value (contrast with failSafe -> Quasi)
+            // all monadic jobs are Value
             assert(mb.jobs.map(_.job.kind) == List.fill(3)(BatchKind.Value))
             assert(mb.jobs.map(_.job.mode) == List.fill(3)(BatchMode.Monadic))
           }
@@ -66,22 +66,25 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("3.invincible - exception") {
+  test("3.exception aborts the monadic chain") {
+    var cExecuted = false
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSafe("b", IO.raiseError[Boolean](new Exception()))
-            c <- job("c", IO(3))
+            _ <- job("b", IO.raiseError[Int](new Exception()))
+            c <- job("c", IO { cExecuted = true; 3 })
           } yield a + c
         }
         .monadicBatch
         .evalTap { mb =>
           IO {
+            // the exception short-circuits: c never runs and is not recorded
+            assert(mb.result.isLeft)
             val sorted = mb.jobs.sortBy(_.job.index)
-            assert(sorted.size == 3)
+            assert(sorted.size == 2)
 
             assert(sorted.head.succeeded)
             assert(sorted.head.job.index == 1)
@@ -89,8 +92,7 @@ class BatchMonadicTest extends AnyFunSuite {
             assert(!sorted(1).succeeded)
             assert(sorted(1).job.index == 2)
 
-            assert(sorted(2).succeeded)
-            assert(sorted(2).job.index == 3)
+            assert(!cExecuted)
           }
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -98,14 +100,14 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("4.invincible - false") {
+  test("4.rejected predicate is recorded unsuccessful but does not abort") {
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSafe("b", IO(false))
+            _ <- job("b", IO(2), _ => false)
             c <- job("c", IO(3))
           } yield a + c
         }
@@ -117,7 +119,7 @@ class BatchMonadicTest extends AnyFunSuite {
             assert(sorted.head.succeeded)
             assert(sorted.head.job.index == 1)
 
-            // failSafe with a false result is recorded as unsuccessful but does not abort the batch
+            // a rejected predicate is recorded as unsuccessful but does not abort the batch
             assert(!sorted(1).succeeded)
             assert(sorted(1).job.index == 2)
 
@@ -147,17 +149,17 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("4b.failSafe records boolean jobs as quasi with success reflecting the result") {
+  test("4b.predicate records job success reflecting the result, all jobs Value") {
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible-json")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            ok <- job.failSafe("b", IO(true))
-            ko <- job.failSafe("c", IO(false))
+            ok <- job("b", IO(2), _ > 0)
+            ko <- job("c", IO(3), _ => false)
             d <- job("d", IO(4))
-          } yield a + d + (if (ok) 10 else 0) + (if (ko) 100 else 0)
+          } yield a + d + ok + ko
         }
         .monadicBatch
         .evalTap { mb =>
@@ -165,10 +167,9 @@ class BatchMonadicTest extends AnyFunSuite {
             val sorted = mb.jobs.sortBy(_.job.index)
 
             assert(sorted.size == 4)
+            assert(sorted.forall(_.job.kind == BatchKind.Value))
             assert(sorted.head.succeeded)
-            assert(sorted(1).job.kind == BatchKind.Quasi)
             assert(sorted(1).succeeded)
-            assert(sorted(2).job.kind == BatchKind.Quasi)
             assert(!sorted(2).succeeded)
             assert(sorted(3).succeeded)
           }
@@ -178,25 +179,29 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("4c.failSafe records a thrown exception as an unsuccessful quasi job without aborting") {
+  test("4c.a thrown exception is recorded unsuccessful and aborts the chain") {
     val errorMessage = "boom"
+    var cExecuted = false
     val se = service.eventStreamR { agent =>
       agent
         .batch("fail-safe-exception")
         .monadic { job =>
           for {
             _ <- job("a", IO(1))
-            _ <- job.failSafe("b", IO.raiseError[Boolean](new Exception(errorMessage)))
-            _ <- job("c", IO(3))
+            _ <- job("b", IO.raiseError[Int](new Exception(errorMessage)))
+            _ <- job("c", IO { cExecuted = true; 3 })
           } yield ()
         }
         .monadicBatch
         .evalTap { mb =>
           IO {
+            assert(mb.result.isLeft)
             val sorted = mb.jobs.sortBy(_.job.index)
-            assert(sorted.size == 3)
-            assert(sorted(1).job.kind == BatchKind.Quasi)
+            // c never runs; only a and b are recorded
+            assert(sorted.size == 2)
+            assert(sorted.forall(_.job.kind == BatchKind.Value))
             assert(!sorted(1).succeeded)
+            assert(!cExecuted)
           }
         }
     }.compile.lastOrError.unsafeRunSync()

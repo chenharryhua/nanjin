@@ -8,20 +8,26 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Consolidates the invariant that a `JobState`'s completion flag, its derived `succeeded`, and its result
-  * agree: `completed.succeeded == succeeded == result.isRight`. Rather than enforcing this with a runtime
-  * assertion in the data type, we exercise every path that produces a `JobState` and check that the three
-  * views line up.
+/** Consolidates the invariants a well-formed `JobState` must satisfy.
+  *
+  *   - `js.succeeded == js.result.isRight` — `succeeded` is derived from the result.
+  *   - `js.record.succeeded` implies `js.result.isRight` — a job is only recorded as succeeded when its
+  *     effect produced a value. The converse does not hold: a quasi job whose effect succeeds but whose
+  *     post-condition rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
+  *
+  * Rather than enforcing these with a runtime assertion in the data type, we exercise every path that
+  * produces a `JobState` and check that the views line up.
   */
 class JobStateInvariantSpec extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("job-state-invariant")
 
-  /** The three-way invariant a well-formed `JobState` must satisfy. */
+  /** The invariants a well-formed `JobState` must satisfy. */
   private def check_aligned[A](js: JobState[A]): Unit = {
-    assert(js.record.succeeded == js.result.isRight, "completed flag disagrees with result")
     assert(js.succeeded == js.result.isRight, "succeeded disagrees with result")
-    assert(js.succeeded == js.record.succeeded, "succeeded disagrees with completed flag")
+    // a recorded success implies the effect produced a value; a predicate rejection keeps the value but
+    // records failure, so the reverse implication need not hold.
+    assert(!js.record.succeeded || js.result.isRight, "recorded success without a result value")
     ()
   }
 

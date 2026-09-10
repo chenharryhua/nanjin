@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.54.13"
+val awsV = "2.54.15"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
 val circeV = "0.14.16"
@@ -379,7 +379,7 @@ lazy val kafka = (project in file("kafka"))
       "io.opentelemetry" % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
       "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
       "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"                 % "wire-runtime-jvm" % "6.4.7", // snyk by kafka-protobuf-provider
+      "com.squareup.wire"                 % "wire-runtime-jvm" % "7.0.0", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.20" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
@@ -421,7 +421,7 @@ lazy val pipes = (project in file("pipes"))
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
       "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.17.Final", // snyk by hadoop-client
+      "io.netty"           % "netty-all"              % "4.2.18.Final", // snyk by hadoop-client
       "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
       "org.apache.commons" % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
@@ -458,6 +458,7 @@ lazy val example = (project in file("example"))
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
   ) ++ testLib)
+  .settings(dependencyOverrides ++= otel4s_override)
   .settings(Test / PB.targets := List(
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))

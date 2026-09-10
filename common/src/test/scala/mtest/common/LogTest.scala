@@ -14,8 +14,8 @@ class LogTest extends AnyFunSuite {
 
     private var events: Vector[M] = Vector.empty
 
-    protected def create[A: Encoder](message: A, level: LogLevel, stackTrace: Option[Throwable]): IO[M] =
-      IO.pure((level, message.asJson.noSpaces, stackTrace))
+    protected def create[A: Encoder](message: A, level: LogLevel, cause: Option[Throwable]): IO[M] =
+      IO.pure((level, message.asJson.noSpaces, cause))
 
     protected def publish(event: M): IO[Unit] =
       IO { events = events :+ event }

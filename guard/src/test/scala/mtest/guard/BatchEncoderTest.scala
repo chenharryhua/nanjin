@@ -52,9 +52,15 @@ class BatchEncoderTest extends AnyFunSuite {
 
     assert(
       quasiJson.hcursor.downField("jobs").downArray.get[String]("error").toOption.exists(_.endsWith("boom")))
-    assert(monadicJson.hcursor.downField("jobs").downArray.get[String]("job-1").toOption.contains("work"))
+    // the monadic per-job entry now renders via inBatch: a failed record is keyed "unsatisfied" with the
+    // job's displayName; the exception itself is carried by the batch-level "error" tag.
     assert(
-      monadicJson.hcursor.downField("jobs").downArray.get[String]("failed").toOption.contains("critical"))
+      monadicJson.hcursor
+        .downField("jobs")
+        .downArray
+        .get[String]("unsatisfied")
+        .toOption
+        .exists(_.contains("work")))
     assert(monadicJson.hcursor.get[List[String]]("error").toOption.exists(_.exists(_.contains("boom"))))
   }
 
@@ -131,13 +137,14 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(cb.jobs.size == 2)
   }
 
-  test("MonadicBatch encoder non-fatal severity for quasi failed job") {
-    val quasiJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Quasi, batchId)
-    val quasiFailed = JobRecord(quasiJob, 0.millis, 5.millis, succeeded = false)
+  test("MonadicBatch encoder renders a failed job as unsatisfied") {
+    val monadicJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Value, batchId)
+    val monadicFailed = JobRecord(monadicJob, 0.millis, 5.millis, succeeded = false)
     val mb: MonadicBatch[Int] =
-      MonadicBatch(label, Duration.ofMillis(10), batchId, List(quasiFailed), Right(0))
+      MonadicBatch(label, Duration.ofMillis(10), batchId, List(monadicFailed), Right(0))
     val json = mb.asJson
     val jobJson = json.hcursor.downField("jobs").downArray
-    assert(jobJson.get[String]("failed").toOption.contains("nonfatal"))
+    // a failed monadic job renders via inBatch, keyed "unsatisfied" with the job's displayName
+    assert(jobJson.get[String]("unsatisfied").toOption.exists(_.contains("check")))
   }
 }

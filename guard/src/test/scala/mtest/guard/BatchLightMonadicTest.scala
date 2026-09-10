@@ -101,7 +101,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadic { job =>
             for {
               a <- job("a", IO(1))
-              _ <- job.lift(IO.sleep(200.millis))
+              _ <- job.untracked(IO.sleep(200.millis))
               b <- job("b", IO(2))
             } yield a + b
           }
@@ -132,7 +132,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             for {
               a <- job("a", IO.sleep(30.millis).as(1))
               _ <- job.pure(())
-              _ <- job.lift(IO.sleep(80.millis))
+              _ <- job.untracked(IO.sleep(80.millis))
               b <- job("b", IO.sleep(30.millis).as(2))
               c <- job("c", IO.sleep(30.millis).as(3))
             } yield a + b + c
@@ -158,7 +158,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadic { job =>
             for {
               a <- job("a", IO.sleep(20.millis).as(1))
-              _ <- job.lift(IO.sleep(150.millis))
+              _ <- job.untracked(IO.sleep(150.millis))
               b <- job("b", IO.sleep(20.millis).as(2))
             } yield a + b
           }
@@ -223,7 +223,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "mix normal and exception" in {
+    "a rejected predicate marks the job failed but does not stop the chain" in {
       var aExecuted = false
       var bExecuted = false
       var cExecuted = false
@@ -234,13 +234,14 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadic { job =>
             for {
               a <- job("a", IO { aExecuted = true; 1 })
-              b <- job.failSafe("b", IO { bExecuted = true } *> IO.raiseError[Boolean](new Exception("boom")))
+              b <- job("b", IO { bExecuted = true; 2 }, _ => false)
               c <- job("c", IO { cExecuted = true; 3 })
-            } yield if (b) a + c else a + c
+            } yield a + b + c
           }
           .monadicBatch
           .map { monadicValue =>
-            monadicValue.result shouldBe Right(4)
+            // the rejected value still flows through, so the chain completes
+            monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
             monadicValue.jobs.head.succeeded.shouldBe(true)
             monadicValue.jobs(1).succeeded.shouldBe(false)
@@ -367,25 +368,23 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "failSafe true should mark quasi job done" in {
+    "a satisfied predicate marks the job succeeded" in {
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-tuple")
           .monadic { job =>
             for {
               a <- job("a", IO(1))
-              b <- job.failSafe("b", IO(true))
+              b <- job("b", IO(2), _ > 0)
               c <- job("c", IO(3))
-            } yield if (b) a + c + 100 else a + c
+            } yield a + b + c
           }
           .monadicBatch
           .map { monadicValue =>
-            monadicValue.result shouldBe Right(104)
+            monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
-            // plain apply jobs are Value; only failSafe is Quasi
-            monadicValue.jobs(0).job.kind shouldBe BatchKind.Value
-            monadicValue.jobs(1).job.kind shouldBe BatchKind.Quasi
-            monadicValue.jobs(2).job.kind shouldBe BatchKind.Value
+            // all monadic jobs are Value
+            monadicValue.jobs.map(_.job.kind) shouldBe List.fill(3)(BatchKind.Value)
             monadicValue.jobs.map(_.job.mode) shouldBe List.fill(3)(BatchMode.Monadic)
             monadicValue.jobs(1).succeeded.shouldBe(true)
             ()
