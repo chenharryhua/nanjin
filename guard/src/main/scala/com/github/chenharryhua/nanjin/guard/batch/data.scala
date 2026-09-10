@@ -323,19 +323,7 @@ object MonadicBatch:
         "domain" -> Json.fromString(mb.scope.domain.value),
         "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map { cj =>
-          if (cj.succeeded)
-            Json.obj(
-              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              JsonKeys.TOOK -> Json.fromString(fmt.format(cj.took)))
-          else
-            Json.obj(
-              show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-              JsonKeys.TOOK -> Json.fromString(fmt.format(cj.took)),
-              JsonKeys.FAILED -> Json.True
-            )
-        }
-          .asJson,
+        "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(Json.Null))).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
@@ -350,12 +338,12 @@ sealed private trait JobLog {
       Json.obj(
         JsonKeys.SUCCEEDED -> record.job.asJson,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result)
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
         JsonKeys.UNSATISFIED -> record.job.asJson,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result)
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
@@ -379,13 +367,13 @@ sealed private trait JobLog {
       Json.obj(
         JsonKeys.SUCCEEDED -> record.job.displayName.asJson,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result)
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
         JsonKeys.UNSATISFIED -> record.job.displayName.asJson,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result)
+        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(

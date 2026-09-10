@@ -92,8 +92,8 @@ object Batch:
   private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
     log.warn(JobLog.Canceled(job).standalone)
 
-  private def logCompleted[F[_], A](log: Log[F], js: JobState[A])(translate: A => Json): F[Unit] =
-    log.emit(toLogEntry(js.map(translate)).map(_.standalone))
+  private def logCompleted[F[_]](log: Log[F], js: JobState[Json]): F[Unit] =
+    log.emit(toLogEntry(js).map(_.standalone))
 
   private def handleOutcome[F[_], A](
     log: Log[F],
@@ -104,7 +104,7 @@ object Batch:
       canceled = logCanceled(log, job),
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       errored = ex => F.raiseError(shouldNeverHappenException(ex)),
-      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js)(translate))
+      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate)))
     )
 
   private class JobExecutor[F[_], A](
@@ -419,7 +419,7 @@ object Batch:
       outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
-          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js)(translate))
+          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate)))
         // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
