@@ -230,8 +230,8 @@ object BatchLight:
         eoa <- jni.fa.attempt
         end <- F.monotonic
       } yield {
-        val result = eoa.fold(_ => false, predicate.run)
-        JobState(JobRecord(job, start, end, result), eoa)
+        val succeeded = eoa.fold(_ => false, predicate.run)
+        JobState(JobRecord(job, start, end, succeeded), eoa)
       }
     }
   }

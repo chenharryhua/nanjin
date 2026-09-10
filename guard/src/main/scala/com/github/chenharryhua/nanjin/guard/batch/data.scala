@@ -143,47 +143,18 @@ final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration,
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
-  val succeeded: Boolean = result.isRight
+
+  /** Whether the job succeeded: it produced a value and satisfied its post-condition. Mirrors
+    * `record.succeeded`; note this can be `false` while `result` is a `Right` (a value rejected by its
+    * predicate).
+    */
+  val succeeded: Boolean = record.succeeded
 }
 
 /** A successful batch job value paired with the completion metadata for that job. */
 final case class JobValue[A](record: JobRecord, result: A) derives Functor {
   val jobState: JobState[A] = JobState(record, Right(result))
 }
-
-/** Summary of all jobs completed by a batch execution. */
-final case class CompletedBatch(
-  scope: MetricScope,
-  spent: Duration,
-  mode: BatchMode,
-  batchId: BatchId,
-  jobs: List[JobRecord]) {
-
-  /** Whether every job in the batch completed successfully. */
-  def succeeded: Boolean = jobs.forall(_.succeeded)
-}
-object CompletedBatch:
-  given Encoder[CompletedBatch] =
-    Encoder.instance { cb =>
-      val (succeeded, failed) = cb.jobs.partition(_.succeeded)
-      Json.obj(
-        "batch" -> cb.scope.label.asJson,
-        "batch_id" -> cb.batchId.asJson,
-        "domain" -> Json.fromString(cb.scope.domain.value),
-        "mode" -> cb.mode.asJson,
-        "spent" -> Json.fromString(fmt.format(cb.spent)),
-        "succeeded" -> Json.fromInt(succeeded.length),
-        "failed" -> Json.fromInt(failed.length),
-        "jobs" -> cb.jobs.map(cj =>
-          Json.obj(
-            show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
-            "took" -> Json.fromString(fmt.format(cj.took)),
-            "kind" -> cj.job.kind.asJson,
-            "succeeded" -> Json.fromBoolean(cj.succeeded)
-          ))
-          .asJson
-      )
-    }
 
 sealed trait BatchResult[A] {
 
@@ -208,11 +179,17 @@ sealed trait BatchResult[A] {
   /** Per-job result values represented by this result type. */
   def jobs: List[A]
 
-  /** Whether all jobs completed successfully. */
+  /** Whether the batch operation itself completed, regardless of individual job outcomes. Quasi and value
+    * batches always run to completion; a monadic batch completes only when its chain is not short-circuited
+    * by an exception or a failed `withFilter`.
+    */
   def succeeded: Boolean
 
-  /** Completion-only summary suitable for reporting. */
-  def summary: CompletedBatch
+  /** Whether every job in the batch succeeded (satisfied its post-condition). This can be `false` even when
+    * `succeeded` is `true` — e.g. a quasi or monadic batch that completed but had some jobs rejected by their
+    * predicate.
+    */
+  def allPassed: Boolean
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -225,19 +202,13 @@ final case class QuasiBatch[A](
   batchId: BatchId,
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
-  override def succeeded: Boolean = jobs.forall(_.record.succeeded)
-  override def summary: CompletedBatch = CompletedBatch(
-    scope = scope,
-    spent = spent,
-    mode = mode,
-    batchId = batchId,
-    jobs = jobs.map(_.record)
-  )
+  override val succeeded: Boolean = true
+  override def allPassed: Boolean = jobs.forall(_.succeeded)
 }
 object QuasiBatch:
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (succeeded, failed) = qb.jobs.partition(_.record.succeeded)
+      val (succeeded, failed) = qb.jobs.partition(_.succeeded)
       Json.obj(
         "batch" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
@@ -262,16 +233,12 @@ final case class ValueBatch[A](
   batchId: BatchId,
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
+  // a ValueBatch only exists when valueBatch ran to completion; runValue raises on any failing or rejected
+  // job, so every retained job succeeded.
   override val succeeded: Boolean = true
-  override def summary: CompletedBatch =
-    CompletedBatch(
-      scope = scope,
-      spent = spent,
-      mode = mode,
-      batchId = batchId,
-      jobs = jobs.map(_.record)
-    )
+  override val allPassed: Boolean = true
 }
+
 object ValueBatch:
   given [A: Encoder] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
@@ -303,14 +270,7 @@ final case class MonadicBatch[A](
   override val mode: BatchMode = BatchMode.Monadic
   override def succeeded: Boolean = result.isRight
 
-  override def summary: CompletedBatch =
-    CompletedBatch(
-      scope = scope,
-      spent = spent,
-      mode = BatchMode.Monadic,
-      batchId = batchId,
-      jobs = jobs
-    )
+  override def allPassed: Boolean = jobs.forall(_.succeeded)
 }
 
 object MonadicBatch:

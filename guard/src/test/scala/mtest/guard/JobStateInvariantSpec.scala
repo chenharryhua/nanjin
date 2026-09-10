@@ -10,7 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 /** Consolidates the invariants a well-formed `JobState` must satisfy.
   *
-  *   - `js.succeeded == js.result.isRight` — `succeeded` is derived from the result.
+  *   - `js.succeeded == js.record.succeeded` — job success is the recorded (post-condition) outcome, not
+  *     merely whether the effect produced a value.
   *   - `js.record.succeeded` implies `js.result.isRight` — a job is only recorded as succeeded when its
   *     effect produced a value. The converse does not hold: a quasi job whose effect succeeds but whose
   *     post-condition rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
@@ -24,7 +25,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
 
   /** The invariants a well-formed `JobState` must satisfy. */
   private def check_aligned[A](js: JobState[A]): Unit = {
-    assert(js.succeeded == js.result.isRight, "succeeded disagrees with result")
+    assert(js.succeeded == js.record.succeeded, "succeeded disagrees with the recorded outcome")
     // a recorded success implies the effect produced a value; a predicate rejection keeps the value but
     // records failure, so the reverse implication need not hold.
     assert(!js.record.succeeded || js.result.isRight, "recorded success without a result value")
