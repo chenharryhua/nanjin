@@ -202,7 +202,7 @@ lazy val frontend = project.in(file("frontend"))
   .settings(
     // Scala.js interop legitimately needs var / asInstanceOf / == that the shared .scalafix.conf
     // DisableSyntax rule forbids, so scalafix is skipped for this module (keeps `scalafixAll` green).
-    scalafix / skip := true,
+    scalafix / skip                 := true,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
       "io.circe" %%% "circe-core"      % circeV,
@@ -379,7 +379,7 @@ lazy val kafka = (project in file("kafka"))
       "io.opentelemetry" % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
       "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
       "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"                 % "wire-runtime-jvm" % "7.0.0", // snyk by kafka-protobuf-provider
+      "com.squareup.wire"                 % "wire-runtime-jvm" % "7.0.1", // snyk by kafka-protobuf-provider
       "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.20" // snyk by wire-runtime-jvm
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
