@@ -75,9 +75,9 @@ object kafka_connector_s3 {
     * Offsets are committed with auto-commit off and `commitBatchWithin`, so commits are explicit and batched.
     * Records are written into `root/<ymd file name>` and the sink rotates to a new file every 5 minutes.
     *
-    * Note the `.toOption.get`: it keeps only successfully decoded values and rethrows on a `PullError`. That
-    * is fine here because `bad.records` is counted in `logMetrics` before this point; adjust if you would
-    * rather route bad records elsewhere than fail the stream.
+    * Note the decode handling below: it keeps decoded values and raises an exception containing `PullError`
+    * metadata on a failed decode. This is fine here because `bad.records` is counted in `logMetrics` before
+    * this point; adjust if you would rather route bad records elsewhere than fail the stream.
     */
   val dump: fs2.Stream[IO, Event] =
     aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
