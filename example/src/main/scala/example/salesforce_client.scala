@@ -26,7 +26,7 @@ object salesforce_client {
   private val authClient: Resource[IO, Client[IO]] = EmberClientBuilder
     .default[IO]
     .build
-    .map(Logger(logHeaders = true, logBody = true, _ => false))
+    .map(Logger(logHeaders = true, logBody = false, _ => false))
     .map(httpRetry(sydneyTime, _.fixedDelay(0.second).jitter(5.seconds)))
 
   // fetch the OAuth credentials from Parameter Store and assemble a password-grant login
