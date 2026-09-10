@@ -160,7 +160,7 @@ class GaugeTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).take(1).compile.toList.unsafeRunSync()
 
     assert(snapshots.nonEmpty)
-    val ratios = retrieve.ratio(snapshots.head.snapshot.gauges)
+    val ratios = retrieve.gauge[Json](snapshots.head.snapshot.gauges)
     assert(ratios.nonEmpty)
     assert(ratios.values.head.asString.exists(_.contains("50")))
   }

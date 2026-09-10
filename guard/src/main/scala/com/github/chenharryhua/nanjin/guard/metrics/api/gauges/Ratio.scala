@@ -98,7 +98,7 @@ object Ratio {
 
       def impl: Resource[F, Ratio[F]] = for {
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
-        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Ratio).register(ref.get.map(translator)))
+        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Default).register(ref.get.map(translator)))
       } yield new Impl[F](ref)
 
       if (isEnabled) impl else noop.pure
