@@ -112,19 +112,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("8.performance channel") {
-    val (fd, i) = service
-      .eventStreamS(agent => fs2.Stream.repeatEval(agent.logger.error("hello")).take(3_000_000))
-      .compile
-      .fold(0)((s, _) => s + 1)
-      .timed
-      .unsafeRunSync()
-
-    println(s"cost:  ${fd.toNanos / i} nano")
-    println(s"speed: ${i / fd.toMillis} k/s")
-  }
-
-  test("9.performance batch") {
+  test("8.performance batch") {
     var i: Int = 0
     service
       .eventStream(agent => agent.batchLight("batch").monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
@@ -135,5 +123,17 @@ class Performance extends AnyFunSuite {
 
     println(s"cost:  ${timeout.toNanos / i} nano")
     println(s"speed: ${i / timeout.toMillis} k/s")
+  }
+
+  test("9.performance channel") {
+    val (fd, i) = service
+      .eventStreamS(agent => fs2.Stream.repeatEval(agent.logger.error("hello")).take(3_000_000))
+      .compile
+      .fold(0)((s, _) => s + 1)
+      .timed
+      .unsafeRunSync()
+
+    println(s"cost:  ${fd.toNanos / i} nano")
+    println(s"speed: ${i / fd.toMillis} k/s")
   }
 }

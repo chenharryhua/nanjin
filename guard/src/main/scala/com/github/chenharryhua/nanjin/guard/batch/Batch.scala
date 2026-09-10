@@ -415,11 +415,15 @@ object Batch:
         StateT(cursor => ra.map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
-    private def handleOutcome[A](log: Log[F], job: Job, updatePanel: UpdatePanel[F], translate: A => Json)(
+    private def handleOutcome[A](
+      log: Log[F],
+      job: Job,
+      updatePanel: UpdatePanel[F],
+      translate: Reader[A, Json])(
       outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
-          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate)))
+          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate.run)))
         // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
@@ -436,10 +440,11 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    private def create[A: Encoder](
+    private def create[A](
       name: String,
       rfa: Resource[F, A],
-      predicate: Reader[A, Boolean]): Monadic[A] =
+      predicate: Reader[A, Boolean],
+      translate: Reader[A, Json]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -461,7 +466,7 @@ object Batch:
             }
 
             compute
-              .guaranteeCase(handleOutcome(log, job, updatePanel, Encoder[A].apply))
+              .guaranteeCase(handleOutcome(log, job, updatePanel, translate))
               .map { js =>
                 JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.record))
               }
@@ -478,13 +483,13 @@ object Batch:
       *   the resource-backed job
       */
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
-      create[A](name, rfa, Reader(_ => true))
+      create[A](name, rfa, Reader(_ => true), Reader(_.asJson))
 
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.
       */
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(_ => true))
+      create[A](name, Resource.eval(fa), Reader(_ => true), Reader(_.asJson))
 
     /** Add a named resource-backed job whose success is decided by `predicate`.
       *
@@ -501,7 +506,7 @@ object Batch:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A: Encoder](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, rfa, Reader(predicate))
+      create[A](name, rfa, Reader(predicate), Reader(_.asJson))
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -518,7 +523,7 @@ object Batch:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A: Encoder](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(predicate))
+      create[A](name, Resource.eval(fa), Reader(predicate), Reader(_.asJson))
 
   end JobBuilder
 end Batch
