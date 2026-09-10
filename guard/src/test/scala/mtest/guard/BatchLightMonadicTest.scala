@@ -383,8 +383,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { monadicValue =>
             monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
-            // all monadic jobs are Value
-            monadicValue.jobs.map(_.job.kind) shouldBe List.fill(3)(BatchKind.Value)
+            // monadic jobs have no kind
+            monadicValue.jobs.map(_.job.kind) shouldBe List.fill(3)(None)
             monadicValue.jobs.map(_.job.mode) shouldBe List.fill(3)(BatchMode.Monadic)
             monadicValue.jobs(1).succeeded.shouldBe(true)
             ()
@@ -407,7 +407,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             state.jobs.size shouldBe 3
             state.jobs.head.record.job.name shouldBe "a"
             state.jobs.head.record.job.mode shouldBe BatchMode.Sequential
-            state.jobs.head.record.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.record.job.kind shouldBe Some(BatchKind.Quasi)
             state.jobs.head.record.succeeded shouldBe false
             state.jobs(1).record.succeeded shouldBe true
             state.jobs(2).record.succeeded shouldBe true
@@ -462,7 +462,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             bv.jobs.size shouldBe 3
             bv.jobs.map(_.result) shouldBe List(10, 20, 30)
             bv.mode shouldBe BatchMode.Sequential
-            bv.jobs.map(_.record.job.kind) shouldBe List.fill(3)(BatchKind.Value)
+            bv.jobs.map(_.record.job.kind) shouldBe List.fill(3)(Some(BatchKind.Value))
             bv.jobs.map(_.record.job.mode) shouldBe List.fill(3)(BatchMode.Sequential)
             bv.succeeded shouldBe true
             ()
@@ -519,7 +519,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             state.jobs.size shouldBe 3
             state.jobs.head.record.job.name shouldBe "a"
             state.jobs.head.record.job.mode shouldBe BatchMode.Parallel(3)
-            state.jobs.head.record.job.kind shouldBe BatchKind.Quasi
+            state.jobs.head.record.job.kind shouldBe Some(BatchKind.Quasi)
             state.jobs.head.record.succeeded shouldBe false
             state.jobs(1).record.succeeded shouldBe true
             state.jobs(2).record.succeeded shouldBe true
@@ -539,7 +539,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { value =>
             value.jobs.size shouldBe 2
             value.mode shouldBe BatchMode.Parallel(1)
-            value.jobs.map(_.record.job.kind) shouldBe List.fill(2)(BatchKind.Value)
+            value.jobs.map(_.record.job.kind) shouldBe List.fill(2)(Some(BatchKind.Value))
             value.jobs.map(_.record.job.mode) shouldBe List.fill(2)(BatchMode.Parallel(1))
             value.jobs.map(_.result).sum shouldBe 3
             ()

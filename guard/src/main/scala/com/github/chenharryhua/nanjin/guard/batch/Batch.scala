@@ -118,7 +118,7 @@ object Batch:
     batchId: BatchId)(using F: Temporal[F]) {
 
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
-      Job(jni.name, jni.index, scope, mode, kind, batchId)
+      Job(jni.name, jni.index, scope, mode, Some(kind), batchId)
 
     // Value job: a predicate miss folds into Left(PostConditionUnsatisfied) so runValue can raise it and
     // abort the batch. An exception is likewise a Left.
@@ -453,7 +453,7 @@ object Batch:
                 index = index,
                 scope = metrics.scope,
                 mode = mode,
-                kind = BatchKind.Value,
+                kind = None,
                 batchId = batchId)
 
             val compute = for {

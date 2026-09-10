@@ -13,10 +13,10 @@ class BatchEncoderTest extends AnyFunSuite {
   private val batchId: BatchId = BatchId(1L)
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
-  private val job = Job("work", 1, label, BatchMode.Sequential, BatchKind.Quasi, batchId)
+  private val job = Job("work", 1, label, BatchMode.Sequential, Some(BatchKind.Quasi), batchId)
   private val completed = JobRecord(job, 0.millis, 12.millis, succeeded = true)
   private val failed =
-    JobRecord(job.copy(kind = BatchKind.Value), 0.millis, 12.millis, succeeded = false)
+    JobRecord(job.copy(kind = Some(BatchKind.Value)), 0.millis, 12.millis, succeeded = false)
 
   test("quasi and value batches encode kind and result tags") {
     val quasi = QuasiBatch(
@@ -107,7 +107,7 @@ class BatchEncoderTest extends AnyFunSuite {
   }
 
   test("MonadicBatch encoder renders a failed job as unsatisfied") {
-    val monadicJob = Job("check", 1, label, BatchMode.Monadic, BatchKind.Value, batchId)
+    val monadicJob = Job("check", 1, label, BatchMode.Monadic, None, batchId)
     val monadicFailed = JobRecord(monadicJob, 0.millis, 5.millis, succeeded = false)
     val mb: MonadicBatch[Int] =
       MonadicBatch(label, Duration.ofMillis(10), batchId, List(monadicFailed), Right(0))

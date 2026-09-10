@@ -47,8 +47,10 @@ private def toLogEntry[A: Encoder](js: JobState[A]): LogEntry[JobLog] =
   js.result match {
     case Left(ex) =>
       js.record.job.kind match {
-        case BatchKind.Quasi => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
-        case BatchKind.Value => LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
+        case Some(BatchKind.Quasi) => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
+        // Value jobs and monadic jobs (kind = None) both treat an exception as fatal to the batch.
+        case Some(BatchKind.Value) | None =>
+          LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
       }
     case Right(a) =>
       if (js.succeeded)

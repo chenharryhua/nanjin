@@ -22,8 +22,9 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(jo
       case None        => "predicate failed before: job-1"
     }) with NoStackTrace
 
-/** Distinguishes the two batch execution shapes: quasi-batches expose per-job outcome state, while
-  * value-batches carry the successful result values for each completed job.
+/** Distinguishes the two sequential/parallel batch shapes: quasi-batches expose per-job outcome state, while
+  * value-batches carry the successful result values for each completed job. Monadic jobs have no kind (their
+  * success model — predicate marks, exception/`withFilter` aborts — is neither), so `Job.kind` is optional.
   */
 enum BatchKind:
   /** Collects each job outcome, including failures, in the resulting quasi-batch. */
@@ -86,7 +87,7 @@ final case class Job(
   index: Int,
   scope: MetricScope,
   mode: BatchMode,
-  kind: BatchKind,
+  kind: Option[BatchKind],
   batchId: BatchId):
   val batch: String = scope.label.value
   val domain: String = scope.domain.value
@@ -95,15 +96,19 @@ final case class Job(
   def displayName: String = s"job-$index $name"
 end Job
 object Job {
+  // `kind` is Quasi/Value for sequential and parallel jobs and absent for monadic jobs, whose success model
+  // (predicate marks, exception/withFilter aborts) is neither.
   given Encoder[Job] = Encoder.instance { (a: Job) =>
-    Json.obj(
-      show"job-${a.index}" -> Json.fromString(a.name),
-      "batch" -> Json.fromString(a.batch),
-      "batch_id" -> a.batchId.asJson,
-      "domain" -> Json.fromString(a.domain),
-      "mode" -> a.mode.asJson,
-      "kind" -> a.kind.asJson
-    )
+    Json
+      .obj(
+        show"job-${a.index}" -> Json.fromString(a.name),
+        "batch" -> Json.fromString(a.batch),
+        "batch_id" -> a.batchId.asJson,
+        "domain" -> Json.fromString(a.domain),
+        "mode" -> a.mode.asJson,
+        "kind" -> a.kind.asJson
+      )
+      .dropNullValues
   }
 }
 

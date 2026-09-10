@@ -129,13 +129,8 @@ object BatchLight:
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
-            val job: Job = Job(
-              name = name,
-              index = index,
-              scope = scope,
-              mode = mode,
-              kind = BatchKind.Value,
-              batchId = batchId)
+            val job: Job =
+              Job(name = name, index = index, scope = scope, mode = mode, kind = None, batchId = batchId)
 
             for {
               eoa <- fa.attempt
@@ -200,7 +195,7 @@ object BatchLight:
       scope: MetricScope,
       mode: BatchMode,
       batchId: BatchId)(jni: JobNameIndex[F, A])(using F: Temporal[F]): F[JobState[A]] = {
-      val job = Job(jni.name, jni.index, scope, mode, BatchKind.Value, batchId)
+      val job = Job(jni.name, jni.index, scope, mode, Some(BatchKind.Value), batchId)
       for {
         start <- F.monotonic
         eoa <- jni.fa.attempt
@@ -224,7 +219,7 @@ object BatchLight:
       scope: MetricScope,
       mode: BatchMode,
       batchId: BatchId)(jni: JobNameIndex[F, A])(using F: Temporal[F]): F[JobState[A]] = {
-      val job = Job(jni.name, jni.index, scope, mode, BatchKind.Quasi, batchId)
+      val job = Job(jni.name, jni.index, scope, mode, Some(BatchKind.Quasi), batchId)
       for {
         start <- F.monotonic
         eoa <- jni.fa.attempt
