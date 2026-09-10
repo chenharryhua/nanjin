@@ -336,17 +336,12 @@ object MonadicBatch:
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(fmt.format(cj.took)))
-          else {
-            val severity = cj.job.kind match {
-              case BatchKind.Quasi => Json.fromString(SeverityNonFatal)
-              case BatchKind.Value => Json.fromString(SeverityCritical)
-            }
+          else
             Json.obj(
               show"job-${cj.job.index}" -> Json.fromString(cj.job.name),
               "took" -> Json.fromString(fmt.format(cj.took)),
-              "failed" -> severity
+              "failed" -> Json.True
             )
-          }
         }
           .asJson,
         resultTag(mb.succeeded) -> mb.result.fold(StackTrace(_).asJson, _.asJson)
@@ -362,6 +357,11 @@ private object JobLog {
     case Succeeded(record, result) =>
       Json.obj(
         "succeeded" -> record.job.asJson,
+        "took" -> Json.fromString(fmt.format(record.took)),
+        "result" -> result)
+    case Unsatisfied(record, result) =>
+      Json.obj(
+        "unsatisfied" -> record.job.asJson,
         "took" -> Json.fromString(fmt.format(record.took)),
         "result" -> result)
 
@@ -381,6 +381,7 @@ private object JobLog {
   final case class Kickoff(job: Job) extends JobLog
   final case class Canceled(job: Job) extends JobLog
   final case class Succeeded(record: JobRecord, result: Json) extends JobLog
+  final case class Unsatisfied(record: JobRecord, result: Json) extends JobLog
   final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
   final case class Critical(record: JobRecord, error: Throwable) extends JobLog
 }

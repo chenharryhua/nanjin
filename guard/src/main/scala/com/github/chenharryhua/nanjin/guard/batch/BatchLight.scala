@@ -119,8 +119,12 @@ object BatchLight:
         StateT(cursor => fa.map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
-    /** Add a named effect-backed value job. */
-    def apply[A](name: String, fa: F[A]): Monadic[A] =
+    /** Shared constructor for effect-backed jobs. The job runs under `attempt`: a thrown exception is
+      * recorded as an unsuccessful job and propagated as the monadic result, stopping the chain; a successful
+      * effect is judged by `predicate` to set the job's `succeeded` flag, but its value flows on regardless
+      * so the chain continues.
+      */
+    private def create[A](name: String, fa: F[A], predicate: Reader[A, Boolean]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -136,37 +140,42 @@ object BatchLight:
               eoa <- fa.attempt
               end <- Async[F].monotonic
             } yield {
-              val completed = JobRecord(job, start, end, eoa.isRight)
+              val succeeded = eoa.fold(_ => false, predicate.run)
+              val completed = JobRecord(job, start, end, succeeded)
               JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
         }
       )
 
-    /** Add a boolean job whose failure or false result is retained as a quasi failure. */
-    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
-      new Monadic[Boolean](
-        Kleisli { (batchId: BatchId) =>
-          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
-            val job: Job = Job(
-              name = name,
-              index = index,
-              scope = scope,
-              mode = mode,
-              kind = BatchKind.Quasi,
-              batchId = batchId)
+    /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
+      * stops the chain.
+      *
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the effect to run
+      */
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
+      create[A](name, fa, Reader(_ => true))
 
-            for {
-              eoa <- fa.attempt
-              end <- Async[F].monotonic
-            } yield {
-              val succeeded = eoa.fold(_ => false, identity)
-              val completed = JobRecord(job, start, end, succeeded)
-              JobCursor(index + 1, end) -> ExecutionState(eoa = Right(succeeded), history = List(completed))
-            }
-          }
-        }
-      )
+    /** Add a named effect-backed job whose success is decided by `predicate`.
+      *
+      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
+      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
+      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
+      * `predicate`.
+      *
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the effect to run
+      * @param predicate
+      *   applied to a successful value to decide whether the job counts as succeeded
+      */
+    def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
+      create[A](name, fa, Reader(predicate))
+
   end JobBuilder
 
   /*

@@ -198,7 +198,7 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO(10))
             b <- job("b", IO.sleep(1.seconds).as(20))
             _ <- job("report-1", agent.adhoc.report.void)
-            _ <- job.failSafe("exception", IO.raiseError[Boolean](new Exception("aaaa")))
+            _ <- job("rejected", IO(0), _ => false)
             _ <- job("f", IO.unit)
             _ <- job("report-2", agent.adhoc.report.void)
             c <- job("c", IO(30))

@@ -34,9 +34,6 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
 private def resultTag(succeeded: Boolean): String =
   if succeeded then "result" else "error"
 
-private val SeverityNonFatal: "nonfatal" = "nonfatal"
-private val SeverityCritical: "critical" = "critical"
-
 // expects newest-first history (as accumulated by prependHistory)
 private def monadicSpent(history: List[JobRecord]): Duration =
   (history.headOption, history.lastOption)

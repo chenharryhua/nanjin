@@ -98,7 +98,11 @@ object Batch:
           case BatchKind.Quasi => log.warn(JobLog.Nonfatal(js.record, ex): JobLog, ex)
           case BatchKind.Value => log.error(JobLog.Critical(js.record, ex): JobLog, ex)
         }
-      case Right(a) => log.good(JobLog.Succeeded(js.record, translate(a)): JobLog)
+      case Right(a) =>
+        if (js.record.succeeded)
+          log.good(JobLog.Succeeded(js.record, translate(a)): JobLog)
+        else
+          log.warn(JobLog.Unsatisfied(js.record, translate(a)): JobLog)
     }
 
   private def handleOutcome[F[_], A](
@@ -424,7 +428,10 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
+    private def create[A: Encoder](
+      name: String,
+      rfa: Resource[F, A],
+      predicate: Reader[A, Boolean]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -440,7 +447,10 @@ object Batch:
             val compute = for {
               eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
-            } yield JobState(JobRecord(job, start, end, eoa.isRight), eoa)
+            } yield {
+              val succeeded = eoa.fold(_ => false, predicate.run)
+              JobState(JobRecord(job, start, end, succeeded), eoa)
+            }
 
             compute
               .guaranteeCase(handleOutcome(log, job, updatePanel, Encoder[A].apply))
@@ -451,55 +461,56 @@ object Batch:
         }
       )
 
-    /** Add a named effect-backed value job. */
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      apply[A](name, Resource.eval(fa))
-
-    /** Add a resource-backed boolean job whose failure or false result is retained as a quasi failure.
-      *
-      * Exceptions from the job are converted into a failed Boolean result and recorded as false, allowing the
-      * remainder of the monadic chain to continue.
+    /** Add a named resource-backed job. The job succeeds unless its resource acquisition or effect throws, in
+      * which case the exception stops the chain.
       *
       * @param name
-      *   the name of the job
+      *   name of the job
       * @param rfa
-      *   the job
-      * @return
-      *   true only when the job succeeds and evaluates to true; otherwise false
+      *   the resource-backed job
       */
-    def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
-      new Monadic[Boolean](
-        Kleisli { case Context(updatePanel, log, batchId) =>
-          StateT { case JobCursor(index: Int, start: FiniteDuration) =>
-            val job: Job =
-              Job(
-                name = name,
-                index = index,
-                scope = metrics.scope,
-                mode = mode,
-                kind = BatchKind.Quasi,
-                batchId = batchId)
-            val compute = for {
-              eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
-              end <- Resource.eval(Async[F].monotonic)
-            } yield {
-              val succeeded = eoa.fold(_ => false, identity)
-              JobState(JobRecord(job, start, end, succeeded), eoa)
-            }
+    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
+      create[A](name, rfa, Reader(_ => true))
 
-            compute
-              .guaranteeCase(handleOutcome(log, job, updatePanel, Json.fromBoolean))
-              .map { js =>
-                JobCursor(index + 1, js.record.end) ->
-                  ExecutionState(Right(js.record.succeeded), List(js.record))
-              }
-          }
-        }
-      )
+    /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
+      * stops the chain.
+      */
+    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
+      create[A](name, Resource.eval(fa), Reader(_ => true))
 
-    /** Add an effect-backed boolean job whose failure or false result is retained as a quasi failure. */
-    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
-      failSafe(name, Resource.eval(fa))
+    /** Add a named resource-backed job whose success is decided by `predicate`.
+      *
+      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
+      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
+      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
+      * `predicate`.
+      *
+      * @param name
+      *   name of the job
+      * @param rfa
+      *   the resource-backed job
+      * @param predicate
+      *   applied to a successful value to decide whether the job counts as succeeded
+      */
+    def apply[A: Encoder](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
+      create[A](name, rfa, Reader(predicate))
+
+    /** Add a named effect-backed job whose success is decided by `predicate`.
+      *
+      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
+      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
+      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
+      * `predicate`.
+      *
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the effect to run
+      * @param predicate
+      *   applied to a successful value to decide whether the job counts as succeeded
+      */
+    def apply[A: Encoder](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
+      create[A](name, Resource.eval(fa), Reader(predicate))
 
   end JobBuilder
 end Batch

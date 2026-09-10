@@ -106,7 +106,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSafe("b", IO.raiseError[Boolean](new Exception()))
+            _ <- job("b", IO(0), _ => false)
             c <- job("c", IO(2))
           } yield a + c
         }
