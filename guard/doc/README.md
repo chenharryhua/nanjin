@@ -153,7 +153,7 @@ classDiagram
         allPassed = true
     }
     class MonadicBatch~A~ {
-        jobs: List[JobRecord]
+        jobs: List[JobState[Unit]]
         result: Either[Throwable, A]
         succeeded = result.isRight
         allPassed = jobs.forall(_.succeeded)
