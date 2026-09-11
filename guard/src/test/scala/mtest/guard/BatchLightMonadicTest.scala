@@ -61,7 +61,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .map { monadicValue =>
             monadicValue.jobs.map(_.record.job.index) shouldBe List(1, 2, 3)
             monadicValue.jobs.map(_.record.job.name) shouldBe List("a", "b", "c")
-            monadicValue.jobs.map(_.succeeded) shouldBe List(true, true, true)
+            monadicValue.jobs.map(_.record.succeeded) shouldBe List(true, true, true)
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -243,9 +243,9 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             // the rejected value still flows through, so the chain completes
             monadicValue.result shouldBe Right(6)
             monadicValue.jobs.size shouldBe 3
-            monadicValue.jobs.head.succeeded.shouldBe(true)
-            monadicValue.jobs(1).succeeded.shouldBe(false)
-            monadicValue.jobs(2).succeeded.shouldBe(true)
+            monadicValue.jobs.head.record.succeeded.shouldBe(true)
+            monadicValue.jobs(1).record.succeeded.shouldBe(false)
+            monadicValue.jobs(2).record.succeeded.shouldBe(true)
             aExecuted shouldBe true
             bExecuted shouldBe true
             cExecuted shouldBe true
@@ -386,7 +386,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             // monadic jobs have no kind
             monadicValue.jobs.map(_.record.job.kind) shouldBe List.fill(3)(None)
             monadicValue.jobs.map(_.record.job.mode) shouldBe List.fill(3)(BatchMode.Monadic)
-            monadicValue.jobs(1).succeeded.shouldBe(true)
+            monadicValue.jobs(1).record.succeeded.shouldBe(true)
             ()
           }
       }.compile.lastOrError.unsafeRunSync()

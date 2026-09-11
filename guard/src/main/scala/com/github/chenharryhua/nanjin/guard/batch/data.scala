@@ -147,14 +147,7 @@ final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration,
 }
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
-final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
-
-  /** Whether the job succeeded: it produced a value and satisfied its post-condition. Mirrors
-    * `record.succeeded`; note this can be `false` while `result` is a `Right` (a value rejected by its
-    * predicate).
-    */
-  val succeeded: Boolean = record.succeeded
-}
+final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor
 
 /** A successful batch job value paired with the completion metadata for that job. */
 final case class JobValue[A](record: JobRecord, result: A) derives Functor
@@ -206,7 +199,7 @@ final case class QuasiBatch[A](
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
   override val succeeded: Boolean = true
-  override val allPassed: Boolean = jobs.forall(_.succeeded)
+  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
 }
 object QuasiBatch:
   // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
@@ -214,7 +207,7 @@ object QuasiBatch:
   // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.jobs.partition(_.succeeded)
+      val (passed, failed) = qb.jobs.partition(_.record.succeeded)
       Json.obj(
         show"${qb.mode} ${BatchKind.Quasi}" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
@@ -269,7 +262,7 @@ final case class MonadicBatch[A](
     extends BatchResult[JobState[Unit]] derives Functor {
   override val mode: BatchMode = BatchMode.Monadic
   override val succeeded: Boolean = result.isRight
-  override val allPassed: Boolean = jobs.forall(_.succeeded)
+  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
 }
 
 object MonadicBatch:
@@ -366,8 +359,8 @@ sealed private trait JobLog[A] {
 }
 
 private object JobLog {
-  final case class Kickoff[A](job: Job) extends JobLog[A]
-  final case class Canceled[A](job: Job) extends JobLog[A]
+  final case class Kickoff(job: Job) extends JobLog[Nothing]
+  final case class Canceled(job: Job) extends JobLog[Nothing]
   final case class Succeeded[A](record: JobRecord, result: A) extends JobLog[A]
   final case class Unsatisfied[A](record: JobRecord, result: A) extends JobLog[A]
   final case class Nonfatal[A](record: JobRecord, error: Throwable) extends JobLog[A]

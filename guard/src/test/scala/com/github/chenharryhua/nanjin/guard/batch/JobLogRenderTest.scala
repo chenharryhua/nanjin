@@ -154,8 +154,7 @@ class JobLogRenderTest extends AnyFunSuite {
     assert(c.get[String](JsonKeys.ERROR).toOption.exists(_.endsWith("boom")))
   }
 
-  test("inBatch Kickoff/Canceled are Null (they never reach a batch-nested render)") {
-    assert(JobLog.Kickoff[Unit](quasiJob).inBatch == Json.Null)
-    assert(JobLog.Canceled[Unit](quasiJob).inBatch == Json.Null)
-  }
+  // Note: Kickoff/Canceled extend JobLog[Nothing], so `inBatch` (which needs an Encoder[A]) is uncallable
+  // for them by construction — matching the "should not happen" comment on those arms. Their real render is
+  // `standalone`, covered above.
 }

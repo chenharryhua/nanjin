@@ -206,13 +206,13 @@ class BatchTest extends AnyFunSuite {
         }
         .monadicBatch
         .use { qr =>
-          assert(qr.jobs.head.succeeded)
-          assert(qr.jobs(1).succeeded)
-          assert(qr.jobs(2).succeeded)
-          assert(!qr.jobs(3).succeeded)
-          assert(qr.jobs(4).succeeded)
-          assert(qr.jobs(5).succeeded)
-          assert(qr.jobs(6).succeeded)
+          assert(qr.jobs.head.record.succeeded)
+          assert(qr.jobs(1).record.succeeded)
+          assert(qr.jobs(2).record.succeeded)
+          assert(!qr.jobs(3).record.succeeded)
+          assert(qr.jobs(4).record.succeeded)
+          assert(qr.jobs(5).record.succeeded)
+          assert(qr.jobs(6).record.succeeded)
           assert(qr.jobs.size == 7)
           agent.adhoc.report.void
         }

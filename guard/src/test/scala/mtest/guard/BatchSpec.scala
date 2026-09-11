@@ -114,9 +114,9 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.result.shouldBe(Right(3))) >>
-        result.asserting(_.jobs.head.succeeded.shouldBe(true)) >>
-        result.asserting(_.jobs(1).succeeded.shouldBe(false)) >>
-        result.asserting(_.jobs(2).succeeded.shouldBe(true)) >>
+        result.asserting(_.jobs.head.record.succeeded.shouldBe(true)) >>
+        result.asserting(_.jobs(1).record.succeeded.shouldBe(false)) >>
+        result.asserting(_.jobs(2).record.succeeded.shouldBe(true)) >>
         IO.unit
     }.compile.lastOrError.unsafeRunSync()
 
