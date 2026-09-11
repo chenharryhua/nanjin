@@ -54,6 +54,11 @@ private object JsonKeys {
   val KICKOFF = "kickoff"
   val CANCELED = "canceled"
   val ERROR = "error"
+  val RESULT = "result"
+  // QuasiBatch per-outcome counts. Named distinctly from the per-job `SUCCEEDED` status tag so the two
+  // never collide in one report: these are integer tallies, that tag carries a took duration.
+  val PASSED = "passed"
+  val FAILED = "failed"
 }
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.

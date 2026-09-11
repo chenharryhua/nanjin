@@ -35,17 +35,23 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(quasiJson.hcursor.get[String]("Sequential Quasi").toOption.contains("batch"))
     assert(valueJson.hcursor.get[String]("Sequential Value").toOption.contains("batch"))
 
-    // each job entry is keyed "job-<index>" -> name; the produced value is never logged. In the compact
-    // form the "succeeded" status tag carries the took duration string, and there is no result field.
+    // QuasiBatch outcome counts use "passed"/"failed" (integer tallies), named distinctly from the
+    // per-job "succeeded" status tag which carries a took duration
+    assert(quasiJson.hcursor.get[Int]("passed").toOption.contains(1))
+    assert(quasiJson.hcursor.get[Int]("failed").toOption.contains(0))
+
+    // each job entry is keyed "job-<index>" -> name; the compact "succeeded" status tag carries the took
+    // duration string. The batch-level record is user-triggered (not auto-logged), so it also shows the
+    // produced value under "result".
     val quasiJob = quasiJson.hcursor.downField("jobs").downArray
     assert(quasiJob.get[String]("job-1").toOption.contains("work"))
-    assert(quasiJob.get[String]("succeeded").toOption.exists(_.nonEmpty))
-    assert(quasiJob.get[Int]("succeeded").toOption.isEmpty) // not the produced value
+    assert(quasiJob.get[String]("succeeded").toOption.exists(_.nonEmpty)) // took, not the value
+    assert(quasiJob.get[Int]("result").toOption.contains(1)) // the produced value
 
     val valueJob = valueJson.hcursor.downField("jobs").downArray
     assert(valueJob.get[String]("job-1").toOption.contains("work"))
     assert(valueJob.get[String]("succeeded").toOption.exists(_.nonEmpty))
-    assert(valueJob.get[Int]("succeeded").toOption.isEmpty)
+    assert(valueJob.get[Int]("result").toOption.contains(1))
   }
 
   test("failed jobs carry the exception message under their status tag") {
@@ -69,9 +75,9 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(quasiJob.get[String]("error").toOption.exists(_.endsWith("boom")))
 
     // the monadic per-job entry renders the (successful) record; the batch-level failure is carried by
-    // the top-level "critical" tag holding the stack trace
+    // the top-level "error" tag holding the stack trace (a successful monadic batch would use "result")
     assert(monadicJson.hcursor.downField("jobs").downArray.get[String]("job-1").toOption.contains("work"))
-    assert(monadicJson.hcursor.downField("critical").focus.nonEmpty)
+    assert(monadicJson.hcursor.downField("error").focus.nonEmpty)
   }
 
   test("QuasiBatch: succeeded is always true; allPassed reflects per-job outcomes") {
@@ -129,5 +135,7 @@ class BatchEncoderTest extends AnyFunSuite {
     val jobJson = json.hcursor.downField("jobs").downArray
     assert(jobJson.get[String]("job-1").toOption.contains("check"))
     assert(jobJson.get[String]("unsatisfied").toOption.exists(_.nonEmpty))
+    // a completed monadic batch shows its final result (the user's declared output) under "result"
+    assert(json.hcursor.get[Int]("result").toOption.contains(0))
   }
 }

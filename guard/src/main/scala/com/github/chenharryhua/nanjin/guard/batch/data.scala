@@ -211,16 +211,22 @@ final case class QuasiBatch[A](
   override val allPassed: Boolean = jobs.forall(_.succeeded)
 }
 object QuasiBatch:
-  given [A] => Encoder[QuasiBatch[A]] =
+  // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
+  // serialize the returned batch, unlike the auto-emitted per-job log (see `JobLog`). Same reason the
+  // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
+  given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (succeeded, failed) = qb.jobs.partition(_.succeeded)
+      val (passed, failed) = qb.jobs.partition(_.succeeded)
       Json.obj(
         show"${qb.mode} ${BatchKind.Quasi}" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
         "spent" -> Json.fromString(fmt.format(qb.spent)),
-        "succeeded" -> Json.fromInt(succeeded.length),
-        "failed" -> Json.fromInt(failed.length),
-        "jobs" -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
+        JsonKeys.PASSED -> Json.fromInt(passed.length),
+        JsonKeys.FAILED -> Json.fromInt(failed.length),
+        "jobs" -> qb.jobs.map { js =>
+          val in = toLogEntry(js).message.inBatch
+          js.result.fold(_ => in, a => Json.obj(JsonKeys.RESULT -> a.asJson).deepMerge(in))
+        }.asJson
       )
     }
 end QuasiBatch
@@ -242,13 +248,15 @@ final case class ValueBatch[A](
 }
 
 object ValueBatch:
-  given [A] => Encoder[ValueBatch[A]] =
+  given [A: Encoder] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
       Json.obj(
         show"${bv.mode} ${BatchKind.Value}" -> bv.scope.label.asJson,
         "batch_id" -> bv.batchId.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "jobs" -> bv.jobs.map(js => toLogEntry(js.jobState).message.inBatch).asJson
+        "jobs" -> bv.jobs.map(js =>
+          Json.obj(JsonKeys.RESULT -> js.result.asJson)
+            .deepMerge(toLogEntry(js.jobState).message.inBatch)).asJson
       )
     }
 end ValueBatch
@@ -278,7 +286,7 @@ object MonadicBatch:
   // never rendered.
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
-      val tag = if (mb.succeeded) JsonKeys.SUCCEEDED else JsonKeys.CRITICAL
+      val tag = if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR
       Json.obj(
         mb.mode.show -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
@@ -289,13 +297,22 @@ object MonadicBatch:
     }
 end MonadicBatch
 
+/** Renders a completed job as JSON for the batch report.
+  *
+  * Security/privacy note: a job's produced value is the user's data, and these renders feed logs that the
+  * framework emits automatically (see `standalone`, driven by `logCompleted`). Emitting a produced value
+  * there would leak user data to the log without the user's agreement, so the `JobLog` cases deliberately
+  * carry '''no''' produced value — only lifecycle facts (identity, took, outcome tag, and, on failure, the
+  * exception message). This is why the whole batch API needs no `Encoder[A]`. A produced value is shown only
+  * where the user explicitly serializes a returned `BatchResult` (the
+  * `QuasiBatch`/`ValueBatch`/`MonadicBatch` encoders add it under `result`), never on this auto-emitted path.
+  */
 sealed private trait JobLog {
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(JsonKeys.KICKOFF -> job.asJson)
     case JobLog.Canceled(job) => Json.obj(JsonKeys.CANCELED -> job.asJson)
 
-    // don't do .dropNullValues.dropEmptyValues. need tag to show job state
     case JobLog.Succeeded(record) =>
       Json.obj(JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
         .deepMerge(record.job.asJson)
@@ -321,7 +338,6 @@ sealed private trait JobLog {
     case JobLog.Kickoff(_)  => Json.Null // should not happen
     case JobLog.Canceled(_) => Json.Null // should not happen
 
-    // don't do .dropNullValues.dropEmptyValues. need tag to show job state
     case JobLog.Succeeded(record) =>
       Json.obj(record.job.nameEntry, JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
 
