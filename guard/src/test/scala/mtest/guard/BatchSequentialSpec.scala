@@ -31,7 +31,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         result.asserting { mb =>
           mb.jobs.head.record.succeeded.shouldBe(true)
           mb.jobs.head.record.job.mode.shouldBe(BatchMode.Sequential)
-          mb.jobs.head.record.job.kind.shouldBe(BatchKind.Quasi)
+          mb.jobs.head.record.job.kind.shouldBe(Some(BatchKind.Quasi))
           mb.jobs(1).record.succeeded.shouldBe(false)
           mb.jobs(2).record.succeeded.shouldBe(true)
           mb.jobs(3).record.succeeded.shouldBe(true)
@@ -69,7 +69,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .valueBatch
           .evalTap { bv =>
             IO {
-              bv.jobs.map(_.record.job.kind).shouldBe(List.fill(5)(BatchKind.Value))
+              bv.jobs.map(_.record.job.kind).shouldBe(List.fill(5)(Some(BatchKind.Value)))
               bv.jobs.map(_.record.job.mode).shouldBe(List.fill(5)(BatchMode.Sequential))
             }
           }

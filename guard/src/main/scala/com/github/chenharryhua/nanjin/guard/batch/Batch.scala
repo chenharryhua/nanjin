@@ -18,8 +18,8 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
+import io.circe.Json
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
 
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
@@ -31,7 +31,7 @@ object Batch:
   private def shouldNeverHappenException(e: Throwable): Exception =
     new RuntimeException("[Batch internal error] unexpected outcome", e)
 
-  private val translator: Ior[Long, Long] => Json = {
+  private val translator: Reader[Ior[Long, Long], Json] = Reader {
     case Ior.Left(a)    => Json.fromString(s"$a/0")
     case Ior.Right(b)   => Json.fromString(s"0/$b")
     case Ior.Both(a, b) =>
@@ -92,25 +92,20 @@ object Batch:
   private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
     log.warn(JobLog.Canceled(job).standalone)
 
-  private def logCompleted[F[_]](log: Log[F], js: JobState[Json]): F[Unit] =
+  private def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
     log.emit(toLogEntry(js).map(_.standalone))
 
-  private def handleOutcome[F[_], A](
-    log: Log[F],
-    job: Job,
-    updatePanel: UpdatePanel[F],
-    translate: Reader[A, Json])(outcome: Outcome[F, Throwable, JobState[A]])(using
-    F: MonadThrow[F]): F[Unit] =
+  private def handleOutcome[F[_], A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
+    outcome: Outcome[F, Throwable, JobState[A]])(using F: MonadThrow[F]): F[Unit] =
     outcome.fold(
       canceled = logCanceled(log, job),
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       errored = ex => F.raiseError(shouldNeverHappenException(ex)),
-      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate.run)))
+      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js))
     )
 
   private class JobExecutor[F[_], A](
     predicate: Reader[A, Boolean],
-    translate: Reader[A, Json],
     mode: BatchMode,
     log: Log[F],
     scope: MetricScope,
@@ -118,7 +113,7 @@ object Batch:
     batchId: BatchId)(using F: Temporal[F]) {
 
     private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
-      Job(jni.name, jni.index, scope, mode, kind, batchId)
+      Job(jni.name, jni.index, scope, mode, Some(kind), batchId)
 
     // Value job: a predicate miss folds into Left(PostConditionUnsatisfied) so runValue can raise it and
     // abort the batch. An exception is likewise a Left.
@@ -158,7 +153,7 @@ object Batch:
 
     def runValue(jni: JobNameIndex[F, A]): F[JobValue[A]] =
       val (job, compute) = singleValueJob(jni)
-      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel, translate))
+      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
         .flatMap(js =>
           js.result match {
             case Left(ex)     => ex.raiseError[F, JobValue[A]]
@@ -167,7 +162,7 @@ object Batch:
 
     def runQuasi(jni: JobNameIndex[F, A]): F[JobState[A]] =
       val (job, compute) = singleQuasiJob(jni)
-      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel, translate))
+      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
   }
 
   /*
@@ -202,7 +197,6 @@ object Batch:
    */
   final class Parallel[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
-    translate: Reader[A, Json],
     log: Log[F],
     metrics: MetricsHub[F],
     parallelism: Int,
@@ -216,7 +210,7 @@ object Batch:
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
+            JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -233,7 +227,7 @@ object Batch:
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
-            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runValue
+            JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runValue
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -246,7 +240,7 @@ object Batch:
     }
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), translate, log, metrics, parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = Reader(f), log, metrics, parallelism, jobs, batchIdGenerator)
   }
 
   /*
@@ -255,7 +249,6 @@ object Batch:
 
   final class Sequential[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
-    translate: Reader[A, Json],
     log: Log[F],
     metrics: MetricsHub[F],
     jobs: List[JobNameIndex[F, A]],
@@ -267,9 +260,7 @@ object Batch:
     override def quasiBatch: Resource[F, QuasiBatch[A]] = {
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
-          .traverse {
-            JobExecutor(predicate, translate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
-          }
+          .traverse(JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runQuasi)
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
@@ -287,7 +278,6 @@ object Batch:
           .traverse(
             JobExecutor(
               predicate = predicate,
-              translate = translate,
               mode = mode,
               log = log,
               scope = metrics.scope,
@@ -306,7 +296,7 @@ object Batch:
     }
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = Reader(f), translate, log, metrics, jobs, batchIdGenerator)
+      new Batch.Sequential[F, A](predicate = Reader(f), log, metrics, jobs, batchIdGenerator)
   }
 
   /*
@@ -351,7 +341,7 @@ object Batch:
                 if (f(value))
                   unchange
                 else {
-                  val err = PostConditionUnsatisfied(history.headOption.map(_.job))
+                  val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
                   ExecutionState[A](Left(err), history)
                 }
             }
@@ -370,7 +360,7 @@ object Batch:
             .guarantee(Resource.eval(activeGauge.deactivate))
         } yield MonadicBatch(
           scope = metrics.scope,
-          spent = history.headOption.map(_.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
           batchId = batchId,
           jobs = history.reverse,
           result = eoa
@@ -414,15 +404,11 @@ object Batch:
         StateT(cursor => ra.map(a => cursor -> ExecutionState(Right(a), Nil)))
       })
 
-    private def handleOutcome[A](
-      log: Log[F],
-      job: Job,
-      updatePanel: UpdatePanel[F],
-      translate: Reader[A, Json])(
+    private def handleOutcome[A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
       outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
-          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js.map(translate.run)))
+          rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js))
         // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
@@ -439,11 +425,7 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    private def create[A](
-      name: String,
-      rfa: Resource[F, A],
-      predicate: Reader[A, Boolean],
-      translate: Reader[A, Json]): Monadic[A] =
+    private def create[A](name: String, rfa: Resource[F, A], predicate: Reader[A, Boolean]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -453,7 +435,7 @@ object Batch:
                 index = index,
                 scope = metrics.scope,
                 mode = mode,
-                kind = BatchKind.Value,
+                kind = None,
                 batchId = batchId)
 
             val compute = for {
@@ -465,9 +447,9 @@ object Batch:
             }
 
             compute
-              .guaranteeCase(handleOutcome(log, job, updatePanel, translate))
+              .guaranteeCase(handleOutcome(log, job, updatePanel))
               .map { js =>
-                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.record))
+                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
               }
           }
         }
@@ -481,14 +463,14 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
-      create[A](name, rfa, Reader(_ => true), Reader(_.asJson))
+    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
+      create[A](name, rfa, Reader(_ => true))
 
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.
       */
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(_ => true), Reader(_.asJson))
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
+      create[A](name, Resource.eval(fa), Reader(_ => true))
 
     /** Add a named resource-backed job whose success is decided by `predicate`.
       *
@@ -504,8 +486,8 @@ object Batch:
       * @param predicate
       *   applied to a successful value to decide whether the job counts as succeeded
       */
-    def apply[A: Encoder](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, rfa, Reader(predicate), Reader(_.asJson))
+    def apply[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
+      create[A](name, rfa, Reader(predicate))
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -521,8 +503,8 @@ object Batch:
       * @param predicate
       *   applied to a successful value to decide whether the job counts as succeeded
       */
-    def apply[A: Encoder](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(predicate), Reader(_.asJson))
+    def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
+      create[A](name, Resource.eval(fa), Reader(predicate))
 
   end JobBuilder
 end Batch
@@ -540,13 +522,12 @@ final class Batch[F[_]: Async] private[guard] (
 
   /** Create a sequential batch from named effects; jobs run in input order.
     */
-  def sequential[A: Encoder](fas: (String, F[A])*): Batch.Sequential[F, A] = {
+  def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Sequential[F, A](
       predicate = Reader(_ => true),
-      translate = Reader(_.asJson),
       log = log,
       metrics = metrics,
       jobs = jobs,
@@ -557,14 +538,13 @@ final class Batch[F[_]: Async] private[guard] (
     *
     * `parallelism` must be greater than zero.
     */
-  def parallel[A: Encoder](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
+  def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Parallel[F, A](
       predicate = Reader(_ => true),
-      translate = Reader(_.asJson),
       log = log,
       metrics = metrics,
       parallelism = parallelism,
@@ -573,7 +553,7 @@ final class Batch[F[_]: Async] private[guard] (
   }
 
   /** Create a parallel batch with parallelism inferred from the job count. */
-  def parallel[A: Encoder](fas: (String, F[A])*): Batch.Parallel[F, A] =
+  def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 
   /** Build a monadic batch using a fluent job builder for dependent steps. */

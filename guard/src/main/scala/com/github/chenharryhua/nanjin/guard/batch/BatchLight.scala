@@ -72,7 +72,7 @@ object BatchLight:
                   if (f(value))
                     unchange
                   else {
-                    val err = PostConditionUnsatisfied(history.headOption.map(_.job))
+                    val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
                     ExecutionState[A](Left(err), history)
                   }
               }
@@ -88,7 +88,7 @@ object BatchLight:
           (_, ExecutionState(eoa, history)) <- kleisli(batchId).run(JobCursor(1, start))
         } yield MonadicBatch(
           scope = scope,
-          spent = history.headOption.map(_.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
           batchId = batchId,
           jobs = history.reverse,
           result = eoa)
@@ -129,20 +129,15 @@ object BatchLight:
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
-            val job: Job = Job(
-              name = name,
-              index = index,
-              scope = scope,
-              mode = mode,
-              kind = BatchKind.Value,
-              batchId = batchId)
+            val job: Job =
+              Job(name = name, index = index, scope = scope, mode = mode, kind = None, batchId = batchId)
 
             for {
               eoa <- fa.attempt
               end <- Async[F].monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, predicate.run)
-              val completed = JobRecord(job, start, end, succeeded)
+              val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))
               JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }
@@ -200,7 +195,7 @@ object BatchLight:
       scope: MetricScope,
       mode: BatchMode,
       batchId: BatchId)(jni: JobNameIndex[F, A])(using F: Temporal[F]): F[JobState[A]] = {
-      val job = Job(jni.name, jni.index, scope, mode, BatchKind.Value, batchId)
+      val job = Job(jni.name, jni.index, scope, mode, Some(BatchKind.Value), batchId)
       for {
         start <- F.monotonic
         eoa <- jni.fa.attempt
@@ -224,14 +219,14 @@ object BatchLight:
       scope: MetricScope,
       mode: BatchMode,
       batchId: BatchId)(jni: JobNameIndex[F, A])(using F: Temporal[F]): F[JobState[A]] = {
-      val job = Job(jni.name, jni.index, scope, mode, BatchKind.Quasi, batchId)
+      val job = Job(jni.name, jni.index, scope, mode, Some(BatchKind.Quasi), batchId)
       for {
         start <- F.monotonic
         eoa <- jni.fa.attempt
         end <- F.monotonic
       } yield {
-        val result = eoa.fold(_ => false, predicate.run)
-        JobState(JobRecord(job, start, end, result), eoa)
+        val succeeded = eoa.fold(_ => false, predicate.run)
+        JobState(JobRecord(job, start, end, succeeded), eoa)
       }
     }
   }

@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
+import com.github.chenharryhua.nanjin.guard.batch.{BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -33,10 +33,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .evalTap { mb =>
           IO {
             // pure steps create no job entry; only the three plain apply jobs are recorded
-            assert(mb.jobs.map(_.job.name) == List("a", "b", "c"))
-            // all monadic jobs are Value
-            assert(mb.jobs.map(_.job.kind) == List.fill(3)(BatchKind.Value))
-            assert(mb.jobs.map(_.job.mode) == List.fill(3)(BatchMode.Monadic))
+            assert(mb.jobs.map(_.record.job.name) == List("a", "b", "c"))
+            // monadic jobs have no kind
+            assert(mb.jobs.map(_.record.job.kind) == List.fill(3)(None))
+            assert(mb.jobs.map(_.record.job.mode) == List.fill(3)(BatchMode.Monadic))
           }
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -59,7 +59,7 @@ class BatchMonadicTest extends AnyFunSuite {
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[Exception])
           // the failing job (index 2) is recorded and marked unsuccessful
-          val failed = monadicValue.jobs.find(_.job.index == 2).get
+          val failed = monadicValue.jobs.find(_.record.job.index == 2).get
           assert(!failed.succeeded)
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -83,14 +83,14 @@ class BatchMonadicTest extends AnyFunSuite {
           IO {
             // the exception short-circuits: c never runs and is not recorded
             assert(mb.result.isLeft)
-            val sorted = mb.jobs.sortBy(_.job.index)
+            val sorted = mb.jobs.sortBy(_.record.job.index)
             assert(sorted.size == 2)
 
             assert(sorted.head.succeeded)
-            assert(sorted.head.job.index == 1)
+            assert(sorted.head.record.job.index == 1)
 
             assert(!sorted(1).succeeded)
-            assert(sorted(1).job.index == 2)
+            assert(sorted(1).record.job.index == 2)
 
             assert(!cExecuted)
           }
@@ -114,17 +114,17 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadicBatch
         .evalTap { mb =>
           IO {
-            val sorted = mb.jobs.sortBy(_.job.index)
+            val sorted = mb.jobs.sortBy(_.record.job.index)
 
             assert(sorted.head.succeeded)
-            assert(sorted.head.job.index == 1)
+            assert(sorted.head.record.job.index == 1)
 
             // a rejected predicate is recorded as unsuccessful but does not abort the batch
             assert(!sorted(1).succeeded)
-            assert(sorted(1).job.index == 2)
+            assert(sorted(1).record.job.index == 2)
 
             assert(sorted(2).succeeded)
-            assert(sorted(2).job.index == 3)
+            assert(sorted(2).record.job.index == 3)
           }
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -164,10 +164,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadicBatch
         .evalTap { mb =>
           IO {
-            val sorted = mb.jobs.sortBy(_.job.index)
+            val sorted = mb.jobs.sortBy(_.record.job.index)
 
             assert(sorted.size == 4)
-            assert(sorted.forall(_.job.kind == BatchKind.Value))
+            assert(sorted.forall(_.record.job.kind.isEmpty))
             assert(sorted.head.succeeded)
             assert(sorted(1).succeeded)
             assert(!sorted(2).succeeded)
@@ -196,10 +196,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .evalTap { mb =>
           IO {
             assert(mb.result.isLeft)
-            val sorted = mb.jobs.sortBy(_.job.index)
+            val sorted = mb.jobs.sortBy(_.record.job.index)
             // c never runs; only a and b are recorded
             assert(sorted.size == 2)
-            assert(sorted.forall(_.job.kind == BatchKind.Value))
+            assert(sorted.forall(_.record.job.kind.isEmpty))
             assert(!sorted(1).succeeded)
             assert(!cExecuted)
           }
@@ -226,12 +226,12 @@ class BatchMonadicTest extends AnyFunSuite {
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
 
-          val sorted = monadicValue.jobs.sortBy(_.job.index)
+          val sorted = monadicValue.jobs.sortBy(_.record.job.index)
           assert(sorted.size == 2)
           assert(sorted.head.succeeded)
-          assert(sorted.head.job.index == 1)
+          assert(sorted.head.record.job.index == 1)
           assert(sorted(1).succeeded)
-          assert(sorted(1).job.index == 2)
+          assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.unsafeRunSync()
 
@@ -257,11 +257,11 @@ class BatchMonadicTest extends AnyFunSuite {
           assert(monadicValue.result.isLeft)
           assert(monadicValue.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
 
-          val sorted = monadicValue.jobs.sortBy(_.job.index)
+          val sorted = monadicValue.jobs.sortBy(_.record.job.index)
           assert(sorted.size == 2)
           assert(sorted.head.succeeded)
           assert(sorted(1).succeeded)
-          assert(sorted(1).job.index == 2)
+          assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.unsafeRunSync()
 

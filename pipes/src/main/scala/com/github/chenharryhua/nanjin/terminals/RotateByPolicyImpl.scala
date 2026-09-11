@@ -16,14 +16,62 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
+/** `RotateByPolicy` implementation that rotates output files on a time/policy schedule.
+  *
+  * The driver is `rotateSequence`, a stream of `CreateRotateFile` ticks produced from a `Policy` (see
+  * `Hadoop.rotateSink`); each tick marks the boundary at which the current file should be closed and the next
+  * one opened. Every sink method reduces to the same core: build a `GetWriter[A]` (how to open a
+  * `HadoopWriter` for a given `Url`) and hand the incoming records plus the tick stream to `persist`.
+  *
+  * Rotation mechanics:
+  *   - Incoming data chunks and rotation ticks are merged into one stream of `Either[Chunk[A],
+  *     CreateRotateFile]` (`Left` = data, `Right` = rotate) via `mergeHaltBoth`, so the loop stops when
+  *     '''either''' the data or the tick stream ends.
+  *   - A `NonEmptyHotswap` holds the currently open writer. On a `Right` tick the loop swaps in a fresh
+  *     writer for the next file (releasing the previous one) and emits a `RotateFile` describing the file
+  *     just closed. On a `Left` chunk it writes to the current writer and advances the running record count.
+  *   - Because it is hotswap-backed, exactly one writer (hence one open file) exists at a time, and the swap
+  *     guarantees the previous file is finalized before the next is created.
+  *
+  * File naming and boundaries come from `pathBuilder`, applied to the `CreateRotateFile` of the file being
+  * written; the emitted `RotateFile` carries the opening tick (`create`), the closing instant, the resolved
+  * `url`, and the record count for that file.
+  *
+  * @param pathBuilder
+  *   maps each rotation tick to the output `Url` for the file it opens
+  * @param rotateSequence
+  *   the stream of rotation ticks; its first element opens the first file and each subsequent element closes
+  *   the current file and opens the next
+  */
 final private class RotateByPolicyImpl[F[_]: Async](
   configuration: Configuration,
   pathBuilder: CreateRotateFile => Url,
   rotateSequence: Stream[F, CreateRotateFile])
     extends RotateByPolicy[F] {
 
+  /** How to obtain a writer for a resolved `Url`: a `Reader` from `Url` to a `Resource`-managed
+    * `HadoopWriter`. Deferring on `Url` lets each rotation open a distinct file with the same recipe.
+    */
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
 
+  /** The core rotation loop, expressed as a `Pull` that folds over the merged data/tick stream and outputs
+    * one `RotateFile` per completed file.
+    *
+    * On each element:
+    *   - `Left(data)`: write the chunk to the current writer (obtained from the `hotswap`) and recurse with
+    *     `count + data.size`. A write failure is wrapped in `RotateWriteException` carrying the current tick,
+    *     path, and the count '''so far''' (the offset at which the write failed, not a grand total).
+    *   - `Right(next)`: swap the hotswap to a writer for `next`'s path (finalizing the current file), emit a
+    *     `RotateFile` for the file just closed (opened at `current`, closed at `next.time`, with `count`
+    *     records), then recurse with `current = next` and the count reset to `0`.
+    *   - end of stream (`None`): emit a final `RotateFile` for the still-open `current` file, timestamped
+    *     with the current wall clock since no closing tick arrived.
+    *
+    * @param current
+    *   the tick that opened the file currently being written
+    * @param count
+    *   records written to the current file so far
+    */
   private def do_work[A](
     get_writer: GetWriter[A],
     hotswap: NonEmptyHotswap[F, HadoopWriter[F, A]],
@@ -57,6 +105,14 @@ final private class RotateByPolicyImpl[F[_]: Async](
         }
     }
 
+  /** Bootstrap the rotation: pull the first tick off `rotateSequence` to open the initial file, then run
+    * `do_work` over the merge of `data` (as `Left`) and the remaining ticks (as `Right`).
+    *
+    * The first tick (`head`) both names the initial file and seeds the `NonEmptyHotswap` (which requires an
+    * initial resource, hence "non-empty"). If `rotateSequence` is empty there is nothing to write and the
+    * pull completes immediately. The `data` stream is chunk-preserving: each upstream chunk becomes one
+    * `write`.
+    */
   private def persist[A](data: Stream[F, Chunk[A]], get_writer: GetWriter[A]): Pull[F, RotateFile, Unit] =
     rotateSequence.pull.uncons1.flatMap {
       case None               => Pull.done
@@ -75,6 +131,13 @@ final private class RotateByPolicyImpl[F[_]: Async](
           .echo
     }
 
+  /** Schema-less `GenericRecord` sinks: peek the first record to obtain its Avro `Schema`, then persist the
+    * (undisturbed) stream with a writer built for that schema.
+    *
+    * `peek1` inspects the head without consuming it, so the record used to derive the schema is still
+    * written. This assumes every record shares the first record's schema. An empty stream yields no file. The
+    * schema-bound overloads skip this step because the caller supplies the schema up front.
+    */
   private def generic_record_stream_peek_one(get_writer: Schema => GetWriter[GenericRecord])(
     ss: Stream[F, GenericRecord]): Stream[F, RotateFile] =
     ss.pull.peek1.flatMap {

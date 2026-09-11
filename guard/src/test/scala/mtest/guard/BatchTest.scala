@@ -181,7 +181,7 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { qr =>
           assert(qr.result == Right(60))
-          assert(qr.jobs.map(_.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
+          assert(qr.jobs.map(_.record.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -254,18 +254,18 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { qr =>
           val details = qr.jobs
-          assert(details.head.job.name === "1")
-          assert(details.head.job.index === 1)
-          assert(details(1).job.name === "2")
-          assert(details(1).job.index === 2)
-          assert(details(2).job.name === "3")
-          assert(details(2).job.index === 3)
-          assert(details(3).job.name === "10")
-          assert(details(3).job.index === 4)
-          assert(details(4).job.name === "20")
-          assert(details(4).job.index === 5)
-          assert(details(5).job.name === "30")
-          assert(details(5).job.index === 6)
+          assert(details.head.record.job.name === "1")
+          assert(details.head.record.job.index === 1)
+          assert(details(1).record.job.name === "2")
+          assert(details(1).record.job.index === 2)
+          assert(details(2).record.job.name === "3")
+          assert(details(2).record.job.index === 3)
+          assert(details(3).record.job.name === "10")
+          assert(details(3).record.job.index === 4)
+          assert(details(4).record.job.name === "20")
+          assert(details(4).record.job.index === 5)
+          assert(details(5).record.job.name === "30")
+          assert(details(5).record.job.index === 6)
           assert(details.size == 6)
           agent.adhoc.report.void
         }
@@ -372,7 +372,7 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { batch =>
           IO {
-            monadicResult = batch.jobs.map(j => j.job.index -> j.job.name)
+            monadicResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 
@@ -425,7 +425,7 @@ class BatchTest extends AnyFunSuite {
           assert(mb.result == Right(5))
           // untracked does not create a job entry; only "length" appears
           assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.job.name == "length")
+          assert(mb.jobs.head.record.job.name == "length")
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -443,7 +443,7 @@ class BatchTest extends AnyFunSuite {
           assert(mb.succeeded)
           assert(mb.result == Right(84))
           assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.job.name == "double")
+          assert(mb.jobs.head.record.job.name == "double")
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -491,7 +491,7 @@ class BatchTest extends AnyFunSuite {
           assert(mb.succeeded)
           assert(mb.result == Right(11))
           assert(mb.jobs.size == 3)
-          assert(mb.jobs.map(_.job.name) == List("increment", "increment2", "read"))
+          assert(mb.jobs.map(_.record.job.name) == List("increment", "increment2", "read"))
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -525,7 +525,7 @@ class BatchTest extends AnyFunSuite {
         } yield a + b
         result.monadicBatch.map { mb =>
           assert(mb.result == Right(3))
-          assert(mb.jobs.map(_.job.name) == List("a", "b"))
+          assert(mb.jobs.map(_.record.job.name) == List("a", "b"))
           assert(mb.spent.toMillis >= 200L)
         }
       }
@@ -551,7 +551,7 @@ class BatchTest extends AnyFunSuite {
         } yield a + b + c
         result.monadicBatch.map { mb =>
           assert(mb.result == Right(6))
-          val sumTook = mb.jobs.map(_.took.toNanos).sum
+          val sumTook = mb.jobs.map(_.record.took.toNanos).sum
           assert(sumTook == mb.spent.toNanos)
         }
       }
@@ -569,7 +569,7 @@ class BatchTest extends AnyFunSuite {
       agent.batch("monadic-single-job").monadic { job =>
         job("only", IO.sleep(40.millis).as(1)).monadicBatch.map { mb =>
           assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.took.toNanos == mb.spent.toNanos)
+          assert(mb.jobs.head.record.took.toNanos == mb.spent.toNanos)
           assert(mb.spent.toMillis >= 40L)
         }
       }

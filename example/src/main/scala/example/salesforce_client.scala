@@ -13,13 +13,23 @@ import org.http4s.syntax.all.*
 
 import scala.concurrent.duration.DurationInt
 
+/** Example: building an authenticated Salesforce HTTP client.
+  *
+  * Credentials are read from AWS Parameter Store, used to obtain a Salesforce password-grant login, and the
+  * resulting OAuth token authenticates a second client. `get` shows issuing a request with it.
+  *
+  * The endpoint (`test.salesforce.com`), parameter names, and request path are placeholders — substitute your
+  * own. Secrets are wrapped in `Secret` so they are not logged.
+  */
 object salesforce_client {
+  // base client used only for the auth handshake: logs headers (not body) and retries with jitter
   private val authClient: Resource[IO, Client[IO]] = EmberClientBuilder
     .default[IO]
     .build
-    .map(Logger(logHeaders = true, logBody = true, _ => false))
+    .map(Logger(logHeaders = true, logBody = false, _ => false))
     .map(httpRetry(sydneyTime, _.fixedDelay(0.second).jitter(5.seconds)))
 
+  // fetch the OAuth credentials from Parameter Store and assemble a password-grant login
   private val credential: Resource[IO, Login[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>
       for {
@@ -35,9 +45,11 @@ object salesforce_client {
         password = Secret(pw.value))
     }.flatMap(pg => Salesforce(authClient, pg))
 
+  // a request client whose calls carry the acquired Salesforce OAuth token
   private val client: Resource[IO, Client[IO]] =
     credential.flatMap(_.login(EmberClientBuilder.default[IO].build))
 
+  /** Issue an authenticated GET and read the response body as a string. */
   val get: IO[String] = client.use(_.expect[String]("path"))
 
 }

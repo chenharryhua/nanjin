@@ -85,7 +85,7 @@ class BatchParallelTest extends AnyFunSuite {
           IO {
             assert(!mb.jobs.head.record.succeeded)
             assert(mb.jobs.head.record.job.mode === BatchMode.Parallel(3))
-            assert(mb.jobs.head.record.job.kind === BatchKind.Quasi)
+            assert(mb.jobs.head.record.job.kind === Some(BatchKind.Quasi))
             assert(!mb.jobs(1).record.succeeded)
             assert(mb.jobs(2).record.succeeded)
           }.void
