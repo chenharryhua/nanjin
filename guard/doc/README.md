@@ -90,16 +90,16 @@ sequenceDiagram
     R->>R: build JobRecord and JobState
     Note over R,L: guaranteeCase handleOutcome
     alt completed
-        R->>P: updatePanel record, bump ratio and append progress
+        R->>P: updatePanel record; append progress, and bump ratio only for sequential/parallel panels
         R->>L: logCompleted: Succeeded, Unsatisfied, Nonfatal, Critical
     else canceled
         R->>L: logCanceled, warn level
     end
 ```
 
-`handleOutcome` runs in a finalizer (`guaranteeCase`), so progress and completion logging happen
-even on cancellation. `Outcome.Errored` is treated as impossible because the kickoff and effect
-are wrapped in `attempt`.
+`handleOutcome` runs in a finalizer (`guaranteeCase`). On `Outcome.Succeeded` it updates progress
+and emits a completion log; on `Outcome.Canceled` it emits only `logCanceled`. `Outcome.Errored`
+can still happen when a later step (for example a post-condition check after `attempt`) throws.
 
 ## How the three modes differ
 

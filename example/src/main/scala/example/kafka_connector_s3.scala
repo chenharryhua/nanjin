@@ -95,7 +95,10 @@ object kafka_connector_s3 {
           .subscribe
           // commit offsets in batches (up to 1000 records or every 5s) as a side stream via observe
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .map(_.record.value.toOption.get) // keep decoded values; rethrow on a PullError
+          .map(
+            _.record.value.fold(
+              err => throw new RuntimeException(err.toJson.noSpaces, err.cause), // scalafix:ok
+              identity)) // keep decoded values; rethrow with PullError metadata and cause
           .through(sink)
           .compile
           .drain

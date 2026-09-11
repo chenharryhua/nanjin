@@ -9,11 +9,12 @@ import scala.concurrent.duration.FiniteDuration
   *
   * `history` is kept in reverse order (most recent job first) so that prepending a later segment is a cheap
   * list cons; the batch runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left`
-  * means the chain has short-circuited — either a job threw or a `withFilter`/predicate failed — and no
+  * means the chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no
   * further jobs will run.
   *
   * @param eoa
-  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once it has failed
+  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
+  *   short-circuited the chain
   * @param history
   *   the completed job records so far, most recent first
   */
@@ -67,7 +68,8 @@ private object JsonKeys {
   *     aborting the batch, and `Critical` (`Error`) for a `Value` job or a monadic job (`kind = None`), where
   *     an exception is fatal to the batch;
   *   - a produced value is `Succeeded` (`Good`) when it satisfied its post-condition, or `Unsatisfied`
-  *     (`Warn`) when the predicate rejected it.
+  *     (`Warn`) when a retained `Right` result failed its predicate (for example quasi jobs and monadic
+  *     predicates that do not short-circuit).
   *
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.

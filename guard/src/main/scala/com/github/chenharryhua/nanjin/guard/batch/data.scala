@@ -303,7 +303,7 @@ end MonadicBatch
   * framework emits automatically (see `standalone`, driven by `logCompleted`). Emitting a produced value
   * there would leak user data to the log without the user's agreement, so the `JobLog` cases deliberately
   * carry '''no''' produced value — only lifecycle facts (identity, took, outcome tag, and, on failure, the
-  * exception message). This is why the whole batch API needs no `Encoder[A]`. A produced value is shown only
+  * exception message). This is why the batch execution path needs no `Encoder[A]`. A produced value is shown only
   * where the user explicitly serializes a returned `BatchResult` (the
   * `QuasiBatch`/`ValueBatch`/`MonadicBatch` encoders add it under `result`), never on this auto-emitted path.
   */

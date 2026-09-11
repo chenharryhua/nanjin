@@ -25,7 +25,7 @@ object aws_task_template {
       .withHomepage("https://github.com/chenharryhua/nanjin")
       .withReportPolicy(_.crontab(_.every15Minutes))
       // on failure: retry with a fixed delay (up to 3 times), then a fixed rate (up to 12 times), then daily
-      // at 10am — giving up entirely after 8 hours
+      // at 10am; if the service stays healthy for 8+ hours, the policy resets to the initial stage
       .withRestartPolicy(
         8.hours,
         _.fixedDelay(3.seconds, 2.minutes, 1.hour)
