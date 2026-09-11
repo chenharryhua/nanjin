@@ -98,8 +98,9 @@ sequenceDiagram
 ```
 
 `handleOutcome` runs in a finalizer (`guaranteeCase`). On `Outcome.Succeeded` it updates progress
-and emits a completion log; on `Outcome.Canceled` it emits only `logCanceled`. `Outcome.Errored`
-can still happen when a later step (for example a post-condition check after `attempt`) throws.
+and emits a completion log; on `Outcome.Canceled` it emits only `logCanceled`. If a later step
+(for example a post-condition check after `attempt`) throws, the finalizer receives
+`Outcome.Errored` and raises an internal `shouldNeverHappenException`.
 
 ## How the three modes differ
 
