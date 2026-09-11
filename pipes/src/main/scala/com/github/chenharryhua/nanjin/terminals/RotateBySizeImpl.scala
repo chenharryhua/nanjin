@@ -19,6 +19,34 @@ import scalapb.GeneratedMessage
 
 import java.time.ZoneId
 
+/** `RotateBySize` implementation that starts a new file every `sizeLimit` records.
+  *
+  * This is the size-driven counterpart to `RotateByPolicyImpl`. Where the policy version is driven by an
+  * external stream of time ticks, this one has no tick stream: it seeds a single starting `CreateRotateFile`
+  * and then mints each subsequent file boundary itself by incrementing the tick `index` whenever the running
+  * count reaches `sizeLimit`. Every emitted `RotateFile` holds exactly `sizeLimit` records except the last,
+  * which holds the remainder.
+  *
+  * Rotation mechanics:
+  *   - `do_work` folds over the raw data stream (no data/tick merge is needed since boundaries are computed
+  *     from the count, not from external ticks) and maintains the invariant `count <= sizeLimit`.
+  *   - When an incoming chunk would push the count past `sizeLimit`, it is split exactly at the boundary: the
+  *     first part fills and closes the current file, the remainder is pushed back onto the stream (`cons`) to
+  *     open the next file. This is why a single logical file can be filled from multiple chunks and a single
+  *     chunk can span multiple files.
+  *   - A `NonEmptyHotswap` holds the one open writer; each boundary swaps in a writer for the next file,
+  *     finalizing the previous one, and emits its `RotateFile`.
+  *   - Timing is recorded as wall-clock instants: the closing time of each file (and the opening time of the
+  *     next, via `current.copy`) is the `realTimeInstant` captured at the split, so `RotateFile.window`
+  *     reflects actual write duration rather than a scheduled tick.
+  *
+  * @param zoneId
+  *   time zone used to stamp the seed tick and each rotation boundary
+  * @param pathBuilder
+  *   maps each `CreateRotateFile` (seed or minted) to the output `Url`
+  * @param sizeLimit
+  *   maximum records per file; must be positive (checked by the caller in `Hadoop.rotateSink`)
+  */
 final private class RotateBySizeImpl[F[_]](
   configuration: Configuration,
   zoneId: ZoneId,
@@ -26,29 +54,31 @@ final private class RotateBySizeImpl[F[_]](
   sizeLimit: Long)(using F: Async[F])
     extends RotateBySize[F] {
 
+  /** How to obtain a writer for a resolved `Url`: a `Reader` from `Url` to a `Resource`-managed
+    * `HadoopWriter`. Deferring on `Url` lets each rotation open a distinct file with the same recipe.
+    */
   private type GetWriter[A] = Reader[Url, Resource[F, HadoopWriter[F, A]]]
 
-  /** Recursively writes data from the stream to disk, rotating files based on size.
+  /** The core rotation loop: a `Pull` that folds over the data stream and outputs one `RotateFile` per
+    * completed file, splitting on the `sizeLimit` boundary.
     *
-    * @param get_writer
-    *   function to create a new HadoopWriter given a CreateRotateFile event
-    * @param hotswap
-    *   current Hotswap managing the writer resource
-    * @param data
-    *   stream of elements to write
+    * On each `uncons` of the data:
+    *   - end of stream (`None`): emit a final `RotateFile` for the still-open `current` file with a
+    *     wall-clock close time, since no size boundary was reached.
+    *   - a chunk that keeps the count within `sizeLimit`: write it whole and recurse with the advanced count.
+    *   - a chunk that would exceed `sizeLimit`: split at `sizeLimit - count` so the current file lands
+    *     exactly on the limit; write the first part, capture `now` as its close instant, mint the next tick
+    *     (`index + 1`, timed at `now`), swap the hotswap to the next file's writer, emit the closed
+    *     `RotateFile`, and recurse over `stream.cons(second)` with the count reset to `0` so the remainder
+    *     opens the next file. A large chunk therefore cascades through as many files as needed.
+    *
+    * A write failure is wrapped in `RotateWriteException` carrying the current tick, path, and the count so
+    * far (the offset at which the write failed).
+    *
     * @param current
-    *   tick representing the current file's timing window
+    *   the tick that opened the file currently being written
     * @param count
-    *   number of elements already written to the current file
-    *
-    * @return
-    *   RotateFile with file URL and number of records written
-    *
-    * ===Semantics===
-    *
-    *   1. Each file corresponds to one TickedValue.
-    *   2. Files that exceed `sizeLimit` are split across ticks, generating multiple TickedValues.
-    *   3. The tick index increments sequentially starting from 1.
+    *   records written to the current file so far; the loop keeps `count <= sizeLimit`
     */
   private def do_work[A](
     get_writer: GetWriter[A],
@@ -102,6 +132,13 @@ final private class RotateBySizeImpl[F[_]](
     }
   }
 
+  /** Bootstrap the rotation: mint a seed `CreateRotateFile` from a fresh `Tick.seed`, open the first file,
+    * and run `do_work` over the data.
+    *
+    * Unlike `RotateByPolicyImpl`, there is no external tick stream to draw the first boundary from, so the
+    * seed tick is generated here (its `index + 1` becomes the first file's index, `zoned(_.commence)` its
+    * opening instant) and seeds the `NonEmptyHotswap`. All later boundaries are minted inside `do_work`.
+    */
   private def persist[A](data: Stream[F, A], get_writer: GetWriter[A]): Stream[F, RotateFile] = {
     val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], CreateRotateFile)] =
       Resource.eval(Tick.seed[F](zoneId)).flatMap { tick =>
@@ -114,6 +151,14 @@ final private class RotateBySizeImpl[F[_]](
     }
   }
 
+  /** Schema-less `GenericRecord` sinks: pull the first non-empty chunk to read its Avro `Schema`, then
+    * persist the (undisturbed) stream with a writer built for that schema.
+    *
+    * `stepLeg` yields the first leg without consuming it; the schema is taken from its head record and the
+    * leg is put back via `cons(leg.head)` so no record is lost. This assumes every record shares the first
+    * one's schema. An empty stream yields no file. The schema-bound overloads (in the parent trait) skip this
+    * step because the caller supplies the schema up front.
+    */
   private def generic_record_stream_step_leg(get_writer: Schema => GetWriter[GenericRecord])(
     ss: Stream[F, GenericRecord]): Stream[F, RotateFile] =
     ss.pull.stepLeg.flatMap {
