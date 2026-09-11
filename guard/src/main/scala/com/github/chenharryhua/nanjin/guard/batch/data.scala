@@ -93,7 +93,8 @@ final case class Job(
   val domain: String = scope.domain.value
 
   /** Human-readable name combining the job index and configured name. */
-  def displayName: String = s"job-$index $name"
+  val displayName: String = s"job-$index $name"
+  val nameEntry: (String, Json) = s"job-$index" -> Json.fromString(name)
 end Job
 object Job {
   // `kind` is Quasi/Value for sequential and parallel jobs and absent for monadic jobs, whose success model
@@ -101,7 +102,7 @@ object Job {
   given Encoder[Job] = Encoder.instance { (a: Job) =>
     Json
       .obj(
-        show"job-${a.index}" -> Json.fromString(a.name),
+        a.nameEntry,
         "batch" -> Json.fromString(a.batch),
         "batch_id" -> a.batchId.asJson,
         "domain" -> Json.fromString(a.domain),
@@ -215,11 +216,9 @@ object QuasiBatch:
     Encoder.instance { qb =>
       val (succeeded, failed) = qb.jobs.partition(_.succeeded)
       Json.obj(
-        "batch" -> qb.scope.label.asJson,
+        show"${qb.mode} ${BatchKind.Quasi}" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
         "domain" -> Json.fromString(qb.scope.domain.value),
-        "mode" -> qb.mode.asJson,
-        "kind" -> BatchKind.Quasi.asJson,
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "succeeded" -> Json.fromInt(succeeded.length),
         "failed" -> Json.fromInt(failed.length),
@@ -248,11 +247,9 @@ object ValueBatch:
   given [A: Encoder] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
       Json.obj(
-        "batch" -> bv.scope.label.asJson,
+        show"${bv.mode} ${BatchKind.Value}" -> bv.scope.label.asJson,
         "batch_id" -> bv.batchId.asJson,
         "domain" -> Json.fromString(bv.scope.domain.value),
-        "mode" -> bv.mode.asJson,
-        "kind" -> BatchKind.Value.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
         "jobs" -> bv.jobs.map(js => toLogEntry(js.jobState).message.inBatch).asJson
       )
@@ -281,12 +278,11 @@ final case class MonadicBatch[A](
 object MonadicBatch:
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
-      val tag = if (mb.succeeded) JsonKeys.RESULT else JsonKeys.ERROR
+      val tag = if (mb.succeeded) JsonKeys.SUCCEEDED else JsonKeys.CRITICAL
       Json.obj(
-        "batch" -> mb.scope.label.asJson,
+        mb.mode.show -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
         "domain" -> Json.fromString(mb.scope.domain.value),
-        "mode" -> mb.mode.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
         "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(Json.Null))).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
@@ -301,27 +297,27 @@ sealed private trait JobLog {
     case JobLog.Canceled(job)             => Json.obj(JsonKeys.CANCELED -> job.asJson)
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        JsonKeys.SUCCEEDED -> record.job.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+        JsonKeys.SUCCEEDED -> result).dropNullValues.dropEmptyValues
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        JsonKeys.UNSATISFIED -> record.job.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+        JsonKeys.UNSATISFIED -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        JsonKeys.NONFATAL -> record.job.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.NONFATAL -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        JsonKeys.CRITICAL -> record.job.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.CRITICAL -> Json.fromString(ExceptionUtils.getMessage(error))
       )
   }
 
@@ -330,28 +326,28 @@ sealed private trait JobLog {
     case JobLog.Canceled(job)             => Json.Null
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        JsonKeys.SUCCEEDED -> record.job.displayName.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+        JsonKeys.SUCCEEDED -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        JsonKeys.UNSATISFIED -> record.job.displayName.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.RESULT -> result).dropNullValues.dropEmptyValues
+        JsonKeys.UNSATISFIED -> result).dropNullValues.dropEmptyValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        JsonKeys.NONFATAL -> record.job.displayName.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.NONFATAL -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        JsonKeys.CRITICAL -> record.job.displayName.asJson,
+        record.job.nameEntry,
         JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.CRITICAL -> Json.fromString(ExceptionUtils.getMessage(error))
       )
   }
 }

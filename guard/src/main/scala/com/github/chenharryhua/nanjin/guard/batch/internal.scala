@@ -60,9 +60,6 @@ private given [A: Encoder] => Encoder[Either[Throwable, A]] =
   */
 private object JsonKeys {
   val TOOK = "took"
-  val RESULT = "result"
-  val ERROR = "error"
-  val FAILED = "failed"
   val SUCCEEDED = "succeeded"
   val UNSATISFIED = "unsatisfied"
   val NONFATAL = "nonfatal"
