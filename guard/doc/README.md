@@ -167,3 +167,83 @@ classDiagram
 
 See `../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/data.scala` for the result and job types, and `internal.scala` for `ExecutionState`,
 `JobCursor`, and the log-entry classification.
+
+# Watchdog
+
+The watchdog is the supervisor that keeps a service running. It runs the user's service effect,
+and when that effect fails it decides — using the configured restart policy — whether to wait and
+restart, or to give up and stop. It also emits the service lifecycle events (`ServiceStart`,
+`ServicePanic`, `ServiceStop`) that observers see.
+
+`watchdog(theService, handler)` returns a `Stream[F, Nothing]` that `ServiceGuard` runs
+`concurrently` with the main event channel, alongside periodic metric reporting and the HTTP
+server. `theService` is the deferred agent work; `handler` publishes lifecycle events.
+
+## Supervision loop
+
+The loop is an `unfoldEval` over a `PolicyTick` (the restart policy's current position). Each
+iteration starts the service, then branches on how the service effect finished.
+
+```mermaid
+flowchart TD
+    seed["seed PolicyTick from restart policy"] --> start["serviceStart tick"]
+    start --> run["run theService"]
+    run --> outcome{"how did it finish?"}
+    outcome -->|success| stopOk["serviceStop Successfully"] --> done["stop: loop ends"]
+    outcome -->|canceled| cancel["serviceCancel: serviceStop ByCancellation unless channel closed"] --> done
+    outcome -->|error| panic["panic status, ex"]
+    panic --> next{"policy has a next tick?"}
+    next -->|no| giveUp["serviceStop ByException"] --> done
+    next -->|yes| emit["servicePanic tick, stackTrace"]
+    emit --> sleep["sleep for tick.snooze"]
+    sleep --> start
+```
+
+- **success**: the service finished on its own; the watchdog reports `Successfully` and the loop
+  ends. No restart.
+- **canceled**: on cancellation `serviceCancel` reports `ByCancellation`, but only if the event
+  channel is not already closed (the check is best-effort and relies on idempotent channel close).
+- **error**: control passes to `panic`, which decides restart vs give-up.
+
+## Panic: restart or give up
+
+`panic` is where the restart policy is consulted. Two things happen: an optional policy reset
+based on the success threshold, then a step of the policy to get the next delay.
+
+```mermaid
+flowchart TD
+    fail["service failed with ex"] --> now["read now = realTimeInstant"]
+    now --> thr{"threshold set and<br/>now - lastTick.conclude > threshold?"}
+    thr -->|yes| renew["renewPolicy: reset restart policy to initial"]
+    thr -->|no| keep["keep current policy position"]
+    renew --> step["tickStatus.next now"]
+    keep --> step
+    step --> has{"next tick available?"}
+    has -->|None: policy exhausted| stop["serviceStop ByException<br/>return None, give up"]
+    has -->|Some nts| report["servicePanic nts.tick, stackTrace"]
+    report --> snooze["sleep nts.tick.snooze"]
+    snooze --> loop["return Some: loop restarts service"]
+```
+
+- **Threshold reset**: `RestartPolicy` carries an optional `threshold`. If the service ran longer
+  than `threshold` since the previous tick concluded, the failure is treated as isolated and the
+  policy is renewed to its initial state (so a long-healthy service that trips gets the full
+  restart budget again). With no threshold, the policy position is preserved across failures.
+- **Policy step**: `PolicyTick.next(now)` advances the policy. `None` means the policy is
+  exhausted — the watchdog reports `ByException` and stops for good. `Some(nts)` yields the next
+  tick; the watchdog emits `ServicePanic`, sleeps for that tick's `snooze` delay, then loops to
+  restart the service.
+
+## Events emitted
+
+| Situation | Event |
+| --- | --- |
+| each (re)start of the service | `ServiceStart` |
+| a failure that will be retried | `ServicePanic` |
+| clean completion | `ServiceStop(Successfully)` |
+| policy exhausted after failure | `ServiceStop(ByException)` |
+| cancellation | `ServiceStop(ByCancellation)` |
+
+See `../src/main/scala/com/github/chenharryhua/nanjin/guard/service/watchdog.scala` for the loop,
+`RestartPolicy` in `config/ServiceParams.scala` for the policy/threshold pair, and `PolicyTick` in
+`common/chrono` for tick stepping and `snooze`.
