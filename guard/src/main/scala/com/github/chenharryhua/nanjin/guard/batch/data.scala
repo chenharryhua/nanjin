@@ -105,7 +105,6 @@ object Job {
         a.nameEntry,
         "batch" -> Json.fromString(a.batch),
         "batch_id" -> a.batchId.asJson,
-        "domain" -> Json.fromString(a.domain),
         "mode" -> a.mode.asJson,
         "kind" -> a.kind.asJson
       )
@@ -209,16 +208,15 @@ final case class QuasiBatch[A](
   jobs: List[JobState[A]])
     extends BatchResult[JobState[A]] derives Functor {
   override val succeeded: Boolean = true
-  override def allPassed: Boolean = jobs.forall(_.succeeded)
+  override val allPassed: Boolean = jobs.forall(_.succeeded)
 }
 object QuasiBatch:
-  given [A: Encoder] => Encoder[QuasiBatch[A]] =
+  given [A] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
       val (succeeded, failed) = qb.jobs.partition(_.succeeded)
       Json.obj(
         show"${qb.mode} ${BatchKind.Quasi}" -> qb.scope.label.asJson,
         "batch_id" -> qb.batchId.asJson,
-        "domain" -> Json.fromString(qb.scope.domain.value),
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         "succeeded" -> Json.fromInt(succeeded.length),
         "failed" -> Json.fromInt(failed.length),
@@ -244,12 +242,11 @@ final case class ValueBatch[A](
 }
 
 object ValueBatch:
-  given [A: Encoder] => Encoder[ValueBatch[A]] =
+  given [A] => Encoder[ValueBatch[A]] =
     Encoder.instance { bv =>
       Json.obj(
         show"${bv.mode} ${BatchKind.Value}" -> bv.scope.label.asJson,
         "batch_id" -> bv.batchId.asJson,
-        "domain" -> Json.fromString(bv.scope.domain.value),
         "spent" -> Json.fromString(fmt.format(bv.spent)),
         "jobs" -> bv.jobs.map(js => toLogEntry(js.jobState).message.inBatch).asJson
       )
@@ -270,21 +267,23 @@ final case class MonadicBatch[A](
   result: Either[Throwable, A])
     extends BatchResult[JobRecord] derives Functor {
   override val mode: BatchMode = BatchMode.Monadic
-  override def succeeded: Boolean = result.isRight
-
-  override def allPassed: Boolean = jobs.forall(_.succeeded)
+  override val succeeded: Boolean = result.isRight
+  override val allPassed: Boolean = jobs.forall(_.succeeded)
 }
 
 object MonadicBatch:
+  // A monadic batch's `A` is the user's declared final output, so showing it in the completion log is
+  // showing them their own result, not a hidden intermediate step. Hence the `Encoder[A]` requirement
+  // here (and only here) — the per-job builders stay Encoder-free because intermediate step values are
+  // never rendered.
   given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
       val tag = if (mb.succeeded) JsonKeys.SUCCEEDED else JsonKeys.CRITICAL
       Json.obj(
         mb.mode.show -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
-        "domain" -> Json.fromString(mb.scope.domain.value),
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(Json.Null))).message.inBatch).asJson,
+        "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(()))).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
@@ -293,61 +292,54 @@ end MonadicBatch
 sealed private trait JobLog {
 
   def standalone: Json = this match {
-    case JobLog.Kickoff(job)              => Json.obj(JsonKeys.KICKOFF -> job.asJson)
-    case JobLog.Canceled(job)             => Json.obj(JsonKeys.CANCELED -> job.asJson)
-    case JobLog.Succeeded(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.SUCCEEDED -> result).dropNullValues.dropEmptyValues
-    case JobLog.Unsatisfied(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.UNSATISFIED -> result).dropNullValues.dropEmptyValues
+    case JobLog.Kickoff(job)  => Json.obj(JsonKeys.KICKOFF -> job.asJson)
+    case JobLog.Canceled(job) => Json.obj(JsonKeys.CANCELED -> job.asJson)
+
+    // don't do .dropNullValues.dropEmptyValues. need tag to show job state
+    case JobLog.Succeeded(record) =>
+      Json.obj(JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
+        .deepMerge(record.job.asJson)
+
+    case JobLog.Unsatisfied(record) =>
+      Json.obj(JsonKeys.UNSATISFIED -> Json.fromString(fmt.format(record.took)))
+        .deepMerge(record.job.asJson)
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.NONFATAL -> Json.fromString(ExceptionUtils.getMessage(error))
-      )
+        JsonKeys.NONFATAL -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      ).deepMerge(record.job.asJson)
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.CRITICAL -> Json.fromString(ExceptionUtils.getMessage(error))
-      )
+        JsonKeys.CRITICAL -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+      ).deepMerge(record.job.asJson)
   }
 
   def inBatch: Json = this match {
-    case JobLog.Kickoff(job)              => Json.Null
-    case JobLog.Canceled(job)             => Json.Null
-    case JobLog.Succeeded(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.SUCCEEDED -> result).dropNullValues.dropEmptyValues
+    case JobLog.Kickoff(_)  => Json.Null // should not happen
+    case JobLog.Canceled(_) => Json.Null // should not happen
 
-    case JobLog.Unsatisfied(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.UNSATISFIED -> result).dropNullValues.dropEmptyValues
+    // don't do .dropNullValues.dropEmptyValues. need tag to show job state
+    case JobLog.Succeeded(record) =>
+      Json.obj(record.job.nameEntry, JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
+
+    case JobLog.Unsatisfied(record) =>
+      Json.obj(record.job.nameEntry, JsonKeys.UNSATISFIED -> Json.fromString(fmt.format(record.took)))
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
         record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.NONFATAL -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.NONFATAL -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
         record.job.nameEntry,
-        JsonKeys.TOOK -> Json.fromString(fmt.format(record.took)),
-        JsonKeys.CRITICAL -> Json.fromString(ExceptionUtils.getMessage(error))
+        JsonKeys.CRITICAL -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
   }
 }
@@ -355,8 +347,8 @@ sealed private trait JobLog {
 private object JobLog {
   final case class Kickoff(job: Job) extends JobLog
   final case class Canceled(job: Job) extends JobLog
-  final case class Succeeded(record: JobRecord, result: Json) extends JobLog
-  final case class Unsatisfied(record: JobRecord, result: Json) extends JobLog
+  final case class Succeeded(record: JobRecord) extends JobLog
+  final case class Unsatisfied(record: JobRecord) extends JobLog
   final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
   final case class Critical(record: JobRecord, error: Throwable) extends JobLog
 }

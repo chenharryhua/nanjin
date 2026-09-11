@@ -1,9 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
-import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -46,26 +43,17 @@ final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A
   */
 final private case class JobCursor(index: Int, start: FiniteDuration)
 
-/** Encodes an `Either[Throwable, A]`: a `Left` becomes its exception message as a JSON string, a `Right` is
-  * encoded by the underlying `A` encoder. Used to render a job's outcome in the batch report.
-  */
-private given [A: Encoder] => Encoder[Either[Throwable, A]] =
-  Encoder.instance {
-    case Left(ex)     => Json.fromString(ExceptionUtils.getMessage(ex))
-    case Right(value) => value.asJson
-  }
-
 /** JSON object keys shared by the `JobLog` renderings and the batch-report encoders, kept in one place so the
   * per-job log entries and the aggregate `BatchResult` encoders stay in sync.
   */
 private object JsonKeys {
-  val TOOK = "took"
   val SUCCEEDED = "succeeded"
   val UNSATISFIED = "unsatisfied"
   val NONFATAL = "nonfatal"
   val CRITICAL = "critical"
   val KICKOFF = "kickoff"
   val CANCELED = "canceled"
+  val ERROR = "error"
 }
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.
@@ -79,7 +67,7 @@ private object JsonKeys {
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.
   */
-private def toLogEntry[A: Encoder](js: JobState[A]): LogEntry[JobLog] =
+private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog] =
   js.result match {
     case Left(ex) =>
       js.record.job.kind match {
@@ -88,9 +76,9 @@ private def toLogEntry[A: Encoder](js: JobState[A]): LogEntry[JobLog] =
         case Some(BatchKind.Value) | None =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
       }
-    case Right(a) =>
+    case Right(_) =>
       if (js.succeeded)
-        LogEntry(JobLog.Succeeded(js.record, a.asJson), LogLevel.Good, None)
+        LogEntry(JobLog.Succeeded(js.record), LogLevel.Good, None)
       else
-        LogEntry(JobLog.Unsatisfied(js.record, a.asJson), LogLevel.Warn, None)
+        LogEntry(JobLog.Unsatisfied(js.record), LogLevel.Warn, None)
   }
