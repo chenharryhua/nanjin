@@ -61,8 +61,17 @@ class BatchEncoderTest extends AnyFunSuite {
       BatchMode.Sequential,
       batchId,
       List(JobState(failed, Left(new RuntimeException("boom")))))
+    // a monadic job that threw: kind = None, and its step history carries the real Left(exception) so the
+    // per-job render can classify it as "critical" (the old Right(()) sentinel could never do this).
+    val monadicJob = Job("work", 1, label, BatchMode.Monadic, None, batchId)
+    val monadicThrew = JobRecord(monadicJob, 0.millis, 12.millis, succeeded = false)
     val monadic: MonadicBatch[Int] =
-      MonadicBatch(label, Duration.ofMillis(20), batchId, List(failed), Left(new RuntimeException("boom")))
+      MonadicBatch(
+        label,
+        Duration.ofMillis(20),
+        batchId,
+        List(JobState[Unit](monadicThrew, Left(new RuntimeException("boom")))),
+        Left(new RuntimeException("boom")))
 
     val quasiJson = quasi.asJson
     val monadicJson = monadic.asJson
@@ -74,9 +83,13 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(quasiJob.get[String]("critical").toOption.exists(_.nonEmpty))
     assert(quasiJob.get[String]("error").toOption.exists(_.endsWith("boom")))
 
-    // the monadic per-job entry renders the (successful) record; the batch-level failure is carried by
-    // the top-level "error" tag holding the stack trace (a successful monadic batch would use "result")
-    assert(monadicJson.hcursor.downField("jobs").downArray.get[String]("job-1").toOption.contains("work"))
+    // the monadic per-job entry now correctly renders the thrown step under "critical"/"error" (before the
+    // JobState[Unit] change the sentinel forced it to look non-thrown); the batch-level failure is carried
+    // by the top-level "error" tag holding the stack trace (a successful monadic batch would use "result")
+    val monadicJobJson = monadicJson.hcursor.downField("jobs").downArray
+    assert(monadicJobJson.get[String]("job-1").toOption.contains("work"))
+    assert(monadicJobJson.get[String]("critical").toOption.exists(_.nonEmpty))
+    assert(monadicJobJson.get[String]("error").toOption.exists(_.endsWith("boom")))
     assert(monadicJson.hcursor.downField("error").focus.nonEmpty)
   }
 
@@ -111,22 +124,38 @@ class BatchEncoderTest extends AnyFunSuite {
 
   test("MonadicBatch: succeeded tracks the result; allPassed tracks per-job outcomes") {
     // chain completed (Right) but a job was rejected by its predicate
-    val mb = MonadicBatch(label, Duration.ofMillis(30), batchId, List(completed, failed), Right(99))
+    val mb = MonadicBatch(
+      label,
+      Duration.ofMillis(30),
+      batchId,
+      List(JobState(completed, Right(())), JobState(failed, Right(()))),
+      Right(99))
     assert(mb.succeeded)
     assert(!mb.allPassed)
 
     // chain short-circuited by an exception
     val aborted =
-      MonadicBatch(label, Duration.ofMillis(30), batchId, List(completed), Left(new RuntimeException("x")))
+      MonadicBatch(
+        label,
+        Duration.ofMillis(30),
+        batchId,
+        List(JobState(completed, Right(()))),
+        Left(new RuntimeException("x")))
     assert(!aborted.succeeded)
     assert(aborted.allPassed) // the recorded jobs all succeeded; the failure is the batch-level result
   }
 
   test("MonadicBatch encoder keys each job by its index and name") {
     val monadicJob = Job("check", 1, label, BatchMode.Monadic, None, batchId)
-    val monadicFailed = JobRecord(monadicJob, 0.millis, 5.millis, succeeded = false)
+    // a predicate-rejected step: value produced (Right) but did not satisfy the predicate (succeeded=false)
+    val monadicRejected = JobRecord(monadicJob, 0.millis, 5.millis, succeeded = false)
     val mb: MonadicBatch[Int] =
-      MonadicBatch(label, Duration.ofMillis(10), batchId, List(monadicFailed), Right(0))
+      MonadicBatch(
+        label,
+        Duration.ofMillis(10),
+        batchId,
+        List(JobState(monadicRejected, Right(()))),
+        Right(0))
     val json = mb.asJson
     // the batch label is keyed by mode ("Monadic"); a monadic batch has no kind
     assert(json.hcursor.get[String]("Monadic").toOption.contains("batch"))

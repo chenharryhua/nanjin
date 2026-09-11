@@ -17,7 +17,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param history
   *   the completed job records so far, most recent first
   */
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobRecord]) {
+final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]) {
 
   /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
     * reflects that no value of the new type will be produced once the chain has short-circuited.

@@ -341,7 +341,7 @@ object Batch:
                 if (f(value))
                   unchange
                 else {
-                  val err = PostConditionUnsatisfied(history.headOption.map(_.job))
+                  val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
                   ExecutionState[A](Left(err), history)
                 }
             }
@@ -360,7 +360,7 @@ object Batch:
             .guarantee(Resource.eval(activeGauge.deactivate))
         } yield MonadicBatch(
           scope = metrics.scope,
-          spent = history.headOption.map(_.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
           batchId = batchId,
           jobs = history.reverse,
           result = eoa
@@ -449,7 +449,7 @@ object Batch:
             compute
               .guaranteeCase(handleOutcome(log, job, updatePanel))
               .map { js =>
-                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.record))
+                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
               }
           }
         }

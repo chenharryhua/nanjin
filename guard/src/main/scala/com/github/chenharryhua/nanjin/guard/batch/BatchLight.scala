@@ -72,7 +72,7 @@ object BatchLight:
                   if (f(value))
                     unchange
                   else {
-                    val err = PostConditionUnsatisfied(history.headOption.map(_.job))
+                    val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
                     ExecutionState[A](Left(err), history)
                   }
               }
@@ -88,7 +88,7 @@ object BatchLight:
           (_, ExecutionState(eoa, history)) <- kleisli(batchId).run(JobCursor(1, start))
         } yield MonadicBatch(
           scope = scope,
-          spent = history.headOption.map(_.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
           batchId = batchId,
           jobs = history.reverse,
           result = eoa)
@@ -137,7 +137,7 @@ object BatchLight:
               end <- Async[F].monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, predicate.run)
-              val completed = JobRecord(job, start, end, succeeded)
+              val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))
               JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
             }
           }

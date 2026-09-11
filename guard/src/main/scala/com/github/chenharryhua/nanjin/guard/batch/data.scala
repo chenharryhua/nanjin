@@ -271,9 +271,9 @@ final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
   batchId: BatchId,
-  jobs: List[JobRecord],
+  jobs: List[JobState[Unit]],
   result: Either[Throwable, A])
-    extends BatchResult[JobRecord] derives Functor {
+    extends BatchResult[JobState[Unit]] derives Functor {
   override val mode: BatchMode = BatchMode.Monadic
   override val succeeded: Boolean = result.isRight
   override val allPassed: Boolean = jobs.forall(_.succeeded)
@@ -291,7 +291,7 @@ object MonadicBatch:
         mb.mode.show -> mb.scope.label.asJson,
         "batch_id" -> mb.batchId.asJson,
         "spent" -> Json.fromString(fmt.format(mb.spent)),
-        "jobs" -> mb.jobs.map(jr => toLogEntry(JobState(jr, Right(()))).message.inBatch).asJson,
+        "jobs" -> mb.jobs.map(js => toLogEntry(js).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }
