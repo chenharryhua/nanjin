@@ -4,19 +4,20 @@ import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
 
 import scala.concurrent.duration.FiniteDuration
 
-/** Threaded state for a monadic batch run: the current result-or-error together with the `JobRecord`s
+/** Threaded state for a monadic batch run: the current result-or-error together with the completed job states
   * accumulated so far.
   *
-  * `history` is kept in reverse order (most recent job first) so that prepending a later segment is a cheap
-  * list cons; the batch runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left`
-  * means the chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no
-  * further jobs will run.
+  * Each history entry is a `JobState[Unit]`: the per-step produced value is erased to `Unit` because monadic
+  * intermediate values are never rendered, so only the record and outcome are retained. `history` is kept in
+  * reverse order (most recent job first) so that prepending a later segment is a cheap list cons; the batch
+  * runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
+  * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
   *
   * @param eoa
   *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
   *   short-circuited the chain
   * @param history
-  *   the completed job records so far, most recent first
+  *   the completed job states (value erased to `Unit`) so far, most recent first
   */
 final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]) {
 
@@ -74,18 +75,19 @@ private object JsonKeys {
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.
   */
-private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog] =
+private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
   js.result match {
     case Left(ex) =>
       js.record.job.kind match {
-        case Some(BatchKind.Quasi) => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
+        case Some(BatchKind.Quasi) =>
+          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
         // Value jobs and monadic jobs (kind = None) both treat an exception as fatal to the batch.
         case Some(BatchKind.Value) | None =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
       }
-    case Right(_) =>
+    case Right(a) =>
       if (js.succeeded)
-        LogEntry(JobLog.Succeeded(js.record), LogLevel.Good, None)
+        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
       else
-        LogEntry(JobLog.Unsatisfied(js.record), LogLevel.Warn, None)
+        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
   }

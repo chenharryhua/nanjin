@@ -157,9 +157,7 @@ final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) de
 }
 
 /** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: JobRecord, result: A) derives Functor {
-  val jobState: JobState[A] = JobState(record, Right(result))
-}
+final case class JobValue[A](record: JobRecord, result: A) derives Functor
 
 sealed trait BatchResult[A] {
 
@@ -223,10 +221,7 @@ object QuasiBatch:
         "spent" -> Json.fromString(fmt.format(qb.spent)),
         JsonKeys.PASSED -> Json.fromInt(passed.length),
         JsonKeys.FAILED -> Json.fromInt(failed.length),
-        "jobs" -> qb.jobs.map { js =>
-          val in = toLogEntry(js).message.inBatch
-          js.result.fold(_ => in, a => Json.obj(JsonKeys.RESULT -> a.asJson).deepMerge(in))
-        }.asJson
+        "jobs" -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -254,9 +249,7 @@ object ValueBatch:
         show"${bv.mode} ${BatchKind.Value}" -> bv.scope.label.asJson,
         "batch_id" -> bv.batchId.asJson,
         "spent" -> Json.fromString(fmt.format(bv.spent)),
-        "jobs" -> bv.jobs.map(js =>
-          Json.obj(JsonKeys.RESULT -> js.result.asJson)
-            .deepMerge(toLogEntry(js.jobState).message.inBatch)).asJson
+        "jobs" -> bv.jobs.map(jv => toLogEntry(JobState(jv.record, Right(jv.result))).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -299,25 +292,29 @@ end MonadicBatch
 
 /** Renders a completed job as JSON for the batch report.
   *
-  * Security/privacy note: a job's produced value is the user's data, and these renders feed logs that the
-  * framework emits automatically (see `standalone`, driven by `logCompleted`). Emitting a produced value
-  * there would leak user data to the log without the user's agreement, so the `JobLog` cases deliberately
-  * carry '''no''' produced value — only lifecycle facts (identity, took, outcome tag, and, on failure, the
-  * exception message). This is why the batch execution path needs no `Encoder[A]`. A produced value is shown only
-  * where the user explicitly serializes a returned `BatchResult` (the
-  * `QuasiBatch`/`ValueBatch`/`MonadicBatch` encoders add it under `result`), never on this auto-emitted path.
+  * Security/privacy note: a job's produced value is the user's data. `JobLog.Succeeded`/`Unsatisfied` carry
+  * that value (as the type parameter `A`), but the two renders treat it differently:
+  *
+  *   - `standalone` — the render the framework emits '''automatically''' (see `logCompleted`) — discards the
+  *     value and shows only lifecycle facts (identity, took, outcome tag, and, on failure, the exception
+  *     message). It takes no `Encoder[A]`, so a produced value can never reach the auto-emitted log.
+  *   - `inBatch` — reached only when the user explicitly serializes a returned `BatchResult` — shows the
+  *     value under `result`, and correspondingly requires an `Encoder[A]`.
+  *
+  * So the `Encoder[A]` requirement lives solely on `inBatch` (hence on the `BatchResult` encoders), never on
+  * the execution path: showing the value is opt-in via serialization, never automatic.
   */
-sealed private trait JobLog {
+sealed private trait JobLog[A] {
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(JsonKeys.KICKOFF -> job.asJson)
     case JobLog.Canceled(job) => Json.obj(JsonKeys.CANCELED -> job.asJson)
 
-    case JobLog.Succeeded(record) =>
+    case JobLog.Succeeded(record, _) =>
       Json.obj(JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
         .deepMerge(record.job.asJson)
 
-    case JobLog.Unsatisfied(record) =>
+    case JobLog.Unsatisfied(record, _) =>
       Json.obj(JsonKeys.UNSATISFIED -> Json.fromString(fmt.format(record.took)))
         .deepMerge(record.job.asJson)
 
@@ -334,15 +331,23 @@ sealed private trait JobLog {
       ).deepMerge(record.job.asJson)
   }
 
-  def inBatch: Json = this match {
+  def inBatch(using Encoder[A]): Json = this match {
     case JobLog.Kickoff(_)  => Json.Null // should not happen
     case JobLog.Canceled(_) => Json.Null // should not happen
 
-    case JobLog.Succeeded(record) =>
-      Json.obj(record.job.nameEntry, JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
+    case JobLog.Succeeded(record, result) =>
+      Json.obj(
+        record.job.nameEntry,
+        JsonKeys.SUCCEEDED -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result.asJson)
+        .dropEmptyValues.dropNullValues
 
-    case JobLog.Unsatisfied(record) =>
-      Json.obj(record.job.nameEntry, JsonKeys.UNSATISFIED -> Json.fromString(fmt.format(record.took)))
+    case JobLog.Unsatisfied(record, result) =>
+      Json.obj(
+        record.job.nameEntry,
+        JsonKeys.UNSATISFIED -> Json.fromString(fmt.format(record.took)),
+        JsonKeys.RESULT -> result.asJson)
+        .dropEmptyValues.dropNullValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
@@ -361,10 +366,10 @@ sealed private trait JobLog {
 }
 
 private object JobLog {
-  final case class Kickoff(job: Job) extends JobLog
-  final case class Canceled(job: Job) extends JobLog
-  final case class Succeeded(record: JobRecord) extends JobLog
-  final case class Unsatisfied(record: JobRecord) extends JobLog
-  final case class Nonfatal(record: JobRecord, error: Throwable) extends JobLog
-  final case class Critical(record: JobRecord, error: Throwable) extends JobLog
+  final case class Kickoff[A](job: Job) extends JobLog[A]
+  final case class Canceled[A](job: Job) extends JobLog[A]
+  final case class Succeeded[A](record: JobRecord, result: A) extends JobLog[A]
+  final case class Unsatisfied[A](record: JobRecord, result: A) extends JobLog[A]
+  final case class Nonfatal[A](record: JobRecord, error: Throwable) extends JobLog[A]
+  final case class Critical[A](record: JobRecord, error: Throwable) extends JobLog[A]
 }

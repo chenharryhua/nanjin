@@ -41,60 +41,62 @@ class JobLogRenderTest extends AnyFunSuite {
 
   test("toLogEntry: a produced value that satisfied its predicate is Succeeded at Good level") {
     val entry = toLogEntry(JobState(record(quasiJob, succeeded = true), Right(secret)))
-    assert(entry.message.isInstanceOf[JobLog.Succeeded])
+    assert(entry.message.isInstanceOf[JobLog.Succeeded[?]])
     assert(entry.level == LogLevel.Good)
     assert(entry.cause.isEmpty)
   }
 
   test("toLogEntry: a produced value rejected by its predicate is Unsatisfied at Warn level") {
     val entry = toLogEntry(JobState(record(quasiJob, succeeded = false), Right(secret)))
-    assert(entry.message.isInstanceOf[JobLog.Unsatisfied])
+    assert(entry.message.isInstanceOf[JobLog.Unsatisfied[?]])
     assert(entry.level == LogLevel.Warn)
     assert(entry.cause.isEmpty)
   }
 
   test("toLogEntry: an exception in a Quasi job is Nonfatal at Warn level (failure is retained)") {
     val ex = new RuntimeException("boom")
-    val entry = toLogEntry(JobState(record(quasiJob, succeeded = false), Left(ex)))
-    assert(entry.message.isInstanceOf[JobLog.Nonfatal])
+    val entry = toLogEntry(JobState[Json](record(quasiJob, succeeded = false), Left(ex)))
+    assert(entry.message.isInstanceOf[JobLog.Nonfatal[?]])
     assert(entry.level == LogLevel.Warn)
     assert(entry.cause.contains(ex))
   }
 
   test("toLogEntry: an exception in a Value job is Critical at Error level (fatal to the batch)") {
     val ex = new RuntimeException("boom")
-    val entry = toLogEntry(JobState(record(valueJob, succeeded = false), Left(ex)))
-    assert(entry.message.isInstanceOf[JobLog.Critical])
+    val entry = toLogEntry(JobState[Json](record(valueJob, succeeded = false), Left(ex)))
+    assert(entry.message.isInstanceOf[JobLog.Critical[?]])
     assert(entry.level == LogLevel.Error)
     assert(entry.cause.contains(ex))
   }
 
   test("toLogEntry: an exception in a monadic job (kind = None) is Critical at Error level") {
     val ex = new RuntimeException("boom")
-    val entry = toLogEntry(JobState(record(monadicJob, succeeded = false), Left(ex)))
-    assert(entry.message.isInstanceOf[JobLog.Critical])
+    val entry = toLogEntry(JobState[Json](record(monadicJob, succeeded = false), Left(ex)))
+    assert(entry.message.isInstanceOf[JobLog.Critical[?]])
     assert(entry.level == LogLevel.Error)
     assert(entry.cause.contains(ex))
   }
 
   // ---- standalone render (the AUTO-EMITTED log) ----------------------------------------------------
 
-  test("standalone Succeeded: carries identity + took under the status tag, and no produced value") {
-    val js = JobLog.Succeeded(record(quasiJob, succeeded = true)).standalone
+  test("standalone Succeeded: identity + took only, and the produced value is dropped even when present") {
+    // the value is carried on the case, but standalone deliberately discards it (privacy)
+    val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).standalone
     val c = js.hcursor
     assert(c.get[String]("job-1").toOption.contains("work")) // identity
     assert(c.get[String]("batch").toOption.contains("batch")) // full job context (standalone)
     assert(c.get[String](JsonKeys.SUCCEEDED).toOption.exists(_.nonEmpty)) // took, under the status tag
-    assert(c.downField(JsonKeys.RESULT).focus.isEmpty) // privacy: no produced value
-    assert(!js.noSpaces.contains("TOP-SECRET")) // there is nowhere for it to come from
+    assert(c.downField(JsonKeys.RESULT).focus.isEmpty) // privacy: value dropped
+    assert(!js.noSpaces.contains("TOP-SECRET")) // the produced value never reaches the auto-emitted log
   }
 
-  test("standalone Unsatisfied: status tag holds took, no produced value") {
-    val js = JobLog.Unsatisfied(record(quasiJob, succeeded = false)).standalone
+  test("standalone Unsatisfied: status tag holds took, produced value dropped even when present") {
+    val js = JobLog.Unsatisfied(record(quasiJob, succeeded = false), secret).standalone
     val c = js.hcursor
     assert(c.get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JsonKeys.UNSATISFIED).toOption.exists(_.nonEmpty))
     assert(c.downField(JsonKeys.RESULT).focus.isEmpty)
+    assert(!js.noSpaces.contains("TOP-SECRET"))
   }
 
   test("standalone Nonfatal: status tag holds took, exception message under error, no produced value") {
@@ -123,18 +125,29 @@ class JobLogRenderTest extends AnyFunSuite {
 
   // ---- inBatch render (nested inside a serialized BatchResult) -------------------------------------
 
-  test("inBatch Succeeded: lean entry — job identity + status/took only, still no produced value") {
-    val js = JobLog.Succeeded(record(quasiJob, succeeded = true)).inBatch
+  test("inBatch Succeeded: job identity + status/took, and the produced value under result") {
+    val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).inBatch
     val c = js.hcursor
     assert(c.get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JsonKeys.SUCCEEDED).toOption.exists(_.nonEmpty))
     // inBatch omits the full job context that standalone merges in
     assert(c.get[String]("batch").toOption.isEmpty)
-    assert(c.downField(JsonKeys.RESULT).focus.isEmpty)
+    // inBatch is the user-triggered serialization path, so the produced value is shown here
+    assert(c.get[String](JsonKeys.RESULT).toOption.contains("TOP-SECRET-PRODUCED-VALUE"))
+  }
+
+  test("inBatch Succeeded with an absent value (Json.Null): the result key is dropped") {
+    val js = JobLog.Succeeded(record(quasiJob, succeeded = true), Json.Null).inBatch
+    val c = js.hcursor
+    assert(c.get[String]("job-1").toOption.contains("work"))
+    assert(c.get[String](JsonKeys.SUCCEEDED).toOption.exists(_.nonEmpty))
+    assert(c.downField(JsonKeys.RESULT).focus.isEmpty) // dropNullValues removes it
   }
 
   test("inBatch Critical: job identity, took under critical, message under error") {
-    val js = JobLog.Critical(record(monadicJob, succeeded = false), new RuntimeException("boom")).inBatch
+    // Critical carries no produced value, so its phantom `A` is pinned to Unit for the Encoder to resolve
+    val js =
+      JobLog.Critical[Unit](record(monadicJob, succeeded = false), new RuntimeException("boom")).inBatch
     val c = js.hcursor
     assert(c.get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JsonKeys.CRITICAL).toOption.exists(_.nonEmpty))
@@ -142,7 +155,7 @@ class JobLogRenderTest extends AnyFunSuite {
   }
 
   test("inBatch Kickoff/Canceled are Null (they never reach a batch-nested render)") {
-    assert(JobLog.Kickoff(quasiJob).inBatch == Json.Null)
-    assert(JobLog.Canceled(quasiJob).inBatch == Json.Null)
+    assert(JobLog.Kickoff[Unit](quasiJob).inBatch == Json.Null)
+    assert(JobLog.Canceled[Unit](quasiJob).inBatch == Json.Null)
   }
 }

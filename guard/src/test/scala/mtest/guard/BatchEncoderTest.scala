@@ -159,11 +159,12 @@ class BatchEncoderTest extends AnyFunSuite {
     val json = mb.asJson
     // the batch label is keyed by mode ("Monadic"); a monadic batch has no kind
     assert(json.hcursor.get[String]("Monadic").toOption.contains("batch"))
-    // a predicate-rejected monadic job renders via inBatch keyed "job-<index>" -> name; in the compact
-    // form the "unsatisfied" status tag carries the took duration (the produced value is never logged)
+    // monadic per-job entries carry no produced value (jobs are JobState[Unit], rendered with a Json.Null
+    // result that dropNullValues removes): keyed "job-<index>" -> name with the "unsatisfied" took tag only
     val jobJson = json.hcursor.downField("jobs").downArray
     assert(jobJson.get[String]("job-1").toOption.contains("check"))
     assert(jobJson.get[String]("unsatisfied").toOption.exists(_.nonEmpty))
+    assert(jobJson.downField("result").focus.isEmpty)
     // a completed monadic batch shows its final result (the user's declared output) under "result"
     assert(json.hcursor.get[Int]("result").toOption.contains(0))
   }
