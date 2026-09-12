@@ -533,13 +533,17 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("25.monadic sum of per-job took equals spent (gaps redistributed)") {
-    // monadicHistory rewrites each job's start to the previous job's end, so per-job
-    // took values are contiguous and telescope exactly to spent.
+  test("25.monadic sum of per-job took within spent (gaps redistributed)") {
+    // monadicHistory rewrites each job's start to the previous job's end, so per-job took
+    // values are contiguous and telescope to the span from the first job's start to the last
+    // job's end. spent is measured against a fresh clock reading taken after the whole chain
+    // finishes, so it also covers trailing framing that follows the last job; sumTook is
+    // therefore <= spent, with only a tiny remainder.
     //
-    // Alignment guard: Batch and BatchLight share the same timing model. This exact-nanos
-    // equality must hold identically here and in BatchLightMonadicTest "sum of per-job took
-    // equals spent". If one changes, both must — do not let the two variants drift apart.
+    // Alignment guard: Batch and BatchLight share the same timing model. This relationship
+    // must hold identically here and in BatchLightMonadicTest "sum of per-job took telescopes
+    // to the span through the last job". If one changes, both must — do not let the two
+    // variants drift apart.
     val se = service.eventStreamR { agent =>
       agent.batch("monadic-took-sum").monadic { job =>
         val result = for {
@@ -552,24 +556,29 @@ class BatchTest extends AnyFunSuite {
         result.monadicBatch.map { mb =>
           assert(mb.result == Right(6))
           val sumTook = mb.jobs.map(_.record.took.toNanos).sum
-          assert(sumTook == mb.spent.toNanos)
+          assert(sumTook <= mb.spent.toNanos)
+          // the trailing remainder is bookkeeping only, far below the ~170ms of real work
+          assert(mb.spent.toNanos - sumTook < 50_000_000L) // 50ms
         }
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("26.single-job monadic batch spent matches that job's took") {
-    // Edge of monadicHistory: with one visible job there is nothing to redistribute, so spent
-    // equals the single job's took exactly.
+  test("26.single-job monadic batch spent covers that job's took, within a tiny remainder") {
+    // Edge of monadicHistory: with one visible job there is nothing to redistribute, so the
+    // single job's took is the whole through-last-job span. spent adds only the trailing
+    // framing captured by the fresh post-chain reading (here also the metrics-panel
+    // deactivation), so took <= spent by a tiny margin.
     //
-    // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent matches
+    // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent covers
     // that job's took". Batch and BatchLight must agree on this edge of the timing model.
     val se = service.eventStreamR { agent =>
       agent.batch("monadic-single-job").monadic { job =>
         job("only", IO.sleep(40.millis).as(1)).monadicBatch.map { mb =>
           assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.record.took.toNanos == mb.spent.toNanos)
+          assert(mb.jobs.head.record.took.toNanos <= mb.spent.toNanos)
+          assert(mb.spent.toNanos - mb.jobs.head.record.took.toNanos < 50_000_000L) // 50ms
           assert(mb.spent.toMillis >= 40L)
         }
       }

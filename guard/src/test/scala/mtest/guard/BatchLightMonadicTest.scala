@@ -118,13 +118,16 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "sum of per-job took equals spent (gaps redistributed)" in {
-      // monadicHistory rewrites each job's start to the previous job's end, so the
-      // per-job took values are contiguous and telescope exactly to spent.
+    "sum of per-job took telescopes to the span through the last job, within spent" in {
+      // monadicHistory rewrites each job's start to the previous job's end, so the per-job
+      // took values are contiguous and telescope to the span from the first job's start to
+      // the last job's end. spent is measured against a fresh clock reading taken after the
+      // whole chain finishes, so it also covers trailing framing that follows the last job;
+      // sumTook is therefore <= spent, with only a tiny remainder.
       //
-      // Alignment guard: BatchLight and Batch share the same timing model. This exact-nanos
-      // equality must hold identically here and in BatchTest "25.monadic sum of per-job took
-      // equals spent". If one changes, both must — do not let the two variants drift apart.
+      // Alignment guard: BatchLight and Batch share the same timing model. This relationship
+      // must hold identically here and in BatchTest "25.monadic sum of per-job took within
+      // spent". If one changes, both must — do not let the two variants drift apart.
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-took-sum")
@@ -140,7 +143,9 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadicBatch
           .map { mb =>
             val sumTook = mb.jobs.map(_.record.took.toNanos).sum
-            sumTook shouldBe mb.spent.toNanos
+            sumTook should be <= mb.spent.toNanos
+            // the trailing remainder is bookkeeping only, far below the ~170ms of real work
+            (mb.spent.toNanos - sumTook) should be < 50_000_000L // 50ms
             ()
           }
       }.compile.lastOrError.unsafeRunSync()
@@ -174,9 +179,10 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
       se.asInstanceOf[ServiceStop].cause.exitCode shouldBe 0
     }
 
-    "single-job monadic batch spent matches that job's took" in {
-      // Edge of monadicHistory: with one visible job there is nothing to redistribute,
-      // so spent equals the single job's took exactly.
+    "single-job monadic batch spent covers that job's took, within a tiny remainder" in {
+      // Edge of monadicHistory: with one visible job there is nothing to redistribute, so the
+      // single job's took is the whole through-last-job span. spent adds only the trailing
+      // framing captured by the fresh post-chain reading, so took <= spent by a tiny margin.
       val se = service.eventStream { agent =>
         agent
           .batchLight("light-single-job")
@@ -186,7 +192,8 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
           .monadicBatch
           .map { mb =>
             mb.jobs.size shouldBe 1
-            mb.jobs.head.record.took.toNanos shouldBe mb.spent.toNanos
+            mb.jobs.head.record.took.toNanos should be <= mb.spent.toNanos
+            (mb.spent.toNanos - mb.jobs.head.record.took.toNanos) should be < 50_000_000L // 50ms
             mb.spent.toMillis should be >= 40L
             ()
           }

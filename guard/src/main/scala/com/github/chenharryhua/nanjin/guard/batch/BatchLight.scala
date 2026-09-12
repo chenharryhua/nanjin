@@ -11,7 +11,6 @@ import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -126,9 +125,8 @@ object BatchLight:
    * Monadic
    */
 
-  final class JobBuilder[F[_]: Temporal] private[BatchLight] (
-    val scope: MetricScope,
-    val batchIdGenerator: AtomicLong):
+  final class JobBuilder[F[_]] private[BatchLight] (val scope: MetricScope, val batchIdGenerator: AtomicLong)(
+    using F: Temporal[F]):
 
     private val mode: BatchMode = BatchMode.Monadic
 
@@ -182,11 +180,12 @@ object BatchLight:
       def monadicBatch: F[MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
-          start <- Temporal[F].monotonic
+          start <- F.monotonic
           (_, ExecutionState(eoa, history)) <- kleisli(batchId).run(JobCursor(1, start))
+          end <- F.monotonic
         } yield MonadicBatch(
           scope = scope,
-          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = (end - start).toJava,
           batchId = batchId,
           jobs = history.reverse,
           result = eoa)

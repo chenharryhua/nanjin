@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.data.Reader
 import cats.effect.IO
 import cats.effect.kernel.Ref
 import cats.effect.unsafe.implicits.global
@@ -46,7 +45,7 @@ class JobExecutorTest extends AnyFunSuite {
   }
 
   private def executor(predicate: Int => Boolean, log: Option[Log[IO]]): JobExecutor[IO, Int] =
-    new JobExecutor[IO, Int](Reader(predicate), BatchMode.Sequential, scope, log)
+    new JobExecutor[IO, Int](predicate, BatchMode.Sequential, scope, log)
 
   private val boom = new RuntimeException("boom")
 

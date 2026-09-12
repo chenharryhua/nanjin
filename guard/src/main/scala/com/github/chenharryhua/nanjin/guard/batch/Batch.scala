@@ -14,7 +14,6 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -149,10 +148,10 @@ object Batch:
   final private case class Context[F[_]](updatePanel: UpdatePanel[F], log: Log[F], batchId: BatchId)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
-  final class JobBuilder[F[_]: Async] private[Batch] (
+  final class JobBuilder[F[_]] private[Batch] (
     log: Log[F],
     metrics: MetricsHub[F],
-    batchIdGenerator: AtomicLong):
+    batchIdGenerator: AtomicLong)(using F: Async[F]):
 
     private val mode: BatchMode = BatchMode.Monadic
 
@@ -196,14 +195,15 @@ object Batch:
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
           BatchMetrics(updatePanel, activeGauge) <- createMonadicPanel[F](metrics)
-          start <- Resource.eval(Async[F].monotonic)
+          start <- Resource.eval(F.monotonic)
           (_, ExecutionState(eoa, history)) <- kleisli
             .run(Context[F](updatePanel, log, batchId))
             .run(JobCursor(1, start))
             .guarantee(Resource.eval(activeGauge.deactivate))
+          end <- Resource.eval(F.monotonic)
         } yield MonadicBatch(
           scope = metrics.scope,
-          spent = history.headOption.map(_.record.end - start).map(_.toJava).getOrElse(Duration.ZERO),
+          spent = (end - start).toJava,
           batchId = batchId,
           jobs = history.reverse,
           result = eoa
