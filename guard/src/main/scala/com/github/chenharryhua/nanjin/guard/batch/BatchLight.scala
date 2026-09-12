@@ -83,7 +83,7 @@ object BatchLight:
    * Parallel
    */
   final class Parallel[F[_], A] private[BatchLight] (
-    predicate: Reader[A, Boolean],
+    predicate: A => Boolean,
     protected val scope: MetricScope,
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
@@ -92,20 +92,20 @@ object BatchLight:
 
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
     override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
+      JobExecutor[F, A](predicate = Reader(predicate), mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
       F.parTraverseN(parallelism)(jobs)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), scope, parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = f, scope, parallelism, jobs, batchIdGenerator)
   }
 
   /*
    * Sequential
    */
   final class Sequential[F[_], A] private[BatchLight] (
-    predicate: Reader[A, Boolean],
+    predicate: A => Boolean,
     protected val scope: MetricScope,
     protected val jobs: List[JobNameIndex[F, A]],
     protected val batchIdGenerator: AtomicLong)(using F: Temporal[F])
@@ -113,13 +113,13 @@ object BatchLight:
 
     override protected val mode: BatchMode = BatchMode.Sequential
     override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
+      JobExecutor[F, A](predicate = Reader(predicate), mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Sequential[F, A](predicate = Reader(f), scope, jobs, batchIdGenerator)
+      new Sequential[F, A](predicate = f, scope, jobs, batchIdGenerator)
   }
 
   /*
@@ -223,7 +223,7 @@ object BatchLight:
       * effect is judged by `predicate` to set the job's `succeeded` flag, but its value flows on regardless
       * so the chain continues.
       */
-    private def create[A](name: String, fa: F[A], predicate: Reader[A, Boolean]): Monadic[A] =
+    private def create[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -234,7 +234,7 @@ object BatchLight:
               eoa <- fa.attempt
               end <- Temporal[F].monotonic
             } yield {
-              val succeeded = eoa.fold(_ => false, predicate.run)
+              val succeeded = eoa.fold(_ => false, predicate)
               val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))
               JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
             }
@@ -251,7 +251,7 @@ object BatchLight:
       *   the effect to run
       */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, fa, Reader(_ => true))
+      create[A](name, fa, _ => true)
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -268,7 +268,7 @@ object BatchLight:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, fa, Reader(predicate))
+      create[A](name, fa, predicate)
 
   end JobBuilder
 
@@ -286,7 +286,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Sequential[F, A](Reader(_ => true), scope, jobs, batchIdGenerator)
+    new BatchLight.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator)
   }
 
   /** Create a parallel batch with an explicit positive parallelism. */
@@ -295,7 +295,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Parallel[F, A](Reader(_ => true), scope, parallelism, jobs, batchIdGenerator)
+    new BatchLight.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator)
   }
 
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =
