@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
-import cats.data.{Kleisli, Reader, StateT}
+import cats.data.{Kleisli, StateT}
 import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
@@ -92,7 +92,7 @@ object BatchLight:
 
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
     override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = Reader(predicate), mode = mode, scope = scope, log = None)
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
       F.parTraverseN(parallelism)(jobs)(f)
@@ -113,7 +113,7 @@ object BatchLight:
 
     override protected val mode: BatchMode = BatchMode.Sequential
     override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = Reader(predicate), mode = mode, scope = scope, log = None)
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
       jobs.traverse(f)
