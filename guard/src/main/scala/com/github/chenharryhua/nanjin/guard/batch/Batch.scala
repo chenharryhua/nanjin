@@ -350,7 +350,7 @@ end Batch
 final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
-  batchIdGenerator: AtomicLong) {
+  batchIdGenerator: AtomicLong):
 
   /** Create a sequential batch from named effects; jobs run in input order.
     */
@@ -393,4 +393,4 @@ final class Batch[F[_]: Async] private[guard] (
     val builder = new Batch.JobBuilder[F](log, metrics, batchIdGenerator)
     f(builder)
   }
-}
+end Batch

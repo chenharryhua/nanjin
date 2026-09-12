@@ -23,6 +23,105 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   * `quasiBatch` to retain per-job failures or `valueBatch` to raise them.
   */
 object BatchLight:
+
+  /*
+   * Runners
+   */
+
+  /** Common runner operations for the sequential and parallel light batches.
+    *
+    * Like the full `Batch` runners the two shapes differ only in how they traverse the job list, so that one
+    * choice is the abstract `traverseJobs`. Unlike `Batch` there is no metrics panel or logging, so the
+    * shared body is just: mint a batch id, time the traversal, and assemble the result.
+    */
+  sealed abstract protected class BatchRunner[F[_], A](using F: Temporal[F]) {
+
+    protected def mode: BatchMode
+
+    protected def scope: MetricScope
+
+    protected def jobs: List[JobNameIndex[F, A]]
+
+    protected def batchIdGenerator: AtomicLong
+
+    protected def executor: JobExecutor[F, A]
+
+    /** Run `f` over every job, in this runner's traversal order (parallel vs sequential). */
+    protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
+
+    private def nextBatchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
+
+    /** Reject successful values that do not satisfy `f`. */
+    def withPostCondition(f: A => Boolean): BatchRunner[F, A]
+
+    /** Execute while preserving per-job success or failure state. */
+    final def quasiBatch: F[QuasiBatch[A]] = {
+      val batchId: BatchId = nextBatchId
+      F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
+        case (fd: FiniteDuration, js: List[JobState[A]]) =>
+          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
+      }
+    }
+
+    /** Execute and raise on failure, returning successful values. */
+    final def valueBatch: F[ValueBatch[A]] = {
+      val batchId: BatchId = nextBatchId
+      F.timed(traverseJobs { jni =>
+        executor.valueJob(jni, batchId).compute.flatMap { js =>
+          js.result match {
+            case Left(ex)     => F.raiseError[JobValue[A]](ex)
+            case Right(value) => JobValue(js.record, value).pure[F]
+          }
+        }
+      }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
+        ValueBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
+      }
+    }
+  }
+
+  /*
+   * Parallel
+   */
+  final class Parallel[F[_], A] private[BatchLight] (
+    predicate: Reader[A, Boolean],
+    protected val scope: MetricScope,
+    parallelism: Int,
+    protected val jobs: List[JobNameIndex[F, A]],
+    protected val batchIdGenerator: AtomicLong)(using F: Async[F])
+      extends BatchRunner[F, A] {
+
+    override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
+    override protected val executor: JobExecutor[F, A] =
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
+
+    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
+      F.parTraverseN(parallelism)(jobs)(f)
+
+    override def withPostCondition(f: A => Boolean): Parallel[F, A] =
+      new Parallel[F, A](predicate = Reader(f), scope, parallelism, jobs, batchIdGenerator)
+  }
+
+  /*
+   * Sequential
+   */
+  final class Sequential[F[_], A] private[BatchLight] (
+    predicate: Reader[A, Boolean],
+    protected val scope: MetricScope,
+    protected val jobs: List[JobNameIndex[F, A]],
+    protected val batchIdGenerator: AtomicLong)(using F: Temporal[F])
+      extends BatchRunner[F, A] {
+
+    override protected val mode: BatchMode = BatchMode.Sequential
+    override protected val executor: JobExecutor[F, A] =
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
+
+    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
+      jobs.traverse(f)
+
+    override def withPostCondition(f: A => Boolean): Sequential[F, A] =
+      new Sequential[F, A](predicate = Reader(f), scope, jobs, batchIdGenerator)
+  }
+
   /*
    * Monadic
    */
@@ -173,99 +272,6 @@ object BatchLight:
 
   end JobBuilder
 
-  /*
-   * Runners
-   */
-  /** Common runner operations for the sequential and parallel light batches.
-    *
-    * Like the full `Batch` runners the two shapes differ only in how they traverse the job list, so that one
-    * choice is the abstract `traverseJobs`. Unlike `Batch` there is no metrics panel or logging, so the
-    * shared body is just: mint a batch id, time the traversal, and assemble the result.
-    */
-  sealed abstract protected class BatchRunner[F[_], A](using F: Temporal[F]) {
-
-    protected def mode: BatchMode
-    protected def scope: MetricScope
-    protected def jobs: List[JobNameIndex[F, A]]
-    protected def batchIdGenerator: AtomicLong
-    protected def executor: JobExecutor[F, A]
-
-    /** Run `f` over every job, in this runner's traversal order (parallel vs sequential). */
-    protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
-
-    private def nextBatchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
-
-    /** Reject successful values that do not satisfy `f`. */
-    def withPostCondition(f: A => Boolean): BatchRunner[F, A]
-
-    /** Execute while preserving per-job success or failure state. */
-    final def quasiBatch: F[QuasiBatch[A]] = {
-      val batchId: BatchId = nextBatchId
-      F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
-        case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
-      }
-    }
-
-    /** Execute and raise on failure, returning successful values. */
-    final def valueBatch: F[ValueBatch[A]] = {
-      val batchId: BatchId = nextBatchId
-      F.timed(traverseJobs { jni =>
-        executor.valueJob(jni, batchId).compute.flatMap { js =>
-          js.result match {
-            case Left(ex)     => F.raiseError[JobValue[A]](ex)
-            case Right(value) => JobValue(js.record, value).pure[F]
-          }
-        }
-      }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
-        ValueBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
-      }
-    }
-  }
-
-  /*
-   * Parallel
-   */
-  final class Parallel[F[_], A] private[BatchLight] (
-    predicate: Reader[A, Boolean],
-    protected val scope: MetricScope,
-    parallelism: Int,
-    protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)(using F: Async[F])
-      extends BatchRunner[F, A] {
-
-    override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
-    override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
-
-    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
-      F.parTraverseN(parallelism)(jobs)(f)
-
-    override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), scope, parallelism, jobs, batchIdGenerator)
-  }
-
-  /*
-   * Sequential
-   */
-  final class Sequential[F[_], A] private[BatchLight] (
-    predicate: Reader[A, Boolean],
-    protected val scope: MetricScope,
-    protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)(using F: Temporal[F])
-      extends BatchRunner[F, A] {
-
-    override protected val mode: BatchMode = BatchMode.Sequential
-    override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
-
-    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
-      jobs.traverse(f)
-
-    override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Sequential[F, A](predicate = Reader(f), scope, jobs, batchIdGenerator)
-  }
-
 end BatchLight
 
 /** Lightweight batch façade for short-lived jobs.
@@ -273,7 +279,7 @@ end BatchLight
   * It intentionally avoids the richer lifecycle and progress-tracking machinery of Batch and focuses on
   * straightforward, low-overhead execution.
   */
-final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenerator: AtomicLong) {
+final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenerator: AtomicLong):
 
   /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
@@ -299,4 +305,4 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val builder = new BatchLight.JobBuilder[F](scope, batchIdGenerator)
     f(builder)
   }
-}
+end BatchLight
