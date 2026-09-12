@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.data.Reader
 import cats.effect.kernel.Temporal
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
@@ -40,7 +39,7 @@ final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
   *   logging is a no-op
   */
 final private class JobExecutor[F[_], A](
-  predicate: Reader[A, Boolean],
+  predicate: A => Boolean,
   mode: BatchMode,
   scope: MetricScope,
   log: Option[Log[F]])(using F: Temporal[F]) {
@@ -61,7 +60,7 @@ final private class JobExecutor[F[_], A](
     } yield {
       val result: Either[Throwable, A] =
         eoa.flatMap { a =>
-          if (predicate.run(a))
+          if (predicate(a))
             Right(a)
           else
             Left(PostConditionUnsatisfied(Some(job)))
@@ -82,7 +81,7 @@ final private class JobExecutor[F[_], A](
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {
-      val succeeded = eoa.fold(_ => false, predicate.run)
+      val succeeded = eoa.fold(_ => false, predicate)
       JobState(JobRecord(job, start, end, succeeded), eoa)
     }
     ComputeJob(compute, job)

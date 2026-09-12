@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
-import cats.data.{Kleisli, Reader, StateT}
+import cats.data.{Kleisli, StateT}
 import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
@@ -99,7 +99,7 @@ object Batch:
    * Parallel
    */
   final class Parallel[F[_]: Async, A] private[Batch] (
-    predicate: Reader[A, Boolean],
+    predicate: A => Boolean,
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     parallelism: Int,
@@ -115,7 +115,7 @@ object Batch:
       jobs.parTraverseN(parallelism)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = Reader(f), log, metrics, parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator)
   }
 
   /*
@@ -123,7 +123,7 @@ object Batch:
    */
 
   final class Sequential[F[_]: Async, A] private[Batch] (
-    predicate: Reader[A, Boolean],
+    predicate: A => Boolean,
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
@@ -139,7 +139,7 @@ object Batch:
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = Reader(f), log, metrics, jobs, batchIdGenerator)
+      new Batch.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator)
   }
 
   /*
@@ -257,7 +257,7 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    private def create[A](name: String, rfa: Resource[F, A], predicate: Reader[A, Boolean]): Monadic[A] =
+    private def create[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(updatePanel, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -274,7 +274,7 @@ object Batch:
               eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
             } yield {
-              val succeeded = eoa.fold(_ => false, predicate.run)
+              val succeeded = eoa.fold(_ => false, predicate)
               JobState(JobRecord(job, start, end, succeeded), eoa)
             }
 
@@ -296,13 +296,13 @@ object Batch:
       *   the resource-backed job
       */
     def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
-      create[A](name, rfa, Reader(_ => true))
+      create[A](name, rfa, _ => true)
 
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.
       */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(_ => true))
+      create[A](name, Resource.eval(fa), _ => true)
 
     /** Add a named resource-backed job whose success is decided by `predicate`.
       *
@@ -319,7 +319,7 @@ object Batch:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, rfa, Reader(predicate))
+      create[A](name, rfa, predicate)
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -336,7 +336,7 @@ object Batch:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, Resource.eval(fa), Reader(predicate))
+      create[A](name, Resource.eval(fa), predicate)
 
   end JobBuilder
 end Batch
@@ -350,7 +350,7 @@ end Batch
 final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
-  batchIdGenerator: AtomicLong) {
+  batchIdGenerator: AtomicLong):
 
   /** Create a sequential batch from named effects; jobs run in input order.
     */
@@ -359,7 +359,7 @@ final class Batch[F[_]: Async] private[guard] (
       JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Sequential[F, A](
-      predicate = Reader(_ => true),
+      predicate = _ => true,
       log = log,
       metrics = metrics,
       jobs = jobs,
@@ -376,7 +376,7 @@ final class Batch[F[_]: Async] private[guard] (
       JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Parallel[F, A](
-      predicate = Reader(_ => true),
+      predicate = _ => true,
       log = log,
       metrics = metrics,
       parallelism = parallelism,
@@ -393,4 +393,4 @@ final class Batch[F[_]: Async] private[guard] (
     val builder = new Batch.JobBuilder[F](log, metrics, batchIdGenerator)
     f(builder)
   }
-}
+end Batch
