@@ -7,7 +7,7 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
-import cats.{ApplicativeThrow, MonadThrow}
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogEntry, LogLevel}
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
@@ -72,7 +72,7 @@ private val translator: Reader[Ior[Long, Long], Json] = Reader {
     }
 }
 
-private def jobRecord2Json(results: List[JobRecord]): Json =
+private def jobRecordsToJson(results: List[JobRecord]): Json =
   if (results.isEmpty) Json.Null
   else {
     val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: JobRecord) =>
@@ -95,7 +95,7 @@ private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: BatchKind, mo
       .ratio(show"$mode $kind completion", _.withTranslator(translator))
       .evalTap(_.incDenominator(size.toLong))
     progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
-    _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobRecord2Json)))
+    _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobRecordsToJson)))
   } yield BatchMetrics(
     Kleisli { (cj: JobRecord) =>
       F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
@@ -106,13 +106,10 @@ private def createMonadicPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Res
   for {
     active <- mtx.activeGauge("Active")
     progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
-    _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(jobRecord2Json)))
+    _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(jobRecordsToJson)))
   } yield BatchMetrics(
     Kleisli((cj: JobRecord) => F.uncancelable(_ => progress.update(_.appended(cj)))),
     active)
-
-private def shouldNeverHappenException(e: Throwable): Exception =
-  new RuntimeException("[Batch internal error] unexpected outcome", e)
 
 private def logKickoff[F[_]](log: Log[F], job: Job): F[Unit] =
   log.info(JobLog.Kickoff(job).standalone)
@@ -123,22 +120,21 @@ private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
 private def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
   log.emit(toLogEntry(js).map(_.standalone))
 
-private def handleOutcome[F[_], A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
-  outcome: Outcome[F, Throwable, JobState[A]])(using F: MonadThrow[F]): F[Unit] =
+private def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
+  outcome: Outcome[F, Throwable, JobState[A]]): F[Unit] =
   outcome.fold(
     completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js)),
     // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
-    errored = ex => F.raiseError(shouldNeverHappenException(ex)),
+    errored = ex => log.error("should not happen", ex),
     canceled = logCanceled(log, job)
   )
 
-private def handleOutcomeR[F[_]: ApplicativeThrow, A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
+private def handleOutcomeR[F[_]: Applicative, A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
   outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
   outcome match {
     case Outcome.Succeeded(rfa) =>
       rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js))
     // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
-    case Outcome.Errored(ex) =>
-      Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
-    case Outcome.Canceled() => Resource.eval(logCanceled(log, job))
+    case Outcome.Errored(ex) => Resource.eval(log.error("should not happen", ex))
+    case Outcome.Canceled()  => Resource.eval(logCanceled(log, job))
   }
