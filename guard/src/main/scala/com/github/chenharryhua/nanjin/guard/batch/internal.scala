@@ -1,66 +1,18 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
+import io.circe.Json
 
-import scala.concurrent.duration.FiniteDuration
-
-/** Threaded state for a monadic batch run: the current result-or-error together with the completed job states
-  * accumulated so far.
-  *
-  * Each history entry is a `JobState[Unit]`: the per-step produced value is erased to `Unit` because monadic
-  * intermediate values are never rendered, so only the record and outcome are retained. `history` is kept in
-  * reverse order (most recent job first) so that prepending a later segment is a cheap list cons; the batch
-  * runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
-  * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
-  *
-  * @param eoa
-  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
-  *   short-circuited the chain
-  * @param history
-  *   the completed job states (value erased to `Unit`) so far, most recent first
-  */
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]) {
-
-  /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
-    * reflects that no value of the new type will be produced once the chain has short-circuited.
-    */
-  def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
-
-  /** Fold a later segment `js` in front of this state: take the later segment's result, and prepend its
-    * (already reversed) history onto this one, keeping the combined history most-recent-first.
-    */
-  def prependHistory[B](js: ExecutionState[B]): ExecutionState[B] =
-    ExecutionState[B](js.eoa, js.history ::: history)
-
-  /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
-  def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
-}
-
-/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
-final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
-
-/** Threads the running job index together with the start time carried over from the previous job's `end`, so
-  * each monadic job's `start` absorbs the gap left by invisible `untracked`/`pure` steps. See `JobRecord` for
-  * the resulting per-job timing semantics.
-  */
-final private case class JobCursor(index: Int, start: FiniteDuration)
-
-/** JSON object keys shared by the `JobLog` renderings and the batch-report encoders, kept in one place so the
-  * per-job log entries and the aggregate `BatchResult` encoders stay in sync.
-  */
 private object JsonKeys {
-  val SUCCEEDED = "succeeded"
-  val UNSATISFIED = "unsatisfied"
-  val NONFATAL = "nonfatal"
-  val CRITICAL = "critical"
-  val KICKOFF = "kickoff"
-  val CANCELED = "canceled"
-  val ERROR = "error"
-  val RESULT = "result"
   // QuasiBatch per-outcome counts. Named distinctly from the per-job `SUCCEEDED` status tag so the two
   // never collide in one report: these are integer tallies, that tag carries a took duration.
   val PASSED = "passed"
   val FAILED = "failed"
+
+  val JOBS = "jobs"
+  val SPENT = "spent"
 }
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.
@@ -91,3 +43,7 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
       else
         LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
   }
+
+private def batchEntry(mode: BatchMode, kind: Option[BatchKind], scope: MetricScope): (String, Json) =
+  kind.fold(show"$mode Batch" -> Json.fromString(scope.label.value))(k =>
+    show"$mode $k Batch" -> Json.fromString(scope.label.value))

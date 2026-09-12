@@ -55,11 +55,11 @@ object PrettyJsonTranslator {
     Json
       .obj(
         Attribute(evt.correlation).snakeJsonEntry,
+        Attribute(evt.domain).snakeJsonEntry,
         Attribute(evt).map(_.level.show).snakeJsonEntry,
         Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-        Attribute(evt.domain).snakeJsonEntry,
-        Attribute(evt.upTime).map(_.show).snakeJsonEntry,
         Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
+        Attribute(evt.upTime).map(_.show).snakeJsonEntry,
         Attribute(evt.message).snakeJsonEntry,
         Attribute(evt.stackTrace).snakeJsonEntry
       )

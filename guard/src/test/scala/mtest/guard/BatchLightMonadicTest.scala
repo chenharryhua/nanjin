@@ -464,7 +464,7 @@ class BatchLightMonadicTest extends AsyncFreeSpec with AsyncIOSpec with Matchers
             bv.mode shouldBe BatchMode.Sequential
             bv.jobs.map(_.record.job.kind) shouldBe List.fill(3)(Some(BatchKind.Value))
             bv.jobs.map(_.record.job.mode) shouldBe List.fill(3)(BatchMode.Sequential)
-            bv.succeeded shouldBe true
+            bv.allPassed shouldBe true
             ()
           }
       }.compile.lastOrError.unsafeRunSync()

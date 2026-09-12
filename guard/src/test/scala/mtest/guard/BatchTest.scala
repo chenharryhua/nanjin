@@ -421,7 +421,7 @@ class BatchTest extends AnyFunSuite {
           len <- job("length", IO(config.length))
         } yield len
         result.monadicBatch.map { mb =>
-          assert(mb.succeeded)
+          assert(mb.result.isRight)
           assert(mb.result == Right(5))
           // untracked does not create a job entry; only "length" appears
           assert(mb.jobs.size == 1)
@@ -440,7 +440,7 @@ class BatchTest extends AnyFunSuite {
           y <- job("double", IO(x * 2))
         } yield y
         cats.effect.Resource.eval(batch.monadicBatch).map { mb =>
-          assert(mb.succeeded)
+          assert(mb.result.isRight)
           assert(mb.result == Right(84))
           assert(mb.jobs.size == 1)
           assert(mb.jobs.head.record.job.name == "double")
@@ -488,7 +488,7 @@ class BatchTest extends AnyFunSuite {
           v <- job("read", ref.get)
         } yield v
         result.monadicBatch.map { mb =>
-          assert(mb.succeeded)
+          assert(mb.result.isRight)
           assert(mb.result == Right(11))
           assert(mb.jobs.size == 3)
           assert(mb.jobs.map(_.record.job.name) == List("increment", "increment2", "read"))
