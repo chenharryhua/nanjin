@@ -61,14 +61,14 @@ end BatchMode
   * The id is unique '''within a service instance''', not globally: a new instance (a new `serviceId`, e.g. on
   * redeploy) starts its counter over at 1. Cross-instance correlation therefore relies on the enclosing
   * event's `serviceId`, which is why the id is a plain counter rather than a random UUID. It is emitted as
-  * the JSON number `batch_id`.
+  * the JSON number `id`.
   */
 opaque type BatchId = Long
 object BatchId:
   def apply(value: Long): BatchId = value
   extension (b: BatchId)
     inline def value: Long = b
-    def entry: (String, Json) = "batch_id" -> Json.fromLong(b)
+    def entry: (String, Json) = "id" -> Json.fromLong(b)
 
   given Show[BatchId] = OpaqueLift.lift[BatchId, Long, Show]
   given Order[BatchId] = OpaqueLift.lift[BatchId, Long, Order]

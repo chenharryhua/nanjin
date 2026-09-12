@@ -198,7 +198,7 @@ Key vocabulary in the report JSON (all display-only, not a wire format):
 | `result` | the produced value (only in `inBatch`, i.e. user-triggered serialization) |
 | `error` | exception message on `nonfatal`/`critical`; stack trace at the monadic batch level |
 | `passed` / `failed` | `QuasiBatch` integer counts of jobs by outcome |
-| `spent`, `batch_id` | batch-level total duration and identifier |
+| `spent`, `id` | batch-level total duration and identifier |
 
 The batch label is keyed by mode and kind (for example `"Sequential Quasi Batch"`,
 `"Parallel-4 Value Batch"`, `"Monadic Batch"`). A monadic batch shows its final result under `result` on success, or the stack trace
