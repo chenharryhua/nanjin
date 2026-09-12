@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
-import scala.Right
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
