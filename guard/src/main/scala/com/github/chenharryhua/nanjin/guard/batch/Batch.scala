@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.Applicative
 import cats.data.{Kleisli, Reader, StateT}
 import cats.effect.kernel.syntax.concurrent.given
-import cats.effect.kernel.{Async, Resource, Temporal}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
@@ -12,7 +12,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
-import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
+import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
@@ -21,70 +21,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 /** Primary API for structured batch execution with lifecycle logging, metrics, and observable progress. */
 object Batch:
-
-  // Lifecycle logging, formerly the JobHook SPI. The logger (Log[F]) never throws — its writes are
-  // wrapped in attempt internally — so these are safe to call inside finalizers and outside `attempt`.
-
-  private class JobExecutor[F[_], A](
-    predicate: Reader[A, Boolean],
-    mode: BatchMode,
-    log: Log[F],
-    scope: MetricScope,
-    batchPanel: BatchMetrics[F],
-    batchId: BatchId)(using F: Temporal[F]) {
-
-    private def batchJob(jni: JobNameIndex[F, A], kind: BatchKind) =
-      Job(jni.name, jni.index, scope, mode, Some(kind), batchId)
-
-    // Value job: a predicate miss folds into Left(PostConditionUnsatisfied) so runValue can raise it and
-    // abort the batch. An exception is likewise a Left.
-    private def singleValueJob(jni: JobNameIndex[F, A]): (Job, F[JobState[A]]) = {
-      val job: Job = batchJob(jni, BatchKind.Value)
-      val compute: F[JobState[A]] = for {
-        start <- F.monotonic
-        eoa <- (logKickoff(log, job) >> jni.fa).attempt
-        end <- F.monotonic
-      } yield {
-        val result: Either[Throwable, A] =
-          eoa.flatMap { a =>
-            if (predicate.run(a))
-              Right(a)
-            else
-              Left(PostConditionUnsatisfied(Some(job)))
-          }
-        JobState(JobRecord(job, start, end, result.isRight), result)
-      }
-      job -> compute
-    }
-
-    // Quasi job: a predicate miss records `succeeded = false` but keeps the value as the result, so runQuasi
-    // retains the outcome and the batch completes. An exception stays a Left.
-    private def singleQuasiJob(jni: JobNameIndex[F, A]): (Job, F[JobState[A]]) = {
-      val job: Job = batchJob(jni, BatchKind.Quasi)
-      val compute: F[JobState[A]] = for {
-        start <- F.monotonic
-        eoa <- (logKickoff(log, job) >> jni.fa).attempt
-        end <- F.monotonic
-      } yield {
-        val succeeded = eoa.fold(_ => false, predicate.run)
-        JobState(JobRecord(job, start, end, succeeded), eoa)
-      }
-      job -> compute
-    }
-
-    def runValue(jni: JobNameIndex[F, A]): F[JobValue[A]] =
-      val (job, compute) = singleValueJob(jni)
-      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
-        .flatMap(js =>
-          js.result match {
-            case Left(ex)     => ex.raiseError[F, JobValue[A]]
-            case Right(value) => JobValue(js.record, value).pure[F]
-          })
-
-    def runQuasi(jni: JobNameIndex[F, A]): F[JobState[A]] =
-      val (job, compute) = singleQuasiJob(jni)
-      compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
-  }
 
   /*
    * Runners
@@ -126,17 +62,22 @@ object Batch:
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
+    private val executor: JobExecutor[F, A] =
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = metrics.scope, log = Some(log))
+
     override def quasiBatch: Resource[F, QuasiBatch[A]] = {
 
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
-          .parTraverseN(parallelism) {
-            JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runQuasi
+          .parTraverseN(parallelism) { jni =>
+            val ComputeJob(compute, job) = executor.quasiJob(jni, batchId)
+            compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
       val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
+
       createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
         case (fd: FiniteDuration, jobs: List[JobState[A]]) =>
           QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jobs)
@@ -147,8 +88,14 @@ object Batch:
 
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
-          .parTraverseN(parallelism) {
-            JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runValue
+          .parTraverseN(parallelism) { jni =>
+            val ComputeJob(compute, job) = executor.valueJob(jni, batchId)
+            compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
+              .flatMap(js =>
+                js.result match {
+                  case Left(ex)     => ex.raiseError[F, JobValue[A]]
+                  case Right(value) => JobValue(js.record, value).pure[F]
+                })
           }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
@@ -178,11 +125,16 @@ object Batch:
 
     override protected val mode: BatchMode = BatchMode.Sequential
 
+    private val executor: JobExecutor[F, A] =
+      JobExecutor[F, A](predicate = predicate, mode = mode, scope = metrics.scope, log = Some(log))
+
     override def quasiBatch: Resource[F, QuasiBatch[A]] = {
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobState[A]])] =
         jobs
-          .traverse(JobExecutor(predicate, mode, log, metrics.scope, batchPanel, batchId).runQuasi)
-          .timed
+          .traverse { jni =>
+            val ComputeJob(compute, job) = executor.quasiJob(jni, batchId)
+            compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
+          }.timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
       val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
@@ -196,16 +148,15 @@ object Batch:
 
       def exec(batchPanel: BatchMetrics[F], batchId: BatchId): F[(FiniteDuration, List[JobValue[A]])] =
         jobs
-          .traverse(
-            JobExecutor(
-              predicate = predicate,
-              mode = mode,
-              log = log,
-              scope = metrics.scope,
-              batchPanel = batchPanel,
-              batchId = batchId
-            ).runValue
-          )
+          .traverse { jni =>
+            val ComputeJob(compute, job) = executor.valueJob(jni, batchId)
+            compute.guaranteeCase(handleOutcome(log, job, batchPanel.updatePanel))
+              .flatMap(js =>
+                js.result match {
+                  case Left(ex)     => ex.raiseError[F, JobValue[A]]
+                  case Right(value) => JobValue(js.record, value).pure[F]
+                })
+          }
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 

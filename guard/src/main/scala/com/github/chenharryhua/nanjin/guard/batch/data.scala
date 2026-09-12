@@ -208,8 +208,8 @@ final case class ValueBatch[A](
   batchId: BatchId,
   jobs: List[JobValue[A]])
     extends BatchResult[JobValue[A]] derives Functor {
-  // a ValueBatch only exists when valueBatch ran to completion; runValue raises on any failing or rejected
-  // job, so every retained job succeeded.
+  // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
+  // rejected job, so every retained job succeeded.
   override val allPassed: Boolean = true
 }
 
