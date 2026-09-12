@@ -27,7 +27,7 @@ object BatchLight:
    * Monadic
    */
 
-  final class JobBuilder[F[_]: Async] private[BatchLight] (
+  final class JobBuilder[F[_]: Temporal] private[BatchLight] (
     val scope: MetricScope,
     val batchIdGenerator: AtomicLong):
 
@@ -60,7 +60,7 @@ object BatchLight:
       /** Transform a successful monadic job value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
 
-      /** Filter a successful monadic value; a rejected value becomes a failed quasi-job. */
+      /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
           Kleisli { (batchId: BatchId) =>
@@ -83,7 +83,7 @@ object BatchLight:
       def monadicBatch: F[MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
-          start <- Async[F].monotonic
+          start <- Temporal[F].monotonic
           (_, ExecutionState(eoa, history)) <- kleisli(batchId).run(JobCursor(1, start))
         } yield MonadicBatch(
           scope = scope,
@@ -133,7 +133,7 @@ object BatchLight:
 
             for {
               eoa <- fa.attempt
-              end <- Async[F].monotonic
+              end <- Temporal[F].monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, predicate.run)
               val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))

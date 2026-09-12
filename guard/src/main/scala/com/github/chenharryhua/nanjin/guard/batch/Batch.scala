@@ -174,7 +174,7 @@ object Batch:
       /** Transform a successful monadic job value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
 
-      /** Filter a successful monadic value; a rejected value becomes a failed quasi-job. */
+      /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](
           kleisli.map { case unchange @ ExecutionState(eoa, history) =>
