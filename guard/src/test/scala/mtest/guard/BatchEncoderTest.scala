@@ -32,8 +32,8 @@ class BatchEncoderTest extends AnyFunSuite {
     val valueJson = value.asJson
 
     // the batch label now lives under a mode+kind key rather than separate "batch"/"mode"/"kind" fields
-    assert(quasiJson.hcursor.get[String]("Sequential Quasi").toOption.contains("batch"))
-    assert(valueJson.hcursor.get[String]("Sequential Value").toOption.contains("batch"))
+    assert(quasiJson.hcursor.get[String]("Sequential Quasi Batch").toOption.contains("batch"))
+    assert(valueJson.hcursor.get[String]("Sequential Value Batch").toOption.contains("batch"))
 
     // QuasiBatch outcome counts use "passed"/"failed" (integer tallies), named distinctly from the
     // per-job "succeeded" status tag which carries a took duration
@@ -93,15 +93,14 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(monadicJson.hcursor.downField("error").focus.nonEmpty)
   }
 
-  test("QuasiBatch: succeeded is always true; allPassed reflects per-job outcomes") {
+  test("QuasiBatch: allPassed reflects per-job outcomes") {
     val allDone = QuasiBatch(
       label,
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
       List(JobState(completed, Right(1))))
-    // a quasi batch always runs to completion
-    assert(allDone.succeeded)
+    // every job satisfied its post-condition
     assert(allDone.allPassed)
 
     val withFailure = QuasiBatch(
@@ -111,18 +110,16 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(failed, Left(new RuntimeException("x")))))
     // the batch still completed, but not every job succeeded
-    assert(withFailure.succeeded)
     assert(!withFailure.allPassed)
   }
 
-  test("ValueBatch: succeeded and allPassed are both true") {
+  test("ValueBatch: allPassed is true") {
     val bv =
       ValueBatch(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
-    assert(bv.succeeded)
     assert(bv.allPassed)
   }
 
-  test("MonadicBatch: succeeded tracks the result; allPassed tracks per-job outcomes") {
+  test("MonadicBatch: result tracks completion; allPassed tracks per-job outcomes") {
     // chain completed (Right) but a job was rejected by its predicate
     val mb = MonadicBatch(
       label,
@@ -130,7 +127,7 @@ class BatchEncoderTest extends AnyFunSuite {
       batchId,
       List(JobState(completed, Right(())), JobState(failed, Right(()))),
       Right(99))
-    assert(mb.succeeded)
+    assert(mb.result.isRight)
     assert(!mb.allPassed)
 
     // chain short-circuited by an exception
@@ -141,7 +138,7 @@ class BatchEncoderTest extends AnyFunSuite {
         batchId,
         List(JobState(completed, Right(()))),
         Left(new RuntimeException("x")))
-    assert(!aborted.succeeded)
+    assert(aborted.result.isLeft)
     assert(aborted.allPassed) // the recorded jobs all succeeded; the failure is the batch-level result
   }
 
@@ -157,13 +154,14 @@ class BatchEncoderTest extends AnyFunSuite {
         List(JobState(monadicRejected, Right(()))),
         Right(0))
     val json = mb.asJson
-    // the batch label is keyed by mode ("Monadic"); a monadic batch has no kind
-    assert(json.hcursor.get[String]("Monadic").toOption.contains("batch"))
-    // a predicate-rejected monadic job renders via inBatch keyed "job-<index>" -> name; in the compact
-    // form the "unsatisfied" status tag carries the took duration (the produced value is never logged)
+    // the batch label is keyed by mode ("Monadic Batch"); a monadic batch has no kind
+    assert(json.hcursor.get[String]("Monadic Batch").toOption.contains("batch"))
+    // monadic per-job entries carry no produced value (jobs are JobState[Unit], rendered with a Json.Null
+    // result that dropNullValues removes): keyed "job-<index>" -> name with the "unsatisfied" took tag only
     val jobJson = json.hcursor.downField("jobs").downArray
     assert(jobJson.get[String]("job-1").toOption.contains("check"))
     assert(jobJson.get[String]("unsatisfied").toOption.exists(_.nonEmpty))
+    assert(jobJson.downField("result").focus.isEmpty)
     // a completed monadic batch shows its final result (the user's declared output) under "result"
     assert(json.hcursor.get[Int]("result").toOption.contains(0))
   }

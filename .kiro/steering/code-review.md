@@ -1,5 +1,10 @@
 # Code Review Guidelines
 
+## What "review" means
+
+- When I say "review" without naming a target, review the unstaged changes in the working tree
+  (`git diff`). Read the surrounding context of each change as needed, not just the diff hunks.
+
 When reviewing or writing code, always check **naming** in addition to logic:
 
 - Variable, method, type, and file names should be clear, consistent, and idiomatic Scala.

@@ -36,7 +36,7 @@ class BatchIdTest extends AnyFunSuite {
 
   test("encodes as a bare JSON number") {
     assert(BatchId(42L).asJson == Json.fromLong(42L))
-    // guards the wire form: batch_id must stay a number, never an object or string
+    // guards the wire form: the id must stay a number, never an object or string
     assert(BatchId(42L).asJson.isNumber)
   }
 

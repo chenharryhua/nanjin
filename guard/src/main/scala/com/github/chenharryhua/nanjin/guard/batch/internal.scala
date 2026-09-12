@@ -1,65 +1,28 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
+import cats.data.{Ior, Kleisli, Reader}
+import cats.effect.kernel.{Async, Outcome, Resource}
+import cats.syntax.all.catsSyntaxEq
+import cats.syntax.apply.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.show.showInterpolator
+import cats.{Applicative, Monad}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogEntry, LogLevel}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
+import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub}
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 
-import scala.concurrent.duration.FiniteDuration
-
-/** Threaded state for a monadic batch run: the current result-or-error together with the `JobRecord`s
-  * accumulated so far.
-  *
-  * `history` is kept in reverse order (most recent job first) so that prepending a later segment is a cheap
-  * list cons; the batch runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left`
-  * means the chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no
-  * further jobs will run.
-  *
-  * @param eoa
-  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
-  *   short-circuited the chain
-  * @param history
-  *   the completed job records so far, most recent first
-  */
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]) {
-
-  /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
-    * reflects that no value of the new type will be produced once the chain has short-circuited.
-    */
-  def update[B](ex: Throwable): ExecutionState[B] = copy(eoa = Left(ex))
-
-  /** Fold a later segment `js` in front of this state: take the later segment's result, and prepend its
-    * (already reversed) history onto this one, keeping the combined history most-recent-first.
-    */
-  def prependHistory[B](js: ExecutionState[B]): ExecutionState[B] =
-    ExecutionState[B](js.eoa, js.history ::: history)
-
-  /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
-  def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
-}
-
-/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
-final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
-
-/** Threads the running job index together with the start time carried over from the previous job's `end`, so
-  * each monadic job's `start` absorbs the gap left by invisible `untracked`/`pure` steps. See `JobRecord` for
-  * the resulting per-job timing semantics.
-  */
-final private case class JobCursor(index: Int, start: FiniteDuration)
-
-/** JSON object keys shared by the `JobLog` renderings and the batch-report encoders, kept in one place so the
-  * per-job log entries and the aggregate `BatchResult` encoders stay in sync.
-  */
 private object JsonKeys {
-  val SUCCEEDED = "succeeded"
-  val UNSATISFIED = "unsatisfied"
-  val NONFATAL = "nonfatal"
-  val CRITICAL = "critical"
-  val KICKOFF = "kickoff"
-  val CANCELED = "canceled"
-  val ERROR = "error"
-  val RESULT = "result"
   // QuasiBatch per-outcome counts. Named distinctly from the per-job `SUCCEEDED` status tag so the two
   // never collide in one report: these are integer tallies, that tag carries a took duration.
   val PASSED = "passed"
   val FAILED = "failed"
+
+  val JOBS = "jobs"
+  val SPENT = "spent"
 }
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.
@@ -74,18 +37,104 @@ private object JsonKeys {
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.
   */
-private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog] =
+private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
   js.result match {
     case Left(ex) =>
       js.record.job.kind match {
-        case Some(BatchKind.Quasi) => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
+        case Some(BatchKind.Quasi) =>
+          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
         // Value jobs and monadic jobs (kind = None) both treat an exception as fatal to the batch.
         case Some(BatchKind.Value) | None =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
       }
-    case Right(_) =>
-      if (js.succeeded)
-        LogEntry(JobLog.Succeeded(js.record), LogLevel.Good, None)
+    case Right(a) =>
+      if (js.record.succeeded)
+        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
       else
-        LogEntry(JobLog.Unsatisfied(js.record), LogLevel.Warn, None)
+        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
+  }
+
+private def batchEntry(mode: BatchMode, kind: Option[BatchKind], scope: MetricScope): (String, Json) =
+  kind.fold(show"$mode Batch" -> Json.fromString(scope.label.value))(k =>
+    show"$mode $k Batch" -> Json.fromString(scope.label.value))
+
+private val translator: Reader[Ior[Long, Long], Json] = Reader {
+  case Ior.Left(a)    => Json.fromString(s"$a/0")
+  case Ior.Right(b)   => Json.fromString(s"0/$b")
+  case Ior.Both(a, b) =>
+    val expression = s"$a/$b"
+    if (b === 0) {
+      Json.fromString(expression)
+    } else {
+      val rounded: Float =
+        BigDecimal(BigInt(a) * 100)./(BigDecimal(b)).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
+      Json.fromString(s"$rounded% ($expression)")
+    }
+}
+
+private def jobRecordsToJson(results: List[JobRecord]): Json =
+  if (results.isEmpty) Json.Null
+  else {
+    val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: JobRecord) =>
+      val took: String = defaultFormatter.format(cj.took)
+      val result: String = if (cj.succeeded) took else s"$took (failed)"
+      cj.job.displayName -> result.asJson
+    }
+    Json.obj(pairs*)
+  }
+
+private type UpdatePanel[F[_]] = Kleisli[F, JobRecord, Unit]
+
+final private case class BatchMetrics[F[_]](updatePanel: UpdatePanel[F], activeGauge: ActiveGauge[F])
+
+private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: BatchKind, mode: BatchMode)(using
+  F: Async[F]): Resource[F, BatchMetrics[F]] =
+  for {
+    active <- mtx.activeGauge("Active")
+    ratio <- mtx
+      .ratio(show"$mode $kind completion", _.withTranslator(translator))
+      .evalTap(_.incDenominator(size.toLong))
+    progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
+    _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobRecordsToJson)))
+  } yield BatchMetrics(
+    Kleisli { (cj: JobRecord) =>
+      F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
+    },
+    active)
+
+private def createMonadicPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
+  for {
+    active <- mtx.activeGauge("Active")
+    progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
+    _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(jobRecordsToJson)))
+  } yield BatchMetrics(
+    Kleisli((cj: JobRecord) => F.uncancelable(_ => progress.update(_.appended(cj)))),
+    active)
+
+private def logKickoff[F[_]](log: Log[F], job: Job): F[Unit] =
+  log.info(JobLog.Kickoff(job).standalone)
+
+private def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
+  log.warn(JobLog.Canceled(job).standalone)
+
+private def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
+  log.emit(toLogEntry(js).map(_.standalone))
+
+private def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
+  outcome: Outcome[F, Throwable, JobState[A]]): F[Unit] =
+  outcome.fold(
+    completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js)),
+    // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
+    errored = ex => log.error("should not happen", ex),
+    canceled = logCanceled(log, job)
+  )
+
+private def handleOutcomeR[F[_]: Applicative, A](log: Log[F], job: Job, updatePanel: UpdatePanel[F])(
+  outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
+  outcome match {
+    case Outcome.Succeeded(rfa) =>
+      rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js))
+    // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
+    case Outcome.Errored(ex) => Resource.eval(log.error("should not happen", ex))
+    case Outcome.Canceled()  => Resource.eval(logCanceled(log, job))
   }
