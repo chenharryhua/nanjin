@@ -16,7 +16,7 @@ import scala.concurrent.duration.DurationInt
   * and `JobExecutor`.
   *
   * Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
-  * package-private `lifecycle`, `panel.UpdatePanel`, and the `Job`/`JobRecord`/`JobState` data model.
+  * package-private `lifecycle`, `BatchPanel.Update`, and the `Job`/`JobRecord`/`JobState` data model.
   *
   * `JobExecutorTest` already covers that `logKickoff` fires on the happy path. What is exercised here is the
   * `Outcome`-folding in `handleOutcome`/`handleOutcomeR`: a succeeded outcome updates the panel and emits the
@@ -55,10 +55,10 @@ class LifecycleTest extends AnyFunSuite {
   /** A panel that records every JobRecord it receives, so tests can assert whether/what the panel was updated
     * with.
     */
-  private def recordingPanel(sink: Ref[IO, List[JobRecord]]): panel.UpdatePanel[IO] =
+  private def recordingPanel(sink: Ref[IO, List[JobRecord]]): BatchPanel.Update[IO] =
     Kleisli((rec: JobRecord) => sink.update(_ :+ rec))
 
-  private def run[A](f: (Log[IO], panel.UpdatePanel[IO]) => IO[A])
+  private def run[A](f: (Log[IO], BatchPanel.Update[IO]) => IO[A])
     : (A, List[(Json, LogLevel, Option[Throwable])], List[JobRecord]) =
     (for {
       logSink <- Ref[IO].of(List.empty[(Json, LogLevel, Option[Throwable])])
@@ -72,8 +72,8 @@ class LifecycleTest extends AnyFunSuite {
 
   test("1.handleOutcome Succeeded: updates the panel with the record and emits the completion log") {
     val js = state(succeeded = true)
-    val (_, logs, panels) = run { (log, updatePanel) =>
-      lifecycle.handleOutcome[IO, Int](log, js.record.job, updatePanel)(Outcome.succeeded(IO.pure(js)))
+    val (_, logs, panels) = run { (log, update) =>
+      lifecycle.handleOutcome[IO, Int](log, js.record.job, update)(Outcome.succeeded(IO.pure(js)))
     }
     assert(panels == List(js.record)) // panel updated with the completed record
     assert(logs.size == 1)
@@ -83,8 +83,8 @@ class LifecycleTest extends AnyFunSuite {
   }
 
   test("2.handleOutcome Canceled: emits the canceled log and does not touch the panel") {
-    val (_, logs, panels) = run { (log, updatePanel) =>
-      lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), updatePanel)(
+    val (_, logs, panels) = run { (log, update) =>
+      lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
         Outcome.canceled[IO, Throwable, JobState[Int]])
     }
     assert(panels.isEmpty) // a canceled job never reaches the panel
@@ -93,8 +93,8 @@ class LifecycleTest extends AnyFunSuite {
   }
 
   test("3.handleOutcome Errored: logs the defensive should-not-happen at Error with the cause") {
-    val (_, logs, panels) = run { (log, updatePanel) =>
-      lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), updatePanel)(
+    val (_, logs, panels) = run { (log, update) =>
+      lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
         Outcome.errored[IO, Throwable, JobState[Int]](boom))
     }
     assert(panels.isEmpty)
@@ -107,9 +107,9 @@ class LifecycleTest extends AnyFunSuite {
 
   test("4.handleOutcomeR Succeeded: updates the panel and emits the completion log") {
     val js = state(succeeded = false) // a retained miss still logs on completion
-    val (_, logs, panels) = run { (log, updatePanel) =>
+    val (_, logs, panels) = run { (log, update) =>
       lifecycle
-        .handleOutcomeR[IO, Int](log, js.record.job, updatePanel)(
+        .handleOutcomeR[IO, Int](log, js.record.job, update)(
           Outcome.succeeded(Resource.pure[IO, JobState[Int]](js)))
         .use_
     }
@@ -120,9 +120,9 @@ class LifecycleTest extends AnyFunSuite {
   }
 
   test("5.handleOutcomeR Canceled: emits the canceled log and does not touch the panel") {
-    val (_, logs, panels) = run { (log, updatePanel) =>
+    val (_, logs, panels) = run { (log, update) =>
       lifecycle
-        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), updatePanel)(
+        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
           Outcome.canceled[Resource[IO, *], Throwable, JobState[Int]])
         .use_
     }
@@ -132,9 +132,9 @@ class LifecycleTest extends AnyFunSuite {
   }
 
   test("6.handleOutcomeR Errored: logs the defensive should-not-happen at Error with the cause") {
-    val (_, logs, panels) = run { (log, updatePanel) =>
+    val (_, logs, panels) = run { (log, update) =>
       lifecycle
-        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), updatePanel)(
+        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
           Outcome.errored[Resource[IO, *], Throwable, JobState[Int]](boom))
         .use_
     }

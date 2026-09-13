@@ -14,15 +14,15 @@ import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters.*
 
-/** Direct tests for the `panel` object, the metrics-panel machinery behind `Batch`.
+/** Direct tests for the `BatchPanel` object, the metrics-panel machinery behind `Batch`.
   *
   * Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
-  * package-private `panel`, `BatchMetrics`, and the `Job`/`JobRecord`/`BatchMode`/`BatchKind` data model.
+  * package-private `BatchPanel` and the `Job`/`JobRecord`/`BatchMode`/`BatchKind` data model.
   *
   * `MetricsHub` is sealed, so there is no fake — the tests build a real hub over a `MetricRegistry` they own
   * and read each gauge's rendered `Json` straight off the Dropwizard registry. That directly observes the two
-  * pieces `panel` is responsible for: the completion ratio string produced by its custom `translator`, and
-  * the "Completed jobs" object produced by `jobRecordsToJson`.
+  * pieces `BatchPanel` is responsible for: the completion ratio string produced by its custom `translator`,
+  * and the "Completed jobs" object produced by `jobRecordsToJson`.
   */
 class PanelTest extends AnyFunSuite {
 
@@ -62,11 +62,11 @@ class PanelTest extends AnyFunSuite {
       }
       .unsafeRunSync()
 
-  // ---- createPanel: completion ratio ---------------------------------------------------------------
+  // ---- BatchPanel.apply: completion ratio ----------------------------------------------------------
 
-  test("1.createPanel seeds the ratio denominator with the job count") {
+  test("1.BatchPanel seeds the ratio denominator with the job count") {
     val gauges = withHub { (hub, readGauges) =>
-      panel.createPanel(hub, size = 3, BatchKind.Value, BatchMode.Sequential).use { _ =>
+      BatchPanel(hub, size = 3, BatchKind.Value, BatchMode.Sequential).use { _ =>
         IO(readGauges())
       }
     }
@@ -74,21 +74,21 @@ class PanelTest extends AnyFunSuite {
     assert(gauges.flatMap(_.asString).exists(_ == "0.0% (0/3)"))
   }
 
-  test("2.createPanel: updatePanel bumps the numerator and renders a percentage") {
+  test("2.BatchPanel: update bumps the numerator and renders a percentage") {
     val gauges = withHub { (hub, readGauges) =>
-      panel.createPanel(hub, size = 2, BatchKind.Value, BatchMode.Sequential).use { bm =>
-        bm.updatePanel.run(record("a", 1, succeeded = true)) *> IO(readGauges())
+      BatchPanel(hub, size = 2, BatchKind.Value, BatchMode.Sequential).use { bm =>
+        bm.update.run(record("a", 1, succeeded = true)) *> IO(readGauges())
       }
     }
     // one of two done -> the panel's translator renders "50.0% (1/2)"
     assert(gauges.flatMap(_.asString).exists(_ == "50.0% (1/2)"))
   }
 
-  // ---- createPanel: completed-jobs gauge -----------------------------------------------------------
+  // ---- BatchPanel.apply: completed-jobs gauge ------------------------------------------------------
 
-  test("3.createPanel: Completed jobs gauge is Json.Null before any job completes") {
+  test("3.BatchPanel: Completed jobs gauge is Json.Null before any job completes") {
     val gauges = withHub { (hub, readGauges) =>
-      panel.createPanel(hub, size = 1, BatchKind.Quasi, BatchMode.Sequential).use { _ =>
+      BatchPanel(hub, size = 1, BatchKind.Quasi, BatchMode.Sequential).use { _ =>
         IO(readGauges())
       }
     }
@@ -96,12 +96,12 @@ class PanelTest extends AnyFunSuite {
     assert(gauges.contains(Json.Null))
   }
 
-  test("4.createPanel: completed jobs render keyed by displayName, sorted by index, failed suffixed") {
+  test("4.BatchPanel: completed jobs render keyed by displayName, sorted by index, failed suffixed") {
     val completed = withHub { (hub, readGauges) =>
-      panel.createPanel(hub, size = 2, BatchKind.Quasi, BatchMode.Sequential).use { bm =>
+      BatchPanel(hub, size = 2, BatchKind.Quasi, BatchMode.Sequential).use { bm =>
         // apply out of index order to prove the render sorts by index
-        bm.updatePanel.run(record("beta", 2, succeeded = false)) *>
-          bm.updatePanel.run(record("alpha", 1, succeeded = true)) *>
+        bm.update.run(record("beta", 2, succeeded = false)) *>
+          bm.update.run(record("alpha", 1, succeeded = true)) *>
           IO(readGauges())
       }
     }
@@ -113,14 +113,14 @@ class PanelTest extends AnyFunSuite {
     assert(obj("job-2 beta").flatMap(_.asString).exists(_.contains("(failed)")))
   }
 
-  // ---- createMonadicPanel --------------------------------------------------------------------------
+  // ---- BatchPanel.monadic --------------------------------------------------------------------------
 
-  test("5.createMonadicPanel has no ratio gauge; progress starts null then renders completed jobs") {
+  test("5.BatchPanel.monadic has no ratio gauge; progress starts null then renders completed jobs") {
     val (before, after) = withHub { (hub, readGauges) =>
-      panel.createMonadicPanel(hub).use { bm =>
+      BatchPanel.monadic(hub).use { bm =>
         for {
           b <- IO(readGauges())
-          _ <- bm.updatePanel.run(record("only", 1, succeeded = true))
+          _ <- bm.update.run(record("only", 1, succeeded = true))
           a <- IO(readGauges())
         } yield (b, a)
       }

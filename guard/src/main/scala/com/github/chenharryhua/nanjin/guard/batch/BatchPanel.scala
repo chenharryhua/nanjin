@@ -12,13 +12,19 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.ActiveGauge
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-final private case class BatchMetrics[F[_]](updatePanel: panel.UpdatePanel[F], activeGauge: ActiveGauge[F])
+/** The live state of a batch's metrics panel: the effect that records a completed job, and the active gauge
+  * that reports elapsed time until the batch finishes.
+  */
+final private case class BatchPanel[F[_]] private (update: BatchPanel.Update[F], activeGauge: ActiveGauge[F])
 
-private object panel {
-  type UpdatePanel[F[_]] = Kleisli[F, JobRecord, Unit]
+private object BatchPanel {
+  type Update[F[_]] = Kleisli[F, JobRecord, Unit]
 
-  def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: BatchKind, mode: BatchMode)(using
-    F: Async[F]): Resource[F, BatchMetrics[F]] =
+  /** Build the panel for a sequential/parallel batch: an active gauge, a completion ratio seeded to `size`,
+    * and a "Completed jobs" gauge fed by each recorded job.
+    */
+  def apply[F[_]](mtx: MetricsHub[F], size: Int, kind: BatchKind, mode: BatchMode)(using
+    F: Async[F]): Resource[F, BatchPanel[F]] =
     for {
       active <- mtx.activeGauge("Active")
       ratio <- mtx
@@ -26,20 +32,23 @@ private object panel {
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
       _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobRecordsToJson)))
-    } yield BatchMetrics(
+    } yield BatchPanel(
       Kleisli { (cj: JobRecord) =>
         F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
       },
       active)
 
-  def createMonadicPanel[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchMetrics[F]] =
+  /** Build the panel for a monadic batch: an active gauge and a completed-jobs gauge, but no completion ratio
+    * (a monadic chain has no fixed job count to divide against).
+    */
+  def monadic[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchPanel[F]] =
     for {
       active <- mtx.activeGauge("Active")
       progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
       _ <- mtx.gauge(
         show"${BatchMode.Monadic} jobs completed",
         _.register(progress.get.map(jobRecordsToJson)))
-    } yield BatchMetrics(
+    } yield BatchPanel(
       Kleisli((cj: JobRecord) => F.uncancelable(_ => progress.update(_.appended(cj)))),
       active)
 

@@ -50,8 +50,8 @@ object Batch:
     private def nextBatchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
 
     /** Run one job under lifecycle handling: log kickoff/completion and update the panel. */
-    private def runJob(cj: ComputeJob[F, A], panel: BatchMetrics[F]): F[JobState[A]] =
-      cj.compute.guaranteeCase(lifecycle.handleOutcome(log, cj.job, panel.updatePanel))
+    private def runJob(cj: ComputeJob[F, A], panel: BatchPanel[F]): F[JobState[A]] =
+      cj.compute.guaranteeCase(lifecycle.handleOutcome(log, cj.job, panel.update))
 
     /** Exceptions from individual jobs are captured as failed job results, allowing the overall batch to
       * complete and report per-job outcomes.
@@ -62,11 +62,11 @@ object Batch:
       */
     final def quasiBatch: Resource[F, QuasiBatch[A]] = {
       val batchId: BatchId = nextBatchId
-      def exec(panel: BatchMetrics[F]): F[(FiniteDuration, List[JobState[A]])] =
+      def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobState[A]])] =
         traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel)).timed
           .guarantee(panel.activeGauge.deactivate)
 
-      panel.createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
+      BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
           QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
       }
@@ -77,7 +77,7 @@ object Batch:
       */
     final def valueBatch: Resource[F, ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
-      def exec(panel: BatchMetrics[F]): F[(FiniteDuration, List[JobValue[A]])] =
+      def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
         traverseJobs { jni =>
           runJob(executor.valueJob(jni, batchId), panel).flatMap { js =>
             js.result match {
@@ -87,7 +87,7 @@ object Batch:
           }
         }.timed.guarantee(panel.activeGauge.deactivate)
 
-      panel.createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
+      BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
           ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
       }
@@ -145,7 +145,7 @@ object Batch:
    * Monadic
    */
 
-  final private case class Context[F[_]](updatePanel: panel.UpdatePanel[F], log: Log[F], batchId: BatchId)
+  final private case class Context[F[_]](update: BatchPanel.Update[F], log: Log[F], batchId: BatchId)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
   final class JobBuilder[F[_]] private[Batch] (
@@ -194,10 +194,10 @@ object Batch:
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
-          BatchMetrics(updatePanel, activeGauge) <- panel.createMonadicPanel[F](metrics)
+          BatchPanel(update, activeGauge) <- BatchPanel.monadic[F](metrics)
           start <- Resource.eval(F.monotonic)
           (_, ExecutionState(eoa, history)) <- kleisli
-            .run(Context[F](updatePanel, log, batchId))
+            .run(Context[F](update, log, batchId))
             .run(JobCursor(1, start))
             .guarantee(Resource.eval(activeGauge.deactivate))
           end <- Resource.eval(F.monotonic)
@@ -259,7 +259,7 @@ object Batch:
       */
     private def create[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
       new Monadic[A](
-        Kleisli { case Context(updatePanel, log, batchId) =>
+        Kleisli { case Context(update, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
               Job(
@@ -279,7 +279,7 @@ object Batch:
             }
 
             compute
-              .guaranteeCase(lifecycle.handleOutcomeR(log, job, updatePanel))
+              .guaranteeCase(lifecycle.handleOutcomeR(log, job, update))
               .map { js =>
                 JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
               }

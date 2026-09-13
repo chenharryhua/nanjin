@@ -21,23 +21,23 @@ private object lifecycle {
   def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
     log.warn(JobLog.Canceled(job).standalone)
 
-  def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
+  private def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
     log.emit(toLogEntry(js).map(_.standalone))
 
-  def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, updatePanel: panel.UpdatePanel[F])(
+  def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, update: BatchPanel.Update[F])(
     outcome: Outcome[F, Throwable, JobState[A]]): F[Unit] =
     outcome.fold(
-      completed = _.flatMap(js => updatePanel.run(js.record) *> logCompleted(log, js)),
+      completed = _.flatMap(js => update.run(js.record) *> logCompleted(log, js)),
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       errored = ex => log.error("should not happen", ex),
       canceled = logCanceled(log, job)
     )
 
-  def handleOutcomeR[F[_]: Applicative, A](log: Log[F], job: Job, updatePanel: panel.UpdatePanel[F])(
+  def handleOutcomeR[F[_]: Applicative, A](log: Log[F], job: Job, update: BatchPanel.Update[F])(
     outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
     outcome match {
       case Outcome.Succeeded(rfa) =>
-        rfa.evalMap(js => updatePanel.run(js.record) *> logCompleted(log, js))
+        rfa.evalMap(js => update.run(js.record) *> logCompleted(log, js))
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       case Outcome.Errored(ex) => Resource.eval(log.error("should not happen", ex))
       case Outcome.Canceled()  => Resource.eval(logCanceled(log, job))
