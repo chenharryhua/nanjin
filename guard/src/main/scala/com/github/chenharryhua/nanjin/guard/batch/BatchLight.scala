@@ -134,8 +134,6 @@ object BatchLight:
   final class JobBuilder[F[_]] private[BatchLight] (val scope: MetricScope, val batchIdGenerator: AtomicLong)(
     using F: Temporal[F]):
 
-    private val mode: BatchMode = BatchMode.Monadic
-
     final class Monadic[A] private[BatchLight] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
@@ -233,7 +231,13 @@ object BatchLight:
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
-              Job(name = name, index = index, scope = scope, mode = mode, kind = None, batchId = batchId)
+              Job(
+                name = name,
+                index = index,
+                scope = scope,
+                mode = BatchMode.Monadic,
+                kind = None,
+                batchId = batchId)
 
             for {
               eoa <- fa.attempt
@@ -255,8 +259,7 @@ object BatchLight:
       * @param fa
       *   the effect to run
       */
-    def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, fa, _ => true)
+    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, fa, _ => true)
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -276,7 +279,6 @@ object BatchLight:
       create[A](name, fa, predicate)
 
   end JobBuilder
-
 end BatchLight
 
 /** Lightweight batch façade for short-lived jobs.

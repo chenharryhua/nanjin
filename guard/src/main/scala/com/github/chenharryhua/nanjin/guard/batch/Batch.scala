@@ -159,8 +159,6 @@ object Batch:
     metrics: MetricsHub[F],
     batchIdGenerator: AtomicLong)(using F: Async[F]):
 
-    private val mode: BatchMode = BatchMode.Monadic
-
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
 
@@ -272,7 +270,7 @@ object Batch:
                 name = name,
                 index = index,
                 scope = metrics.scope,
-                mode = mode,
+                mode = BatchMode.Monadic,
                 kind = None,
                 batchId = batchId)
 
@@ -301,8 +299,7 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
-      create[A](name, rfa, _ => true)
+    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] = create[A](name, rfa, _ => true)
 
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.
