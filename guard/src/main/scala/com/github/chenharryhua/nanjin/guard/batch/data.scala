@@ -195,7 +195,7 @@ final case class QuasiBatch[A](
   outcomes: List[JobState[A]],
   result: Unit)
     extends BatchResult[Unit] derives Functor {
-  protected type S = A
+  override protected type S = A
   override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
@@ -227,7 +227,7 @@ final case class ValueBatch[A](
   outcomes: List[JobState[A]],
   result: List[A])
     extends BatchResult[List[A]] derives Functor {
-  protected type S = A
+  override protected type S = A
   // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
   // rejected job, so every retained job succeeded.
   override val allPassed: Boolean = true
@@ -262,7 +262,7 @@ final case class MonadicBatch[A](
   outcomes: List[JobState[Unit]],
   result: Either[Throwable, A])
     extends BatchResult[Either[Throwable, A]] derives Functor {
-  protected type S = Unit
+  override protected type S = Unit
   override val mode: BatchMode = BatchMode.Monadic
   override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
