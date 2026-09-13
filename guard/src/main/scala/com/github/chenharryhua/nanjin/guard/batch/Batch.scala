@@ -66,7 +66,7 @@ object Batch:
         traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel)).timed
           .guarantee(panel.activeGauge.deactivate)
 
-      createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
+      panel.createPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
           QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
       }
@@ -87,7 +87,7 @@ object Batch:
           }
         }.timed.guarantee(panel.activeGauge.deactivate)
 
-      createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
+      panel.createPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
           ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
       }
@@ -145,7 +145,7 @@ object Batch:
    * Monadic
    */
 
-  final private case class Context[F[_]](updatePanel: UpdatePanel[F], log: Log[F], batchId: BatchId)
+  final private case class Context[F[_]](updatePanel: panel.UpdatePanel[F], log: Log[F], batchId: BatchId)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
   final class JobBuilder[F[_]] private[Batch] (
@@ -194,7 +194,7 @@ object Batch:
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
-          BatchMetrics(updatePanel, activeGauge) <- createMonadicPanel[F](metrics)
+          BatchMetrics(updatePanel, activeGauge) <- panel.createMonadicPanel[F](metrics)
           start <- Resource.eval(F.monotonic)
           (_, ExecutionState(eoa, history)) <- kleisli
             .run(Context[F](updatePanel, log, batchId))

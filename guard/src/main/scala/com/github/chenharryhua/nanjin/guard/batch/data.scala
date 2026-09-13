@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.derived.derived
-import cats.syntax.show.toShow
+import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
@@ -76,6 +76,10 @@ object BatchId:
   given Encoder[BatchId] = OpaqueLift.lift[BatchId, Long, Encoder]
   given Decoder[BatchId] = OpaqueLift.lift[BatchId, Long, Decoder]
 end BatchId
+
+private def batchEntry(mode: BatchMode, kind: Option[BatchKind], scope: MetricScope): (String, Json) =
+  kind.fold(show"$mode Batch" -> Json.fromString(scope.label.value))(k =>
+    show"$mode $k Batch" -> Json.fromString(scope.label.value))
 
 /** Metadata describing a single batch step and the execution context in which it ran.
   *
