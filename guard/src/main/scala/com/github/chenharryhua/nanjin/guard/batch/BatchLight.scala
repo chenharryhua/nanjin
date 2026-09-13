@@ -58,7 +58,13 @@ object BatchLight:
       val batchId: BatchId = nextBatchId
       F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
+          QuasiBatch(
+            scope = scope,
+            spent = fd.toJava,
+            mode = mode,
+            batchId = batchId,
+            outcomes = js,
+            result = ())
       }
     }
 
@@ -73,7 +79,13 @@ object BatchLight:
           }
         }
       }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
-        ValueBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
+        ValueBatch(
+          scope = scope,
+          spent = fd.toJava,
+          mode = mode,
+          batchId = batchId,
+          outcomes = jv.map(v => JobState(v.record, Right(v.result))),
+          result = jv.map(_.result))
       }
     }
   }
@@ -187,7 +199,7 @@ object BatchLight:
           scope = scope,
           spent = (end - start).toJava,
           batchId = batchId,
-          jobs = history.reverse,
+          outcomes = history.reverse,
           result = eoa)
       }
     end Monadic

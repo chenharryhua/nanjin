@@ -149,6 +149,7 @@ final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) de
 final case class JobValue[A](record: JobRecord, result: A) derives Functor
 
 sealed trait BatchResult[A] {
+  protected type S
 
   /** Metric scope (label and domain) this batch was run under. */
   def scope: MetricScope
@@ -171,8 +172,15 @@ sealed trait BatchResult[A] {
   /** Identifier for this batch execution. See `BatchId` for the full semantics. */
   def batchId: BatchId
 
-  /** Per-job result values represented by this result type. */
-  def jobs: List[A]
+  /** The per-job outcome of every job that ran: its completion record (identity, timing) paired with its
+    * result-or-failure. `S` is the per-job value type (`A` for quasi/value, `Unit` for monadic).
+    */
+  def outcomes: List[JobState[S]]
+
+  /** The batch's aggregate output: `Unit` for a quasi-batch (all detail lives in `outcomes`), the list of
+    * successful values for a value-batch, and the final `Either` for a monadic batch.
+    */
+  def result: A
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
@@ -187,9 +195,11 @@ final case class QuasiBatch[A](
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  jobs: List[JobState[A]])
-    extends BatchResult[JobState[A]] derives Functor {
-  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
+  outcomes: List[JobState[A]],
+  result: Unit)
+    extends BatchResult[Unit] derives Functor {
+  protected type S = A
+  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
   // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
@@ -197,14 +207,14 @@ object QuasiBatch:
   // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.jobs.partition(_.record.succeeded)
+      val (passed, failed) = qb.outcomes.partition(_.record.succeeded)
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(qb.spent)),
         JsonKeys.PASSED -> Json.fromInt(passed.length),
         JsonKeys.FAILED -> Json.fromInt(failed.length),
-        JsonKeys.JOBS -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
+        JsonKeys.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -217,8 +227,10 @@ final case class ValueBatch[A](
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  jobs: List[JobValue[A]])
-    extends BatchResult[JobValue[A]] derives Functor {
+  outcomes: List[JobState[A]],
+  result: List[A])
+    extends BatchResult[List[A]] derives Functor {
+  protected type S = A
   // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
   // rejected job, so every retained job succeeded.
   override val allPassed: Boolean = true
@@ -231,10 +243,7 @@ object ValueBatch:
         batchEntry(bv.mode, Some(BatchKind.Value), bv.scope),
         bv.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(bv.spent)),
-        JsonKeys.JOBS -> bv.jobs.map { jv =>
-          val js = JobState(jv.record, Right(jv.result))
-          toLogEntry(js).message.inBatch
-        }.asJson
+        JsonKeys.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -253,11 +262,12 @@ final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
   batchId: BatchId,
-  jobs: List[JobState[Unit]],
+  outcomes: List[JobState[Unit]],
   result: Either[Throwable, A])
-    extends BatchResult[JobState[Unit]] derives Functor {
+    extends BatchResult[Either[Throwable, A]] derives Functor {
+  protected type S = Unit
   override val mode: BatchMode = BatchMode.Monadic
-  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
+  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 object MonadicBatch:
@@ -272,7 +282,7 @@ object MonadicBatch:
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(mb.spent)),
-        JsonKeys.JOBS -> mb.jobs.map(js => toLogEntry(js).message.inBatch).asJson,
+        JsonKeys.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }

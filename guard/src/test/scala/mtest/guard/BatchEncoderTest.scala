@@ -24,9 +24,16 @@ class BatchEncoderTest extends AnyFunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, Right(1))))
+      List(JobState(completed, Right(1))),
+      ())
     val value =
-      ValueBatch(label, Duration.ofMillis(20), BatchMode.Sequential, batchId, List(JobValue(completed, 1)))
+      ValueBatch(
+        label,
+        Duration.ofMillis(20),
+        BatchMode.Sequential,
+        batchId,
+        List(JobState(completed, Right(1))),
+        List(1))
 
     val quasiJson = quasi.asJson
     val valueJson = value.asJson
@@ -60,7 +67,8 @@ class BatchEncoderTest extends AnyFunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(failed, Left(new RuntimeException("boom")))))
+      List(JobState(failed, Left(new RuntimeException("boom")))),
+      ())
     // a monadic job that threw: kind = None, and its step history carries the real Left(exception) so the
     // per-job render can classify it as "critical" (the old Right(()) sentinel could never do this).
     val monadicJob = Job("work", 1, label, BatchMode.Monadic, None, batchId)
@@ -99,7 +107,8 @@ class BatchEncoderTest extends AnyFunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, Right(1))))
+      List(JobState(completed, Right(1))),
+      ())
     // every job satisfied its post-condition
     assert(allDone.allPassed)
 
@@ -108,14 +117,21 @@ class BatchEncoderTest extends AnyFunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(failed, Left(new RuntimeException("x")))))
+      List(JobState(failed, Left(new RuntimeException("x")))),
+      ())
     // the batch still completed, but not every job succeeded
     assert(!withFailure.allPassed)
   }
 
   test("4.ValueBatch: allPassed is true") {
     val bv =
-      ValueBatch(label, Duration.ofMillis(20), BatchMode.Parallel(2), batchId, List(JobValue(completed, 1)))
+      ValueBatch(
+        label,
+        Duration.ofMillis(20),
+        BatchMode.Parallel(2),
+        batchId,
+        List(JobState(completed, Right(1))),
+        List(1))
     assert(bv.allPassed)
   }
 

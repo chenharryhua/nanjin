@@ -68,7 +68,13 @@ object Batch:
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = js)
+          QuasiBatch(
+            scope = metrics.scope,
+            spent = fd.toJava,
+            mode = mode,
+            batchId = batchId,
+            outcomes = js,
+            result = ())
       }
     }
 
@@ -89,7 +95,13 @@ object Batch:
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
-          ValueBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, jobs = jv)
+          ValueBatch(
+            scope = metrics.scope,
+            spent = fd.toJava,
+            mode = mode,
+            batchId = batchId,
+            outcomes = jv.map(v => JobState(v.record, Right(v.result))),
+            result = jv.map(_.result))
       }
     }
   }
@@ -205,7 +217,7 @@ object Batch:
           scope = metrics.scope,
           spent = (end - start).toJava,
           batchId = batchId,
-          jobs = history.reverse,
+          outcomes = history.reverse,
           result = eoa
         )
       }

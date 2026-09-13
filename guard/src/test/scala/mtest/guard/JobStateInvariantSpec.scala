@@ -36,7 +36,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .batch("quasi.parallel.mixed")
         .parallel(jobs*)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -49,7 +49,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .parallel(jobs*)
         .withPostCondition(_ > 2)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -62,7 +62,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .batch("quasi.sequential.mixed")
         .sequential(jobs*)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -75,7 +75,7 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .sequential(jobs*)
         .withPostCondition(_ > 3)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -89,8 +89,8 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .quasiBatch
         .use { qb =>
           IO {
-            assert(qb.jobs.nonEmpty)
-            qb.jobs.foreach(check_aligned)
+            assert(qb.outcomes.nonEmpty)
+            qb.outcomes.foreach(check_aligned)
           }
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -107,8 +107,8 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .quasiBatch
         .use { qb =>
           IO {
-            assert(qb.jobs.nonEmpty)
-            qb.jobs.foreach(check_aligned)
+            assert(qb.outcomes.nonEmpty)
+            qb.outcomes.foreach(check_aligned)
           }
         }
     }.compile.lastOrError.unsafeRunSync()
