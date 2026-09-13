@@ -28,24 +28,30 @@ sealed private trait JobLog[A] {
     case JobLog.Canceled(job) => Json.obj(JobLog.CANCELED -> job.asJson)
 
     case JobLog.Succeeded(record, _) =>
-      Json.obj(JobLog.SUCCEEDED -> Json.fromString(fmt.format(record.took)))
-        .deepMerge(record.job.asJson)
+      Json.obj(
+        JobLog.SUCCEEDED -> record.job.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took))
+      )
 
     case JobLog.Unsatisfied(record, _) =>
-      Json.obj(JobLog.UNSATISFIED -> Json.fromString(fmt.format(record.took)))
-        .deepMerge(record.job.asJson)
+      Json.obj(
+        JobLog.UNSATISFIED -> record.job.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took))
+      )
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        JobLog.NONFATAL -> Json.fromString(fmt.format(record.took)),
+        JobLog.NONFATAL -> record.job.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
-      ).deepMerge(record.job.asJson)
+      )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        JobLog.CRITICAL -> Json.fromString(fmt.format(record.took)),
+        JobLog.CRITICAL -> record.job.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
-      ).deepMerge(record.job.asJson)
+      )
   }
 
   def inBatch(using Encoder[A]): Json = this match {
@@ -54,27 +60,29 @@ sealed private trait JobLog[A] {
 
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        record.job.nameEntry,
-        JobLog.SUCCEEDED -> Json.fromString(fmt.format(record.took)),
-        JobLog.RESULT -> result.asJson).dropEmptyValues.dropNullValues
+        JobLog.SUCCEEDED -> record.job.displayName.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
+        JobLog.RESULT -> result.asJson
+      ).dropEmptyValues.dropNullValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        record.job.nameEntry,
-        JobLog.UNSATISFIED -> Json.fromString(fmt.format(record.took)),
-        JobLog.RESULT -> result.asJson).dropEmptyValues.dropNullValues
+        JobLog.UNSATISFIED -> record.job.displayName.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
+        JobLog.RESULT -> result.asJson
+      ).dropEmptyValues.dropNullValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        record.job.nameEntry,
-        JobLog.NONFATAL -> Json.fromString(fmt.format(record.took)),
+        JobLog.NONFATAL -> record.job.displayName.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        record.job.nameEntry,
-        JobLog.CRITICAL -> Json.fromString(fmt.format(record.took)),
+        JobLog.CRITICAL -> record.job.displayName.asJson,
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
   }
@@ -87,6 +95,8 @@ private object JobLog {
   inline val CRITICAL = "critical"
   inline val KICKOFF = "kickoff"
   inline val CANCELED = "canceled"
+  inline val TOOK = "took"
+
   inline val ERROR = "error"
   inline val RESULT = "result"
 
