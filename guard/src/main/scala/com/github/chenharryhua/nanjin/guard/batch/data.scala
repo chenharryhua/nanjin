@@ -145,9 +145,6 @@ final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration,
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor
 
-/** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: JobRecord, result: A) derives Functor
-
 sealed trait BatchResult[A] {
   protected type S
 

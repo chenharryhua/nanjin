@@ -8,6 +8,11 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
+/** A successful value job: the produced value paired with the job's completion record. Used internally by the
+  * `valueJob` path to carry results before they are folded into a `ValueBatch`.
+  */
+final private case class JobValue[A](record: JobRecord, result: A)
+
 /** A job that has been prepared but not yet run.
   *
   * @param compute
