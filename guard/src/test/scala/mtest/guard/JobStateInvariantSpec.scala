@@ -29,19 +29,19 @@ class JobStateInvariantSpec extends AnyFunSuite {
     ()
   }
 
-  test("quasi parallel - mixed success and exception") {
+  test("1.quasi parallel - mixed success and exception") {
     val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
         .batch("quasi.parallel.mixed")
         .parallel(jobs*)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("quasi parallel - post-condition failure") {
+  test("2.quasi parallel - post-condition failure") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
@@ -49,12 +49,12 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .parallel(jobs*)
         .withPostCondition(_ > 2)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("quasi sequential - mixed success and exception") {
+  test("3.quasi sequential - mixed success and exception") {
     val jobs =
       List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3), "d" -> IO(4))
     val se = service.eventStream { agent =>
@@ -62,12 +62,12 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .batch("quasi.sequential.mixed")
         .sequential(jobs*)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("quasi sequential - post-condition failure") {
+  test("4.quasi sequential - post-condition failure") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4))
     val se = service.eventStream { agent =>
       agent
@@ -75,12 +75,12 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .sequential(jobs*)
         .withPostCondition(_ > 3)
         .quasiBatch
-        .use(qb => IO(qb.jobs.foreach(check_aligned)))
+        .use(qb => IO(qb.outcomes.foreach(check_aligned)))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("sequential - every completed job state is aligned") {
+  test("5.sequential - every completed job state is aligned") {
     val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
@@ -89,15 +89,15 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .quasiBatch
         .use { qb =>
           IO {
-            assert(qb.jobs.nonEmpty)
-            qb.jobs.foreach(check_aligned)
+            assert(qb.outcomes.nonEmpty)
+            qb.outcomes.foreach(check_aligned)
           }
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("parallel - every completed job state is aligned") {
+  test("6.parallel - every completed job state is aligned") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent
@@ -107,8 +107,8 @@ class JobStateInvariantSpec extends AnyFunSuite {
         .quasiBatch
         .use { qb =>
           IO {
-            assert(qb.jobs.nonEmpty)
-            qb.jobs.foreach(check_aligned)
+            assert(qb.outcomes.nonEmpty)
+            qb.outcomes.foreach(check_aligned)
           }
         }
     }.compile.lastOrError.unsafeRunSync()

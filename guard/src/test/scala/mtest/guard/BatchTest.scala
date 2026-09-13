@@ -32,13 +32,13 @@ class BatchTest extends AnyFunSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(!qr.jobs.head.record.succeeded)
-          assert(qr.jobs(1).record.succeeded)
-          assert(qr.jobs(2).record.succeeded)
-          assert(!qr.jobs(3).record.succeeded)
-          assert(qr.jobs(4).record.succeeded)
-          assert(!qr.jobs(5).record.succeeded)
-          assert(qr.jobs.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
+          assert(!qr.outcomes.head.record.succeeded)
+          assert(qr.outcomes(1).record.succeeded)
+          assert(qr.outcomes(2).record.succeeded)
+          assert(!qr.outcomes(3).record.succeeded)
+          assert(qr.outcomes(4).record.succeeded)
+          assert(!qr.outcomes(5).record.succeeded)
+          assert(qr.outcomes.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(b => ga.logger.good(b) >> ga.adhoc.report)
@@ -59,13 +59,13 @@ class BatchTest extends AnyFunSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(qr.jobs.head.record.succeeded)
-          assert(qr.jobs(1).record.succeeded)
-          assert(!qr.jobs(2).record.succeeded)
-          assert(qr.jobs(3).record.succeeded)
-          assert(!qr.jobs(4).record.succeeded)
-          assert(qr.jobs(5).record.succeeded)
-          assert(qr.jobs.map(_.record.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
+          assert(qr.outcomes.head.record.succeeded)
+          assert(qr.outcomes(1).record.succeeded)
+          assert(!qr.outcomes(2).record.succeeded)
+          assert(qr.outcomes(3).record.succeeded)
+          assert(!qr.outcomes(4).record.succeeded)
+          assert(qr.outcomes(5).record.succeeded)
+          assert(qr.outcomes.map(_.record.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
         .use(_ => ga.adhoc.report.void)
@@ -99,7 +99,7 @@ class BatchTest extends AnyFunSuite {
         .withPostCondition(_ => true)
         .valueBatch
         .memoizedAcquire
-        .use(_.map(_.jobs.forall(_.record.succeeded)))
+        .use(_.map(_.outcomes.forall(_.record.succeeded)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
@@ -181,7 +181,7 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { qr =>
           assert(qr.result == Right(60))
-          assert(qr.jobs.map(_.record.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
+          assert(qr.outcomes.map(_.record.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -206,14 +206,14 @@ class BatchTest extends AnyFunSuite {
         }
         .monadicBatch
         .use { qr =>
-          assert(qr.jobs.head.record.succeeded)
-          assert(qr.jobs(1).record.succeeded)
-          assert(qr.jobs(2).record.succeeded)
-          assert(!qr.jobs(3).record.succeeded)
-          assert(qr.jobs(4).record.succeeded)
-          assert(qr.jobs(5).record.succeeded)
-          assert(qr.jobs(6).record.succeeded)
-          assert(qr.jobs.size == 7)
+          assert(qr.outcomes.head.record.succeeded)
+          assert(qr.outcomes(1).record.succeeded)
+          assert(qr.outcomes(2).record.succeeded)
+          assert(!qr.outcomes(3).record.succeeded)
+          assert(qr.outcomes(4).record.succeeded)
+          assert(qr.outcomes(5).record.succeeded)
+          assert(qr.outcomes(6).record.succeeded)
+          assert(qr.outcomes.size == 7)
           agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -253,7 +253,7 @@ class BatchTest extends AnyFunSuite {
         }
         .monadicBatch
         .use { qr =>
-          val details = qr.jobs
+          val details = qr.outcomes
           assert(details.head.record.job.name === "1")
           assert(details.head.record.job.index === 1)
           assert(details(1).record.job.name === "2")
@@ -284,25 +284,26 @@ class BatchTest extends AnyFunSuite {
 
   test("12.sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").parallel(jobs*).valueBatch.use { case ValueBatch(_, _, _, _, jobs) =>
-        IO {
-          assert(jobs.head.result == 1)
-          assert(jobs(1).result == 2)
-          assert(jobs(2).result == 3)
-          assert(jobs(3).result == 4)
-          assert(jobs(4).result == 5)
-          assert(jobs.forall(_.record.succeeded))
-          assert(jobs.head.record.job.name == "1")
-          assert(jobs.head.record.job.index == 1)
-          assert(jobs(1).record.job.name == "2")
-          assert(jobs(1).record.job.index == 2)
-          assert(jobs(2).record.job.name == "3")
-          assert(jobs(2).record.job.index == 3)
-          assert(jobs(3).record.job.name == "4")
-          assert(jobs(3).record.job.index == 4)
-          assert(jobs(4).record.job.name == "5")
-          assert(jobs(4).record.job.index == 5)
-        }.void
+      agent.batch("sorted.parallel").parallel(jobs*).valueBatch.use {
+        case ValueBatch(_, _, _, _, outcomes, values) =>
+          IO {
+            assert(values.head == 1)
+            assert(values(1) == 2)
+            assert(values(2) == 3)
+            assert(values(3) == 4)
+            assert(values(4) == 5)
+            assert(outcomes.forall(_.record.succeeded))
+            assert(outcomes.head.record.job.name == "1")
+            assert(outcomes.head.record.job.index == 1)
+            assert(outcomes(1).record.job.name == "2")
+            assert(outcomes(1).record.job.index == 2)
+            assert(outcomes(2).record.job.name == "3")
+            assert(outcomes(2).record.job.index == 3)
+            assert(outcomes(3).record.job.name == "4")
+            assert(outcomes(3).record.job.index == 4)
+            assert(outcomes(4).record.job.name == "5")
+            assert(outcomes(4).record.job.index == 5)
+          }.void
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -310,25 +311,26 @@ class BatchTest extends AnyFunSuite {
 
   test("13.sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").sequential(jobs*).valueBatch.use { case ValueBatch(_, _, _, _, jobs) =>
-        IO {
-          assert(jobs.head.result == 1)
-          assert(jobs(1).result == 2)
-          assert(jobs(2).result == 3)
-          assert(jobs(3).result == 4)
-          assert(jobs(4).result == 5)
-          assert(jobs.forall(_.record.succeeded))
-          assert(jobs.head.record.job.name == "1")
-          assert(jobs.head.record.job.index == 1)
-          assert(jobs(1).record.job.name == "2")
-          assert(jobs(1).record.job.index == 2)
-          assert(jobs(2).record.job.name == "3")
-          assert(jobs(2).record.job.index == 3)
-          assert(jobs(3).record.job.name == "4")
-          assert(jobs(3).record.job.index == 4)
-          assert(jobs(4).record.job.name == "5")
-          assert(jobs(4).record.job.index == 5)
-        }.void
+      agent.batch("sorted.sequential").sequential(jobs*).valueBatch.use {
+        case ValueBatch(_, _, _, _, outcomes, values) =>
+          IO {
+            assert(values.head == 1)
+            assert(values(1) == 2)
+            assert(values(2) == 3)
+            assert(values(3) == 4)
+            assert(values(4) == 5)
+            assert(outcomes.forall(_.record.succeeded))
+            assert(outcomes.head.record.job.name == "1")
+            assert(outcomes.head.record.job.index == 1)
+            assert(outcomes(1).record.job.name == "2")
+            assert(outcomes(1).record.job.index == 2)
+            assert(outcomes(2).record.job.name == "3")
+            assert(outcomes(2).record.job.index == 3)
+            assert(outcomes(3).record.job.name == "4")
+            assert(outcomes(3).record.job.index == 4)
+            assert(outcomes(4).record.job.name == "5")
+            assert(outcomes(4).record.job.index == 5)
+          }.void
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -346,7 +348,7 @@ class BatchTest extends AnyFunSuite {
         .valueBatch
         .use { batch =>
           IO {
-            sequentialResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
+            sequentialResult = batch.outcomes.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 
@@ -356,7 +358,7 @@ class BatchTest extends AnyFunSuite {
         .valueBatch
         .use { batch =>
           IO {
-            parallelResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
+            parallelResult = batch.outcomes.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 
@@ -372,7 +374,7 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { batch =>
           IO {
-            monadicResult = batch.jobs.map(j => j.record.job.index -> j.record.job.name)
+            monadicResult = batch.outcomes.map(j => j.record.job.index -> j.record.job.name)
           }
         }
 
@@ -424,8 +426,8 @@ class BatchTest extends AnyFunSuite {
           assert(mb.result.isRight)
           assert(mb.result == Right(5))
           // untracked does not create a job entry; only "length" appears
-          assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.record.job.name == "length")
+          assert(mb.outcomes.size == 1)
+          assert(mb.outcomes.head.record.job.name == "length")
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -442,8 +444,8 @@ class BatchTest extends AnyFunSuite {
         cats.effect.Resource.eval(batch.monadicBatch).map { mb =>
           assert(mb.result.isRight)
           assert(mb.result == Right(84))
-          assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.record.job.name == "double")
+          assert(mb.outcomes.size == 1)
+          assert(mb.outcomes.head.record.job.name == "double")
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -490,8 +492,8 @@ class BatchTest extends AnyFunSuite {
         result.monadicBatch.map { mb =>
           assert(mb.result.isRight)
           assert(mb.result == Right(11))
-          assert(mb.jobs.size == 3)
-          assert(mb.jobs.map(_.record.job.name) == List("increment", "increment2", "read"))
+          assert(mb.outcomes.size == 3)
+          assert(mb.outcomes.map(_.record.job.name) == List("increment", "increment2", "read"))
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -525,7 +527,7 @@ class BatchTest extends AnyFunSuite {
         } yield a + b
         result.monadicBatch.map { mb =>
           assert(mb.result == Right(3))
-          assert(mb.jobs.map(_.record.job.name) == List("a", "b"))
+          assert(mb.outcomes.map(_.record.job.name) == List("a", "b"))
           assert(mb.spent.toMillis >= 200L)
         }
       }
@@ -533,13 +535,17 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("25.monadic sum of per-job took equals spent (gaps redistributed)") {
-    // monadicHistory rewrites each job's start to the previous job's end, so per-job
-    // took values are contiguous and telescope exactly to spent.
+  test("25.monadic sum of per-job took within spent (gaps redistributed)") {
+    // monadicHistory rewrites each job's start to the previous job's end, so per-job took
+    // values are contiguous and telescope to the span from the first job's start to the last
+    // job's end. spent is measured against a fresh clock reading taken after the whole chain
+    // finishes, so it also covers trailing framing that follows the last job; sumTook is
+    // therefore <= spent, with only a tiny remainder.
     //
-    // Alignment guard: Batch and BatchLight share the same timing model. This exact-nanos
-    // equality must hold identically here and in BatchLightMonadicTest "sum of per-job took
-    // equals spent". If one changes, both must — do not let the two variants drift apart.
+    // Alignment guard: Batch and BatchLight share the same timing model. This relationship
+    // must hold identically here and in BatchLightMonadicTest "sum of per-job took telescopes
+    // to the span through the last job". If one changes, both must — do not let the two
+    // variants drift apart.
     val se = service.eventStreamR { agent =>
       agent.batch("monadic-took-sum").monadic { job =>
         val result = for {
@@ -551,25 +557,30 @@ class BatchTest extends AnyFunSuite {
         } yield a + b + c
         result.monadicBatch.map { mb =>
           assert(mb.result == Right(6))
-          val sumTook = mb.jobs.map(_.record.took.toNanos).sum
-          assert(sumTook == mb.spent.toNanos)
+          val sumTook = mb.outcomes.map(_.record.took.toNanos).sum
+          assert(sumTook <= mb.spent.toNanos)
+          // the trailing remainder is bookkeeping only, far below the ~170ms of real work
+          assert(mb.spent.toNanos - sumTook < 50_000_000L) // 50ms
         }
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("26.single-job monadic batch spent matches that job's took") {
-    // Edge of monadicHistory: with one visible job there is nothing to redistribute, so spent
-    // equals the single job's took exactly.
+  test("26.single-job monadic batch spent covers that job's took, within a tiny remainder") {
+    // Edge of monadicHistory: with one visible job there is nothing to redistribute, so the
+    // single job's took is the whole through-last-job span. spent adds only the trailing
+    // framing captured by the fresh post-chain reading (here also the metrics-panel
+    // deactivation), so took <= spent by a tiny margin.
     //
-    // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent matches
+    // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent covers
     // that job's took". Batch and BatchLight must agree on this edge of the timing model.
     val se = service.eventStreamR { agent =>
       agent.batch("monadic-single-job").monadic { job =>
         job("only", IO.sleep(40.millis).as(1)).monadicBatch.map { mb =>
-          assert(mb.jobs.size == 1)
-          assert(mb.jobs.head.record.took.toNanos == mb.spent.toNanos)
+          assert(mb.outcomes.size == 1)
+          assert(mb.outcomes.head.record.took.toNanos <= mb.spent.toNanos)
+          assert(mb.spent.toNanos - mb.outcomes.head.record.took.toNanos < 50_000_000L) // 50ms
           assert(mb.spent.toMillis >= 40L)
         }
       }

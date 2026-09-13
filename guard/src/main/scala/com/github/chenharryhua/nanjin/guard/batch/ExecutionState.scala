@@ -17,7 +17,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param history
   *   the completed job states (value erased to `Unit`) so far, most recent first
   */
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]) {
+final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]):
 
   /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
     * reflects that no value of the new type will be produced once the chain has short-circuited.
@@ -32,7 +32,7 @@ final private case class ExecutionState[A](eoa: Either[Throwable, A], history: L
 
   /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
   def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
-}
+end ExecutionState
 
 /** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
 final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])

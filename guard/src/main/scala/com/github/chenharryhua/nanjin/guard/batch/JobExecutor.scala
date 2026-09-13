@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.data.Reader
 import cats.effect.kernel.Temporal
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
@@ -9,13 +8,18 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
+/** A successful value job: the produced value paired with the job's completion record. Used internally by the
+  * `valueJob` path to carry results before they are folded into a `ValueBatch`.
+  */
+final private case class JobValue[A](record: JobRecord, result: A)
+
 /** A job that has been prepared but not yet run.
   *
   * @param compute
   *   the effect that runs the job and yields its `JobState` (timing, outcome, and produced value)
   * @param job
-  *   the job's static metadata, which `Batch` threads into `handleOutcome` for lifecycle logging and panel
-  *   updates; `BatchLight` ignores it and uses only `compute`
+  *   the job's static metadata, which `Batch` threads into `lifecycle.handleOutcome` for lifecycle logging
+  *   and panel updates; `BatchLight` ignores it and uses only `compute`
   */
 final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
 
@@ -40,7 +44,7 @@ final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
   *   logging is a no-op
   */
 final private class JobExecutor[F[_], A](
-  predicate: Reader[A, Boolean],
+  predicate: A => Boolean,
   mode: BatchMode,
   scope: MetricScope,
   log: Option[Log[F]])(using F: Temporal[F]) {
@@ -55,13 +59,13 @@ final private class JobExecutor[F[_], A](
     val job: Job = makeJob(BatchKind.Value, jni, batchId)
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
-      _ <- log.traverse(logKickoff(_, job))
+      _ <- log.traverse(lifecycle.logKickoff(_, job))
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {
       val result: Either[Throwable, A] =
         eoa.flatMap { a =>
-          if (predicate.run(a))
+          if (predicate(a))
             Right(a)
           else
             Left(PostConditionUnsatisfied(Some(job)))
@@ -78,11 +82,11 @@ final private class JobExecutor[F[_], A](
     val job: Job = makeJob(BatchKind.Quasi, jni, batchId)
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
-      _ <- log.traverse(logKickoff(_, job))
+      _ <- log.traverse(lifecycle.logKickoff(_, job))
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {
-      val succeeded = eoa.fold(_ => false, predicate.run)
+      val succeeded = eoa.fold(_ => false, predicate)
       JobState(JobRecord(job, start, end, succeeded), eoa)
     }
     ComputeJob(compute, job)

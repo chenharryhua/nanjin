@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.derived.derived
-import cats.syntax.show.toShow
+import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
@@ -77,6 +77,10 @@ object BatchId:
   given Decoder[BatchId] = OpaqueLift.lift[BatchId, Long, Decoder]
 end BatchId
 
+private def batchEntry(mode: BatchMode, kind: Option[BatchKind], scope: MetricScope): (String, Json) =
+  kind.fold(show"$mode Batch" -> Json.fromString(scope.label.value))(k =>
+    show"$mode $k Batch" -> Json.fromString(scope.label.value))
+
 /** Metadata describing a single batch step and the execution context in which it ran.
   *
   * @param batchId
@@ -116,7 +120,11 @@ object Job {
   * job's `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
   * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
   * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
-  * This keeps the per-job durations contiguous and summing exactly to the batch `spent`.
+  * This keeps the per-job durations contiguous, so they sum to the span from the first job's `start` to the
+  * last job's `end`. That span is slightly shorter than the batch `spent`, which is measured against a fresh
+  * clock reading taken after the whole chain finishes and therefore also covers trailing framing that follows
+  * the last job (final state threading, and in `Batch` the metrics-panel deactivation). The remainder is tiny
+  * in practice; see `MonadicBatch`.
   *
   * @param job
   *   the job metadata this record describes
@@ -137,10 +145,8 @@ final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration,
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor
 
-/** A successful batch job value paired with the completion metadata for that job. */
-final case class JobValue[A](record: JobRecord, result: A) derives Functor
-
 sealed trait BatchResult[A] {
+  protected type S
 
   /** Metric scope (label and domain) this batch was run under. */
   def scope: MetricScope
@@ -149,8 +155,11 @@ sealed trait BatchResult[A] {
     *
     * The clock starts when the first job starts, so any work performed before it is not counted: pre-batch
     * `IO` for sequential and parallel batches, or a leading `untracked`/`pure` step for monadic batches. For
-    * sequential and parallel this is measured directly around job execution; for monadic it is the span from
-    * the first job's start to the last job's end (see `MonadicBatch`).
+    * sequential and parallel this is measured directly around job execution. For monadic it is the wall-clock
+    * span from the batch's start reading to a fresh clock reading taken once the whole chain has finished, so
+    * it also covers any invisible `untracked`/`pure` steps between jobs and the trailing framing that follows
+    * the last job (see `MonadicBatch`). Because the reading is taken after the chain rather than at the last
+    * job's `end`, a monadic batch with no tracked jobs still reports the real elapsed time rather than zero.
     */
   def spent: Duration
 
@@ -160,8 +169,15 @@ sealed trait BatchResult[A] {
   /** Identifier for this batch execution. See `BatchId` for the full semantics. */
   def batchId: BatchId
 
-  /** Per-job result values represented by this result type. */
-  def jobs: List[A]
+  /** The per-job outcome of every job that ran: its completion record (identity, timing) paired with its
+    * result-or-failure. `S` is the per-job value type (`A` for quasi/value, `Unit` for monadic).
+    */
+  def outcomes: List[JobState[S]]
+
+  /** The batch's aggregate output: `Unit` for a quasi-batch (all detail lives in `outcomes`), the list of
+    * successful values for a value-batch, and the final `Either` for a monadic batch.
+    */
+  def result: A
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
@@ -176,9 +192,11 @@ final case class QuasiBatch[A](
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  jobs: List[JobState[A]])
-    extends BatchResult[JobState[A]] derives Functor {
-  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
+  outcomes: List[JobState[A]],
+  result: Unit)
+    extends BatchResult[Unit] derives Functor {
+  override protected type S = A
+  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
   // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
@@ -186,14 +204,14 @@ object QuasiBatch:
   // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.jobs.partition(_.record.succeeded)
+      val (passed, failed) = qb.outcomes.partition(_.record.succeeded)
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(qb.spent)),
         JsonKeys.PASSED -> Json.fromInt(passed.length),
         JsonKeys.FAILED -> Json.fromInt(failed.length),
-        JsonKeys.JOBS -> qb.jobs.map(js => toLogEntry(js).message.inBatch).asJson
+        JsonKeys.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -206,8 +224,10 @@ final case class ValueBatch[A](
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  jobs: List[JobValue[A]])
-    extends BatchResult[JobValue[A]] derives Functor {
+  outcomes: List[JobState[A]],
+  result: List[A])
+    extends BatchResult[List[A]] derives Functor {
+  override protected type S = A
   // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
   // rejected job, so every retained job succeeded.
   override val allPassed: Boolean = true
@@ -220,29 +240,31 @@ object ValueBatch:
         batchEntry(bv.mode, Some(BatchKind.Value), bv.scope),
         bv.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(bv.spent)),
-        JsonKeys.JOBS -> bv.jobs.map { jv =>
-          val js = JobState(jv.record, Right(jv.result))
-          toLogEntry(js).message.inBatch
-        }.asJson
+        JsonKeys.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end ValueBatch
 
 /** The aggregate result of a monadic batch execution, including the recorded step history and final result.
   *
-  * `spent` is the wall-clock span from the first job's start to the last job's end, so it includes the time
-  * consumed by invisible `untracked`/`pure` steps between jobs. Each recorded job's `took` is adjusted to
-  * absorb the preceding gap (see `JobRecord`), so the per-job durations sum to `spent`.
+  * `spent` is the wall-clock span from the batch's start reading to a fresh clock reading taken once the
+  * chain has finished, so it includes the time consumed by invisible `untracked`/`pure` steps between jobs as
+  * well as the trailing framing that follows the last job (final state threading, and in `Batch` the
+  * metrics-panel deactivation). Each recorded job's `took` is adjusted to absorb the preceding gap (see
+  * `JobRecord`), so the per-job durations sum to the span through the last job's `end`; that sum is `spent`
+  * minus the trailing remainder, which is tiny in practice. A batch with no tracked jobs reports its real
+  * elapsed time rather than zero.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
   batchId: BatchId,
-  jobs: List[JobState[Unit]],
+  outcomes: List[JobState[Unit]],
   result: Either[Throwable, A])
-    extends BatchResult[JobState[Unit]] derives Functor {
+    extends BatchResult[Either[Throwable, A]] derives Functor {
+  override protected type S = Unit
   override val mode: BatchMode = BatchMode.Monadic
-  override val allPassed: Boolean = jobs.forall(_.record.succeeded)
+  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 object MonadicBatch:
@@ -257,7 +279,7 @@ object MonadicBatch:
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
         JsonKeys.SPENT -> Json.fromString(fmt.format(mb.spent)),
-        JsonKeys.JOBS -> mb.jobs.map(js => toLogEntry(js).message.inBatch).asJson,
+        JsonKeys.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }

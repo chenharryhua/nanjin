@@ -312,7 +312,8 @@ lazy val observer_otel4s = (project in file("observers/otel4s"))
   .settings(name := "nj-observer-otel4s")
   .settings(
     libraryDependencies ++= List(
-      "org.typelevel" %% "otel4s-core-logs" % otel4sV
+      "org.typelevel" %% "otel4s-core-logs"        % otel4sV,
+      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV % Test
     ) ++ testLib
   ).settings(dependencyOverrides ++= otel4s_override)
 

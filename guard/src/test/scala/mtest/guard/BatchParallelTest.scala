@@ -46,9 +46,9 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch
         .use { mb =>
           IO {
-            assert(mb.jobs.head.record.succeeded)
-            assert(mb.jobs(1).record.succeeded)
-            assert(!mb.jobs(2).record.succeeded)
+            assert(mb.outcomes.head.record.succeeded)
+            assert(mb.outcomes(1).record.succeeded)
+            assert(!mb.outcomes(2).record.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
@@ -83,11 +83,11 @@ class BatchParallelTest extends AnyFunSuite {
         .quasiBatch
         .use { mb =>
           IO {
-            assert(!mb.jobs.head.record.succeeded)
-            assert(mb.jobs.head.record.job.mode === BatchMode.Parallel(3))
-            assert(mb.jobs.head.record.job.kind === Some(BatchKind.Quasi))
-            assert(!mb.jobs(1).record.succeeded)
-            assert(mb.jobs(2).record.succeeded)
+            assert(!mb.outcomes.head.record.succeeded)
+            assert(mb.outcomes.head.record.job.mode === BatchMode.Parallel(3))
+            assert(mb.outcomes.head.record.job.kind === Some(BatchKind.Quasi))
+            assert(!mb.outcomes(1).record.succeeded)
+            assert(mb.outcomes(2).record.succeeded)
           }.void
         }
     }.compile.lastOrError.unsafeRunSync()
