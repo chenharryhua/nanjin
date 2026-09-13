@@ -8,6 +8,7 @@ import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
@@ -66,12 +67,10 @@ object BatchLight:
     final def valueBatch: F[ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
       F.timed(traverseJobs { jni =>
-        executor.valueJob(jni, batchId).compute.flatMap { js =>
-          js.result match {
-            case Left(ex)     => F.raiseError[JobValue[A]](ex)
-            case Right(value) => JobValue(js.record, value).pure[F]
-          }
-        }
+        executor.valueJob(jni, batchId)
+          .compute
+          .map(js => js.result.map(JobValue(js.record, _)))
+          .rethrow
       }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
         ValueBatch(
           scope = scope,

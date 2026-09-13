@@ -7,9 +7,8 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
-import cats.syntax.applicativeError.given
-import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
@@ -79,12 +78,9 @@ object Batch:
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
         traverseJobs { jni =>
-          runJob(executor.valueJob(jni, batchId), panel).flatMap { js =>
-            js.result match {
-              case Left(ex)     => ex.raiseError[F, JobValue[A]]
-              case Right(value) => JobValue(js.record, value).pure[F]
-            }
-          }
+          runJob(executor.valueJob(jni, batchId), panel)
+            .map(js => js.result.map(JobValue(js.record, _)))
+            .rethrow
         }.timed.guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
