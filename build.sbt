@@ -377,7 +377,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "at.yawk.lz4"      % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
-      "io.opentelemetry" % "opentelemetry-api" % "1.65.0", // snyk by kafka-client
+      "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
       "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
       "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
       "com.squareup.wire"                 % "wire-runtime-jvm" % "7.0.1", // snyk by kafka-protobuf-provider
@@ -428,7 +428,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
-      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.85.2" // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.86" // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
