@@ -51,7 +51,7 @@ object Batch:
 
     /** Run one job under lifecycle handling: log kickoff/completion and update the panel. */
     private def runJob(cj: ComputeJob[F, A], panel: BatchMetrics[F]): F[JobState[A]] =
-      cj.compute.guaranteeCase(handleOutcome(log, cj.job, panel.updatePanel))
+      cj.compute.guaranteeCase(lifecycle.handleOutcome(log, cj.job, panel.updatePanel))
 
     /** Exceptions from individual jobs are captured as failed job results, allowing the overall batch to
       * complete and report per-job outcomes.
@@ -271,7 +271,7 @@ object Batch:
                 batchId = batchId)
 
             val compute = for {
-              eoa <- rfa.preAllocate(logKickoff(log, job)).attempt
+              eoa <- rfa.preAllocate(lifecycle.logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
             } yield {
               val succeeded = eoa.fold(_ => false, predicate)
@@ -279,7 +279,7 @@ object Batch:
             }
 
             compute
-              .guaranteeCase(handleOutcomeR(log, job, updatePanel))
+              .guaranteeCase(lifecycle.handleOutcomeR(log, job, updatePanel))
               .map { js =>
                 JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
               }

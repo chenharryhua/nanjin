@@ -13,8 +13,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
   * @param compute
   *   the effect that runs the job and yields its `JobState` (timing, outcome, and produced value)
   * @param job
-  *   the job's static metadata, which `Batch` threads into `handleOutcome` for lifecycle logging and panel
-  *   updates; `BatchLight` ignores it and uses only `compute`
+  *   the job's static metadata, which `Batch` threads into `lifecycle.handleOutcome` for lifecycle logging
+  *   and panel updates; `BatchLight` ignores it and uses only `compute`
   */
 final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
 
@@ -54,7 +54,7 @@ final private class JobExecutor[F[_], A](
     val job: Job = makeJob(BatchKind.Value, jni, batchId)
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
-      _ <- log.traverse(logKickoff(_, job))
+      _ <- log.traverse(lifecycle.logKickoff(_, job))
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {
@@ -77,7 +77,7 @@ final private class JobExecutor[F[_], A](
     val job: Job = makeJob(BatchKind.Quasi, jni, batchId)
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
-      _ <- log.traverse(logKickoff(_, job))
+      _ <- log.traverse(lifecycle.logKickoff(_, job))
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {

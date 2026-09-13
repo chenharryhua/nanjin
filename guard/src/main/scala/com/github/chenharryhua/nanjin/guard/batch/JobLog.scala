@@ -11,9 +11,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils
   * Security/privacy note: a job's produced value is the user's data. `JobLog.Succeeded`/`Unsatisfied` carry
   * that value (as the type parameter `A`), but the two renders treat it differently:
   *
-  *   - `standalone` — the render the framework emits '''automatically''' (see `logCompleted`) — discards the
-  *     value and shows only lifecycle facts (identity, took, outcome tag, and, on failure, the exception
-  *     message). It takes no `Encoder[A]`, so a produced value can never reach the auto-emitted log.
+  *   - `standalone` — the render the framework emits '''automatically''' (see `lifecycle.logCompleted`) —
+  *     discards the value and shows only lifecycle facts (identity, took, outcome tag, and, on failure, the
+  *     exception message). It takes no `Encoder[A]`, so a produced value can never reach the auto-emitted
+  *     log.
   *   - `inBatch` — reached only when the user explicitly serializes a returned `BatchResult` — shows the
   *     value under `result`, and correspondingly requires an `Encoder[A]`.
   *
