@@ -68,13 +68,7 @@ object Batch:
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(
-            scope = metrics.scope,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            outcomes = js,
-            result = ())
+          QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
       }
     }
 

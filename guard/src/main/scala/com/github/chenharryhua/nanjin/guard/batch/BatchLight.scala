@@ -58,13 +58,7 @@ object BatchLight:
       val batchId: BatchId = nextBatchId
       F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(
-            scope = scope,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            outcomes = js,
-            result = ())
+          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
       }
     }
 

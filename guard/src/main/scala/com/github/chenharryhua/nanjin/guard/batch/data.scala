@@ -192,9 +192,9 @@ final case class QuasiBatch[A](
   spent: Duration,
   mode: BatchMode,
   batchId: BatchId,
-  outcomes: List[JobState[A]],
-  result: Unit)
+  outcomes: List[JobState[A]])
     extends BatchResult[Unit] derives Functor {
+  override val result: Unit = ()
   override protected type S = A
   override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
