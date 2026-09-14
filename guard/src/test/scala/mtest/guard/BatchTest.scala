@@ -595,4 +595,28 @@ class BatchTest extends AnyFunSuite {
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
+
+  test("27.monadic untracked(Resource) release failure surfaces through the scope") {
+    // Guards the documented boundary: acquisition failure is captured into `result`,
+    // but a *release* failure is not — it surfaces through the resource scope. Here the
+    // untracked resource acquires fine and every job succeeds (so mb.result is Right),
+    // yet releasing it on scope close throws, which fails the effect that ran the batch.
+    @volatile var observedResult: Option[Either[Throwable, Int]] = None
+    val se = service.eventStream { agent =>
+      agent.batch("release-fail").monadic { job =>
+        val result = for {
+          _ <- job.untracked(
+            cats.effect.Resource.make(IO.unit)(_ => IO.raiseError(new Exception("release fail"))))
+          v <- job("ok", IO(1))
+        } yield v
+        result.monadicBatch.use { mb =>
+          IO { observedResult = Some(mb.result) }
+        }
+      }
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
+    // inside the scope the batch succeeded ...
+    assert(observedResult == Some(Right(1)))
+    // ... yet the release fault brought the service down (uncaught in F)
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
 }

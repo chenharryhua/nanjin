@@ -301,7 +301,10 @@ object Batch:
       )
 
     /** Add a named resource-backed job. The job succeeds unless its resource acquisition or effect throws, in
-      * which case the exception stops the chain.
+      * which case the exception is captured as the job's failure and stops the chain. Only acquisition is
+      * captured this way: a failure while *releasing* the resource happens when the batch's resource scope
+      * closes, after `result` is produced, so it surfaces through the resource scope rather than as the job's
+      * `result`.
       *
       * @param name
       *   name of the job
@@ -321,7 +324,8 @@ object Batch:
       * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
       * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
       * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
-      * `predicate`.
+      * `predicate`. As with the non-predicate overload, only resource *acquisition* is captured this way; a
+      * failure while releasing the resource surfaces through the resource scope, not the job's `result`.
       *
       * @param name
       *   name of the job
