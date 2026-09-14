@@ -56,11 +56,17 @@ final class TeamsObserver[F[_]: Clock] private (
       ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
-        .evalTap(e =>
-          translator.translate(e).flatMap(
-            _.traverse(card => publish(http, webhook, card, idempotencyKey(e)))))
-        .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
-          translator.translate(e).flatMap(_.traverse_(card =>
-            publish(http, webhook, card, idempotencyKey(e)))))))
+        .evalTap { e =>
+          translator.translate(e)
+            .flatMap(_.traverse(card => publish(http, webhook, card, idempotencyKey(e))))
+        }
+        .onFinalize {
+          ofm.terminated
+            .flatMap(_.traverse_ { e =>
+              translator
+                .translate(e)
+                .flatMap(_.traverse_(card => publish(http, webhook, card, idempotencyKey(e))))
+            })
+        }
     } yield event
 }

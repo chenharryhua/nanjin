@@ -48,10 +48,13 @@ final class SlackObserver[F[_]: Clock] private (
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
-          translator.translate(e).flatMap(
-            _.traverse(card => publish(http, webhook, card, idempotencyKey(e)))))
-        .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
-          translator.translate(e).flatMap(_.traverse_(card =>
-            publish(http, webhook, card, idempotencyKey(e)))))))
+          translator
+            .translate(e)
+            .flatMap(_.traverse(card => publish(http, webhook, card, idempotencyKey(e)))))
+        .onFinalize(ofm.terminated
+          .flatMap(_.traverse_ { e =>
+            translator.translate(e)
+              .flatMap(_.traverse_(card => publish(http, webhook, card, idempotencyKey(e))))
+          }))
     } yield event
 }

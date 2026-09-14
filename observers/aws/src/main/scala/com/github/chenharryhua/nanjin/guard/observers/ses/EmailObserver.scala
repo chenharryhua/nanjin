@@ -240,7 +240,8 @@ final class EmailObserver[F[_]] private (params: EmailObserver.Params[F])(using 
         // mergeHaltL: the observer's lifetime tracks the event stream, not the tick policy. When the policy
         // is exhausted the ticks stream ends, but the merge keeps running off events; scheduled flushes
         // simply stop while capacity flushes and the finalizer flush continue.
-        event <- go(monitor.mergeHaltL(ticks), send_email, cache).stream
+        event <- go(monitor.mergeHaltL(ticks), send_email, cache)
+          .stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))
       } yield event
   }

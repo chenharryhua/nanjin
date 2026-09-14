@@ -60,8 +60,9 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
         event <- es
           .evalTap(ofm.monitoring)
           .evalTap(e => translate(e).flatMap(_.traverse(json => send(sqs, builder, json))))
-          .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
-            translate(e).flatMap(_.traverse_(json => send(sqs, builder, json))))))
+          .onFinalize(ofm.terminated.flatMap(_.traverse_ { e =>
+            translate(e).flatMap(_.traverse_(json => send(sqs, builder, json)))
+          }))
       } yield event
 
   /** Observe events, sending each to the queue configured by `builder`. Events pass through unchanged.

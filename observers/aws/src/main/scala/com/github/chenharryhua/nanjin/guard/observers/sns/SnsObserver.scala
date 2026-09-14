@@ -63,10 +63,14 @@ final class SnsObserver[F[_]: Clock] private (
       ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
-        .evalTap(e =>
+        .evalTap { e =>
           translator.translate(e)
-            .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
-        .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
-          translator.translate(e).flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))))
+            .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces)))
+        }
+        .onFinalize(ofm.terminated.flatMap(_.traverse_ { e =>
+          translator
+            .translate(e)
+            .flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces)))
+        }))
     } yield event
 }

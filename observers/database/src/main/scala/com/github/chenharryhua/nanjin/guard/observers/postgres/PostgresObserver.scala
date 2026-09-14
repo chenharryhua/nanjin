@@ -57,8 +57,9 @@ final class PostgresObserver[F[_]] private (
             .recoverWith(ex => log.error(ex)(NAME))
         }
         .onFinalize {
-          ofm.terminated.flatMap(_.traverse_(evt =>
-            translator.translate(evt).flatMap(_.traverse_(execute(pg, _))))) *> log.info(s"$NAME was closed")
+          ofm.terminated.flatMap(_.traverse_ { evt =>
+            translator.translate(evt).flatMap(_.traverse_(execute(pg, _)))
+          }) *> log.info(s"$NAME was closed")
         }
     } yield event
   }
