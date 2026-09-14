@@ -83,8 +83,9 @@ class JobLogRenderTest extends AnyFunSuite {
     // the value is carried on the case, but standalone deliberately discards it (privacy)
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).standalone
     val c = js.hcursor
-    // the status tag holds the full job object; identity and context live under it
-    val tag = c.downField(JobLog.SUCCEEDED)
+    // the status tag holds the full job object; identity and context live under it.
+    // Assert the literal wire key (not the derived tag) so this guards against drift in the derivation.
+    val tag = c.downField("succeeded")
     assert(tag.get[String]("job-1").toOption.contains("work")) // identity
     assert(tag.get[String]("Sequential Quasi Batch").toOption.contains("batch")) // full job context
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty)) // took, its own key
@@ -95,7 +96,7 @@ class JobLogRenderTest extends AnyFunSuite {
   test("7.standalone Unsatisfied: status tag holds the job, took its own key, produced value dropped") {
     val js = JobLog.Unsatisfied(record(quasiJob, succeeded = false), secret).standalone
     val c = js.hcursor
-    assert(c.downField(JobLog.UNSATISFIED).get[String]("job-1").toOption.contains("work"))
+    assert(c.downField("unsatisfied").get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.downField(JobLog.RESULT).focus.isEmpty)
     assert(!js.noSpaces.contains("TOP-SECRET"))
@@ -104,7 +105,7 @@ class JobLogRenderTest extends AnyFunSuite {
   test("8.standalone Nonfatal: job under status tag, took its own key, message under error") {
     val js = JobLog.Nonfatal(record(quasiJob, succeeded = false), new RuntimeException("boom")).standalone
     val c = js.hcursor
-    assert(c.downField(JobLog.NONFATAL).get[String]("job-1").toOption.contains("work"))
+    assert(c.downField("nonfatal").get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty)) // took
     assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
     assert(c.downField(JobLog.RESULT).focus.isEmpty)
@@ -113,7 +114,7 @@ class JobLogRenderTest extends AnyFunSuite {
   test("9.standalone Critical: job under status tag, took its own key, message under error") {
     val js = JobLog.Critical(record(valueJob, succeeded = false), new RuntimeException("boom")).standalone
     val c = js.hcursor
-    assert(c.downField(JobLog.CRITICAL).get[String]("job-1").toOption.contains("work"))
+    assert(c.downField("critical").get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
     assert(c.downField(JobLog.RESULT).focus.isEmpty)
@@ -122,8 +123,8 @@ class JobLogRenderTest extends AnyFunSuite {
   test("10.standalone Kickoff/Canceled: render the job under their lifecycle key") {
     val kickoff = JobLog.Kickoff(quasiJob).standalone
     val canceled = JobLog.Canceled(quasiJob).standalone
-    assert(kickoff.hcursor.downField(JobLog.KICKOFF).get[String]("job-1").toOption.contains("work"))
-    assert(canceled.hcursor.downField(JobLog.CANCELED).get[String]("job-1").toOption.contains("work"))
+    assert(kickoff.hcursor.downField("kickoff").get[String]("job-1").toOption.contains("work"))
+    assert(canceled.hcursor.downField("canceled").get[String]("job-1").toOption.contains("work"))
   }
 
   // ---- inBatch render (nested inside a serialized BatchResult) -------------------------------------
@@ -132,7 +133,7 @@ class JobLogRenderTest extends AnyFunSuite {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).inBatch
     val c = js.hcursor
     // the status tag holds the job's displayName; took is its own key
-    assert(c.get[String](JobLog.SUCCEEDED).toOption.contains("job-1 work"))
+    assert(c.get[String]("succeeded").toOption.contains("job-1 work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     // inBatch omits the full job context that standalone nests in
     assert(c.get[String]("Sequential Quasi Batch").toOption.isEmpty)
@@ -143,7 +144,7 @@ class JobLogRenderTest extends AnyFunSuite {
   test("12.inBatch Succeeded with an absent value (Json.Null): the result key is dropped") {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), Json.Null).inBatch
     val c = js.hcursor
-    assert(c.get[String](JobLog.SUCCEEDED).toOption.contains("job-1 work"))
+    assert(c.get[String]("succeeded").toOption.contains("job-1 work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.downField(JobLog.RESULT).focus.isEmpty) // dropNullValues removes it
   }
@@ -153,7 +154,7 @@ class JobLogRenderTest extends AnyFunSuite {
     val js =
       JobLog.Critical[Unit](record(monadicJob, succeeded = false), new RuntimeException("boom")).inBatch
     val c = js.hcursor
-    assert(c.get[String](JobLog.CRITICAL).toOption.contains("job-1 work"))
+    assert(c.get[String]("critical").toOption.contains("job-1 work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
   }

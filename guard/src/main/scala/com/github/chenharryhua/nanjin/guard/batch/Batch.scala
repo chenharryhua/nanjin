@@ -329,8 +329,7 @@ object Batch:
       * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
       * `predicate`. As with the non-predicate overload, only resource *acquisition* is captured this way; a
       * failure while releasing the resource surfaces through the resource scope, not the job's `result`, so
-      * an uncontrollable cleanup fault escapes to a service-level alert rather than being demoted to a
-      * `Left`.
+      * cleanup fault escapes to a service-level alert rather than being demoted to a `Left`.
       *
       * @param name
       *   name of the job

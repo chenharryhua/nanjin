@@ -153,8 +153,8 @@ class LifecycleTest extends AnyFunSuite {
     assert(logs.size == 2)
     val (kickoff, canceled) = (logs.head, logs(1))
     assert(kickoff._2 == LogLevel.Info)
-    assert(kickoff._1.hcursor.downField(JobLog.KICKOFF).focus.nonEmpty)
+    assert(kickoff._1.hcursor.downField("kickoff").focus.nonEmpty)
     assert(canceled._2 == LogLevel.Warn)
-    assert(canceled._1.hcursor.downField(JobLog.CANCELED).focus.nonEmpty)
+    assert(canceled._1.hcursor.downField("canceled").focus.nonEmpty)
   }
 }
