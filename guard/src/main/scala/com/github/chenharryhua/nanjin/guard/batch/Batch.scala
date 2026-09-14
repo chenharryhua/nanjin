@@ -7,9 +7,8 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
-import cats.syntax.applicativeError.given
-import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
@@ -68,13 +67,7 @@ object Batch:
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(
-            scope = metrics.scope,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            outcomes = js,
-            result = ())
+          QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
       }
     }
 
@@ -85,12 +78,9 @@ object Batch:
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
         traverseJobs { jni =>
-          runJob(executor.valueJob(jni, batchId), panel).flatMap { js =>
-            js.result match {
-              case Left(ex)     => ex.raiseError[F, JobValue[A]]
-              case Right(value) => JobValue(js.record, value).pure[F]
-            }
-          }
+          runJob(executor.valueJob(jni, batchId), panel)
+            .map(js => js.result.map(JobValue(js.record, _)))
+            .rethrow
         }.timed.guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
@@ -164,8 +154,6 @@ object Batch:
     log: Log[F],
     metrics: MetricsHub[F],
     batchIdGenerator: AtomicLong)(using F: Async[F]):
-
-    private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
@@ -278,7 +266,7 @@ object Batch:
                 name = name,
                 index = index,
                 scope = metrics.scope,
-                mode = mode,
+                mode = BatchMode.Monadic,
                 kind = None,
                 batchId = batchId)
 
@@ -307,8 +295,7 @@ object Batch:
       * @param rfa
       *   the resource-backed job
       */
-    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
-      create[A](name, rfa, _ => true)
+    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] = create[A](name, rfa, _ => true)
 
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.

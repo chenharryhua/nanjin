@@ -8,6 +8,7 @@ import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
@@ -58,13 +59,7 @@ object BatchLight:
       val batchId: BatchId = nextBatchId
       F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(
-            scope = scope,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            outcomes = js,
-            result = ())
+          QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
       }
     }
 
@@ -72,12 +67,10 @@ object BatchLight:
     final def valueBatch: F[ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
       F.timed(traverseJobs { jni =>
-        executor.valueJob(jni, batchId).compute.flatMap { js =>
-          js.result match {
-            case Left(ex)     => F.raiseError[JobValue[A]](ex)
-            case Right(value) => JobValue(js.record, value).pure[F]
-          }
-        }
+        executor.valueJob(jni, batchId)
+          .compute
+          .map(js => js.result.map(JobValue(js.record, _)))
+          .rethrow
       }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
         ValueBatch(
           scope = scope,
@@ -139,8 +132,6 @@ object BatchLight:
 
   final class JobBuilder[F[_]] private[BatchLight] (val scope: MetricScope, val batchIdGenerator: AtomicLong)(
     using F: Temporal[F]):
-
-    private val mode: BatchMode = BatchMode.Monadic
 
     final class Monadic[A] private[BatchLight] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
@@ -239,7 +230,13 @@ object BatchLight:
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
-              Job(name = name, index = index, scope = scope, mode = mode, kind = None, batchId = batchId)
+              Job(
+                name = name,
+                index = index,
+                scope = scope,
+                mode = BatchMode.Monadic,
+                kind = None,
+                batchId = batchId)
 
             for {
               eoa <- fa.attempt
@@ -261,8 +258,7 @@ object BatchLight:
       * @param fa
       *   the effect to run
       */
-    def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, fa, _ => true)
+    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, fa, _ => true)
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -282,7 +278,6 @@ object BatchLight:
       create[A](name, fa, predicate)
 
   end JobBuilder
-
 end BatchLight
 
 /** Lightweight batch façade for short-lived jobs.

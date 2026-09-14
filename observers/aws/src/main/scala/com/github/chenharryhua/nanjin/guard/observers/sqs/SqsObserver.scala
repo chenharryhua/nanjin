@@ -12,14 +12,12 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
 import com.github.chenharryhua.nanjin.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 object SqsObserver {
 
@@ -58,12 +56,13 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
     (es: Stream[F, Event]) =>
       for {
         sqs <- Stream.resource(client)
-        ofm <- Stream.eval(
-          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+        ofm <- Stream.eval(FinalizeMonitor[F])
         event <- es
           .evalTap(ofm.monitoring)
           .evalTap(e => translate(e).flatMap(_.traverse(json => send(sqs, builder, json))))
-          .onFinalize(ofm.terminated.flatMap(_.traverse_(json => send(sqs, builder, json))))
+          .onFinalize(ofm.terminated.flatMap(_.traverse_ { e =>
+            translate(e).flatMap(_.traverse_(json => send(sqs, builder, json)))
+          }))
       } yield event
 
   /** Observe events, sending each to the queue configured by `builder`. Events pass through unchanged.

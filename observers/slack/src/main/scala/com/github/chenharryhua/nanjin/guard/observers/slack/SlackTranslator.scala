@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.observers.sns
+package com.github.chenharryhua.nanjin.guard.observers.slack
+
 import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}

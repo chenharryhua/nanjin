@@ -6,13 +6,13 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.observers.sns.SlackObserver
+import com.github.chenharryhua.nanjin.guard.observers.sns.SnsObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
 import software.amazon.awssdk.services.sqs.model.*
 
-class SqsSlackObserverTest extends AnyFunSuite {
+class SqsSnsObserverTest extends AnyFunSuite {
 
   // A short-lived service that starts, does a tiny bit of work, and stops normally.
   private val service: fs2.Stream[IO, Event] =
@@ -65,7 +65,7 @@ class SqsSlackObserverTest extends AnyFunSuite {
     assert(bodies.isEmpty)
   }
 
-  // --- SNS/Slack recording fake ---
+  // --- SNS recording fake ---
 
   private def recording_sns(sent: Ref[IO, List[String]]): Resource[IO, SimpleNotificationService[IO]] =
     Resource.pure(new SimpleNotificationService[IO] {
@@ -74,25 +74,29 @@ class SqsSlackObserverTest extends AnyFunSuite {
           IO.pure(PublishResponse.builder().messageId("fake").build())
     })
 
-  test("SlackObserver publishes a message per translated event") {
+  test("SnsObserver publishes a message per translated event") {
     val messages =
       Ref.of[IO, List[String]](Nil).flatMap { sent =>
-        val slack = SlackObserver(recording_sns(sent))
+        val sns = SnsObserver(recording_sns(sent))
         service
-          .through(slack.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
+          .through(sns.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
           .compile
           .drain *> sent.get
       }.unsafeRunSync()
 
+    // PrettyJsonTranslator renders each event as a JSON object keyed by snake_case attribute names, e.g.
+    // "service_start" for the start event and "service_stop" for the stop event.
     assert(messages.nonEmpty)
+    assert(messages.exists(_.contains("service_start")))
+    assert(messages.exists(_.contains("service_stop")))
   }
 
-  test("SlackObserver with skipAll translator publishes nothing") {
+  test("SnsObserver with skipAll translator publishes nothing") {
     val messages =
       Ref.of[IO, List[String]](Nil).flatMap { sent =>
-        val slack = SlackObserver(recording_sns(sent)).withTranslator(_.skipAll)
+        val sns = SnsObserver(recording_sns(sent)).withTranslator(_.skipAll)
         service
-          .through(slack.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
+          .through(sns.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
           .compile
           .drain *> sent.get
       }.unsafeRunSync()

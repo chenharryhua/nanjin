@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.kernel.Eq
+import cats.syntax.either.catsSyntaxEither
 import cats.syntax.order.given
 import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
@@ -9,6 +10,7 @@ import com.github.chenharryhua.nanjin.common.OpaqueLift
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import io.circe.{Codec, Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.http4s.Uri
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 import org.typelevel.cats.time.zoneidInstances
@@ -23,7 +25,7 @@ import scala.jdk.DurationConverters.given
 /** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
   * Adaptive Cards).
   */
-final val NbspChar: Char = '\u00A0'
+inline val NbspChar = '\u00A0'
 
 // ---------------- StackTrace ----------------
 
@@ -84,13 +86,41 @@ object ServiceId:
 end ServiceId
 
 // ---------------- Homepage ----------------
-opaque type Homepage = String
+/** The service homepage, carried as an `org.http4s.Uri` so the value is a parsed, well-formed URL rather than
+  * an opaque string.
+  *
+  * Serialized form: a JSON string. It is `renderString` of the parsed `Uri`, so the persisted/emitted value
+  * is the URI's canonical rendering, which may differ from a caller's raw input if http4s normalizes it.
+  * Decoding parses the string via `Uri.fromString` and fails (rather than accepting any string) when it is
+  * not a valid URI. Both directions therefore stay string-shaped on the wire, but the accepted/produced value
+  * set is narrowed to valid URIs.
+  *
+  * Construction:
+  *   - `apply(String)` parses via `Uri.unsafeFromString` and '''throws''' on an invalid URI. This is the path
+  *     behind `ServiceConfig.withHomepage(String)`.
+  *   - `apply(Uri)` is total: use it when you already hold a validated `Uri`.
+  *
+  * Unlike the sibling opaque types here, `Homepage` hand-rolls its `Encoder`/`Decoder` instead of using
+  * `OpaqueLift.lift`, because the carrier↔wire conversion is a validating `String` <-> `Uri` mapping that
+  * `OpaqueLift` (a plain newtype lift of an existing instance) cannot express.
+  */
+opaque type Homepage = Uri
 object Homepage:
-  def apply(value: String): Homepage = value
-  extension (h: Homepage) inline def value: String = h
+  /** Parse `value` into a `Homepage`, throwing if it is not a valid URI. */
+  def apply(value: String): Homepage = Uri.unsafeFromString(value)
 
-  given Encoder[Homepage] = OpaqueLift.lift[Homepage, String, Encoder]
-  given Decoder[Homepage] = OpaqueLift.lift[Homepage, String, Decoder]
+  /** Wrap an already-validated `Uri` as a `Homepage`. Total, never throws. */
+  def apply(value: Uri): Homepage = value
+
+  extension (hp: Homepage)
+    /** The canonical string rendering of the URI (`Uri.renderString`); also the serialized form. */
+    inline def value: String = hp.renderString
+
+    /** The underlying `Uri`. */
+    def uri: Uri = hp
+
+  given Encoder[Homepage] = Encoder.encodeString.contramap(_.value)
+  given Decoder[Homepage] = Decoder.decodeString.emap(s => Uri.fromString(s).leftMap(_.message))
 end Homepage
 
 // ---------------- Port ----------------

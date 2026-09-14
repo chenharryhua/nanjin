@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers.sns
+package com.github.chenharryhua.nanjin.guard.observers.slack
 
 import com.github.chenharryhua.nanjin.guard.translator.TextEntry
 import io.circe.syntax.EncoderOps
