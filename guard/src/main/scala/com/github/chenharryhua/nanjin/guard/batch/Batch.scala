@@ -253,7 +253,9 @@ object Batch:
       * The resource is acquired when this step runs and released when the batch's resource scope closes. It
       * is not tracked, timed, or reported. If acquisition fails, the failure short-circuits the chain: no
       * further jobs run and the failure surfaces as `Left` in the batch `result`. Release errors are not
-      * captured here; they surface through the resource scope as usual.
+      * captured here; they surface through the resource scope as usual. This split is deliberate: a release
+      * fault is an uncontrollable cleanup failure (a failed flush/commit, or a broken resource) that should
+      * escape and trip a service-level alert, not be demoted to a handled `Left` job result.
       */
     def untracked[A](rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
@@ -304,7 +306,8 @@ object Batch:
       * which case the exception is captured as the job's failure and stops the chain. Only acquisition is
       * captured this way: a failure while *releasing* the resource happens when the batch's resource scope
       * closes, after `result` is produced, so it surfaces through the resource scope rather than as the job's
-      * `result`.
+      * `result`. This split is deliberate: a release fault is an uncontrollable cleanup failure that should
+      * escape and trip a service-level alert, not be demoted to a handled `Left` job result.
       *
       * @param name
       *   name of the job
@@ -325,7 +328,9 @@ object Batch:
       * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
       * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
       * `predicate`. As with the non-predicate overload, only resource *acquisition* is captured this way; a
-      * failure while releasing the resource surfaces through the resource scope, not the job's `result`.
+      * failure while releasing the resource surfaces through the resource scope, not the job's `result`, so
+      * an uncontrollable cleanup fault escapes to a service-level alert rather than being demoted to a
+      * `Left`.
       *
       * @param name
       *   name of the job
