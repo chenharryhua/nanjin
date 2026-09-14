@@ -49,8 +49,7 @@ final class PostgresObserver[F[_]] private (
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       log <- Stream.eval(Slf4jLogger.create[F])
       _ <- Stream.eval(log.info(s"initialize $NAME"))
-      ofm <- Stream.eval(
-        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+      ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap { evt =>
@@ -60,7 +59,8 @@ final class PostgresObserver[F[_]] private (
             .recoverWith(ex => log.error(ex)(NAME))
         }
         .onFinalize {
-          ofm.terminated.flatMap(_.traverse_(execute(pg, _))) *> log.info(s"$NAME was closed")
+          ofm.terminated.flatMap(_.traverse_(evt =>
+            translator.translate(evt).flatMap(_.traverse_(execute(pg, _))))) *> log.info(s"$NAME was closed")
         }
     } yield event
   }

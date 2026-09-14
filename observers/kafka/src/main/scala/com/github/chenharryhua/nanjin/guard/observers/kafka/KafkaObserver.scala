@@ -49,8 +49,7 @@ final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], transla
         client <- ctx.produce(topic).clientS
         log <- Stream.eval(Slf4jLogger.create[F])
         _ <- Stream.eval(log.info(s"initialize $NAME"))
-        ofm <- Stream.eval(
-          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+        ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
         event <- ss
           .evalTap(ofm.monitoring)
           .evalTap {
@@ -60,7 +59,7 @@ final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], transla
               .recoverWith(ex => log.error(ex)(NAME))
           }
           .onFinalize {
-            ofm.terminated.flatMap(client.produce(_).flatten) *>
+            ofm.terminated.flatMap(_.traverseFilter(translate).flatMap(client.produce(_).flatten)) *>
               log.info(s"$NAME was closed")
           }
       } yield event

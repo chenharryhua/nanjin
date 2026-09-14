@@ -58,12 +58,12 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
     (es: Stream[F, Event]) =>
       for {
         sqs <- Stream.resource(client)
-        ofm <- Stream.eval(
-          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+        ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
         event <- es
           .evalTap(ofm.monitoring)
           .evalTap(e => translate(e).flatMap(_.traverse(json => send(sqs, builder, json))))
-          .onFinalize(ofm.terminated.flatMap(_.traverse_(json => send(sqs, builder, json))))
+          .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
+            translate(e).flatMap(_.traverse_(json => send(sqs, builder, json))))))
       } yield event
 
   /** Observe events, sending each to the queue configured by `builder`. Events pass through unchanged.

@@ -306,6 +306,17 @@ lazy val observer_teams = (project in file("observers/teams"))
     ) ++ testLib
   )
 
+lazy val observer_slack = (project in file("observers/slack"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-slack")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
 lazy val observer_otel4s = (project in file("observers/otel4s"))
   .dependsOn(guard)
   .settings(commonSettings *)
@@ -452,6 +463,7 @@ lazy val example = (project in file("example"))
   .dependsOn(observer_database)
   .dependsOn(observer_kafka)
   .dependsOn(observer_teams)
+  .dependsOn(observer_slack)
   .dependsOn(observer_otel4s)
   .dependsOn(observer_splunk)
   .settings(commonSettings *)
@@ -484,6 +496,7 @@ lazy val nanjin =
       observer_database,
       observer_kafka,
       observer_teams,
+      observer_slack,
       observer_otel4s,
       observer_splunk
     )

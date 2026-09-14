@@ -1,0 +1,244 @@
+package com.github.chenharryhua.nanjin.guard.observers.slack
+
+import cats.syntax.order.given
+import cats.syntax.show.{showInterpolator, given}
+import cats.{Applicative, Eval}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventLogLevel,
+  eventTitle,
+  panicText,
+  Attribute,
+  SnapshotPolyglot,
+  TextEntry,
+  Translator
+}
+import org.apache.commons.lang3.StringUtils
+import org.typelevel.cats.time.instances.all
+import squants.information.{Bytes, Information}
+
+private object SlackTranslator extends all {
+  import Event.*
+
+  private case class Index(value: Long)
+
+  private def coloring(evt: Event): String =
+    eventLogLevel[Eval, String](evt)
+      .run {
+        case LogLevel.Good  => Eval.now("#36a64f")
+        case LogLevel.Info  => Eval.now("#b3d1ff")
+        case LogLevel.Warn  => Eval.now("#ffd79a")
+        case LogLevel.Error => Eval.now("#935252")
+        case LogLevel.Debug => Eval.now("#FF00FF")
+      }
+      .value
+
+  // slack not allow message larger than 3000 chars
+  // https://api.slack.com/reference/surfaces/formatting
+  private val MESSAGE_SIZE_LIMIT: Information = Bytes(2500)
+
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MESSAGE_SIZE_LIMIT.toBytes.toInt)
+
+  private def mark_down(first: TextEntry, second: TextEntry): MarkdownSection =
+    MarkdownSection(s"""|*${first.tag}:* ${first.text}
+                        |*${second.tag}:* ${second.text}""".stripMargin)
+
+  private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
+    val host = Attribute(sp.host).textEntry
+    val service =
+      Attribute(sp.service).map(name =>
+        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>")).textEntry
+    JuxtaposeSection(TextField(service), TextField(host))
+  }
+
+  private def uptime_section(evt: Event): JuxtaposeSection = {
+    val uptime = Attribute(evt.upTime).textEntry
+    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
+    JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
+  }
+
+  private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
+    val uptime = Attribute(evt.upTime).textEntry
+    val idx = Attribute(evt.index).textEntry
+    JuxtaposeSection(first = TextField(uptime), second = TextField(idx))
+  }
+
+  private def metrics_section(snapshot: Snapshot): TagValueSection = {
+    val ss = Attribute(snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
+    if (snapshot.nonEmpty) {
+      TagValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
+    } else TagValueSection(ss.tag, """`not available`""")
+  }
+
+  private def brief(sb: Brief): TagValueSection = {
+    val service_brief = Attribute(sb).textEntry
+    TagValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
+  }
+
+  // events
+  private def service_start(evt: ServiceStart): SlackApp = {
+    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
+
+    val index_section = if (evt.tick.index === 0) {
+      JuxtaposeSection(first = TextField(zone), second = TextField(index))
+    } else {
+      JuxtaposeSection(first = TextField(snooze), second = TextField(index))
+    }
+
+    val color = coloring(evt)
+    val policy = Attribute(evt.policy).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    SlackApp(
+      username = evt.serviceIdentity.task.value,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            HeaderSection(s":rocket: ${eventTitle(evt)}"),
+            host_service_section(evt.serviceIdentity),
+            index_section,
+            mark_down(policy, service_id)
+          )
+        ),
+        Attachment(color = color, blocks = List(brief(evt.brief)))
+      )
+    )
+  }
+
+  private def service_panic(evt: ServicePanic): SlackApp = {
+    val policy = Attribute(evt.policy).textEntry
+    val uptime = Attribute(evt.upTime).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val error = Attribute(evt.stackTrace).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
+    val logLink: TextField =
+      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+        olink match {
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case None       => TextField(index)
+        }
+      }
+    val color = coloring(evt)
+
+    SlackApp(
+      username = evt.serviceIdentity.task.value,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            HeaderSection(s":alarm: ${eventTitle(evt)}"),
+            host_service_section(evt.serviceIdentity),
+            JuxtaposeSection(first = TextField(active), second = logLink),
+            MarkdownSection(show"""|${panicText(evt)}
+                                   |*${uptime.tag}:* ${uptime.text}
+                                   |*${policy.tag}:* ${policy.text}
+                                   |*${service_id.tag}:* ${service_id.text}""".stripMargin)
+          )
+        ),
+        Attachment(
+          color = color,
+          blocks = List(TagValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
+        Attachment(color = color, blocks = List(brief(evt.brief)))
+      )
+    )
+  }
+
+  private def service_stop(evt: ServiceStop): SlackApp = {
+    val color = coloring(evt)
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val stop_cause = Attribute(evt.cause).textEntry
+
+    SlackApp(
+      username = evt.serviceIdentity.task.value,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            HeaderSection(s":octagonal_sign: ${eventTitle(evt)}"),
+            host_service_section(evt.serviceIdentity),
+            uptime_section(evt),
+            mark_down(service_id, stop_cause)
+          )
+        ),
+        Attachment(color = color, blocks = List(brief(evt.brief)))
+      )
+    )
+  }
+
+  private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
+    val policy = Attribute(evt.policy).textEntry
+    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val color = coloring(evt)
+    SlackApp(
+      username = evt.serviceIdentity.task.value,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            HeaderSection(eventTitle(evt)),
+            host_service_section(evt.serviceIdentity),
+            metrics_index_section(evt),
+            mark_down(policy, service_id),
+            metrics_section(evt.snapshot)
+          )
+        ))
+    )
+  }
+
+  private def reported_event(evt: ReportedEvent): SlackApp = {
+    val symbol: String = evt.level match {
+      case LogLevel.Error => ":x:"
+      case LogLevel.Warn  => ":warning:"
+      case LogLevel.Info  => ""
+      case LogLevel.Good  => ""
+      case LogLevel.Debug => ""
+    }
+
+    val color = coloring(evt)
+    val domain = Attribute(evt.domain).textEntry
+    val service = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val correlation = Attribute(evt.correlation).textEntry
+
+    val logLink: TextField =
+      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+        olink match {
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case None       => TextField(domain)
+        }
+      }
+
+    val attachment = Attachment(
+      color = color,
+      blocks = List(
+        HeaderSection(s"$symbol ${eventTitle(evt)}"),
+        host_service_section(evt.serviceIdentity),
+        JuxtaposeSection(TextField(correlation), logLink),
+        MarkdownSection(s"*${service.tag}:* ${service.text}"),
+        MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
+      )
+    )
+
+    val error: Option[Attachment] = Attribute(evt.stackTrace).fold { (tag, ost) =>
+      ost.map { st =>
+        Attachment(color = color, blocks = List(TagValueSection(tag, s"```${abbreviate(st.show)}```")))
+      }
+    }
+
+    SlackApp(username = evt.serviceIdentity.task.value, attachments = List(Some(attachment), error).flatten)
+  }
+
+  def apply[F[_]: Applicative]: Translator[F, SlackApp] =
+    Translator
+      .empty[F, SlackApp]
+      .withServiceStart(service_start)
+      .withServicePanic(service_panic)
+      .withServiceStop(service_stop)
+      .withMetricsSnapshot(metrics_snapshot)
+      .withReportedEvent(reported_event)
+}

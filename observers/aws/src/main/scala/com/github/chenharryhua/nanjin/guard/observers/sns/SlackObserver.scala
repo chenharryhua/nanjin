@@ -60,13 +60,13 @@ final class SlackObserver[F[_]: Clock] private (
   def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       sns <- Stream.resource(client)
-      ofm <- Stream.eval(
-        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+      ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.translate(e)
             .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
-        .onFinalize(ofm.terminated.flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
+        .onFinalize(ofm.terminated.flatMap(_.traverse_(e =>
+          translator.translate(e).flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))))
     } yield event
 }
