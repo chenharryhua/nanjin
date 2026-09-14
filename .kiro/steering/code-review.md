@@ -82,3 +82,10 @@ Ensure **consistency with existing patterns**:
   `` `Params.apply` ``) rather than a Scaladoc wiki link (`[[EmailObserver]]`,
   `[[Params.apply]]`). This applies to references to both project symbols and external library
   symbols. Convert any existing `[[...]]` to backticks when touching a file.
+- **Describe behavior no more total or trivial than it is.** When documenting or reviewing a claim
+  about what code guarantees, do not overstate it. A "never fails / total / always succeeds" claim
+  must survive the counterexamples (resource release, logging, panel/metrics lifecycle, fatal VM
+  errors); if any path can still fail, scope the claim to what is actually guaranteed (e.g. "job
+  outcomes never throw, read `result`") rather than the broad version. Likewise, do not frame a
+  change as a "cleanup," "refactor," or "one-liner" when it alters a documented contract or
+  observable behavior. State what actually changed and what still can fail.

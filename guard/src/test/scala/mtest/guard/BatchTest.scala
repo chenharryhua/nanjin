@@ -452,32 +452,37 @@ class BatchTest extends AnyFunSuite {
     assert(result.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("20.monadic lift(F[A]) - exception crashes the batch") {
-    val se = service.eventStream { agent =>
+  test("20.monadic lift(F[A]) - failure short-circuits the chain") {
+    val se = service.eventStreamR { agent =>
       agent.batch("lift-error").monadic { job =>
         val result = for {
           _ <- job.untracked(IO.raiseError[Int](new Exception("boom")))
           _ <- job("should-not-run", IO(1))
         } yield ()
-        result.monadicBatch.use_
+        result.monadicBatch.map { mb =>
+          // the lifted failure surfaces as Left; no further job runs
+          assert(mb.result.isLeft)
+          assert(mb.outcomes.isEmpty)
+        }
       }
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    // lift exception is unhandled — it crashes the service (ByException)
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("21.monadic lift(F[A]) - BatchLight - exception crashes the batch") {
-    val result = service.eventStream { agent =>
+  test("21.monadic lift(F[A]) - BatchLight - failure short-circuits the chain") {
+    val se = service.eventStream { agent =>
       agent.batchLight("lift-light-error").monadic { job =>
         val batch = for {
           _ <- job.untracked(IO.raiseError[String](new Exception("oops")))
           _ <- job("unreachable", IO(99))
         } yield ()
-        batch.monadicBatch.void
+        batch.monadicBatch.map { mb =>
+          assert(mb.result.isLeft)
+          assert(mb.outcomes.isEmpty)
+        }.void
       }
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    // lift exception is unhandled — it crashes the service
-    assert(result.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("22.monadic lift(Resource) - resource acquired and used") {
@@ -500,18 +505,21 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("23.monadic lift(Resource) - acquisition failure crashes the batch") {
-    val se = service.eventStream { agent =>
+  test("23.monadic lift(Resource) - acquisition failure short-circuits the chain") {
+    val se = service.eventStreamR { agent =>
       agent.batch("lift-resource-error").monadic { job =>
         val result = for {
           _ <- job.untracked(
             cats.effect.Resource.raiseError[IO, Int, Throwable](new Exception("acquire fail")))
           _ <- job("unreachable", IO(1))
         } yield ()
-        result.monadicBatch.use_
+        result.monadicBatch.map { mb =>
+          assert(mb.result.isLeft)
+          assert(mb.outcomes.isEmpty)
+        }
       }
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("24.monadic spent counts invisible lift steps between jobs") {
