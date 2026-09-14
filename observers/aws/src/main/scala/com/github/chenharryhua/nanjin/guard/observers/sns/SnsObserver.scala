@@ -8,40 +8,40 @@ import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.aws.{SimpleNotificationService, SnsArn}
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
+import io.circe.Json
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
 object SnsObserver {
 
-  /** Create an observer that renders events as Slack messages using the default `SlackTranslator`. Refine the
-    * translator with `withTranslator`.
+  /** Create an observer that renders events as pretty-printed JSON using the default `PrettyJsonTranslator`.
+    * Refine the translator with `withTranslator`.
     */
   def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SnsObserver[F] =
-    new SnsObserver[F](client, SlackTranslator[F])
+    new SnsObserver[F](client, PrettyJsonTranslator[F])
 }
 
-/** Observer that renders each event as a Slack message and publishes it to an SNS topic.
+/** Observer that renders each event as JSON and publishes it to an SNS topic.
   *
-  * The translator produces a `SlackApp` (Block Kit payload), which is serialized to JSON and published to the
-  * given SNS topic; an SNS-to-Slack subscription then delivers it. Every event is published immediately (no
-  * batching). On stream finalization, a `ServiceStop` is synthesized and published for each service still
-  * running. Publish failures are swallowed so one failure does not tear down the observer.
+  * The translator produces a `Json` payload, which is serialized and published to the given SNS topic. Every
+  * event is published immediately (no batching). On stream finalization, a `ServiceStop` is synthesized and
+  * published for each service still running. Publish failures are swallowed so one failure does not tear down
+  * the observer.
   *
-  * Block Kit layouts can be previewed at `https://app.slack.com/block-kit-builder`.
+  * For Slack-formatted delivery, use the dedicated webhook-based Slack observer instead; this observer is a
+  * generic JSON sink for any SNS subscriber.
   */
-final class SnsObserver[F[_]: Clock] private(
+final class SnsObserver[F[_]: Clock] private (
   client: Resource[F, SimpleNotificationService[F]],
-  translator: Translator[F, SlackApp])(using F: Concurrent[F])
-    extends UpdateTranslator[F, SlackApp, SnsObserver[F]] {
+  translator: Translator[F, Json])(using F: Concurrent[F])
+    extends UpdateTranslator[F, Json, SnsObserver[F]] {
 
-  /** Transform the event-to-`SlackApp` translator, e.g. to filter events or adjust formatting. */
-  override def withTranslator(f: Endo[Translator[F, SlackApp]]): SnsObserver[F] =
+  /** Transform the event-to-`Json` translator, e.g. to filter events or adjust formatting. */
+  override def withTranslator(f: Endo[Translator[F, Json]]): SnsObserver[F] =
     new SnsObserver[F](client, translator = f(translator))
 
   // Publish one already-rendered message to the SNS topic. attempt swallows failures so a single failed
@@ -51,16 +51,16 @@ final class SnsObserver[F[_]: Clock] private(
     client.publish(req.build()).attempt.void
   }
 
-  /** Observe events, publishing each rendered Slack message to the given SNS topic. Events pass through
+  /** Observe events, publishing each rendered JSON message to the given SNS topic. Events pass through
     * unchanged.
     *
     * @param snsArn
-    *   the ARN of the SNS topic subscribed to Slack.
+    *   the ARN of the SNS topic to publish to.
     */
   def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       sns <- Stream.resource(client)
-      ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
+      ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>

@@ -7,9 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import cats.{Endo, Parallel}
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import com.github.chenharryhua.nanjin.kafka.serdes.Structured
@@ -49,7 +47,7 @@ final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], transla
         client <- ctx.produce(topic).clientS
         log <- Stream.eval(Slf4jLogger.create[F])
         _ <- Stream.eval(log.info(s"initialize $NAME"))
-        ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
+        ofm <- Stream.eval(FinalizeMonitor[F])
         event <- ss
           .evalTap(ofm.monitoring)
           .evalTap {

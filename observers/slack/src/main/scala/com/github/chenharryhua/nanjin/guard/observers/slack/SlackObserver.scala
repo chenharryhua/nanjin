@@ -7,9 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.{idempotencyKey, FinalizeMonitor}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
@@ -46,7 +44,7 @@ final class SlackObserver[F[_]: Clock] private (
   def observe(webhook: Uri): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       http <- Stream.resource(client)
-      ofm <- Stream.eval(F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(_)))
+      ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>

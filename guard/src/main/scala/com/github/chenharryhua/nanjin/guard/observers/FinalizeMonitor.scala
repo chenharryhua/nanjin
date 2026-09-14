@@ -13,12 +13,16 @@ import fs2.Chunk
 /** Tracks which services have started but not yet cleanly stopped, so that an abrupt shutdown can synthesize
   * a `ServiceStop` for each one still running.
   *
+  * This is a reusable building block for writing observers: feed every event to `monitoring`, and run
+  * `terminated` in the stream's finalizer to obtain the synthesized `ServiceStop`s for services that never
+  * emitted their own stop (e.g. on cancellation). Construct one with `FinalizeMonitor[F]`.
+  *
   * Translation is intentionally not this monitor's concern: `terminated` hands back the synthesized
   * `ServiceStop` events, and each observer runs them through its own `Translator` in the finalizer, mirroring
   * how it translates events on the main stream. This keeps the event available to callers that need to derive
   * per-event data (e.g. an idempotency key) from it.
   */
-final private class FinalizeMonitor[F[_]: {Clock, Monad}](ref: Ref[F, Map[ServiceId, ServiceStart]]) {
+final class FinalizeMonitor[F[_]: {Clock, Monad}] private (ref: Ref[F, Map[ServiceId, ServiceStart]]) {
   def monitoring(event: Event): F[Unit] = event match {
     case ss: ServiceStart => ref.update(_.updated(ss.serviceIdentity.serviceId, ss))
     case ss: ServiceStop  => ref.update(_.removed(ss.serviceIdentity.serviceId))
@@ -40,4 +44,11 @@ final private class FinalizeMonitor[F[_]: {Clock, Monad}](ref: Ref[F, Map[Servic
             StopReason.ByCancellation)
         })
   } yield stops
+}
+
+object FinalizeMonitor {
+
+  /** Build a fresh `FinalizeMonitor` with its own empty tracking state. */
+  def apply[F[_]: {Clock, Monad}](using F: Ref.Make[F]): F[FinalizeMonitor[F]] =
+    F.refOf(Map.empty[ServiceId, ServiceStart]).map(new FinalizeMonitor(_))
 }
