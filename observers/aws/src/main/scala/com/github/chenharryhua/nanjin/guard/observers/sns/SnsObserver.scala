@@ -17,13 +17,13 @@ import fs2.{Pipe, Stream}
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
-object SlackObserver {
+object SnsObserver {
 
   /** Create an observer that renders events as Slack messages using the default `SlackTranslator`. Refine the
     * translator with `withTranslator`.
     */
-  def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
-    new SlackObserver[F](client, SlackTranslator[F])
+  def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SnsObserver[F] =
+    new SnsObserver[F](client, SlackTranslator[F])
 }
 
 /** Observer that renders each event as a Slack message and publishes it to an SNS topic.
@@ -35,14 +35,14 @@ object SlackObserver {
   *
   * Block Kit layouts can be previewed at `https://app.slack.com/block-kit-builder`.
   */
-final class SlackObserver[F[_]: Clock] private (
+final class SnsObserver[F[_]: Clock] private(
   client: Resource[F, SimpleNotificationService[F]],
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
-    extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
+    extends UpdateTranslator[F, SlackApp, SnsObserver[F]] {
 
   /** Transform the event-to-`SlackApp` translator, e.g. to filter events or adjust formatting. */
-  override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
-    new SlackObserver[F](client, translator = f(translator))
+  override def withTranslator(f: Endo[Translator[F, SlackApp]]): SnsObserver[F] =
+    new SnsObserver[F](client, translator = f(translator))
 
   // Publish one already-rendered message to the SNS topic. attempt swallows failures so a single failed
   // publish does not terminate the observer stream.

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.event.EventPipe
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
-import com.github.chenharryhua.nanjin.guard.observers.sns.SlackObserver
+import com.github.chenharryhua.nanjin.guard.observers.sns.SnsObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import software.amazon.awssdk.regions.Region
 import scala.concurrent.duration.DurationInt
@@ -29,8 +29,8 @@ import com.github.chenharryhua.nanjin.common.chrono.crontabs
   * All target `ap-southeast-2`; substitute your region and destinations.
   */
 object observers {
-  val slackObserver: SlackObserver[IO] =
-    SlackObserver(SimpleNotificationService[IO](_.region(Region.AP_SOUTHEAST_2)))
+  val slackObserver: SnsObserver[IO] =
+    SnsObserver(SimpleNotificationService[IO](_.region(Region.AP_SOUTHEAST_2)))
       .withTranslator(_.filter(EventPipe.cronFilter(crontabs.businessHour)))
 
   def emailObserver: EmailObserver[IO] =
