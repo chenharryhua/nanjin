@@ -145,8 +145,9 @@ final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration,
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor
 
-sealed trait BatchResult[A] {
-  protected type S
+sealed trait BatchResult {
+  protected type S // state type
+  protected type R // result type
 
   /** Metric scope (label and domain) this batch was run under. */
   def scope: MetricScope
@@ -175,9 +176,10 @@ sealed trait BatchResult[A] {
   def outcomes: List[JobState[S]]
 
   /** The batch's aggregate output: `Unit` for a quasi-batch (all detail lives in `outcomes`), the list of
-    * successful values for a value-batch, and the final `Either` for a monadic batch.
+    * successful values for a value-batch, and the final `Either` for a monadic batch. Each subtype fixes `R`
+    * accordingly.
     */
-  def result: A
+  def result: R
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
@@ -193,9 +195,10 @@ final case class QuasiBatch[A](
   mode: BatchMode,
   batchId: BatchId,
   outcomes: List[JobState[A]])
-    extends BatchResult[Unit] derives Functor {
+    extends BatchResult derives Functor {
   override val result: Unit = ()
   override protected type S = A
+  override protected type R = Unit
   override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
@@ -226,8 +229,9 @@ final case class ValueBatch[A](
   batchId: BatchId,
   outcomes: List[JobState[A]],
   result: List[A])
-    extends BatchResult[List[A]] derives Functor {
+    extends BatchResult derives Functor {
   override protected type S = A
+  override protected type R = List[A]
   // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
   // rejected job, so every retained job succeeded.
   override val allPassed: Boolean = true
@@ -261,8 +265,9 @@ final case class MonadicBatch[A](
   batchId: BatchId,
   outcomes: List[JobState[Unit]],
   result: Either[Throwable, A])
-    extends BatchResult[Either[Throwable, A]] derives Functor {
+    extends BatchResult derives Functor {
   override protected type S = Unit
+  override protected type R = Either[Throwable, A]
   override val mode: BatchMode = BatchMode.Monadic
   override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
