@@ -62,7 +62,10 @@ sealed trait ServiceConfig[F[_]] {
   /** Set the time zone using a builder function over the predefined `zones` object. */
   def withZoneId(f: zones.type => ZoneId): ServiceConfig[F]
 
-  /** Set the service homepage URL, shown in dashboard and observer output. */
+  /** Set the service homepage URL, shown in dashboard and observer output.
+    *
+    * `hp` is parsed as a URI (see `Homepage`) and '''throws''' if it is not a valid URL.
+    */
   def withHomepage(hp: String): ServiceConfig[F]
 
   /** Attach an effectful brief to the service metadata.
