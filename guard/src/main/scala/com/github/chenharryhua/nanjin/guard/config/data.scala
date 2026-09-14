@@ -23,7 +23,7 @@ import scala.jdk.DurationConverters.given
 /** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
   * Adaptive Cards).
   */
-final val NbspChar: Char = '\u00A0'
+inline val NbspChar = '\u00A0'
 
 // ---------------- StackTrace ----------------
 
