@@ -9,8 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 /** Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
-  * package-private `JobLog`, `toLogEntry`, and `JsonKeys`. This lets the render matrix and the privacy
-  * invariant be tested directly and purely, without going through the effectful event pipeline.
+  * package-private `JobLog` and `toLogEntry`. This lets the render matrix and the privacy invariant be tested
+  * directly and purely, without going through the effectful event pipeline.
   *
   * The central property under test: the auto-emitted per-job log (`JobLog.standalone`) and the batch-nested
   * per-job entry (`JobLog.inBatch`) render only lifecycle facts — identity, took, outcome tag, and (on

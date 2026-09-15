@@ -211,10 +211,10 @@ object QuasiBatch:
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(qb.spent)),
-        JsonKeys.PASSED -> Json.fromInt(passed.length),
-        JsonKeys.FAILED -> Json.fromInt(failed.length),
-        JsonKeys.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
+        JobLog.SPENT -> Json.fromString(fmt.format(qb.spent)),
+        JobLog.PASSED -> Json.fromInt(passed.length),
+        JobLog.FAILED -> Json.fromInt(failed.length),
+        JobLog.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -243,8 +243,8 @@ object ValueBatch:
       Json.obj(
         batchEntry(bv.mode, Some(BatchKind.Value), bv.scope),
         bv.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(bv.spent)),
-        JsonKeys.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
+        JobLog.SPENT -> Json.fromString(fmt.format(bv.spent)),
+        JobLog.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -283,8 +283,8 @@ object MonadicBatch:
       Json.obj(
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(mb.spent)),
-        JsonKeys.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
+        JobLog.SPENT -> Json.fromString(fmt.format(mb.spent)),
+        JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }

@@ -93,9 +93,19 @@ sealed private trait JobLog[A] extends Product {
 }
 
 private object JobLog {
+  // Per-job field keys: the keys a single job's `standalone`/`inBatch` render emits alongside its status tag.
   inline val TOOK = "took"
   inline val ERROR = "error"
   inline val RESULT = "result"
+
+  // Batch-level report keys: used only by the QuasiBatch/ValueBatch/MonadicBatch encoders in `data.scala`.
+  // `PASSED`/`FAILED` are integer tallies, deliberately named distinctly from the per-job "succeeded" status
+  // tag (the `Succeeded` case's key) so the two never collide in one report: those are counts, the tag
+  // carries a took duration.
+  inline val PASSED = "passed"
+  inline val FAILED = "failed"
+  inline val JOBS = "jobs"
+  inline val SPENT = "spent"
 
   final case class Kickoff(job: Job) extends JobLog[Nothing]
   final case class Canceled(job: Job) extends JobLog[Nothing]
@@ -133,14 +143,3 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
       else
         LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
   }
-
-private object JsonKeys {
-  // QuasiBatch per-outcome counts. Named distinctly from the per-job "succeeded" status tag (the `Succeeded`
-  // case's key) so the two never collide in one report: these are integer tallies, that tag carries a took
-  // duration.
-  inline val PASSED = "passed"
-  inline val FAILED = "failed"
-
-  inline val JOBS = "jobs"
-  inline val SPENT = "spent"
-}
