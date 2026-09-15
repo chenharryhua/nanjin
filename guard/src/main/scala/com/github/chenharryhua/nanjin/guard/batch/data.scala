@@ -189,7 +189,7 @@ sealed trait BatchResult {
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
-  def allPassed: Boolean
+  final def allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -205,7 +205,6 @@ final case class QuasiBatch[A](
   override val result: Unit = ()
   override protected type S = A
   override protected type R = Unit
-  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
   // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
@@ -238,9 +237,9 @@ final case class ValueBatch[A](
     extends BatchResult derives Functor {
   override protected type S = A
   override protected type R = List[A]
-  // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
-  // rejected job, so every retained job succeeded.
-  override val allPassed: Boolean = true
+  // Invariant: a ValueBatch only exists when valueBatch ran to completion, and valueBatch raises on any
+  // failing or rejected job, so every retained outcome succeeded — hence the inherited `allPassed` is always
+  // true here.
 }
 
 object ValueBatch:
@@ -275,7 +274,6 @@ final case class MonadicBatch[A](
   override protected type S = Unit
   override protected type R = Either[Throwable, A]
   override val mode: BatchMode = BatchMode.Monadic
-  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 object MonadicBatch:
