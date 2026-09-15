@@ -8,6 +8,7 @@ import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.either.catsSyntaxEither
 import cats.syntax.functor.given
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
@@ -240,26 +241,31 @@ object Batch:
     /** Add an effectful value to the monadic batch without creating a job.
       *
       * The effect is not tracked, timed, or reported. If it fails, the failure short-circuits the chain: no
-      * further jobs run and the failure surfaces as `Left` in the batch `result`, exactly as a tracked job's
-      * failure would.
+      * further jobs run and the failure surfaces as `Left` in the batch `result`. The original exception is
+      * wrapped in `UntrackedStepException` so it is distinguishable there from a tracked job's failure.
       */
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => Resource.eval(fa.attempt).map(a => cursor -> ExecutionState(a, Nil)))
+        StateT(cursor =>
+          Resource.eval(fa.attempt)
+            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
     /** Add a resource to the monadic batch without creating a job.
       *
       * The resource is acquired when this step runs and released when the batch's resource scope closes. It
       * is not tracked, timed, or reported. If acquisition fails, the failure short-circuits the chain: no
-      * further jobs run and the failure surfaces as `Left` in the batch `result`. Release errors are not
-      * captured here; they surface through the resource scope as usual. This split is deliberate: a release
-      * fault is an uncontrollable cleanup failure (a failed flush/commit, or a broken resource) that should
-      * escape and trip a service-level alert, not be demoted to a handled `Left` job result.
+      * further jobs run and the failure surfaces as `Left` in the batch `result`, wrapped in
+      * `UntrackedStepException` so it is distinguishable there from a tracked job's failure. Release errors
+      * are not captured here; they surface through the resource scope as usual. This split is deliberate: a
+      * release fault is an uncontrollable cleanup failure (a failed flush/commit, or a broken resource) that
+      * should escape and trip a service-level alert, not be demoted to a handled `Left` job result.
       */
     def untracked[A](rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => rfa.attempt.map(a => cursor -> ExecutionState(a, Nil)))
+        StateT(cursor =>
+          rfa.attempt
+            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
     /** Add a named resource-backed value job.

@@ -455,14 +455,21 @@ class BatchTest extends AnyFunSuite {
   test("20.monadic lift(F[A]) - failure short-circuits the chain") {
     val se = service.eventStreamR { agent =>
       agent.batch("lift-error").monadic { job =>
+        val boom = new Exception("boom")
         val result = for {
-          _ <- job.untracked(IO.raiseError[Int](new Exception("boom")))
+          _ <- job.untracked(IO.raiseError[Int](boom))
           _ <- job("should-not-run", IO(1))
         } yield ()
         result.monadicBatch.map { mb =>
           // the lifted failure surfaces as Left; no further job runs
           assert(mb.result.isLeft)
           assert(mb.outcomes.isEmpty)
+          // an untracked-step failure is wrapped so it is distinguishable from a tracked job's failure,
+          // and the original exception is preserved as the cause
+          mb.result.left.toOption.get match {
+            case UntrackedStepException(cause) => assert(cause eq boom)
+            case other                         => fail(s"expected UntrackedStepException, got $other")
+          }
         }
       }
     }.compile.lastOrError.unsafeRunSync()
@@ -472,13 +479,19 @@ class BatchTest extends AnyFunSuite {
   test("21.monadic lift(F[A]) - BatchLight - failure short-circuits the chain") {
     val se = service.eventStream { agent =>
       agent.batchLight("lift-light-error").monadic { job =>
+        val oops = new Exception("oops")
         val batch = for {
-          _ <- job.untracked(IO.raiseError[String](new Exception("oops")))
+          _ <- job.untracked(IO.raiseError[String](oops))
           _ <- job("unreachable", IO(99))
         } yield ()
         batch.monadicBatch.map { mb =>
           assert(mb.result.isLeft)
           assert(mb.outcomes.isEmpty)
+          // BatchLight wraps untracked-step failures identically to Batch
+          mb.result.left.toOption.get match {
+            case UntrackedStepException(cause) => assert(cause eq oops)
+            case other                         => fail(s"expected UntrackedStepException, got $other")
+          }
         }.void
       }
     }.map(checkJson).compile.lastOrError.unsafeRunSync()

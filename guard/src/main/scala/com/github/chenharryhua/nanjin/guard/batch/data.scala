@@ -21,6 +21,12 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(jo
       case None        => "predicate failed before: job-1"
     }) with NoStackTrace
 
+/** Wraps the failure of an `untracked` (lifted, jobless) step so that, once it short-circuits the chain, it
+  * is distinguishable in the batch `result` from a tracked job's failure. The original exception is kept as
+  * the cause.
+  */
+final case class UntrackedStepException(cause: Throwable) extends Exception(cause) with NoStackTrace
+
 /** Distinguishes the two sequential/parallel batch shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job. Monadic jobs have no kind (their
   * success model — predicate marks, exception/`withFilter` aborts — is neither), so `Job.kind` is optional.
