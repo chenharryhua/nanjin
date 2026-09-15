@@ -8,13 +8,12 @@ import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.observers.{idempotencyKey, FinalizeMonitor}
+import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import org.http4s.circe.CirceEntityEncoder.*
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.`Idempotency-Key`
 import org.http4s.{Method, Request, Uri}
 
 object TeamsObserver {
@@ -39,14 +38,12 @@ final class TeamsObserver[F[_]: Clock] private (
   override def withTranslator(f: Endo[Translator[F, AdaptiveCard]]): TeamsObserver[F] =
     new TeamsObserver[F](client, f(translator))
 
-  private def publish(
-    httpClient: Client[F],
-    webhook: Uri,
-    card: AdaptiveCard,
-    idempotencyKey: String): F[Unit] = {
-    val req = Request[F](method = Method.POST, uri = webhook)
-      .withEntity(card)
-      .withHeaders(`Idempotency-Key`(idempotencyKey))
+  // No `Idempotency-Key` header: Teams' incoming webhook accepts the POST (HTTP 2xx) but then silently fails
+  // to render the card when that header is present; omitting it makes the card render. Teams webhooks do not
+  // honour `Idempotency-Key` for dedup anyway, so nothing is lost. This is a deliberate divergence from the
+  // Slack observer, whose endpoint renders fine with the header and keeps it for retry dedup.
+  private def publish(httpClient: Client[F], webhook: Uri, card: AdaptiveCard): F[Unit] = {
+    val req = Request[F](method = Method.POST, uri = webhook).withEntity(card)
     httpClient.successful(req).attempt.void
   }
 
@@ -58,14 +55,14 @@ final class TeamsObserver[F[_]: Clock] private (
         .evalTap(ofm.monitoring)
         .evalTap { e =>
           translator.translate(e)
-            .flatMap(_.traverse(card => publish(http, webhook, card, idempotencyKey(e))))
+            .flatMap(_.traverse(card => publish(http, webhook, card)))
         }
         .onFinalize {
           ofm.terminated
             .flatMap(_.traverse_ { e =>
               translator
                 .translate(e)
-                .flatMap(_.traverse_(card => publish(http, webhook, card, idempotencyKey(e))))
+                .flatMap(_.traverse_(card => publish(http, webhook, card)))
             })
         }
     } yield event
