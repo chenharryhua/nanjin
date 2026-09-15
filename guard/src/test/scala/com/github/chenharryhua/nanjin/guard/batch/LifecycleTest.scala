@@ -52,17 +52,17 @@ class LifecycleTest extends AnyFunSuite {
       override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
     }
 
-  /** A panel that records every JobRecord it receives, so tests can assert whether/what the panel was updated
+  /** A panel that records every JobState it receives, so tests can assert whether/what the panel was updated
     * with.
     */
-  private def recordingPanel(sink: Ref[IO, List[JobRecord]]): BatchPanel.Update[IO] =
-    Kleisli((rec: JobRecord) => sink.update(_ :+ rec))
+  private def recordingPanel(sink: Ref[IO, List[JobState[?]]]): BatchPanel.Update[IO] =
+    Kleisli((js: JobState[?]) => sink.update(_ :+ js))
 
   private def run[A](f: (Log[IO], BatchPanel.Update[IO]) => IO[A])
-    : (A, List[(Json, LogLevel, Option[Throwable])], List[JobRecord]) =
+    : (A, List[(Json, LogLevel, Option[Throwable])], List[JobState[?]]) =
     (for {
       logSink <- Ref[IO].of(List.empty[(Json, LogLevel, Option[Throwable])])
-      panelSink <- Ref[IO].of(List.empty[JobRecord])
+      panelSink <- Ref[IO].of(List.empty[JobState[?]])
       a <- f(capturingLog(logSink), recordingPanel(panelSink))
       logs <- logSink.get
       panels <- panelSink.get
@@ -75,7 +75,7 @@ class LifecycleTest extends AnyFunSuite {
     val (_, logs, panels) = run { (log, update) =>
       lifecycle.handleOutcome[IO, Int](log, js.record.job, update)(Outcome.succeeded(IO.pure(js)))
     }
-    assert(panels == List(js.record)) // panel updated with the completed record
+    assert(panels == List(js)) // panel updated with the completed job state
     assert(logs.size == 1)
     // a succeeded job logs at Good with no cause
     assert(logs.head._2 == LogLevel.Good)
@@ -113,7 +113,7 @@ class LifecycleTest extends AnyFunSuite {
           Outcome.succeeded(Resource.pure[IO, JobState[Int]](js)))
         .use_
     }
-    assert(panels == List(js.record))
+    assert(panels == List(js))
     assert(logs.size == 1)
     // a retained predicate miss renders Unsatisfied at Warn
     assert(logs.head._2 == LogLevel.Warn)
