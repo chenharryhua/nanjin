@@ -21,34 +21,38 @@ import org.apache.commons.lang3.exception.ExceptionUtils
   * So the `Encoder[A]` requirement lives solely on `inBatch` (hence on the `BatchResult` encoders), never on
   * the execution path: showing the value is opt-in via serialization, never automatic.
   */
-sealed private trait JobLog[A] {
+sealed private trait JobLog[A] extends Product {
+  // The JSON status key is derived from the case's name (`Succeeded` -> "succeeded", etc.). This couples the
+  // wire format to the Scala type name: renaming a case here is a WIRE-FORMAT BREAK, not a wire-safe rename.
+  // `JobLogRenderTest` pins each expected key as a literal string and is the guard against accidental drift.
+  final val tag: String = this.productPrefix.toLowerCase
 
   def standalone: Json = this match {
-    case JobLog.Kickoff(job)  => Json.obj(JobLog.KICKOFF -> job.asJson)
-    case JobLog.Canceled(job) => Json.obj(JobLog.CANCELED -> job.asJson)
+    case JobLog.Kickoff(job)  => Json.obj(tag -> job.asJson)
+    case JobLog.Canceled(job) => Json.obj(tag -> job.asJson)
 
     case JobLog.Succeeded(record, _) =>
       Json.obj(
-        JobLog.SUCCEEDED -> record.job.asJson,
+        tag -> record.job.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took))
       )
 
     case JobLog.Unsatisfied(record, _) =>
       Json.obj(
-        JobLog.UNSATISFIED -> record.job.asJson,
+        tag -> record.job.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took))
       )
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        JobLog.NONFATAL -> record.job.asJson,
+        tag -> record.job.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        JobLog.CRITICAL -> record.job.asJson,
+        tag -> record.job.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
@@ -60,28 +64,28 @@ sealed private trait JobLog[A] {
 
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        JobLog.SUCCEEDED -> record.job.displayName.asJson,
+        tag -> record.job.displayName.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        JobLog.UNSATISFIED -> record.job.displayName.asJson,
+        tag -> record.job.displayName.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        JobLog.NONFATAL -> record.job.displayName.asJson,
+        tag -> record.job.displayName.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        JobLog.CRITICAL -> record.job.displayName.asJson,
+        tag -> record.job.displayName.asJson,
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
@@ -89,16 +93,19 @@ sealed private trait JobLog[A] {
 }
 
 private object JobLog {
-  inline val SUCCEEDED = "succeeded"
-  inline val UNSATISFIED = "unsatisfied"
-  inline val NONFATAL = "nonfatal"
-  inline val CRITICAL = "critical"
-  inline val KICKOFF = "kickoff"
-  inline val CANCELED = "canceled"
+  // Per-job field keys: the keys a single job's `standalone`/`inBatch` render emits alongside its status tag.
   inline val TOOK = "took"
-
   inline val ERROR = "error"
   inline val RESULT = "result"
+
+  // Batch-level report keys: used only by the QuasiBatch/ValueBatch/MonadicBatch encoders in `data.scala`.
+  // `PASSED`/`FAILED` are integer tallies, deliberately named distinctly from the per-job "succeeded" status
+  // tag (the `Succeeded` case's key) so the two never collide in one report: those are counts, the tag
+  // carries a took duration.
+  inline val PASSED = "passed"
+  inline val FAILED = "failed"
+  inline val JOBS = "jobs"
+  inline val SPENT = "spent"
 
   final case class Kickoff(job: Job) extends JobLog[Nothing]
   final case class Canceled(job: Job) extends JobLog[Nothing]
@@ -136,13 +143,3 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
       else
         LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
   }
-
-private object JsonKeys {
-  // QuasiBatch per-outcome counts. Named distinctly from the per-job `SUCCEEDED` status tag so the two
-  // never collide in one report: these are integer tallies, that tag carries a took duration.
-  inline val PASSED = "passed"
-  inline val FAILED = "failed"
-
-  inline val JOBS = "jobs"
-  inline val SPENT = "spent"
-}

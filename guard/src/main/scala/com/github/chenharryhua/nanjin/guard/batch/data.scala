@@ -21,6 +21,12 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(jo
       case None        => "predicate failed before: job-1"
     }) with NoStackTrace
 
+/** Wraps the failure of an `untracked` (lifted, jobless) step so that, once it short-circuits the chain, it
+  * is distinguishable in the batch `result` from a tracked job's failure. The original exception is kept as
+  * the cause.
+  */
+final case class UntrackedStepException(cause: Throwable) extends Exception(cause) with NoStackTrace
+
 /** Distinguishes the two sequential/parallel batch shapes: quasi-batches expose per-job outcome state, while
   * value-batches carry the successful result values for each completed job. Monadic jobs have no kind (their
   * success model — predicate marks, exception/`withFilter` aborts — is neither), so `Job.kind` is optional.
@@ -183,7 +189,7 @@ sealed trait BatchResult {
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
-  def allPassed: Boolean
+  final def allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -199,7 +205,6 @@ final case class QuasiBatch[A](
   override val result: Unit = ()
   override protected type S = A
   override protected type R = Unit
-  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 object QuasiBatch:
   // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
@@ -211,10 +216,10 @@ object QuasiBatch:
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(qb.spent)),
-        JsonKeys.PASSED -> Json.fromInt(passed.length),
-        JsonKeys.FAILED -> Json.fromInt(failed.length),
-        JsonKeys.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
+        JobLog.SPENT -> Json.fromString(fmt.format(qb.spent)),
+        JobLog.PASSED -> Json.fromInt(passed.length),
+        JobLog.FAILED -> Json.fromInt(failed.length),
+        JobLog.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end QuasiBatch
@@ -232,9 +237,6 @@ final case class ValueBatch[A](
     extends BatchResult derives Functor {
   override protected type S = A
   override protected type R = List[A]
-  // a ValueBatch only exists when valueBatch ran to completion; the value batch raises on any failing or
-  // rejected job, so every retained job succeeded.
-  override val allPassed: Boolean = true
 }
 
 object ValueBatch:
@@ -243,8 +245,8 @@ object ValueBatch:
       Json.obj(
         batchEntry(bv.mode, Some(BatchKind.Value), bv.scope),
         bv.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(bv.spent)),
-        JsonKeys.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
+        JobLog.SPENT -> Json.fromString(fmt.format(bv.spent)),
+        JobLog.JOBS -> bv.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end ValueBatch
@@ -269,7 +271,6 @@ final case class MonadicBatch[A](
   override protected type S = Unit
   override protected type R = Either[Throwable, A]
   override val mode: BatchMode = BatchMode.Monadic
-  override val allPassed: Boolean = outcomes.forall(_.record.succeeded)
 }
 
 object MonadicBatch:
@@ -283,8 +284,8 @@ object MonadicBatch:
       Json.obj(
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
-        JsonKeys.SPENT -> Json.fromString(fmt.format(mb.spent)),
-        JsonKeys.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
+        JobLog.SPENT -> Json.fromString(fmt.format(mb.spent)),
+        JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
         tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
       )
     }

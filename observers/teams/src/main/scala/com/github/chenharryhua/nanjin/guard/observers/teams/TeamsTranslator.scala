@@ -60,6 +60,12 @@ private object TeamsTranslator {
       ))
   }
 
+  private def logLink(evt: Event): String =
+    Attribute(evt.serviceIdentity.logLink)
+      .fold { (tag, olink) =>
+        olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
+      }.getOrElse("")
+
   private def service_start(evt: ServiceStart): AdaptiveCard = {
     val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
@@ -86,9 +92,6 @@ private object TeamsTranslator {
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
     val brief = Attribute(evt.brief).typeName
-    val logLink = Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
-      olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
-    }.getOrElse("")
 
     AdaptiveCard(
       body = List(
@@ -100,7 +103,7 @@ private object TeamsTranslator {
             Fact(idx.tag, idx.text),
             Fact(active.tag, active.text),
             Fact(policy.tag, policy.text),
-            Fact(stackTrace, logLink)
+            Fact(stackTrace, logLink(evt))
           )),
         StackTraceBlock(evt.stackTrace),
         BolderTextBlock(brief),
@@ -134,9 +137,9 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(policy.tag, policy.text)
+            Fact(policy.tag, policy.text),
+            Fact(snapshot, logLink(evt))
           )),
-        BolderTextBlock(snapshot),
         TextBlock(yaml)
       )
     )
@@ -151,10 +154,6 @@ private object TeamsTranslator {
       List(BolderTextBlock(attr), StackTraceBlock(st))
     }.sequence.flatten
 
-    val logLink = Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
-      olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
-    }.getOrElse("")
-
     val body = List(
       header_block(evt),
       service_info(evt),
@@ -162,7 +161,7 @@ private object TeamsTranslator {
         List(
           Fact(domain.tag, domain.text),
           Fact(correlation.tag, correlation.text),
-          Fact(message, logLink)
+          Fact(message, logLink(evt))
         )),
       JsonBlock(evt.message.value)
     ) ++ stackTrace

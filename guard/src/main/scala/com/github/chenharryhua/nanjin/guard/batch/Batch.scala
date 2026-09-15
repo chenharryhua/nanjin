@@ -7,6 +7,8 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.either.catsSyntaxEither
 import cats.syntax.functor.given
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
@@ -190,7 +192,17 @@ object Batch:
           }
         )
 
-      /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON. */
+      /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON.
+        *
+        * Job outcomes never fail this resource: a job that throws, a lifted `untracked`/`pure` step that
+        * throws, and a `withFilter` rejection are all captured and surface as `Left` in the returned
+        * `MonadicBatch.result`, short-circuiting the chain. Read `result` to observe success or failure of
+        * the work. Lifecycle logging and metrics-panel updates are treated as non-failing.
+        *
+        * The only faults that can fail this resource are in the batch machinery itself, not the jobs: setting
+        * up and tearing down the metrics panel and active gauge, and releasing `untracked` resources when the
+        * scope closes.
+        */
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
@@ -228,23 +240,32 @@ object Batch:
 
     /** Add an effectful value to the monadic batch without creating a job.
       *
-      * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
-      * crashes the batch.
+      * The effect is not tracked, timed, or reported. If it fails, the failure short-circuits the chain: no
+      * further jobs run and the failure surfaces as `Left` in the batch `result`. The original exception is
+      * wrapped in `UntrackedStepException` so it is distinguishable there from a tracked job's failure.
       */
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => Resource.eval(fa).map(a => cursor -> ExecutionState(Right(a), Nil)))
+        StateT(cursor =>
+          Resource.eval(fa.attempt)
+            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
     /** Add a resource to the monadic batch without creating a job.
       *
       * The resource is acquired when this step runs and released when the batch's resource scope closes. It
-      * is not tracked, timed, or reported. If acquisition fails, the exception propagates uncaught and
-      * crashes the batch.
+      * is not tracked, timed, or reported. If acquisition fails, the failure short-circuits the chain: no
+      * further jobs run and the failure surfaces as `Left` in the batch `result`, wrapped in
+      * `UntrackedStepException` so it is distinguishable there from a tracked job's failure. Release errors
+      * are not captured here; they surface through the resource scope as usual. This split is deliberate: a
+      * release fault is an uncontrollable cleanup failure (a failed flush/commit, or a broken resource) that
+      * should escape and trip a service-level alert, not be demoted to a handled `Left` job result.
       */
-    def untracked[A](ra: Resource[F, A]): Monadic[A] =
+    def untracked[A](rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => ra.map(a => cursor -> ExecutionState(Right(a), Nil)))
+        StateT(cursor =>
+          rfa.attempt
+            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
     /** Add a named resource-backed value job.
@@ -288,7 +309,11 @@ object Batch:
       )
 
     /** Add a named resource-backed job. The job succeeds unless its resource acquisition or effect throws, in
-      * which case the exception stops the chain.
+      * which case the exception is captured as the job's failure and stops the chain. Only acquisition is
+      * captured this way: a failure while *releasing* the resource happens when the batch's resource scope
+      * closes, after `result` is produced, so it surfaces through the resource scope rather than as the job's
+      * `result`. This split is deliberate: a release fault is an uncontrollable cleanup failure that should
+      * escape and trip a service-level alert, not be demoted to a handled `Left` job result.
       *
       * @param name
       *   name of the job
@@ -308,7 +333,9 @@ object Batch:
       * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
       * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
       * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
-      * `predicate`.
+      * `predicate`. As with the non-predicate overload, only resource *acquisition* is captured this way; a
+      * failure while releasing the resource surfaces through the resource scope, not the job's `result`, so
+      * cleanup fault escapes to a service-level alert rather than being demoted to a `Left`.
       *
       * @param name
       *   name of the job
