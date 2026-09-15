@@ -237,9 +237,6 @@ final case class ValueBatch[A](
     extends BatchResult derives Functor {
   override protected type S = A
   override protected type R = List[A]
-  // Invariant: a ValueBatch only exists when valueBatch ran to completion, and valueBatch raises on any
-  // failing or rejected job, so every retained outcome succeeded — hence the inherited `allPassed` is always
-  // true here.
 }
 
 object ValueBatch:
