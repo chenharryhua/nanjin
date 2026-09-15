@@ -11,6 +11,12 @@ When reviewing or writing code, always check **naming** in addition to logic:
 - Flag names that are ambiguous, misleading, or inconsistent with the rest of the module.
 - Prefer camelCase for vals/methods, PascalCase for types/classes, and lowercase for package objects.
 - Ensure names across a module tell a coherent story (e.g., sibling types should follow the same naming pattern).
+- **Names and docs are a first-class check on every change, not just on request.** Whenever a symbol
+  is written or renamed, verify (1) the name is consistent with its siblings and tells a coherent
+  story, and (2) every doc comment, Scaladoc, inline comment, and test description that references it
+  is still accurate. A rename is not complete until its stale references are swept: parameter names,
+  `@param` tags, doc prose, and test names that quote the old name must move with it. Flag a name/doc
+  mismatch with the same weight as a logic bug.
 
 ### Project naming conventions
 
