@@ -22,6 +22,7 @@ import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
   import Event.*
+  private inline val CLOUDWATCH_LOGS = "CloudWatch Logs"
 
   private case class Index(value: Long)
 
@@ -63,7 +64,14 @@ private object SlackTranslator extends all {
   private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(evt.index).textEntry
-    JuxtaposeSection(first = TextField(uptime), second = TextField(idx))
+    val logLink: TextField =
+      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
+        olink match {
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
+          case None       => TextField(uptime)
+        }
+      }
+    JuxtaposeSection(first = TextField(idx), second = logLink)
   }
 
   private def metrics_section(snapshot: Snapshot): TagValueSection = {
@@ -120,7 +128,7 @@ private object SlackTranslator extends all {
     val logLink: TextField =
       Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
         olink match {
-          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
           case None       => TextField(index)
         }
       }
@@ -208,7 +216,7 @@ private object SlackTranslator extends all {
     val logLink: TextField =
       Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
         olink match {
-          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|CloudWatch Logs>")
+          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
           case None       => TextField(domain)
         }
       }
