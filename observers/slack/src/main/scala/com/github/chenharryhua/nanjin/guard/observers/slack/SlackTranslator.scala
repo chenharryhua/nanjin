@@ -21,7 +21,6 @@ import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
   import Event.*
-  private inline val CLOUDWATCH_LOGS = "CloudWatch Logs"
 
   private case class Index(value: Long)
 
@@ -125,14 +124,11 @@ private object SlackTranslator extends all {
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val error = Attribute(evt.stackTrace).textEntry
+    val error = Attribute(evt.stackTrace).textEntry.withText(t => s"```${abbreviate(t)}```")
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val logLink: TextField =
-      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
-        olink match {
-          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
-          case None       => TextField(index)
-        }
+    val stack: TextEntry =
+      evt.serviceIdentity.logLink.fold(error) { link =>
+        error.withTag(tag => s"<${link.locate(evt.timestamp)}|$tag>")
       }
     val color = coloring(evt)
 
@@ -144,16 +140,14 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
-            JuxtaposeSection(first = TextField(active), second = logLink),
+            JuxtaposeSection(first = TextField(active), second = TextField(index)),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
                                    |*${policy.tag}:* ${policy.text}
                                    |*${service_id.tag}:* ${service_id.text}""".stripMargin)
           )
         ),
-        Attachment(
-          color = color,
-          blocks = List(TagValueSection(error.tag, s"```${abbreviate(error.text)}```"))),
+        Attachment(color = color, blocks = List(TagValueSection(stack.tag, stack.text))),
         Attachment(color = color, blocks = List(brief(evt.brief)))
       )
     )

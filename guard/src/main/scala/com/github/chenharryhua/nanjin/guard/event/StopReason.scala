@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.syntax.functor.given
-import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
@@ -17,12 +16,13 @@ object StopReason {
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"
+  private val BY_EXCEPTION: String = "ByException"
 
   given Show[StopReason] = {
-    case Successfully            => SUCCESSFULLY
-    case Maintenance             => MAINTENANCE
-    case ByCancellation          => BY_CANCELLATION
-    case ByException(stackTrace) => stackTrace.show
+    case Successfully   => SUCCESSFULLY
+    case Maintenance    => MAINTENANCE
+    case ByCancellation => BY_CANCELLATION
+    case ByException(_) => BY_EXCEPTION
   }
 
   given Encoder[StopReason] =
