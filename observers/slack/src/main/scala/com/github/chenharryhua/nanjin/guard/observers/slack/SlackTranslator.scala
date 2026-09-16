@@ -6,7 +6,6 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
-import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
@@ -41,6 +40,11 @@ private object SlackTranslator extends all {
   // https://api.slack.com/reference/surfaces/formatting
   private val MESSAGE_SIZE_LIMIT: Information = Bytes(2500)
 
+  private def escape(str: String): String =
+    str.replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
+
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MESSAGE_SIZE_LIMIT.toBytes.toInt)
 
   private def mark_down(first: TextEntry, second: TextEntry): MarkdownSection =
@@ -49,10 +53,12 @@ private object SlackTranslator extends all {
 
   private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
-    val service =
-      Attribute(sp.service).map(name =>
-        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>")).textEntry
-    JuxtaposeSection(TextField(service), TextField(host))
+    val (tag, name) = Attribute(sp.service).textEntry.withText(escape).toPair
+    val service = sp.homepage match {
+      case Some(value) => TextField(tag, s"<$value|$name>")
+      case None        => TextField(tag, name)
+    }
+    JuxtaposeSection(service, TextField(host))
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection = {
@@ -64,21 +70,17 @@ private object SlackTranslator extends all {
   private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val idx = Attribute(evt.index).textEntry
-    val logLink: TextField =
-      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
-        olink match {
-          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
-          case None       => TextField(uptime)
-        }
-      }
-    JuxtaposeSection(first = TextField(idx), second = logLink)
+    JuxtaposeSection(first = TextField(idx), second = TextField(uptime))
   }
 
-  private def metrics_section(snapshot: Snapshot): TagValueSection = {
-    val ss = Attribute(snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
-    if (snapshot.nonEmpty) {
-      TagValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
-    } else TagValueSection(ss.tag, """`not available`""")
+  private def metrics_section(evt: MetricsSnapshot): TagValueSection = {
+    val ss = Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
+    val tag = evt.serviceIdentity.logLink.fold(ss.tag) { link =>
+      s"<${link.locate(evt.timestamp)}|${ss.tag}>"
+    }
+    if (evt.snapshot.nonEmpty) {
+      TagValueSection(tag, s"""```${abbreviate(ss.text)}```""")
+    } else TagValueSection(tag, """`not available`""")
   }
 
   private def brief(sb: Brief): TagValueSection = {
@@ -193,7 +195,7 @@ private object SlackTranslator extends all {
             host_service_section(evt.serviceIdentity),
             metrics_index_section(evt),
             mark_down(policy, service_id),
-            metrics_section(evt.snapshot)
+            metrics_section(evt)
           )
         ))
     )
@@ -213,12 +215,9 @@ private object SlackTranslator extends all {
     val service = Attribute(evt.serviceIdentity.serviceId).textEntry
     val correlation = Attribute(evt.correlation).textEntry
 
-    val logLink: TextField =
-      Attribute(evt.serviceIdentity.logLink).fold { (tag, olink) =>
-        olink match {
-          case Some(link) => TextField(tag, s"<${link.locate(evt.timestamp)}|$CLOUDWATCH_LOGS>")
-          case None       => TextField(domain)
-        }
+    val coreLine: TextField =
+      evt.serviceIdentity.logLink.fold(TextField(correlation)) { link =>
+        TextField(s"<${link.locate(evt.timestamp)}|${correlation.tag}>", correlation.text)
       }
 
     val attachment = Attachment(
@@ -226,7 +225,7 @@ private object SlackTranslator extends all {
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceIdentity),
-        JuxtaposeSection(TextField(correlation), logLink),
+        JuxtaposeSection(coreLine, TextField(domain)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
         MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
       )

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.{Functor, Show}
+import cats.{Endo, Functor, Show}
 import com.github.chenharryhua.nanjin.common.TypeName
 import io.circe.{Encoder, Json}
 
@@ -23,6 +23,12 @@ final case class TextEntry(tag: String, text: String) {
 
   /** This entry as a plain `(tag, text)` tuple. */
   def toPair: (String, String) = (tag, text)
+
+  /** A copy with `f` applied to the `tag`, leaving `text` unchanged. */
+  def withTag(f: Endo[String]): TextEntry = copy(tag = f(tag))
+
+  /** A copy with `f` applied to the `text`, leaving `tag` unchanged. */
+  def withText(f: Endo[String]): TextEntry = copy(text = f(text))
 }
 
 /** Pairs a value with a label derived from its static type, and renders that pair in the shapes the observer
