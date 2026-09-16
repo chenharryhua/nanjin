@@ -12,7 +12,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.io.DecoderFactory
-import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serdes
 
 import java.nio.ByteBuffer
@@ -27,9 +26,10 @@ import scala.util.Try
   * @param metaInfo
   *   topic/partition/offset metadata of the offending record, for diagnostics.
   * @param cause
-  *   the underlying serialization error.
+  *   the underlying decode failure, as thrown (wire-format validation, Avro decode, or `Serdes`). Its
+  *   `getMessage` may be `null`, e.g. for some Avro/EOF exceptions.
   */
-final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: SerializationException) {
+final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable) {
 
   /** Render this error as a single-field JSON object keyed `key.error` or `value.error`. */
   def toJson: Json =
@@ -111,9 +111,9 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullError, Record] =
     for {
       key <- Try(key_decode(ccr.key())).toEither.
-        leftMap(ex => PullError(true, MetaInfo(ccr), new SerializationException(ex)))
+        leftMap(ex => PullError(true, MetaInfo(ccr), ex))
       value <- Try(val_decode(ccr.value())).toEither
-        .leftMap(ex => PullError(false, MetaInfo(ccr), new SerializationException(ex)))
+        .leftMap(ex => PullError(false, MetaInfo(ccr), ex))
     } yield {
       val headers: Iterator[Record] = ccr.headers().iterator().asScala.map { h =>
         val header = new Record(headerSchema)
