@@ -18,7 +18,7 @@ import io.circe.syntax.EncoderOps
 final private case class BatchPanel[F[_]] private (update: BatchPanel.Update[F], activeGauge: ActiveGauge[F])
 
 private object BatchPanel {
-  type Update[F[_]] = Kleisli[F, JobRecord, Unit]
+  type Update[F[_]] = Kleisli[F, JobState[?], Unit]
 
   /** Build the panel for a sequential/parallel batch: an active gauge, a completion ratio seeded to `size`,
     * and a "Completed jobs" gauge fed by each recorded job.
@@ -30,10 +30,10 @@ private object BatchPanel {
       ratio <- mtx
         .ratio(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
-      progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
-      _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobRecordsToJson)))
+      progress <- Resource.eval(F.ref[List[JobState[?]]](Nil))
+      _ <- mtx.gauge("Completed jobs", _.register(progress.get.map(jobStatesToJson)))
     } yield BatchPanel(
-      Kleisli { (cj: JobRecord) =>
+      Kleisli { (cj: JobState[?]) =>
         F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(cj)))
       },
       active)
@@ -44,12 +44,10 @@ private object BatchPanel {
   def monadic[F[_]](mtx: MetricsHub[F])(using F: Async[F]): Resource[F, BatchPanel[F]] =
     for {
       active <- mtx.activeGauge("Active")
-      progress <- Resource.eval(F.ref[List[JobRecord]](Nil))
-      _ <- mtx.gauge(
-        show"${BatchMode.Monadic} jobs completed",
-        _.register(progress.get.map(jobRecordsToJson)))
+      progress <- Resource.eval(F.ref[List[JobState[?]]](Nil))
+      _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed", _.register(progress.get.map(jobStatesToJson)))
     } yield BatchPanel(
-      Kleisli((cj: JobRecord) => F.uncancelable(_ => progress.update(_.appended(cj)))),
+      Kleisli((cj: JobState[?]) => F.uncancelable(_ => progress.update(_.appended(cj)))),
       active)
 
   private val translator: Reader[Ior[Long, Long], Json] = Reader {
@@ -66,13 +64,13 @@ private object BatchPanel {
       }
   }
 
-  private def jobRecordsToJson(results: List[JobRecord]): Json =
+  private def jobStatesToJson(results: List[JobState[?]]): Json =
     if (results.isEmpty) Json.Null
     else {
-      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (cj: JobRecord) =>
-        val took: String = defaultFormatter.format(cj.took)
-        val result: String = if (cj.succeeded) took else s"$took (failed)"
-        cj.job.displayName -> result.asJson
+      val pairs: List[(String, Json)] = results.sortBy(_.record.job.index).map { (js: JobState[?]) =>
+        val took: String = defaultFormatter.format(js.record.took)
+        val severity = toLogEntry(js).message.tag
+        js.record.job.displayName -> s"$took ($severity)".asJson
       }
       Json.obj(pairs*)
     }

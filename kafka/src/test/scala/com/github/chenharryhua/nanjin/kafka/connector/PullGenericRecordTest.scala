@@ -120,9 +120,11 @@ class PullGenericRecordTest extends AnyFunSuite {
     assert(res.isLeft)
     val err = res.swap.toOption.get
     assert(err.isKey)
-    // The error should NOT be about magic byte or payload length
-    assert(!err.cause.getMessage.contains("magic byte"))
-    assert(!err.cause.getMessage.contains("too short"))
+    // The error should NOT be about magic byte or payload length; it fails deeper, in Avro decode, whose
+    // exception may carry a null message — treat null as "not a wire-format message".
+    val message = Option(err.cause.getMessage)
+    assert(message.forall(m => !m.contains("magic byte")))
+    assert(message.forall(m => !m.contains("too short")))
   }
 
   test("6.value schema RECORD with bad wire format produces PullError with isKey false") {

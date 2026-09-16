@@ -109,7 +109,7 @@ class JobExecutorTest extends AnyFunSuite {
       _ <- executor(_ => true, Some(capturingLog(sink))).quasiJob(jni(IO.pure(1)), batchId).compute
       out <- sink.get
     } yield out).unsafeRunSync()
-    assert(logged.exists(_.hcursor.downField(JobLog.KICKOFF).focus.nonEmpty))
+    assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
   }
 
   test("8.valueJob: emits a kickoff log when a Log is supplied") {
@@ -118,7 +118,7 @@ class JobExecutorTest extends AnyFunSuite {
       _ <- executor(_ => true, Some(capturingLog(sink))).valueJob(jni(IO.pure(1)), batchId).compute
       out <- sink.get
     } yield out).unsafeRunSync()
-    assert(logged.exists(_.hcursor.downField(JobLog.KICKOFF).focus.nonEmpty))
+    assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
   }
 
   test("9.no Log (BatchLight path): the job still runs and produces a JobState") {

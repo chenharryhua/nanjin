@@ -27,7 +27,7 @@ private object lifecycle {
   def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, update: BatchPanel.Update[F])(
     outcome: Outcome[F, Throwable, JobState[A]]): F[Unit] =
     outcome.fold(
-      completed = _.flatMap(js => update.run(js.record) *> logCompleted(log, js)),
+      completed = _.flatMap(js => update.run(js) *> logCompleted(log, js)),
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       errored = ex => log.error("should not happen", ex),
       canceled = logCanceled(log, job)
@@ -37,7 +37,7 @@ private object lifecycle {
     outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
     outcome match {
       case Outcome.Succeeded(rfa) =>
-        rfa.evalMap(js => update.run(js.record) *> logCompleted(log, js))
+        rfa.evalMap(js => update.run(js) *> logCompleted(log, js))
       // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
       case Outcome.Errored(ex) => Resource.eval(log.error("should not happen", ex))
       case Outcome.Canceled()  => Resource.eval(logCanceled(log, job))

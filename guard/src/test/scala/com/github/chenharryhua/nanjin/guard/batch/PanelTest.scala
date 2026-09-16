@@ -22,7 +22,7 @@ import scala.jdk.CollectionConverters.*
   * `MetricsHub` is sealed, so there is no fake — the tests build a real hub over a `MetricRegistry` they own
   * and read each gauge's rendered `Json` straight off the Dropwizard registry. That directly observes the two
   * pieces `BatchPanel` is responsible for: the completion ratio string produced by its custom `translator`,
-  * and the "Completed jobs" object produced by `jobRecordsToJson`.
+  * and the "Completed jobs" object produced by `jobStatesToJson`.
   */
 class PanelTest extends AnyFunSuite {
 
@@ -39,12 +39,19 @@ class PanelTest extends AnyFunSuite {
       kind = kind,
       batchId = batchId)
 
-  private def record(name: String, index: Int, succeeded: Boolean): JobRecord =
-    JobRecord(
+  /** Build a completed `JobState` for a Quasi job. A succeeded state carries `Right(())` (renders
+    * `succeeded`); a failed state carries `Left` so a Quasi job classifies as `nonfatal` (see `toLogEntry`).
+    */
+  private def state(name: String, index: Int, succeeded: Boolean): JobState[Unit] = {
+    val rec = JobRecord(
       job(name, index, Some(BatchKind.Quasi)),
       start = 0.seconds,
       end = 5.seconds,
       succeeded = succeeded)
+    val result: Either[Throwable, Unit] =
+      if (succeeded) Right(()) else Left(new RuntimeException("boom"))
+    JobState(rec, result)
+  }
 
   /** Run `f` against a real hub built over a fresh registry, then hand back every gauge's rendered Json so a
     * test can assert on the panel's output. The `Dispatcher` is required by the gauge machinery, which runs
@@ -77,7 +84,7 @@ class PanelTest extends AnyFunSuite {
   test("2.BatchPanel: update bumps the numerator and renders a percentage") {
     val gauges = withHub { (hub, readGauges) =>
       BatchPanel(hub, size = 2, BatchKind.Value, BatchMode.Sequential).use { bm =>
-        bm.update.run(record("a", 1, succeeded = true)) *> IO(readGauges())
+        bm.update.run(state("a", 1, succeeded = true)) *> IO(readGauges())
       }
     }
     // one of two done -> the panel's translator renders "50.0% (1/2)"
@@ -92,16 +99,16 @@ class PanelTest extends AnyFunSuite {
         IO(readGauges())
       }
     }
-    // an empty progress list renders as Json.Null (jobRecordsToJson)
+    // an empty progress list renders as Json.Null (jobStatesToJson)
     assert(gauges.contains(Json.Null))
   }
 
-  test("4.BatchPanel: completed jobs render keyed by displayName, sorted by index, failed suffixed") {
+  test("4.BatchPanel: completed jobs render keyed by displayName, sorted by index, tagged by severity") {
     val completed = withHub { (hub, readGauges) =>
       BatchPanel(hub, size = 2, BatchKind.Quasi, BatchMode.Sequential).use { bm =>
         // apply out of index order to prove the render sorts by index
-        bm.update.run(record("beta", 2, succeeded = false)) *>
-          bm.update.run(record("alpha", 1, succeeded = true)) *>
+        bm.update.run(state("beta", 2, succeeded = false)) *>
+          bm.update.run(state("alpha", 1, succeeded = true)) *>
           IO(readGauges())
       }
     }
@@ -109,8 +116,10 @@ class PanelTest extends AnyFunSuite {
     val obj = completed.flatMap(_.asObject).headOption.getOrElse(fail("no Completed jobs object gauge"))
     val keys = obj.keys.toList
     assert(keys == List("job-1 alpha", "job-2 beta")) // sorted by index, keyed by displayName
-    assert(obj("job-1 alpha").flatMap(_.asString).exists(!_.contains("failed")))
-    assert(obj("job-2 beta").flatMap(_.asString).exists(_.contains("(failed)")))
+    // each value is "<took> (<severity>)"; the severity mirrors toLogEntry's classification
+    assert(obj("job-1 alpha").flatMap(_.asString).exists(_.contains("(succeeded)")))
+    // a failed Quasi job classifies as nonfatal (its failure is retained, not fatal to the batch)
+    assert(obj("job-2 beta").flatMap(_.asString).exists(_.contains("(nonfatal)")))
   }
 
   // ---- BatchPanel.monadic --------------------------------------------------------------------------
@@ -120,7 +129,7 @@ class PanelTest extends AnyFunSuite {
       BatchPanel.monadic(hub).use { bm =>
         for {
           b <- IO(readGauges())
-          _ <- bm.update.run(record("only", 1, succeeded = true))
+          _ <- bm.update.run(state("only", 1, succeeded = true))
           a <- IO(readGauges())
         } yield (b, a)
       }

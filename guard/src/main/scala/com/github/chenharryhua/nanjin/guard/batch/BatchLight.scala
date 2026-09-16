@@ -6,6 +6,7 @@ import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
+import cats.syntax.either.catsSyntaxEither
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
@@ -179,7 +180,14 @@ object BatchLight:
           }
         )
 
-      /** Execute the monadic batch and return its result in `F`. */
+      /** Execute the monadic batch and return its result in `F`.
+        *
+        * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
+        * throws, and a `withFilter` rejection are all captured and surface as `Left` in the returned
+        * `MonadicBatch.result`, short-circuiting the chain. Read `result` to observe success or failure of
+        * the work. Unlike `Batch`, `BatchLight` does no lifecycle logging and keeps no metrics panel or
+        * resource scope, so there is no batch machinery around the jobs that could fail this effect.
+        */
       def monadicBatch: F[MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         for {
@@ -212,12 +220,14 @@ object BatchLight:
 
     /** Add an effectful value to the monadic batch without creating a job.
       *
-      * The effect is not tracked, timed, or reported. If it fails, the exception propagates uncaught and
-      * crashes the batch.
+      * The effect is not tracked, timed, or reported. If it fails, the failure short-circuits the chain: no
+      * further jobs run and the failure surfaces as `Left` in the batch `result`. The original exception is
+      * wrapped in `UntrackedStepException` so it is distinguishable there from a tracked job's failure.
       */
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => fa.map(a => cursor -> ExecutionState(Right(a), Nil)))
+        StateT(cursor =>
+          fa.attempt.map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
     /** Shared constructor for effect-backed jobs. The job runs under `attempt`: a thrown exception is

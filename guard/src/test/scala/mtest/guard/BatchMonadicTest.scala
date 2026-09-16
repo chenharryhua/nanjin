@@ -14,6 +14,7 @@ import scala.concurrent.duration.DurationInt
 class BatchMonadicTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("monadic")
+    // .updateConfig(_.withLogFormat(_.ConsolePlainText).withLogThreshold(_.Info, _.Info))
 
   test("1.good") {
     val se = service.eventStreamR { agent =>
