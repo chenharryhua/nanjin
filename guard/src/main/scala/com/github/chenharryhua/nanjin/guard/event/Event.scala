@@ -119,6 +119,13 @@ object Event {
     final case class Periodic(tick: Tick) extends Index:
       override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
 
+    /** Renders an `Index` to a short label: `"Adhoc"` for ad-hoc scrapes, or the tick index for periodic
+      * ones.
+      *
+      * This is a wire contract, not just a display concern: `PrettyJsonTranslator` serializes `index.show`
+      * into the emitted JSON payload (under the `metrics_snapshot` key). Changing these strings changes the
+      * observed output, so treat edits here as a wire-format change.
+      */
     given Show[Index]:
       override def show(t: Index): String = t match {
         case Adhoc(_)       => "Adhoc"
