@@ -27,7 +27,6 @@ final private class ServiceEventHandler[F[_]: Sync] private (
       ServiceStart(
         serviceIdentity = serviceParams.serviceIdentity,
         logLink = logLocator.map(_.locate(tick.conclude)),
-        policy = serviceParams.policies.restart.policy,
         brief = serviceParams.brief,
         tick = tick
       ))
@@ -36,7 +35,6 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     val panic: ServicePanic = ServicePanic(
       serviceIdentity = serviceParams.serviceIdentity,
       logLink = logLocator.map(_.locate(tick.acquires)),
-      policy = serviceParams.policies.restart.policy,
       brief = serviceParams.brief,
       tick = tick,
       stackTrace = stackTrace
@@ -50,7 +48,6 @@ final private class ServiceEventHandler[F[_]: Sync] private (
       event = ServiceStop(
         serviceIdentity = serviceParams.serviceIdentity,
         logLink = logLocator.map(_.locate(now.value.toInstant)),
-        policy = serviceParams.policies.restart.policy,
         brief = serviceParams.brief,
         timestamp = now,
         cause = cause

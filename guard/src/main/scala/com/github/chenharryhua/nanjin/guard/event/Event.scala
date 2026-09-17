@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
@@ -36,8 +36,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy governing retry behavior
     * @param brief
     *   user-provided metadata attached at service configuration time
     * @param tick
@@ -46,7 +44,6 @@ object Event {
   final case class ServiceStart(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
-    policy: Policy,
     brief: Brief,
     tick: Tick)
       extends Event {
@@ -57,8 +54,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy governing retry behavior
     * @param brief
     *   user-provided metadata
     * @param tick
@@ -69,7 +64,6 @@ object Event {
   final case class ServicePanic(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
-    policy: Policy,
     brief: Brief,
     tick: Tick,
     stackTrace: StackTrace)
@@ -81,8 +75,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy that was in effect
     * @param brief
     *   user-provided metadata
     * @param timestamp
@@ -93,7 +85,6 @@ object Event {
   final case class ServiceStop(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
-    policy: Policy,
     brief: Brief,
     timestamp: Timestamp,
     cause: StopReason)
@@ -103,8 +94,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the metrics reporting policy that scheduled this snapshot
     * @param index
     *   either Periodic (with a tick) or Adhoc (with a timestamp)
     * @param snapshot
@@ -115,7 +104,6 @@ object Event {
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
-    policy: Policy,
     index: MetricsSnapshot.Index,
     snapshot: Snapshot,
     took: Took)

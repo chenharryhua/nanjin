@@ -78,7 +78,7 @@ object EventPipe {
   def noAdhoc: EventPipe =
     new EventPipe {
       override def apply(event: Event): Option[Event] = event match {
-        case Event.MetricsSnapshot(_, _, _, index, _, _) =>
+        case Event.MetricsSnapshot(_, _, index, _, _) =>
           index match {
             case Adhoc(_)    => None
             case Periodic(_) => Some(event)
@@ -100,7 +100,7 @@ object EventPipe {
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(_, _, _, index, _, _) =>
+          case MetricsSnapshot(_, _, index, _, _) =>
             index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) =>
@@ -123,7 +123,7 @@ object EventPipe {
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(_, _, _, index, _, _) =>
+          case MetricsSnapshot(_, _, index, _, _) =>
             val isKeep = index match {
               case Adhoc(_)       => true
               case Periodic(tick) =>
@@ -149,7 +149,7 @@ object EventPipe {
     new EventPipe {
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(_, _, _, index, _, _) =>
+          case MetricsSnapshot(_, _, index, _, _) =>
             index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) => if ((tick.index % divisor) === 0) Some(event) else None
@@ -174,7 +174,7 @@ object EventPipe {
 
       override def apply(event: Event): Option[Event] =
         event match {
-          case MetricsSnapshot(_, _, _, index, _, _) =>
+          case MetricsSnapshot(_, _, index, _, _) =>
             index match {
               case Adhoc(_)       => Some(event)
               case Periodic(tick) =>

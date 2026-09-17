@@ -5,16 +5,16 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 
 def idempotencyKey(event: Event): String = event match {
-  case Event.ServiceStart(serviceIdentity, _, _, _, tick) =>
+  case Event.ServiceStart(serviceIdentity, _, _, tick) =>
     show"${serviceIdentity.serviceId}-start-${tick.index}"
-  case Event.ServicePanic(serviceIdentity, _, _, _, tick, _) =>
+  case Event.ServicePanic(serviceIdentity, _, _, tick, _) =>
     show"${serviceIdentity.serviceId}-panic-${tick.index}"
-  case Event.ServiceStop(serviceIdentity, _, _, _, _, _) =>
+  case Event.ServiceStop(serviceIdentity, _, _, _, _) =>
     show"${serviceIdentity.serviceId}-stop"
 
-  case Event.MetricsSnapshot(serviceIdentity, _, _, MetricsSnapshot.Index.Periodic(tick), _, _) =>
+  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Index.Periodic(tick), _, _) =>
     show"${serviceIdentity.serviceId}-metrics-periodic-${tick.index}"
-  case Event.MetricsSnapshot(serviceIdentity, _, _, MetricsSnapshot.Index.Adhoc(ts), _, _) =>
+  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Index.Adhoc(ts), _, _) =>
     show"${serviceIdentity.serviceId}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}"
 
   case Event.ReportedEvent(serviceIdentity, _, _, _, correlation, _, _, _) =>

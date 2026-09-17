@@ -50,6 +50,9 @@ private object SlackTranslator extends all {
     MarkdownSection(s"""|*${first.tag}:* ${first.text}
                         |*${second.tag}:* ${second.text}""".stripMargin)
 
+  private def single_field(entry: TextEntry): MarkdownSection =
+    MarkdownSection(s"*${entry.tag}:* ${entry.text}")
+
   private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
     val (tag, name) = Attribute(sp.service).textEntry.withText(escape).toPair
@@ -100,7 +103,6 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val policy = Attribute(evt.policy).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     SlackApp(
       username = evt.serviceIdentity.task.value,
@@ -111,7 +113,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
             index_section,
-            mark_down(policy, service_id)
+            single_field(service_id)
           )
         ),
         Attachment(color = color, blocks = List(brief(evt.brief)))
@@ -120,7 +122,6 @@ private object SlackTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): SlackApp = {
-    val policy = Attribute(evt.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
@@ -143,7 +144,6 @@ private object SlackTranslator extends all {
             JuxtaposeSection(first = TextField(active), second = TextField(index)),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
-                                   |*${policy.tag}:* ${policy.text}
                                    |*${service_id.tag}:* ${service_id.text}""".stripMargin)
           )
         ),
@@ -176,7 +176,6 @@ private object SlackTranslator extends all {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
-    val policy = Attribute(evt.policy).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
@@ -188,7 +187,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceIdentity),
             metrics_index_section(evt),
-            mark_down(policy, service_id),
+            single_field(service_id),
             metrics_section(evt)
           )
         ))

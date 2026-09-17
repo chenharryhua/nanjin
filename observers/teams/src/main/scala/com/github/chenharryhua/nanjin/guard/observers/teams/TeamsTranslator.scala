@@ -88,7 +88,6 @@ private object TeamsTranslator {
 
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
     val brief = Attribute(evt.brief).typeName
@@ -102,7 +101,6 @@ private object TeamsTranslator {
           List(
             Fact(idx.tag, idx.text),
             Fact(active.tag, active.text),
-            Fact(policy.tag, policy.text),
             Fact(stackTrace, logLink(evt))
           )),
         StackTraceBlock(evt.stackTrace),
@@ -125,7 +123,6 @@ private object TeamsTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
-    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(evt.index).textEntry
     val snapshot = Attribute(evt.snapshot).typeName
     val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml
@@ -137,7 +134,6 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(policy.tag, policy.text),
             Fact(snapshot, logLink(evt))
           )),
         TextBlock(yaml)

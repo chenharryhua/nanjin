@@ -35,7 +35,7 @@ def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
         case StopReason.ByException(_) => LogLevel.Error
         case StopReason.Maintenance    => LogLevel.Info
     case ReportedEvent(_, _, _, _, _, level, _, _) => level
-    case MetricsSnapshot(_, _, _, _, snapshot, _)  =>
+    case MetricsSnapshot(_, _, _, snapshot, _)     =>
       val health: LogLevel =
         if retrieve.healthCheck(snapshot.gauges).forall(_._2) then LogLevel.Info else LogLevel.Error
       val risk: LogLevel =

@@ -68,13 +68,12 @@ private object HtmlTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
-    val policy = Attribute(evt.policy).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val fg = frag(
-      tr(th(index.tag), th(policy.tag), th(active.tag)),
-      tr(td(index.text), td(policy.text), td(active.text))
+      tr(th(index.tag), th(active.tag)),
+      tr(td(index.text), td(active.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
@@ -97,11 +96,10 @@ private object HtmlTranslator extends all {
 
   private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
     val idx = Attribute(evt.index).textEntry
-    val policy = Attribute(evt.policy).textEntry
     val took = Attribute(evt.took).textEntry
     val fg = frag(
-      tr(th(idx.tag), th(policy.tag), th(took.tag)),
-      tr(td(idx.text), td(policy.text), td(took.text))
+      tr(th(idx.tag), th(took.tag)),
+      tr(td(idx.text), td(took.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),

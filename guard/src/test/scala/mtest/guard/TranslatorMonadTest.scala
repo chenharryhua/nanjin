@@ -29,14 +29,12 @@ object gendata {
     ServiceStart(
       serviceIdentity = null.asInstanceOf[ServiceIdentity],
       logLink = None,
-      policy = null.asInstanceOf[Policy],
       brief = null.asInstanceOf[Brief],
       tick = tick)
   val servicePanic: ServicePanic =
     ServicePanic(
       serviceIdentity = null.asInstanceOf[ServiceIdentity],
       logLink = None,
-      policy = null.asInstanceOf[Policy],
       brief = null.asInstanceOf[Brief],
       tick = tick,
       stackTrace = null.asInstanceOf[StackTrace]
@@ -45,7 +43,6 @@ object gendata {
     ServiceStop(
       serviceIdentity = null.asInstanceOf[ServiceIdentity],
       logLink = None,
-      policy = null.asInstanceOf[Policy],
       brief = null.asInstanceOf[Brief],
       timestamp = ts,
       cause = StopReason.Successfully
@@ -54,7 +51,6 @@ object gendata {
     MetricsSnapshot(
       serviceIdentity = null.asInstanceOf[ServiceIdentity],
       logLink = None,
-      policy = null.asInstanceOf[Policy],
       index = MetricsSnapshot.Index.Adhoc(ts),
       snapshot = null.asInstanceOf[com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot],
       took = null.asInstanceOf[Took]

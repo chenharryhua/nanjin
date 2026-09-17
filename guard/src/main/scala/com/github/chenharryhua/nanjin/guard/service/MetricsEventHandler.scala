@@ -32,7 +32,6 @@ final private class MetricsEventHandler[F[_]] private (
       MetricsSnapshot(
         serviceIdentity = serviceParams.serviceIdentity,
         logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
-        policy = serviceParams.policies.report,
         index = index,
         snapshot = snapshot,
         took = Took(took)
@@ -87,7 +86,6 @@ final private class MetricsEventHandler[F[_]] private (
         MetricsSnapshot(
           serviceIdentity = serviceParams.serviceIdentity,
           logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
-          policy = serviceParams.policies.report,
           index = index,
           snapshot = snapshot,
           took = Took(took)
