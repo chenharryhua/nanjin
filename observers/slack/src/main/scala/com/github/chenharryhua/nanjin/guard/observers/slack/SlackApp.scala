@@ -46,22 +46,4 @@ final private case class HeaderSection(text: String) extends Section derives Enc
 
 final private case class Attachment(color: String, blocks: List[Section]) derives Encoder
 
-final private case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder {
-  // before first section
-  def prependMarkdown(text: String): SlackApp =
-    SlackApp(
-      username,
-      attachments match {
-        case Nil          => Nil
-        case head :: rest => Attachment(head.color, MarkdownSection(text) :: head.blocks) :: rest
-      })
-
-  // after last section
-  def appendMarkdown(text: String): SlackApp = {
-    val updated = attachments.reverse match {
-      case Nil          => Nil
-      case head :: rest => Attachment(head.color, head.blocks ::: List(MarkdownSection(text))) :: rest
-    }
-    SlackApp(username, updated.reverse)
-  }
-}
+final private case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder
