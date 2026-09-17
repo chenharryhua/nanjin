@@ -60,6 +60,12 @@ private object TeamsTranslator {
       ))
   }
 
+  /** Renders the event's `logLink` as a markdown link, intended to be placed as the value of an existing
+    * `Fact` so the link occupies that Fact's value slot rather than adding a row of its own. Each card pairs
+    * it with its most log-relevant tag: `stackTrace` for panic, `snapshot` for metrics, and `brief` for
+    * start/stop (which have no such field). Returns `""` when no `LogLocator` is configured (`evt.logLink` is
+    * `None`); Teams omits a Fact with an empty value, so the link simply does not appear.
+    */
   private def logLink(evt: Event): String =
     Attribute(evt.logLink)
       .fold { (tag, olink) =>
@@ -78,9 +84,9 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(snz.tag, snz.text)
+            Fact(snz.tag, snz.text),
+            Fact(brief, logLink(evt))
           )),
-        BolderTextBlock(brief),
         JsonBlock(evt.brief.value)
       )
     )
@@ -112,12 +118,16 @@ private object TeamsTranslator {
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
     val cause = Attribute(evt.cause).textEntry
+    val brief = Attribute(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
         header_block(evt),
         service_info(evt),
-        FactSet(List(Fact(cause.tag, cause.text)))
+        FactSet(
+          List(Fact(cause.tag, cause.text), Fact(brief, logLink(evt)))
+        ),
+        JsonBlock(evt.brief.value)
       )
     )
   }
