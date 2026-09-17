@@ -61,9 +61,9 @@ private object TeamsTranslator {
   }
 
   private def logLink(evt: Event): String =
-    Attribute(evt.serviceIdentity.logLink)
+    Attribute(evt.logLink)
       .fold { (tag, olink) =>
-        olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
+        olink.map(link => s"[$tag](${link.value})")
       }.getOrElse("")
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {

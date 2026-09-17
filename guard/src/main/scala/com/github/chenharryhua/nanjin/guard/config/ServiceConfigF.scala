@@ -5,7 +5,7 @@ import cats.syntax.applicative.given
 import cats.syntax.apply.given
 import cats.{Applicative, Endo, Functor}
 import com.github.chenharryhua.nanjin.common.chrono.{zones, Policy}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLocator}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.syntax.EncoderOps
@@ -55,6 +55,8 @@ sealed trait ServiceConfig[F[_]] {
   def withLogThreshold(
     logger: LogLevel.type => LogLevel,
     channel: LogLevel.type => LogLevel): ServiceConfig[F]
+
+  def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F]
 
   /** Set the time zone used by ticks, policies, and timestamp formatting. */
   def withZoneId(zoneId: ZoneId): ServiceConfig[F]
@@ -193,6 +195,7 @@ private[guard] object ServiceConfig {
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
       logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
+      logLocator = None.pure[F],
       meterProvider = Resource.pure(MeterProvider.noop[F])
     )
 
@@ -202,6 +205,7 @@ private[guard] object ServiceConfig {
     httpBuilder: Option[Endo[EmberServerBuilder[F]]],
     briefs: F[List[Json]],
     logThreshold: LogThreshold,
+    logLocator: F[Option[LogLocator]],
     meterProvider: Resource[F, MeterProvider[F]])
       extends ServiceConfig[F] {
 
@@ -240,6 +244,9 @@ private[guard] object ServiceConfig {
       logger: LogLevel.type => LogLevel,
       channel: LogLevel.type => LogLevel): ServiceConfig[F] =
       copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
+
+    override def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F] =
+      copy(logLocator = logLocator)
 
     override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
       copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))

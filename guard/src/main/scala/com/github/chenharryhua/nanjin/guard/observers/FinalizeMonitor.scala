@@ -38,6 +38,7 @@ final class FinalizeMonitor[F[_]: {Clock, Monad}] private (ref: Ref[F, Map[Servi
         Chunk.from(values).map { ss =>
           ServiceStop(
             ss.serviceIdentity,
+            None,
             ss.policy,
             ss.brief,
             ss.serviceIdentity.toTimestamp(ts),

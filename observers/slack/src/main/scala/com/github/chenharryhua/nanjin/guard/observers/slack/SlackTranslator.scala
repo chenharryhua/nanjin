@@ -74,8 +74,8 @@ private object SlackTranslator extends all {
 
   private def metrics_section(evt: MetricsSnapshot): TagValueSection = {
     val ss = Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
-    val tag = evt.serviceIdentity.logLink.fold(ss.tag) { link =>
-      s"<${link.locate(evt.timestamp)}|${ss.tag}>"
+    val tag = evt.logLink.fold(ss.tag) { link =>
+      s"<${link.value}|${ss.tag}>"
     }
     if (evt.snapshot.nonEmpty) {
       TagValueSection(tag, s"""```${abbreviate(ss.text)}```""")
@@ -127,8 +127,8 @@ private object SlackTranslator extends all {
     val error = Attribute(evt.stackTrace).textEntry.withText(t => s"```${abbreviate(t)}```")
     val active = Attribute(Active(evt.tick.active)).textEntry
     val stack: TextEntry =
-      evt.serviceIdentity.logLink.fold(error) { link =>
-        error.withTag(tag => s"<${link.locate(evt.timestamp)}|$tag>")
+      evt.logLink.fold(error) { link =>
+        error.withTag(tag => s"<${link.value}|$tag>")
       }
     val color = coloring(evt)
 
@@ -210,8 +210,8 @@ private object SlackTranslator extends all {
     val correlation = Attribute(evt.correlation).textEntry
 
     val coreLine: TextField =
-      evt.serviceIdentity.logLink.fold(TextField(correlation)) { link =>
-        TextField(s"<${link.locate(evt.timestamp)}|${correlation.tag}>", correlation.text)
+      evt.logLink.fold(TextField(correlation)) { link =>
+        TextField(s"<${link.value}|${correlation.tag}>", correlation.text)
       }
 
     val attachment = Attachment(

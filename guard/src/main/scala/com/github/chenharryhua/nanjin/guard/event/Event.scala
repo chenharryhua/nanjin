@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
@@ -23,8 +23,9 @@ import monocle.{Optional, Prism}
   * time and event timestamp.
   */
 sealed trait Event extends Product derives Codec.AsObject {
-  def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceIdentity: ServiceIdentity
+  def logLink: Option[LogLink]
+  def timestamp: Timestamp // event timestamp - when the event occurs
 
   final def upTime: UpTime = serviceIdentity.launchTime.upTime(timestamp)
 }
@@ -42,7 +43,12 @@ object Event {
     * @param tick
     *   the tick that triggered this start (index 0 for initial start, >0 for restarts)
     */
-  final case class ServiceStart(serviceIdentity: ServiceIdentity, policy: Policy, brief: Brief, tick: Tick)
+  final case class ServiceStart(
+    serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
+    policy: Policy,
+    brief: Brief,
+    tick: Tick)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
   }
@@ -62,6 +68,7 @@ object Event {
     */
   final case class ServicePanic(
     serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
     policy: Policy,
     brief: Brief,
     tick: Tick,
@@ -85,6 +92,7 @@ object Event {
     */
   final case class ServiceStop(
     serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
     policy: Policy,
     brief: Brief,
     timestamp: Timestamp,
@@ -106,6 +114,7 @@ object Event {
     */
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
     policy: Policy,
     index: MetricsSnapshot.Index,
     snapshot: Snapshot,
@@ -150,6 +159,7 @@ object Event {
     */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
     timestamp: Timestamp,
     domain: Domain,
     correlation: Correlation,

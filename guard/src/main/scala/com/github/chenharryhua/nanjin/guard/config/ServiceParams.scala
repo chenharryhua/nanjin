@@ -15,8 +15,7 @@ final case class ServiceIdentity(
   host: Host,
   serviceId: ServiceId,
   launchTime: LaunchTime,
-  homepage: Option[Homepage],
-  logLink: Option[LogLink]
+  homepage: Option[Homepage]
 ) derives Codec.AsObject {
   val timeZone: TimeZone = TimeZone(launchTime.zoneId)
 
@@ -72,8 +71,7 @@ object ServiceParams {
         serviceId = serviceId,
         homepage = None,
         host = host,
-        launchTime = launchTime,
-        logLink = CloudWatchLogs.logLink(brief)
+        launchTime = launchTime
       ),
       policies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
