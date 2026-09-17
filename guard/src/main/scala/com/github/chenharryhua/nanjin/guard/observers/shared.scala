@@ -12,9 +12,9 @@ def idempotencyKey(event: Event): String = event match {
   case Event.ServiceStop(serviceIdentity, _, _, _, _) =>
     show"${serviceIdentity.serviceId}-stop"
 
-  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Index.Periodic(tick), _, _) =>
+  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Periodic(tick), _, _) =>
     show"${serviceIdentity.serviceId}-metrics-periodic-${tick.index}"
-  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Index.Adhoc(ts), _, _) =>
+  case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Adhoc(ts), _, _) =>
     show"${serviceIdentity.serviceId}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}"
 
   case Event.ReportedEvent(serviceIdentity, _, _, _, correlation, _, _, _) =>

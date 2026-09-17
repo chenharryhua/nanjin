@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -54,7 +54,7 @@ class MetricsHubSTest extends AnyFunSuite {
     }
     assert(mr.snapshot.nonEmpty)
     assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
-    assert(mr.index.isInstanceOf[Index.Adhoc])
+    assert(mr.index.isInstanceOf[MetricsSnapshot.Adhoc])
   }
 
   test("3.meter registered via the stream records into the snapshot") {

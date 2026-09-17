@@ -71,10 +71,10 @@ class IdempotencyKeyTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-      .collect { case e: MetricsSnapshot if e.index.isInstanceOf[MetricsSnapshot.Index.Periodic] => e }
+      .collect { case e: MetricsSnapshot if e.index.isInstanceOf[MetricsSnapshot.Periodic] => e }
     assert(periodic.nonEmpty)
     periodic.foreach { e =>
-      val tick = e.index.asInstanceOf[MetricsSnapshot.Index.Periodic].tick
+      val tick = e.index.asInstanceOf[MetricsSnapshot.Periodic].tick
       assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-metrics-periodic-${tick.index}")
     }
   }
@@ -117,10 +117,10 @@ class IdempotencyKeyTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-      .collect { case e: MetricsSnapshot if e.index.isInstanceOf[MetricsSnapshot.Index.Adhoc] => e }
+      .collect { case e: MetricsSnapshot if e.index.isInstanceOf[MetricsSnapshot.Adhoc] => e }
     assert(adhoc.nonEmpty)
     adhoc.foreach { e =>
-      val ts = e.index.asInstanceOf[MetricsSnapshot.Index.Adhoc].scrapeTime
+      val ts = e.index.asInstanceOf[MetricsSnapshot.Adhoc].scrapeTime
       assert(
         idempotencyKey(e) ==
           s"${e.serviceIdentity.serviceId.value}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}")

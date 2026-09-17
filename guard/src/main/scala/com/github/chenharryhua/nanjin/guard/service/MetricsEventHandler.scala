@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.common.logging.LogLocator
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
 import fs2.Stream

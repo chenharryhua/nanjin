@@ -115,17 +115,15 @@ object Event {
       def scrapeTime: Timestamp
     end Index
 
-    object Index:
-      final case class Adhoc(scrapeTime: Timestamp) extends Index
-      final case class Periodic(tick: Tick) extends Index:
-        override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
+    final case class Adhoc(scrapeTime: Timestamp) extends Index
+    final case class Periodic(tick: Tick) extends Index:
+      override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
 
-      given Show[Index]:
-        override def show(t: Index): String = t match {
-          case Adhoc(_)       => "Adhoc"
-          case Periodic(tick) => s"${tick.index}"
-        }
-    end Index
+    given Show[Index]:
+      override def show(t: Index): String = t match {
+        case Adhoc(_)       => "Adhoc"
+        case Periodic(tick) => s"${tick.index}"
+      }
   end MetricsSnapshot
 
   /** A user-emitted log message published through the service's logging facilities.
@@ -166,14 +164,14 @@ object Event {
   val serviceStop: Prism[Event, ServiceStop] = GenPrism[Event, Event.ServiceStop]
   val servicePanic: Prism[Event, ServicePanic] = GenPrism[Event, Event.ServicePanic]
 
-  val adhocSnapshot: Optional[Event, MetricsSnapshot.Index.Adhoc] =
+  val adhocSnapshot: Optional[Event, MetricsSnapshot.Adhoc] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Adhoc])
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Adhoc])
 
   val reportTick: Optional[Event, Tick] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Periodic])
-      .andThen(GenLens[MetricsSnapshot.Index.Periodic](_.tick))
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Periodic])
+      .andThen(GenLens[MetricsSnapshot.Periodic](_.tick))
 }

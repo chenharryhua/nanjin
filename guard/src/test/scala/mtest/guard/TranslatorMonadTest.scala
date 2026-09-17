@@ -51,7 +51,7 @@ object gendata {
     MetricsSnapshot(
       serviceIdentity = null.asInstanceOf[ServiceIdentity],
       logLink = None,
-      index = MetricsSnapshot.Index.Adhoc(ts),
+      index = MetricsSnapshot.Adhoc(ts),
       snapshot = null.asInstanceOf[com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot],
       took = null.asInstanceOf[Took]
     )
