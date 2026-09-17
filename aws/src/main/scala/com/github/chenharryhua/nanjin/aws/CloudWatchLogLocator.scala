@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.Async
-import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.logging.{LogLink, LogLocator}
@@ -51,9 +50,9 @@ object CloudWatchLogLocator {
 
   /** Build a locator from an ECS container metadata document.
     *
-    * Pure and total: it never throws and performs no I/O. Returns `None` when `metadata` is `Json.Null` (the
-    * value `ecs.containerMetadata` yields off-ECS) or when the `LogOptions.awslogs-{group,region,stream}`
-    * fields are missing or malformed. `apply` wraps this with a warning log on the `None` branch.
+    * Pure and total: it never throws and performs no I/O. Returns `None` when the
+    * `LogOptions.awslogs-{group,region,stream}` fields are missing or malformed. `apply` wraps this with a
+    * warning log on the `None` branch.
     */
   private def fromMetadata(metadata: Json, window: FiniteDuration): Option[CloudWatchLogLocator] =
     parse(metadata).map { opts =>
@@ -81,13 +80,14 @@ object CloudWatchLogLocator {
     for {
       metadata <- ecs.containerMetadata[F]
       logger <- Slf4jLogger.create[F]
-      locator = fromMetadata(metadata, window)
-      _ <-
-        if (locator.isEmpty) {
-          if (metadata === Json.Null)
-            logger.warn("ECS container metadata unavailable; CloudWatch log links disabled")
-          else
-            logger.warn("ECS metadata spec violation; CloudWatch log links disabled")
-        } else logger.info("CloudWatch log locator enabled")
+      locator = metadata.flatMap(fromMetadata(_, window))
+      _ <- metadata match {
+        case None =>
+          logger.warn("ECS container metadata unavailable; CloudWatch log links disabled")
+        case Some(_) if locator.isEmpty =>
+          logger.warn("ECS metadata spec violation; CloudWatch log links disabled")
+        case Some(_) =>
+          logger.info("CloudWatch log locator enabled")
+      }
     } yield locator
 }

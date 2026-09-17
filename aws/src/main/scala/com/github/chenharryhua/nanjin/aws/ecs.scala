@@ -22,19 +22,19 @@ object ecs {
   }
 
   // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
-  def containerMetadata[F[_]: {Async, Network}]: F[Json] =
+  def containerMetadata[F[_]: {Async, Network}]: F[Option[Json]] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- metaUri[F]
         json <- uri.flatTraverse(addr => client.expect[Json](addr).attempt.map(_.toOption))
-      } yield json.getOrElse(Json.Null)
+      } yield json
     }
 
-  def containerMetadataTask[F[_]: {Async, Network}]: F[Json] =
+  def containerMetadataTask[F[_]: {Async, Network}]: F[Option[Json]] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- metaUri[F]
         json <- uri.flatTraverse(addr => client.expect[Json](addr / "task").attempt.map(_.toOption))
-      } yield json.getOrElse(Json.Null)
+      } yield json
     }
 }
