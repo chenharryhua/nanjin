@@ -64,28 +64,28 @@ sealed private trait JobLog[A] extends Product {
 
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        tag -> record.job.displayName.asJson,
+        record.job.displayName -> Json.fromString(tag),
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        tag -> record.job.displayName.asJson,
+        record.job.displayName -> Json.fromString(tag),
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        tag -> record.job.displayName.asJson,
+        record.job.displayName -> Json.fromString(tag),
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        tag -> record.job.displayName.asJson,
+        record.job.displayName -> Json.fromString(tag),
         JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
         JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
       )

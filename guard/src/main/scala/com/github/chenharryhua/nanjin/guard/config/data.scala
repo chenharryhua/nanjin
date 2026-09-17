@@ -18,9 +18,7 @@ import org.typelevel.cats.time.zoneidInstances
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
-import scala.concurrent.duration.given
 import scala.jdk.CollectionConverters.ListHasAsScala
-import scala.jdk.DurationConverters.given
 
 /** Non-breaking space char used as indentation on platforms that collapse regular whitespace (e.g. Teams
   * Adaptive Cards).
@@ -234,28 +232,6 @@ object LaunchTime:
   given Encoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Encoder]
   given Decoder[LaunchTime] = OpaqueLift.lift[LaunchTime, ZonedDateTime, Decoder]
 end LaunchTime
-
-// ---------------- LogLink ----------------
-
-/** A partial CloudWatch Logs console URL pointing to the service's log stream. The `locate` extension method
-  * appends a time-window query parameter (±30 seconds around an event timestamp) so that observers can
-  * deep-link directly to the relevant log entries.
-  */
-opaque type LogLink = String
-object LogLink:
-  def apply(str: String): LogLink = str
-
-  private val WINDOW: Duration = 30.seconds.toJava
-  extension (ll: LogLink)
-    def locate(timestamp: Timestamp): String = {
-      val start = timestamp.minus(WINDOW).toInstant.toEpochMilli
-      val end = timestamp.plus(WINDOW).toInstant.toEpochMilli
-      ll + s"$$3Fstart$$3D$start$$26end$$3D$end"
-    }
-
-  given Encoder[LogLink] = OpaqueLift.lift[LogLink, String, Encoder]
-  given Decoder[LogLink] = OpaqueLift.lift[LogLink, String, Decoder]
-end LogLink
 
 /** Controls the minimum severity at which log messages are processed.
   *

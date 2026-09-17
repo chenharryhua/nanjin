@@ -27,41 +27,45 @@ object gendata {
   // exhaustive event space (the previous version only exercised the ServiceStart branch).
   val serviceStart: ServiceStart =
     ServiceStart(
-      null.asInstanceOf[ServiceIdentity],
-      null.asInstanceOf[Policy],
-      null.asInstanceOf[Brief],
-      tick)
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      brief = null.asInstanceOf[Brief],
+      tick = tick)
   val servicePanic: ServicePanic =
     ServicePanic(
-      null.asInstanceOf[ServiceIdentity],
-      null.asInstanceOf[Policy],
-      null.asInstanceOf[Brief],
-      tick,
-      null.asInstanceOf[StackTrace])
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      brief = null.asInstanceOf[Brief],
+      tick = tick,
+      stackTrace = null.asInstanceOf[StackTrace]
+    )
   val serviceStop: ServiceStop =
     ServiceStop(
-      null.asInstanceOf[ServiceIdentity],
-      null.asInstanceOf[Policy],
-      null.asInstanceOf[Brief],
-      ts,
-      StopReason.Successfully)
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      brief = null.asInstanceOf[Brief],
+      timestamp = ts,
+      cause = StopReason.Successfully
+    )
   val metricsSnapshot: MetricsSnapshot =
     MetricsSnapshot(
-      null.asInstanceOf[ServiceIdentity],
-      null.asInstanceOf[Policy],
-      MetricsSnapshot.Index.Adhoc(ts),
-      null.asInstanceOf[com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot],
-      null.asInstanceOf[Took]
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      index = MetricsSnapshot.Adhoc(ts),
+      snapshot = null.asInstanceOf[com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot],
+      took = null.asInstanceOf[Took]
     )
   val reportedEvent: ReportedEvent =
     ReportedEvent(
-      null.asInstanceOf[ServiceIdentity],
-      ts,
-      null.asInstanceOf[Domain],
-      null.asInstanceOf[Correlation],
-      LogLevel.Info,
-      None,
-      null.asInstanceOf[Message])
+      timestamp = ts,
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      domain = null.asInstanceOf[Domain],
+      correlation = null.asInstanceOf[Correlation],
+      level = LogLevel.Info,
+      stackTrace = None,
+      message = null.asInstanceOf[Message]
+    )
 
   val allEvents: List[Event] =
     List(serviceStart, servicePanic, serviceStop, metricsSnapshot, reportedEvent)

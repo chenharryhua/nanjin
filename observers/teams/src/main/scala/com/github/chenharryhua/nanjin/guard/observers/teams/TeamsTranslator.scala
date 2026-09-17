@@ -60,10 +60,16 @@ private object TeamsTranslator {
       ))
   }
 
+  /** Renders the event's `logLink` as a markdown link, intended to be placed as the value of an existing
+    * `Fact` so the link occupies that Fact's value slot rather than adding a row of its own. Each card pairs
+    * it with its most log-relevant tag: `stackTrace` for panic, `snapshot` for metrics, and `brief` for
+    * start/stop (which have no such field). Returns `""` when no `LogLocator` is configured (`evt.logLink` is
+    * `None`); Teams omits a Fact with an empty value, so the link simply does not appear.
+    */
   private def logLink(evt: Event): String =
-    Attribute(evt.serviceIdentity.logLink)
+    Attribute(evt.logLink)
       .fold { (tag, olink) =>
-        olink.map(link => s"[$tag](${link.locate(evt.timestamp)})")
+        olink.map(link => s"[$tag](${link.value})")
       }.getOrElse("")
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {
@@ -78,9 +84,9 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(snz.tag, snz.text)
+            Fact(snz.tag, snz.text),
+            Fact(brief, logLink(evt))
           )),
-        BolderTextBlock(brief),
         JsonBlock(evt.brief.value)
       )
     )
@@ -88,7 +94,6 @@ private object TeamsTranslator {
 
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val stackTrace = Attribute(evt.stackTrace).typeName
     val brief = Attribute(evt.brief).typeName
@@ -102,7 +107,6 @@ private object TeamsTranslator {
           List(
             Fact(idx.tag, idx.text),
             Fact(active.tag, active.text),
-            Fact(policy.tag, policy.text),
             Fact(stackTrace, logLink(evt))
           )),
         StackTraceBlock(evt.stackTrace),
@@ -114,18 +118,21 @@ private object TeamsTranslator {
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
     val cause = Attribute(evt.cause).textEntry
+    val brief = Attribute(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
         header_block(evt),
         service_info(evt),
-        FactSet(List(Fact(cause.tag, cause.text)))
+        FactSet(
+          List(Fact(cause.tag, cause.text), Fact(brief, logLink(evt)))
+        ),
+        JsonBlock(evt.brief.value)
       )
     )
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
-    val policy = Attribute(evt.policy).textEntry
     val idx = Attribute(evt.index).textEntry
     val snapshot = Attribute(evt.snapshot).typeName
     val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml
@@ -137,7 +144,6 @@ private object TeamsTranslator {
         FactSet(
           List(
             Fact(idx.tag, idx.text),
-            Fact(policy.tag, policy.text),
             Fact(snapshot, logLink(evt))
           )),
         TextBlock(yaml)

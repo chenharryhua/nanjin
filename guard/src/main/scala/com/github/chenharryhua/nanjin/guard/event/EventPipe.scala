@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.order.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Periodic}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{toDateTimeCronOps, CronExpr}
 
@@ -66,7 +66,7 @@ object EventPipe {
       private val threshold: LogLevel = f(LogLevel)
       override def apply(event: Event): Option[Event] =
         event match {
-          case evt @ Event.ReportedEvent(_, _, _, _, level, _, _) =>
+          case evt @ Event.ReportedEvent(_, _, _, _, _, level, _, _) =>
             if level >= threshold then Some(evt) else None
           case other => Some(other)
         }

@@ -5,6 +5,7 @@ import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.logging.LogLocator
 import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
@@ -15,7 +16,8 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   val serviceParams: ServiceParams,
   history: History[F, ServicePanic],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  logSink: LogSink[F],
+  logLocator: Option[LogLocator]
 ) {
   private def publish(event: Event): F[Unit] =
     channel.send(event) >> logSink.write(event)
@@ -23,18 +25,20 @@ final private class ServiceEventHandler[F[_]: Sync] private (
   def serviceStart(tick: Tick): F[Unit] =
     publish(
       ServiceStart(
-        serviceParams.serviceIdentity,
-        serviceParams.policies.restart.policy,
-        serviceParams.brief,
-        tick))
+        serviceIdentity = serviceParams.serviceIdentity,
+        logLink = logLocator.map(_.locate(tick.conclude)),
+        brief = serviceParams.brief,
+        tick = tick
+      ))
 
   def servicePanic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
     val panic: ServicePanic = ServicePanic(
-      serviceParams.serviceIdentity,
-      serviceParams.policies.restart.policy,
-      serviceParams.brief,
-      tick,
-      stackTrace)
+      serviceIdentity = serviceParams.serviceIdentity,
+      logLink = logLocator.map(_.locate(tick.acquires)),
+      brief = serviceParams.brief,
+      tick = tick,
+      stackTrace = stackTrace
+    )
     publish(panic) >> history.add(panic)
   }
 
@@ -42,11 +46,12 @@ final private class ServiceEventHandler[F[_]: Sync] private (
     for {
       now <- serviceParams.serviceIdentity.timestamp[F]
       event = ServiceStop(
-        serviceParams.serviceIdentity,
-        serviceParams.policies.restart.policy,
-        serviceParams.brief,
-        now,
-        cause)
+        serviceIdentity = serviceParams.serviceIdentity,
+        logLink = logLocator.map(_.locate(now.value.toInstant)),
+        brief = serviceParams.brief,
+        timestamp = now,
+        cause = cause
+      )
       _ <- logSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()
@@ -63,7 +68,8 @@ private object ServiceEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: LogSink[F]): Stream[F, ServiceEventHandler[F]] = {
+    logSink: LogSink[F],
+    logLocator: Option[LogLocator]): Stream[F, ServiceEventHandler[F]] = {
     val history: F[History[F, ServicePanic]] =
       History[F, ServicePanic](serviceParams.history.map(_.panics))
 
@@ -72,7 +78,8 @@ private object ServiceEventHandler {
         serviceParams = serviceParams,
         history = panicHistory,
         channel = channel,
-        logSink = logSink)
+        logSink = logSink,
+        logLocator = logLocator)
     })
   }
 }

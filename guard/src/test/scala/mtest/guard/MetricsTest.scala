@@ -8,7 +8,7 @@ import com.codahale.metrics.{MetricRegistry, SlidingWindowReservoir}
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.metrics.MetricId
 import com.github.chenharryhua.nanjin.guard.metrics.api.Meter
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.CounterData
@@ -43,7 +43,7 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.nonEmpty)
     assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
     assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
-    assert(mr.index.isInstanceOf[Index.Adhoc])
+    assert(mr.index.isInstanceOf[MetricsSnapshot.Adhoc])
   }
 
   test("1a.metric identifier round trip") {
@@ -329,7 +329,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(reports.size == 2)
-    assert(reports.forall(_.index.isInstanceOf[Index.Periodic]))
+    assert(reports.forall(_.index.isInstanceOf[MetricsSnapshot.Periodic]))
   }
 
   test("14.measured.retry - give up") {
@@ -362,6 +362,6 @@ class MetricsTest extends AnyFunSuite {
       }
       run.use(a => a >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
-    assert(report.index.isInstanceOf[Index.Adhoc])
+    assert(report.index.isInstanceOf[MetricsSnapshot.Adhoc])
   }
 }

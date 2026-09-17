@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
@@ -23,8 +23,9 @@ import monocle.{Optional, Prism}
   * time and event timestamp.
   */
 sealed trait Event extends Product derives Codec.AsObject {
-  def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceIdentity: ServiceIdentity
+  def logLink: Option[LogLink]
+  def timestamp: Timestamp // event timestamp - when the event occurs
 
   final def upTime: UpTime = serviceIdentity.launchTime.upTime(timestamp)
 }
@@ -35,14 +36,16 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy governing retry behavior
     * @param brief
     *   user-provided metadata attached at service configuration time
     * @param tick
     *   the tick that triggered this start (index 0 for initial start, >0 for restarts)
     */
-  final case class ServiceStart(serviceIdentity: ServiceIdentity, policy: Policy, brief: Brief, tick: Tick)
+  final case class ServiceStart(
+    serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
+    brief: Brief,
+    tick: Tick)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
   }
@@ -51,8 +54,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy governing retry behavior
     * @param brief
     *   user-provided metadata
     * @param tick
@@ -62,7 +63,7 @@ object Event {
     */
   final case class ServicePanic(
     serviceIdentity: ServiceIdentity,
-    policy: Policy,
+    logLink: Option[LogLink],
     brief: Brief,
     tick: Tick,
     stackTrace: StackTrace)
@@ -74,8 +75,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the restart policy that was in effect
     * @param brief
     *   user-provided metadata
     * @param timestamp
@@ -85,7 +84,7 @@ object Event {
     */
   final case class ServiceStop(
     serviceIdentity: ServiceIdentity,
-    policy: Policy,
+    logLink: Option[LogLink],
     brief: Brief,
     timestamp: Timestamp,
     cause: StopReason)
@@ -95,8 +94,6 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param policy
-    *   the metrics reporting policy that scheduled this snapshot
     * @param index
     *   either Periodic (with a tick) or Adhoc (with a timestamp)
     * @param snapshot
@@ -106,7 +103,7 @@ object Event {
     */
   final case class MetricsSnapshot(
     serviceIdentity: ServiceIdentity,
-    policy: Policy,
+    logLink: Option[LogLink],
     index: MetricsSnapshot.Index,
     snapshot: Snapshot,
     took: Took)
@@ -118,17 +115,22 @@ object Event {
       def scrapeTime: Timestamp
     end Index
 
-    object Index:
-      final case class Adhoc(scrapeTime: Timestamp) extends Index
-      final case class Periodic(tick: Tick) extends Index:
-        override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
+    final case class Adhoc(scrapeTime: Timestamp) extends Index
+    final case class Periodic(tick: Tick) extends Index:
+      override val scrapeTime: Timestamp = Timestamp(tick.zoned(_.conclude))
 
-      given Show[Index]:
-        override def show(t: Index): String = t match {
-          case Adhoc(_)       => "Adhoc"
-          case Periodic(tick) => s"${tick.index}"
-        }
-    end Index
+    /** Renders an `Index` to a short label: `"Adhoc"` for ad-hoc scrapes, or the tick index for periodic
+      * ones.
+      *
+      * This is a wire contract, not just a display concern: `PrettyJsonTranslator` serializes `index.show`
+      * into the emitted JSON payload (under the `metrics_snapshot` key). Changing these strings changes the
+      * observed output, so treat edits here as a wire-format change.
+      */
+    given Show[Index]:
+      override def show(t: Index): String = t match {
+        case Adhoc(_)       => "Adhoc"
+        case Periodic(tick) => s"${tick.index}"
+      }
   end MetricsSnapshot
 
   /** A user-emitted log message published through the service's logging facilities.
@@ -150,6 +152,7 @@ object Event {
     */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
+    logLink: Option[LogLink],
     timestamp: Timestamp,
     domain: Domain,
     correlation: Correlation,
@@ -168,14 +171,14 @@ object Event {
   val serviceStop: Prism[Event, ServiceStop] = GenPrism[Event, Event.ServiceStop]
   val servicePanic: Prism[Event, ServicePanic] = GenPrism[Event, Event.ServicePanic]
 
-  val adhocSnapshot: Optional[Event, MetricsSnapshot.Index.Adhoc] =
+  val adhocSnapshot: Optional[Event, MetricsSnapshot.Adhoc] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Adhoc])
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Adhoc])
 
   val reportTick: Optional[Event, Tick] =
     metricsSnapshot
       .andThen(GenLens[MetricsSnapshot](_.index))
-      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Index.Periodic])
-      .andThen(GenLens[MetricsSnapshot.Index.Periodic](_.tick))
+      .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Periodic])
+      .andThen(GenLens[MetricsSnapshot.Periodic](_.tick))
 }

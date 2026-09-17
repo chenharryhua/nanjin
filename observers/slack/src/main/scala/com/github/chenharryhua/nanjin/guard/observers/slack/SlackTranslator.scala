@@ -50,6 +50,9 @@ private object SlackTranslator extends all {
     MarkdownSection(s"""|*${first.tag}:* ${first.text}
                         |*${second.tag}:* ${second.text}""".stripMargin)
 
+  private def single_field(entry: TextEntry): MarkdownSection =
+    MarkdownSection(s"*${entry.tag}:* ${entry.text}")
+
   private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
     val (tag, name) = Attribute(sp.service).textEntry.withText(escape).toPair
@@ -74,12 +77,17 @@ private object SlackTranslator extends all {
 
   private def metrics_section(evt: MetricsSnapshot): TagValueSection = {
     val ss = Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
-    val tag = evt.serviceIdentity.logLink.fold(ss.tag) { link =>
-      s"<${link.locate(evt.timestamp)}|${ss.tag}>"
-    }
+    val tag = evt.logLink.fold(ss.tag)(link => s"<${link.value}|${ss.tag}>")
     if (evt.snapshot.nonEmpty) {
       TagValueSection(tag, s"""```${abbreviate(ss.text)}```""")
     } else TagValueSection(tag, """`not available`""")
+  }
+
+  private def message_section(evt: ReportedEvent): TagValueSection = {
+    val ss = Attribute(evt.message).map(msg => s"```${abbreviate(msg.value.spaces2)}```").textEntry
+    val tag = evt.logLink.fold(ss.tag)(link => s"<${link.value}|${ss.tag}>")
+
+    TagValueSection(tag, ss.text)
   }
 
   private def brief(sb: Brief): TagValueSection = {
@@ -100,7 +108,6 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val policy = Attribute(evt.policy).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     SlackApp(
       username = evt.serviceIdentity.task.value,
@@ -111,7 +118,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
             index_section,
-            mark_down(policy, service_id)
+            single_field(service_id)
           )
         ),
         Attachment(color = color, blocks = List(brief(evt.brief)))
@@ -120,15 +127,14 @@ private object SlackTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): SlackApp = {
-    val policy = Attribute(evt.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val error = Attribute(evt.stackTrace).textEntry.withText(t => s"```${abbreviate(t)}```")
     val active = Attribute(Active(evt.tick.active)).textEntry
     val stack: TextEntry =
-      evt.serviceIdentity.logLink.fold(error) { link =>
-        error.withTag(tag => s"<${link.locate(evt.timestamp)}|$tag>")
+      evt.logLink.fold(error) { link =>
+        error.withTag(tag => s"<${link.value}|$tag>")
       }
     val color = coloring(evt)
 
@@ -141,9 +147,8 @@ private object SlackTranslator extends all {
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceIdentity),
             JuxtaposeSection(first = TextField(active), second = TextField(index)),
-            MarkdownSection(show"""|${panicText(evt)}
+            MarkdownSection(show"""|`${panicText(evt)}`
                                    |*${uptime.tag}:* ${uptime.text}
-                                   |*${policy.tag}:* ${policy.text}
                                    |*${service_id.tag}:* ${service_id.text}""".stripMargin)
           )
         ),
@@ -176,7 +181,6 @@ private object SlackTranslator extends all {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
-    val policy = Attribute(evt.policy).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
@@ -188,7 +192,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceIdentity),
             metrics_index_section(evt),
-            mark_down(policy, service_id),
+            single_field(service_id),
             metrics_section(evt)
           )
         ))
@@ -209,19 +213,14 @@ private object SlackTranslator extends all {
     val service = Attribute(evt.serviceIdentity.serviceId).textEntry
     val correlation = Attribute(evt.correlation).textEntry
 
-    val coreLine: TextField =
-      evt.serviceIdentity.logLink.fold(TextField(correlation)) { link =>
-        TextField(s"<${link.locate(evt.timestamp)}|${correlation.tag}>", correlation.text)
-      }
-
     val attachment = Attachment(
       color = color,
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceIdentity),
-        JuxtaposeSection(coreLine, TextField(domain)),
+        JuxtaposeSection(TextField(domain), TextField(correlation)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
-        MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
+        message_section(evt)
       )
     )
 

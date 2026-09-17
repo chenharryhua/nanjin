@@ -25,7 +25,6 @@ object PrettyJsonTranslator {
       Attribute(evt.serviceIdentity.service).snakeJsonEntry,
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry
@@ -33,9 +32,8 @@ object PrettyJsonTranslator {
 
   private def service_stop(evt: ServiceStop): Json =
     Json.obj(
-      Attribute(evt).map(_.cause.show).snakeJsonEntry,
+      Attribute(evt).map(_.cause).snakeJsonEntry,
       Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-      Attribute(evt.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry
     )
@@ -45,7 +43,6 @@ object PrettyJsonTranslator {
       Attribute(evt).map(_.index.show).snakeJsonEntry,
       Attribute(evt.serviceIdentity.service).snakeJsonEntry,
       Attribute(evt.took).map(_.show).snakeJsonEntry,
-      Attribute(evt.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry

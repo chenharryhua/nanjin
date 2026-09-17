@@ -38,7 +38,7 @@ final class FinalizeMonitor[F[_]: {Clock, Monad}] private (ref: Ref[F, Map[Servi
         Chunk.from(values).map { ss =>
           ServiceStop(
             ss.serviceIdentity,
-            ss.policy,
+            None,
             ss.brief,
             ss.serviceIdentity.toTimestamp(ts),
             StopReason.ByCancellation)

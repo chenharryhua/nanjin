@@ -7,7 +7,7 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.order.given
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, LogLocator}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, LogThreshold, ServiceParams, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message}
@@ -22,13 +22,15 @@ final private class ReportedEventHandler[F[_]: Sync](
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  logSink: LogSink[F],
+  logLocator: Option[LogLocator]
 ) {
   private def createReportedEvent[S: Encoder](message: S, level: LogLevel, stackTrace: Option[StackTrace])(
     using F: Sync[F]): F[ReportedEvent] =
     (F.unique, serviceParams.serviceIdentity.timestamp[F]).mapN { case (token, ts) =>
       ReportedEvent(
         serviceIdentity = serviceParams.serviceIdentity,
+        logLink = logLocator.map(_.locate(ts.value.toInstant)),
         timestamp = ts,
         domain = domain,
         correlation = Correlation(token),
@@ -45,7 +47,8 @@ final private class ReportedEventHandler[F[_]: Sync](
       history = history,
       serviceParams = serviceParams,
       channel = channel,
-      logSink = logSink)
+      logSink = logSink,
+      logLocator = logLocator)
 
   /** Logger that writes to the log sink and publishes to the event channel.
     *
@@ -81,7 +84,8 @@ private object ReportedEventHandler:
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
     logSink: LogSink[F],
-    logThreshold: LogThreshold
+    logThreshold: LogThreshold,
+    logLocator: Option[LogLocator]
   ): Stream[F, ReportedEventHandler[F]] = {
     val history: F[History[F, ReportedEvent]] =
       History[F, ReportedEvent](serviceParams.history.map(_.errors))
@@ -96,7 +100,8 @@ private object ReportedEventHandler:
         history = errorHistory,
         serviceParams = serviceParams,
         channel = channel,
-        logSink = logSink
+        logSink = logSink,
+        logLocator = logLocator
       )
     }
     Stream.eval(reh)

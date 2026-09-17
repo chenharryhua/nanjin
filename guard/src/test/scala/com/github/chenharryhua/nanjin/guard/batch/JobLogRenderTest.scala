@@ -129,11 +129,12 @@ class JobLogRenderTest extends AnyFunSuite {
 
   // ---- inBatch render (nested inside a serialized BatchResult) -------------------------------------
 
-  test("11.inBatch Succeeded: displayName under status tag, took its own key, produced value under result") {
+  test(
+    "11.inBatch Succeeded: status tag under the job's displayName key, took its own key, value under result") {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).inBatch
     val c = js.hcursor
-    // the status tag holds the job's displayName; took is its own key
-    assert(c.get[String]("succeeded").toOption.contains("job-1 work"))
+    // inBatch keys the entry by the job's displayName; the value is the status tag. took is its own key.
+    assert(c.get[String]("job-1 work").toOption.contains("succeeded"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     // inBatch omits the full job context that standalone nests in
     assert(c.get[String]("Sequential Quasi Batch").toOption.isEmpty)
@@ -144,17 +145,18 @@ class JobLogRenderTest extends AnyFunSuite {
   test("12.inBatch Succeeded with an absent value (Json.Null): the result key is dropped") {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), Json.Null).inBatch
     val c = js.hcursor
-    assert(c.get[String]("succeeded").toOption.contains("job-1 work"))
+    assert(c.get[String]("job-1 work").toOption.contains("succeeded"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.downField(JobLog.RESULT).focus.isEmpty) // dropNullValues removes it
   }
 
-  test("13.inBatch Critical: displayName under status tag, took its own key, message under error") {
+  test(
+    "13.inBatch Critical: status tag under the job's displayName key, took its own key, message under error") {
     // Critical carries no produced value, so its phantom `A` is pinned to Unit for the Encoder to resolve
     val js =
       JobLog.Critical[Unit](record(monadicJob, succeeded = false), new RuntimeException("boom")).inBatch
     val c = js.hcursor
-    assert(c.get[String]("critical").toOption.contains("job-1 work"))
+    assert(c.get[String]("job-1 work").toOption.contains("critical"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
     assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
   }

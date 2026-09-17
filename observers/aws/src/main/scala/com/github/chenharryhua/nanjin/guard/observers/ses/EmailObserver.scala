@@ -171,7 +171,7 @@ final class EmailObserver[F[_]] private (params: EmailObserver.Params[F])(using 
             translate(
               ServiceStop(
                 ss.serviceIdentity,
-                ss.policy,
+                None,
                 ss.brief,
                 ss.serviceIdentity.toTimestamp(ts),
                 StopReason.ByCancellation))

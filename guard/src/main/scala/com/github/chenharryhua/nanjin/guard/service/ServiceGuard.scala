@@ -156,9 +156,15 @@ private[guard] object ServiceGuard {
         meterProvider <- Stream.resource(service_config.meterProvider)
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
-        seHandler <- ServiceEventHandler(serviceParams, channel, logSink)
-        reHandler <- ReportedEventHandler[F](serviceParams, channel, logSink, service_config.logThreshold)
-        meHandler <- MetricsEventHandler(serviceParams, channel, logSink)
+        logLocator <- Stream.eval(service_config.logLocator)
+        seHandler <- ServiceEventHandler(serviceParams, channel, logSink, logLocator)
+        reHandler <- ReportedEventHandler[F](
+          serviceParams,
+          channel,
+          logSink,
+          service_config.logThreshold,
+          logLocator)
+        meHandler <- MetricsEventHandler(serviceParams, channel, logSink, logLocator)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,

@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.12-SNAPSHOT"
+ThisBuild / version      := "0.21.13-SNAPSHOT"
 ThisBuild / scalaVersion := "3.9.0" // LTS
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -13,18 +13,18 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.54.15"
+val awsV = "2.54.20"
 val catsCoreV = "2.13.0"
 val chimneyV = "1.11.0"
 val circeV = "0.14.16"
 val circeOpticsV = "0.15.1"
-val confluentV = "8.3.1"
-val kafkaV = "8.3.1-ce"
+val confluentV = "8.3.2"
+val kafkaV = "8.3.2-ce"
 val cron4sV = "0.8.2"
 val docV = "0.1.5"
 val doobieV = "1.0.0-RC13"
 val drosteV = "0.10.0"
-val fs2KafkaV = "4.0.0"
+val fs2KafkaV = "4.1.0"
 val fs2V = "3.14.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.2"
@@ -32,7 +32,7 @@ val jettyV = "12.1.13"
 val http4sV = "0.23.37"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.3"
-val lz4V = "1.11.2"
+val lz4V = "1.11.3"
 val metricsV = "4.2.40"
 val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
@@ -387,12 +387,8 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "at.yawk.lz4"      % "lz4-java"          % lz4V, // snyk by kafka-avro-serializer
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
-      "org.apache.httpcomponents.client5" % "httpclient5"      % "5.6.4", // snyk kafka-schema-registry-client
-      "org.apache.httpcomponents.core5"   % "httpcore5-h2"     % "5.4.3", // snyk by kafka-avro-serializer
-      "com.squareup.wire"                 % "wire-runtime-jvm" % "7.0.1", // snyk by kafka-protobuf-provider
-      "org.jetbrains.kotlin"              % "kotlin-stdlib"    % "2.4.20" // snyk by wire-runtime-jvm
+      "com.github.luben" % "zstd-jni"          % "1.5.7-17" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))

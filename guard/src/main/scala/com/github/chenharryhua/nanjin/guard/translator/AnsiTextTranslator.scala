@@ -44,32 +44,24 @@ object AnsiTextTranslator {
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"index:${evt.tick.index}"
     val act = Attribute(Active(evt.tick.active)).labelledText
-    val policy = Attribute(evt.policy).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $act
-        |  $policy
         |${panicText(evt)}
         |${Attribute(evt.stackTrace).labelledText}
         |""".stripMargin
   }
 
-  private def service_stop(evt: ServiceStop): String = {
-    val policy = Attribute(evt.policy).labelledText
-
+  private def service_stop(evt: ServiceStop): String =
     s"""|${service_event(evt)}
-        |  $policy
         |${Attribute(evt.cause).labelledText}
         |""".stripMargin
-  }
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
-    val policy = Attribute(evt.policy).labelledText
     val idx = Attribute(evt.index).labelledText
     val took = Attribute(evt.took).labelledText
 
     s"""|${service_event(evt)}
-        |  $policy
         |  $idx, $took
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin

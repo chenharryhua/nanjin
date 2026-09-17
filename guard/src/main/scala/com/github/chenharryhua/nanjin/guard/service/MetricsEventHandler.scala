@@ -6,10 +6,11 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.logging.LogLocator
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
 import fs2.Stream
@@ -20,7 +21,8 @@ final private class MetricsEventHandler[F[_]] private (
   scrapeMetrics: ScrapeMetrics,
   history: History[F, MetricsSnapshot],
   channel: Channel[F, Event],
-  logSink: LogSink[F]
+  logSink: LogSink[F],
+  logLocator: Option[LogLocator]
 )(using F: Async[F])
     extends AdhocReport[F] {
   val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
@@ -29,10 +31,11 @@ final private class MetricsEventHandler[F[_]] private (
     scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
       MetricsSnapshot(
         serviceIdentity = serviceParams.serviceIdentity,
-        policy = serviceParams.policies.report,
+        logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
         index = index,
         snapshot = snapshot,
-        took = Took(took))
+        took = Took(took)
+      )
     }
 
   private def publish(index: Index): F[MetricsSnapshot] =
@@ -79,12 +82,14 @@ final private class MetricsEventHandler[F[_]] private (
     g: ScrapeMode.type => ScrapeMode): Stream[F, MetricsSnapshot] =
     tickStream.tickScheduled(serviceParams.serviceIdentity.timeZone.value, f).evalMap(tick =>
       scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
+        val index = Periodic(tick)
         MetricsSnapshot(
           serviceIdentity = serviceParams.serviceIdentity,
-          policy = serviceParams.policies.report,
-          index = Periodic(tick),
+          logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
+          index = index,
           snapshot = snapshot,
-          took = Took(took))
+          took = Took(took)
+        )
       })
 
   override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
@@ -100,7 +105,8 @@ private object MetricsEventHandler {
   def apply[F[_]: Async](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logSink: LogSink[F]
+    logSink: LogSink[F],
+    logLocator: Option[LogLocator]
   ): Stream[F, MetricsEventHandler[F]] = {
     val history: F[History[F, MetricsSnapshot]] =
       History[F, MetricsSnapshot](serviceParams.history.map(_.metrics))
@@ -111,7 +117,9 @@ private object MetricsEventHandler {
         scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
         history = metricsHistory,
         channel = channel,
-        logSink = logSink)
+        logSink = logSink,
+        logLocator = logLocator
+      )
     }
   }
 }
