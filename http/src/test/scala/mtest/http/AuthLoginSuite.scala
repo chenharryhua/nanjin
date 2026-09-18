@@ -268,6 +268,57 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } *> unauthorizedReleases.get.map(releases => assertEquals(releases, 1))
   }
 
+  test("4a1.unauthorized response is released while issuing the retry, not held until the caller is done") {
+    // The `NonEmptyHotswap` acquires the retry response and then immediately releases the 401 one,
+    // so by the time the caller observes the final response the 401 connection is already freed. The
+    // buggy version chained the 401 response's release into the outer resource, so it was held open
+    // until *after* the caller finished with the retried response. This test pins that guarantee by
+    // sampling the 401-release flag from inside the caller's `use` block (the outer client-run scope
+    // is still open there): the fix records the release before that point, the bug would not.
+    val unauthorizedReleased = Ref.unsafe[IO, Boolean](false)
+    // Captured inside the caller's `use` block, before the outer client-run scope closes.
+    val releasedWhenCallerHasResponse = Ref.unsafe[IO, Boolean](false)
+
+    // The first /token call mints "old-token" (which the resource rejects with 401), the refresh
+    // mints "new-token" (which succeeds), forcing the 401 -> refresh -> retry path.
+    val tokenCalls = Ref.unsafe[IO, Int](0)
+    val authClient = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          tokenCalls.updateAndGet(_ + 1).flatMap { call =>
+            val token = if (call == 1) "old-token" else "new-token"
+            Ok(s"""{"access_token":"$token","token_type":"Bearer","expires_in":3600}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val resourceClient = Client[IO] { request =>
+      request.headers.get[Authorization] match {
+        case Some(header) if header.value == "Bearer old-token" =>
+          Resource.make(IO.pure(Response[IO](Status.Unauthorized)))(_ => unauthorizedReleased.set(true))
+        case Some(header) if header.value == "Bearer new-token" =>
+          Resource.pure(Response[IO](Status.Ok))
+        case _ => Resource.pure(Response[IO](Status.Forbidden))
+      }
+    }
+
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = Secret("secret")
+    )
+
+    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(resourceClient)).use { authed =>
+      authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
+        IO(assertEquals(response.status, Status.Ok)) *>
+          unauthorizedReleased.get.flatMap(releasedWhenCallerHasResponse.set)
+      }
+    } *> releasedWhenCallerHasResponse.get.map { released =>
+      assert(released, "the 401 connection must be released by the time the caller has the response")
+    }
+  }
+
   test("4b.cancellation during first request releases the connection") {
     val released = Ref.unsafe[IO, Boolean](false)
 

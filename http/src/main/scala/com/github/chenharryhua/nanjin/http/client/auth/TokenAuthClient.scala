@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.NonEmptyHotswap
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
@@ -62,12 +63,27 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
       def runWithToken(token: T): Resource[F, Response[F]] =
         client.run(withToken(token, request))
 
+      // Retry once on 401 with a freshly fetched token. `NonEmptyHotswap.swap` acquires the retry
+      // response first and then immediately releases the unauthorized one, so the 401 connection is
+      // freed as part of issuing the retry rather than being held open — bound to the outer resource
+      // — until the retried response is finalized after the caller is done with it. (This is not a
+      // strict release-before-acquire: `swap` overlaps the two so the hotswap is never empty; the
+      // guarantee is that the 401 is released by the time the caller observes the final response.)
+      // The status probe borrows the current response only long enough to read its `status` (a pure
+      // field that does not touch the body/connection) and lets just that `Boolean` escape; the
+      // response handed back to the caller is `hotswap.get` returned as a resource, so its lifetime
+      // is the hotswap scope rather than an escaped, already-returned borrow.
       Resource.eval(authToken.get).flatMap { token =>
-        runWithToken(token).flatMap { response =>
-          if (response.status === Status.Unauthorized)
-            Resource.eval(singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
-          else
-            Resource.pure(response)
+        NonEmptyHotswap(runWithToken(token)).flatMap { hotswap =>
+          val refreshIfUnauthorized: F[Unit] =
+            hotswap.get.use(response => F.pure(response.status === Status.Unauthorized)).flatMap {
+              case true =>
+                singleFlight(getToken.flatTap(authToken.set))
+                  .flatMap(newToken => hotswap.swap(runWithToken(newToken)))
+              case false =>
+                F.unit
+            }
+          Resource.eval(refreshIfUnauthorized).flatMap(_ => hotswap.get)
         }
       }
     }
