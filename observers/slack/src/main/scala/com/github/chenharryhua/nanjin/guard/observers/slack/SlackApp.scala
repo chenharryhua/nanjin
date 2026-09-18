@@ -58,6 +58,6 @@ final private case class SlackApp(
 final private case class Params[F[_]](
   client: Resource[F, Client[F]],
   translator: Translator[F, SlackApp],
-  maxStackTrace: Option[Int],
+  maxStackTraceFrames: Option[Int],
   icon_url: Option[Uri]
 )
