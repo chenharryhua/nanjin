@@ -6,7 +6,6 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
-import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.{idempotencyKey, FinalizeMonitor}
 import com.github.chenharryhua.nanjin.guard.translator.*
@@ -27,6 +26,12 @@ sealed trait SlackObserver[F[_]] extends UpdateTranslator[F, SlackApp, SlackObse
   /** Transform the event-to-`SlackApp` translator, e.g. to skip certain event kinds. */
   override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F]
 
+  /** Truncate rendered stack traces to the top `num` frames (the deepest, root-cause-first). */
+  def withMaxStackTrace(num: Int): SlackObserver[F]
+
+  /** Set the message icon URL, serialized as Slack's `icon_url` field. */
+  def withIconUrl(link: Uri): SlackObserver[F]
+
   /** Build a pipe that observes events, renders each into a Slack message, and POSTs it to `webhook`.
     *
     * Events pass through unchanged (the pipe is a side-effecting tap). Each POST carries an idempotency key
@@ -41,16 +46,21 @@ sealed trait SlackObserver[F[_]] extends UpdateTranslator[F, SlackApp, SlackObse
 
 object SlackObserver {
   def apply[F[_]: {Concurrent, Clock}](client: Resource[F, Client[F]]): SlackObserver[F] =
-    new SlackObserverImpl[F](client, SlackTranslator[F])
+    new SlackObserverImpl[F](Params(client, SlackTranslator[F], None, None))
 }
 
-final private class SlackObserverImpl[F[_]: Clock](
-  client: Resource[F, Client[F]],
-  translator: Translator[F, SlackApp])(using F: Concurrent[F])
+final private class SlackObserverImpl[F[_]: Clock](params: Params[F])(using F: Concurrent[F])
     extends SlackObserver[F] with Http4sClientDsl[F] {
+  private def copy(p: Params[F]): SlackObserverImpl[F] = new SlackObserverImpl[F](p)
 
   override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
-    new SlackObserverImpl[F](client, f(translator))
+    copy(params.copy(translator = f(params.translator)))
+
+  override def withMaxStackTrace(num: Int): SlackObserver[F] =
+    copy(params.copy(maxStackTrace = Some(num)))
+
+  override def withIconUrl(link: Uri): SlackObserver[F] =
+    copy(params.copy(icon_url = Some(link)))
 
   private def publish(
     httpClient: Client[F],
@@ -63,20 +73,36 @@ final private class SlackObserverImpl[F[_]: Clock](
     httpClient.successful(req).attempt.void
   }
 
+  // Truncate the rendered stack trace to the configured depth. Only the copy fed to the translator is
+  // limited; the event re-emitted downstream is left intact for other observers.
+  private def limit(evt: Event): Event = evt match {
+    case p: Event.ServicePanic =>
+      p.copy(stackTrace = params.maxStackTrace.fold(p.stackTrace)(p.stackTrace.topN))
+    case r: Event.ReportedEvent =>
+      r.copy(stackTrace = params.maxStackTrace.fold(r.stackTrace)(n => r.stackTrace.map(_.topN(n))))
+    case other => other
+  }
+
+  // Translate one event, stamp the configured icon on the card, and POST it. Shared by the streaming tap and
+  // the finalizer flush so the two paths cannot drift.
+  private def publishEvent(httpClient: Client[F], webhook: Uri, evt: Event): F[Unit] =
+    params.translator
+      .translate(limit(evt))
+      .flatMap(_.traverse_ { card =>
+        publish(
+          httpClient,
+          webhook,
+          card.copy(icon_url = params.icon_url.map(_.renderString)),
+          idempotencyKey(evt))
+      })
+
   override def observe(webhook: Uri): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
-      http <- Stream.resource(client)
+      http <- Stream.resource(params.client)
       ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
-        .evalTap(e =>
-          translator
-            .translate(e)
-            .flatMap(_.traverse(card => publish(http, webhook, card, idempotencyKey(e)))))
-        .onFinalize(ofm.terminated
-          .flatMap(_.traverse_ { e =>
-            translator.translate(e)
-              .flatMap(_.traverse_(card => publish(http, webhook, card, idempotencyKey(e))))
-          }))
+        .evalTap(publishEvent(http, webhook, _))
+        .onFinalize(ofm.terminated.flatMap(_.traverse_(publishEvent(http, webhook, _))))
     } yield event
 }
