@@ -19,15 +19,6 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 
-object SqsObserver {
-
-  /** Create an observer that forwards events to an SQS queue, using the identity translator (each event is
-    * sent verbatim as JSON). Refine the translator with `withTranslator`.
-    */
-  def apply[F[_]: {Concurrent, Clock, UUIDGen}](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
-    new SqsObserver[F](client, Translator.idTranslator[F])
-}
-
 /** Observer that sends each event to an AWS SQS queue as a JSON message.
   *
   * Every event is translated and, if the translator keeps it, published immediately (no batching). On stream
@@ -35,10 +26,44 @@ object SqsObserver {
   * crashed service is still reported. Send failures are swallowed (see `send`) so one failed publish does not
   * tear down the observer.
   */
-final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
+sealed trait SqsObserver[F[_]] extends UpdateTranslator[F, Event, SqsObserver[F]] {
+
+  /** Observe events, sending each to the queue configured by `builder`. Events pass through unchanged.
+    *
+    * @param builder
+    *   a partially built `SendMessageRequest` (e.g. with the queue URL set); the message body and
+    *   deduplication id are filled in per event.
+    */
+  def observe(builder: SendMessageRequest.Builder): Pipe[F, Event, Event]
+
+  /** Observe events, sending each to a FIFO queue under `messageGroupId`.
+    *
+    * A single message group preserves event ordering, since FIFO queues order messages within a group.
+    *
+    * @param url
+    *   the FIFO queue URL.
+    * @param messageGroupId
+    *   the FIFO message group; all events share it to keep their order.
+    */
+  def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event]
+
+  /** Transform the event translator, e.g. to filter or reshape the JSON sent to SQS. */
+  override def withTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F]
+}
+
+object SqsObserver {
+
+  /** Create an observer that forwards events to an SQS queue, using the identity translator (each event is
+    * sent verbatim as JSON). Refine the translator with `withTranslator`.
+    */
+  def apply[F[_]: {Concurrent, Clock, UUIDGen}](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
+    new SqsObserverImpl[F](client, Translator.idTranslator[F])
+}
+
+final private class SqsObserverImpl[F[_]: {Clock, UUIDGen}](
   client: Resource[F, SimpleQueueService[F]],
   translator: Translator[F, Event])(using F: Concurrent[F])
-    extends UpdateTranslator[F, Event, SqsObserver[F]] {
+    extends SqsObserver[F] {
 
   private def translate(evt: Event): F[Option[Json]] =
     translator.translate(evt).map(_.map(_.asJson))
@@ -65,27 +90,11 @@ final class SqsObserver[F[_]: {Clock, UUIDGen}] private (
           }))
       } yield event
 
-  /** Observe events, sending each to the queue configured by `builder`. Events pass through unchanged.
-    *
-    * @param builder
-    *   a partially built `SendMessageRequest` (e.g. with the queue URL set); the message body and
-    *   deduplication id are filled in per event.
-    */
-  def observe(builder: SendMessageRequest.Builder): Pipe[F, Event, Event] = internal(builder)
+  override def observe(builder: SendMessageRequest.Builder): Pipe[F, Event, Event] = internal(builder)
 
-  /** Observe events, sending each to a FIFO queue under `messageGroupId`.
-    *
-    * A single message group preserves event ordering, since FIFO queues order messages within a group.
-    *
-    * @param url
-    *   the FIFO queue URL.
-    * @param messageGroupId
-    *   the FIFO message group; all events share it to keep their order.
-    */
-  def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
+  override def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
     internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
 
-  /** Transform the event translator, e.g. to filter or reshape the JSON sent to SQS. */
   override def withTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
-    new SqsObserver[F](client, f(translator))
+    new SqsObserverImpl[F](client, f(translator))
 }

@@ -17,18 +17,40 @@ import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.`Idempotency-Key`
 import org.http4s.{Method, Request, Uri}
 
-object SlackObserver {
-  def apply[F[_]: {Concurrent, Clock}](client: Resource[F, Client[F]]): SlackObserver[F] =
-    new SlackObserver[F](client, SlackTranslator[F])
+/** Observer that renders each event as a Slack Block Kit message and POSTs it to a Slack incoming webhook.
+  *
+  * Obtain one with `SlackObserver.apply` and adjust its translator with `withTranslator` (each returns a new
+  * observer). Wire it into a service with `observe`.
+  */
+sealed trait SlackObserver[F[_]] extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
+
+  /** Transform the event-to-`SlackApp` translator, e.g. to skip certain event kinds. */
+  override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F]
+
+  /** Build a pipe that observes events, renders each into a Slack message, and POSTs it to `webhook`.
+    *
+    * Events pass through unchanged (the pipe is a side-effecting tap). Each POST carries an idempotency key
+    * so Slack can dedupe retries; a failed POST is swallowed so one bad publish does not tear down the
+    * observer. On finalization any events the `FinalizeMonitor` still holds are flushed.
+    *
+    * @param webhook
+    *   the Slack incoming-webhook URL to POST to.
+    */
+  def observe(webhook: Uri): Pipe[F, Event, Event]
 }
 
-final class SlackObserver[F[_]: Clock] private (
+object SlackObserver {
+  def apply[F[_]: {Concurrent, Clock}](client: Resource[F, Client[F]]): SlackObserver[F] =
+    new SlackObserverImpl[F](client, SlackTranslator[F])
+}
+
+final private class SlackObserverImpl[F[_]: Clock](
   client: Resource[F, Client[F]],
   translator: Translator[F, SlackApp])(using F: Concurrent[F])
-    extends UpdateTranslator[F, SlackApp, SlackObserver[F]] with Http4sClientDsl[F] {
+    extends SlackObserver[F] with Http4sClientDsl[F] {
 
   override def withTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
-    new SlackObserver[F](client, f(translator))
+    new SlackObserverImpl[F](client, f(translator))
 
   private def publish(
     httpClient: Client[F],
@@ -41,7 +63,7 @@ final class SlackObserver[F[_]: Clock] private (
     httpClient.successful(req).attempt.void
   }
 
-  def observe(webhook: Uri): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
+  override def observe(webhook: Uri): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       http <- Stream.resource(client)
       ofm <- Stream.eval(FinalizeMonitor[F])
