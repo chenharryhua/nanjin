@@ -29,12 +29,16 @@ trait Login[F[_]] {
   * Manages fetching, refreshing, and applying tokens to requests.
   *
   * Subclasses need to implement:
-  *   - `getToken`: how to obtain a new token
+  *   - `getToken`: how to obtain a token without using a current token
   *   - `renewToken`: how to refresh or schedule token renewal
   *   - `withToken`: how to attach the token to an HTTP request
+  *
+  * By default, a rejected token is replaced with `getToken`. Subclasses may override `refreshToken` when
+  * replacement depends on the current token, such as an OAuth refresh-token grant.
   */
 abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4sClientDsl[F] {
   protected def getToken: F[T]
+  protected def refreshToken: T => F[T] = _ => getToken
   protected def renewToken(ref: Ref[F, T]): F[Unit]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
@@ -71,8 +75,10 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
             poll(allocate_response(token)).flatMap {
               case (response, release) if response.status === Status.Unauthorized =>
                 release(Resource.ExitCase.Succeeded).flatMap(_ =>
-                  poll(single_flight(getToken.flatTap(auth_token.set))
-                    .flatMap(allocate_response)))
+                  poll(
+                    single_flight(
+                      auth_token.get.flatMap(refreshToken).flatTap(auth_token.set)
+                    ).flatMap(allocate_response)))
               case allocated_response => F.pure(allocated_response)
             }
           } { case ((_, release), exit_case) => release(exit_case) }

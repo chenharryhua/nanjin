@@ -190,21 +190,24 @@ private class AuthorizationCodeAuth[F[_]: Async](
 
         private def refreshAccessToken(pre: Token): F[Token] =
           uuidGenerator.flatMap { uuid =>
-            authClient.use(
-              _.expect[Token](POST(
+            authenticationClient.expect[Token](
+              POST(
                 UrlForm(
                   "grant_type" -> "refresh_token",
                   "client_id" -> credential.client_id,
                   "refresh_token" -> pre.refresh_token),
                 credential.auth_endpoint,
                 Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
+
+        override protected def refreshToken: Token => F[Token] =
+          refreshAccessToken
 
         override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
-            newToken <- refreshAccessToken(oldToken).delayBy(skewed(oldToken.expires_in))
+            newToken <- refreshToken(oldToken).delayBy(skewed(oldToken.expires_in))
             _ <- ref.set(newToken)
           } yield ()
 

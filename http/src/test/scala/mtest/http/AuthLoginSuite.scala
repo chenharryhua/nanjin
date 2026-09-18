@@ -125,6 +125,55 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
+  test("2a.authorizationCode refreshes instead of reusing a rejected authorization code") {
+    val grant_types = Ref.unsafe[IO, List[String]](Nil)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case req @ POST -> Root / "token" =>
+          req.as[UrlForm].flatMap { form =>
+            val grant_type = form.getFirst("grant_type").getOrElse(fail("missing grant_type"))
+            grant_types.update(_ :+ grant_type) *> (grant_type match {
+              case "authorization_code" =>
+                Ok("""{"access_token":"old-token","refresh_token":"refresh-1","id_token":"id-1","token_type":"Bearer","expires_in":3600}""")
+              case "refresh_token" =>
+                assertEquals(form.getFirst("refresh_token"), Some("refresh-1"))
+                Ok("""{"access_token":"new-token","refresh_token":"refresh-2","id_token":"id-2","token_type":"Bearer","expires_in":3600}""")
+              case unexpected =>
+                fail(s"unexpected grant_type: $unexpected")
+            })
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+      request.headers.get[Authorization] match {
+        case Some(header) if header.value == "Bearer old-token" =>
+          IO.pure(Response[IO](Status.Unauthorized))
+        case Some(header) if header.value == "Bearer new-token" => Ok("ok")
+        case _                                                  => Forbidden()
+      }
+    })
+
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    auth.authorizationCode[IO](auth_client, credential).flatMap(_.login(resource_client)).use { authed =>
+      for {
+        body <- authed.expect[String](uri"/resource")
+        grants <- grant_types.get
+      } yield {
+        assertEquals(body, "ok")
+        assertEquals(grants, List("authorization_code", "refresh_token"))
+      }
+    }
+  }
+
   /* -------------------------------------------------------------------------- */
   /* Sanity: token is reused within lifetime                                     */
   /* -------------------------------------------------------------------------- */
