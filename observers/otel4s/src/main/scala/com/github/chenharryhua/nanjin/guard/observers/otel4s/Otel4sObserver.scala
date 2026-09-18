@@ -32,18 +32,31 @@ import org.typelevel.otel4s.logs.{LoggerProvider, Severity}
   *   }
   * }}}
   */
-object Otel4sObserver {
-  def apply[F[_]: Concurrent, Ctx](provider: LoggerProvider[F, Ctx]): Otel4sObserver[F, Ctx] =
-    new Otel4sObserver[F, Ctx](provider, PrettyJsonTranslator[F])
+sealed trait Otel4sObserver[F[_], Ctx] extends UpdateTranslator[F, Json, Otel4sObserver[F, Ctx]] {
+
+  /** Transform the event-to-`Json` translator, e.g. to skip certain event kinds. */
+  override def withTranslator(f: Endo[Translator[F, Json]]): Otel4sObserver[F, Ctx]
+
+  /** Emit events to OpenTelemetry under the given instrumentation scope name.
+    *
+    * @param scopeName
+    *   the instrumentation scope (logger) name, typically the service or library name
+    */
+  def observe(scopeName: String): Pipe[F, Event, Event]
 }
 
-final class Otel4sObserver[F[_], Ctx] private (
+object Otel4sObserver {
+  def apply[F[_]: Concurrent, Ctx](provider: LoggerProvider[F, Ctx]): Otel4sObserver[F, Ctx] =
+    new Otel4sObserverImpl[F, Ctx](provider, PrettyJsonTranslator[F])
+}
+
+final private class Otel4sObserverImpl[F[_], Ctx](
   provider: LoggerProvider[F, Ctx],
   translator: Translator[F, Json])(using F: Concurrent[F])
-    extends UpdateTranslator[F, Json, Otel4sObserver[F, Ctx]] {
+    extends Otel4sObserver[F, Ctx] {
 
   override def withTranslator(f: Endo[Translator[F, Json]]): Otel4sObserver[F, Ctx] =
-    new Otel4sObserver[F, Ctx](provider, f(translator))
+    new Otel4sObserverImpl[F, Ctx](provider, f(translator))
 
   private def severity_of(event: Event): Severity =
     eventLogLevel[Eval, Severity](event).run {
@@ -54,12 +67,7 @@ final class Otel4sObserver[F[_], Ctx] private (
       case LogLevel.Error => Eval.now(Severity.error)
     }.value
 
-  /** Emit events to OpenTelemetry under the given instrumentation scope name.
-    *
-    * @param scopeName
-    *   the instrumentation scope (logger) name, typically the service or library name
-    */
-  def observe(scopeName: String): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
+  override def observe(scopeName: String): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     Stream.eval(provider.logger(scopeName).get).flatMap { logger =>
       es.evalTap { event =>
         translator.translate(event).flatMap {

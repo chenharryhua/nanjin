@@ -34,12 +34,10 @@ object observers {
       .withTranslator(_.filter(EventPipe.cronFilter(crontabs.businessHour)))
 
   def emailObserver: EmailObserver[IO] =
-    EmailObserver(
-      EmailObserver
-        .Params(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
-        .withPolicy(_.crontab(_.every12Hours).offset(8.hours)) // send a digest every 12h, offset by 8h
-        .withZoneId(sydneyTime)
-        .withCapacity(200)) // buffer up to 200 events per digest
+    EmailObserver(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
+      .withPolicy(_.crontab(_.every12Hours).offset(8.hours)) // send a digest every 12h, offset by 8h
+      .withZoneId(sydneyTime)
+      .withCapacity(200) // buffer up to 200 events per digest
 
   val cloudwatch: CloudWatchObserver[IO] =
     CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))

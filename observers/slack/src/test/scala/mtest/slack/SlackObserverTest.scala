@@ -5,11 +5,14 @@ import cats.effect.kernel.{Ref, Resource}
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.slack.SlackObserver
 import org.http4s.client.Client
 import org.http4s.{Request, Response, Status, Uri}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.ci.CIString
+
+import scala.concurrent.duration.*
 
 class SlackObserverTest extends AnyFunSuite {
 
@@ -69,5 +72,36 @@ class SlackObserverTest extends AnyFunSuite {
       }.unsafeRunSync()
 
     assert(captured.isEmpty)
+  }
+
+  test("4.a failing webhook does not drop events: the stream still completes with every event") {
+    // publish uses `successful(...).attempt.void`, so a non-2xx response is swallowed rather than aborting
+    val failing: Resource[IO, Client[IO]] =
+      Resource.pure(Client[IO](_ => Resource.pure(Response[IO](Status.InternalServerError))))
+
+    val events =
+      service.through(SlackObserver[IO](failing).observe(webhook)).compile.toList.unsafeRunSync()
+
+    assert(events.exists(_.isInstanceOf[ServiceStart]))
+    assert(events.exists(_.isInstanceOf[ServiceStop]))
+  }
+
+  test("5.withTranslator can skip a single event type, publishing fewer than the events seen") {
+    // a service that additionally emits a metrics snapshot, so skipMetricsSnapshot has something to drop
+    val reporting: fs2.Stream[IO, Event] =
+      TaskGuard[IO]("slack")
+        .service("observer-test")
+        .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
+        .eventStream(_.adhoc.report)
+
+    val (captured, events) =
+      Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
+        val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipMetricsSnapshot)
+        reporting.through(slack.observe(webhook)).compile.toList.flatMap(evts => sent.get.map(_ -> evts))
+      }.unsafeRunSync()
+
+    assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
+    // the metrics snapshot was translated to nothing, so fewer POSTs than events
+    assert(captured.size < events.size)
   }
 }

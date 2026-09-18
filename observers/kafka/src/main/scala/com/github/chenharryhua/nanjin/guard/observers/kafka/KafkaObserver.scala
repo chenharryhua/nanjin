@@ -20,18 +20,32 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 final private case class EventKey(task: String, service: String) derives Codec.AsObject
 
-object KafkaObserver {
-  def apply[F[_]: {Async, Parallel}](ctx: KafkaContext[F]): KafkaObserver[F] =
-    new KafkaObserver[F](ctx, Translator.idTranslator[F])
+sealed trait KafkaObserver[F[_]] extends UpdateTranslator[F, Event, KafkaObserver[F]] {
+
+  /** Transform the event translator, e.g. to filter or reshape events before producing them. */
+  override def withTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F]
+
+  /** Build a pipe that produces each event to `topicName` as a JSON key/value record. Events pass through
+    * unchanged; produce failures are logged rather than raised.
+    *
+    * @param topicName
+    *   the Kafka topic to produce to.
+    */
+  def observe(topicName: String): Pipe[F, Event, Event]
 }
 
-final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], translator: Translator[F, Event])(
+object KafkaObserver {
+  def apply[F[_]: {Async, Parallel}](ctx: KafkaContext[F]): KafkaObserver[F] =
+    new KafkaObserverImpl[F](ctx, Translator.idTranslator[F])
+}
+
+final private class KafkaObserverImpl[F[_]: Parallel](ctx: KafkaContext[F], translator: Translator[F, Event])(
   using F: Async[F])
-    extends UpdateTranslator[F, Event, KafkaObserver[F]] {
+    extends KafkaObserver[F] {
 
   private val NAME: String = "Kafka Observer"
 
-  def observe(topicName: String): Pipe[F, Event, Event] = {
+  override def observe(topicName: String): Pipe[F, Event, Event] = {
     def translate(evt: Event): F[Option[ProducerRecord[Json, Json]]] =
       translator
         .translate(evt)
@@ -64,5 +78,5 @@ final class KafkaObserver[F[_]: Parallel] private (ctx: KafkaContext[F], transla
   }
 
   override def withTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =
-    new KafkaObserver(ctx, f(translator))
+    new KafkaObserverImpl(ctx, f(translator))
 }

@@ -15,8 +15,9 @@ import scala.concurrent.duration.DurationInt
   * The central property under test: the auto-emitted per-job log (`JobLog.standalone`) and the batch-nested
   * per-job entry (`JobLog.inBatch`) render only lifecycle facts — identity, took, outcome tag, and (on
   * failure) the exception message — never the job's produced value. The produced value is added only by the
-  * `QuasiBatch`/`ValueBatch`/`MonadicBatch` encoders, which run solely when the user chooses to serialize a
-  * returned result.
+  * `QuasiBatch`/`ValueBatch` encoders, which run solely when the user chooses to serialize a returned result.
+  * The `MonadicBatch` encoder renders no produced value at all (its jobs are `JobState[Unit]` and its final
+  * `A` is not serialized).
   */
 class JobLogRenderTest extends AnyFunSuite {
 

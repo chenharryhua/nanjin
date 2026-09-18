@@ -37,11 +37,6 @@ final case class HecConfig(
   sourceType: Option[String] = None
 )
 
-object SplunkObserver {
-  def apply[F[_]: Concurrent](client: Resource[F, Client[F]]): SplunkObserver[F] =
-    new SplunkObserver[F](client, PrettyJsonTranslator[F])
-}
-
 /** Observes service events and posts them to Splunk via HTTP Event Collector.
   *
   * Each event is wrapped in the HEC JSON envelope:
@@ -65,12 +60,31 @@ object SplunkObserver {
   *   eventStream.through(observer.observe(config))
   * }}}
   */
-final class SplunkObserver[F[_]] private (client: Resource[F, Client[F]], translator: Translator[F, Json])(
+sealed trait SplunkObserver[F[_]] extends UpdateTranslator[F, Json, SplunkObserver[F]] {
+
+  /** Transform the event-to-`Json` translator, e.g. to skip certain event kinds. */
+  override def withTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F]
+
+  /** Build a pipe that observes events, wraps each in a Splunk HEC envelope, and POSTs it to the configured
+    * HEC endpoint. Events pass through unchanged; a failed POST is swallowed.
+    *
+    * @param config
+    *   the HEC endpoint, token, and optional index/source/sourcetype metadata.
+    */
+  def observe(config: HecConfig): Pipe[F, Event, Event]
+}
+
+object SplunkObserver {
+  def apply[F[_]: Concurrent](client: Resource[F, Client[F]]): SplunkObserver[F] =
+    new SplunkObserverImpl[F](client, PrettyJsonTranslator[F])
+}
+
+final private class SplunkObserverImpl[F[_]](client: Resource[F, Client[F]], translator: Translator[F, Json])(
   using F: Concurrent[F])
-    extends UpdateTranslator[F, Json, SplunkObserver[F]] with Http4sClientDsl[F] {
+    extends SplunkObserver[F] with Http4sClientDsl[F] {
 
   override def withTranslator(f: Endo[Translator[F, Json]]): SplunkObserver[F] =
-    new SplunkObserver[F](client, f(translator))
+    new SplunkObserverImpl[F](client, f(translator))
 
   private def build_envelope(event: Event, json: Json, config: HecConfig): Json = {
     val epoch: Double = event.timestamp.value.toInstant.toEpochMilli / 1000.0
@@ -92,7 +106,7 @@ final class SplunkObserver[F[_]] private (client: Resource[F, Client[F]], transl
     httpClient.successful(req).attempt.void
   }
 
-  def observe(config: HecConfig): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
+  override def observe(config: HecConfig): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       http <- Stream.resource(client)
       event <- es.evalTap { e =>

@@ -41,6 +41,11 @@ object StackTrace:
     def headOption: Option[String] = st.headOption
     def nbspIndented: String = st.mkString(s"\n$NbspIndent")
 
+    /** The first `n` frames. With the root-cause-first ordering (see `StackTrace`), these are the deepest
+      * frames; `n` at or below zero yields an empty trace and an `n` larger than the trace keeps every frame.
+      */
+    def topN(n: Int): StackTrace = st.take(n)
+
   given Show[StackTrace] = _.mkString("\n  ")
   given Encoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Encoder]
   given Decoder[StackTrace] = OpaqueLift.lift[StackTrace, List[String], Decoder]

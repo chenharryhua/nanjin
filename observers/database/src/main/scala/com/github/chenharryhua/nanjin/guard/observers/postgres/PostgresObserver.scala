@@ -23,25 +23,39 @@ import skunk.{Command, PreparedCommand, Session}
   * );
   */
 
-object PostgresObserver {
-  def apply[F[_]: Async](session: Resource[F, Session[F]]): PostgresObserver[F] =
-    new PostgresObserver[F](session, PrettyJsonTranslator[F])
+sealed trait PostgresObserver[F[_]] extends UpdateTranslator[F, Json, PostgresObserver[F]] {
+
+  /** Transform the event-to-`Json` translator, e.g. to skip certain event kinds. */
+  override def withTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F]
+
+  /** Build a pipe that observes events, renders each as JSON, and inserts it into `tableName`. Events pass
+    * through unchanged; a failed insert is logged rather than raised.
+    *
+    * @param tableName
+    *   the table to INSERT each rendered event into.
+    */
+  def observe(tableName: String): Pipe[F, Event, Event]
 }
 
-final class PostgresObserver[F[_]] private (
+object PostgresObserver {
+  def apply[F[_]: Async](session: Resource[F, Session[F]]): PostgresObserver[F] =
+    new PostgresObserverImpl[F](session, PrettyJsonTranslator[F])
+}
+
+final private class PostgresObserverImpl[F[_]](
   session: Resource[F, Session[F]],
   translator: Translator[F, Json])(using F: Async[F])
-    extends UpdateTranslator[F, Json, PostgresObserver[F]] {
+    extends PostgresObserver[F] {
 
   private val NAME: String = "Postgres Observer"
 
   override def withTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F] =
-    new PostgresObserver[F](session, f(translator))
+    new PostgresObserverImpl[F](session, f(translator))
 
   private def execute(pg: PreparedCommand[F, Json], msg: Json): F[Unit] =
     pg.execute(msg).void
 
-  def observe(tableName: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
+  override def observe(tableName: String): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
     val cmd: Command[Json] = sql"INSERT INTO #$tableName VALUES ($json)".command
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))

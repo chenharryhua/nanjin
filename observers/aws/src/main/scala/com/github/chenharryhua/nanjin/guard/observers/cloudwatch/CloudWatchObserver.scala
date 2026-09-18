@@ -12,11 +12,6 @@ import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.*
 
-object CloudWatchObserver {
-  def apply[F[_]: Temporal](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client)
-}
-
 /** Publishes metered counts (meter and timer deltas) to AWS CloudWatch as custom metrics.
   *
   * Each `MeteredCounts` emission is expanded into individual `MetricDatum` entries, batched up to the
@@ -40,11 +35,8 @@ object CloudWatchObserver {
   *   }
   *   .compile.drain
   * }}}
-  *
-  * @param client
-  *   resource managing the CloudWatch client lifecycle
   */
-final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, CloudWatch[F]]) {
+sealed trait CloudWatchObserver[F[_]] {
 
   /** Pipe that converts a stream of `MeteredCounts` into CloudWatch `PutMetricData` calls.
     *
@@ -56,6 +48,20 @@ final class CloudWatchObserver[F[_]: Temporal] private (client: Resource[F, Clou
     *   maximum time to buffer metric data before flushing to CloudWatch
     */
   def scrape(
+    namespace: String,
+    storageResolution: Int = 60,
+    interval: FiniteDuration = 15.seconds): Pipe[F, MeteredCounts, Unit]
+}
+
+object CloudWatchObserver {
+  def apply[F[_]: Temporal](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
+    new CloudWatchObserverImpl[F](client)
+}
+
+final private class CloudWatchObserverImpl[F[_]: Temporal](client: Resource[F, CloudWatch[F]])
+    extends CloudWatchObserver[F] {
+
+  override def scrape(
     namespace: String,
     storageResolution: Int = 60,
     interval: FiniteDuration = 15.seconds): Pipe[F, MeteredCounts, Unit] = {

@@ -5,7 +5,6 @@ import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Order, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
 import com.github.chenharryhua.nanjin.common.OpaqueLift
-import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
@@ -274,19 +273,19 @@ final case class MonadicBatch[A](
 }
 
 object MonadicBatch:
-  // A monadic batch's `A` is the user's declared final output, so showing it in the completion log is
-  // showing them their own result, not a hidden intermediate step. Hence the `Encoder[A]` requirement
-  // here (and only here) — the per-job builders stay Encoder-free because intermediate step values are
-  // never rendered.
-  given [A: Encoder] => Encoder[MonadicBatch[A]] =
+  // Unlike `QuasiBatch`/`ValueBatch`, this encoder does not render the batch's aggregate output. A monadic
+  // batch's `result` is an `Either[Throwable, A]`: on success the final `A` is the user's own value, but on
+  // failure it is a throwable whose place is the log entry's dedicated exception section (via
+  // `LogEntry.cause`), not the serialized body. Rather than render one side and not the other, the report
+  // carries only the framing and per-job `outcomes`, consistent with the other two batch encoders. Because
+  // `A` is never serialized here, no `Encoder[A]` is required (the per-job jobs are `JobState[Unit]`).
+  given [A] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
-      val tag = if (mb.result.isRight) JobLog.RESULT else JobLog.ERROR
       Json.obj(
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
         JobLog.SPENT -> Json.fromString(fmt.format(mb.spent)),
-        JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson,
-        tag -> mb.result.fold(StackTrace(_).asJson, _.asJson)
+        JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }
 end MonadicBatch

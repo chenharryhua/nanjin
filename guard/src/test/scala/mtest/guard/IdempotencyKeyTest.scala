@@ -32,7 +32,7 @@ class IdempotencyKeyTest extends AnyFunSuite {
 
   test("1.every event yields a non-empty key") {
     assert(events.nonEmpty)
-    assert(events.forall(e => idempotencyKey(e).nonEmpty))
+    assert(events.forall(e => idempotencyKey(e).key.nonEmpty))
   }
 
   test("2.the key is stable: the same event always maps to the same key") {
@@ -40,20 +40,20 @@ class IdempotencyKeyTest extends AnyFunSuite {
   }
 
   test("3.the key embeds the serviceId so different services never collide") {
-    assert(events.forall(e => idempotencyKey(e).startsWith(e.serviceIdentity.serviceId.value.toString)))
+    assert(events.forall(e => idempotencyKey(e).key.startsWith(e.serviceIdentity.serviceId.value.toString)))
   }
 
   test("4.ServiceStart keys carry the start tag and tick index") {
     val starts = events.collect { case e: ServiceStart => e }
     assert(starts.nonEmpty)
     starts.foreach(e =>
-      assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-start-${e.tick.index}"))
+      assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-start-${e.tick.index}"))
   }
 
   test("5.ServiceStop keys carry the stop tag") {
     val stops = events.collect { case e: ServiceStop => e }
     assert(stops.nonEmpty)
-    stops.foreach(e => assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-stop"))
+    stops.foreach(e => assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-stop"))
   }
 
   test("6.keys are distinct across events of different kinds within one run") {
@@ -75,7 +75,7 @@ class IdempotencyKeyTest extends AnyFunSuite {
     assert(periodic.nonEmpty)
     periodic.foreach { e =>
       val tick = e.index.asInstanceOf[MetricsSnapshot.Periodic].tick
-      assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-metrics-periodic-${tick.index}")
+      assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-metrics-periodic-${tick.index}")
     }
   }
 
@@ -91,7 +91,7 @@ class IdempotencyKeyTest extends AnyFunSuite {
       .collect { case e: ReportedEvent => e }
     assert(reported.nonEmpty)
     reported.foreach(e =>
-      assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-reported-${e.correlation.value}"))
+      assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-reported-${e.correlation.value}"))
   }
 
   test("9.ServicePanic keys carry the panic tag and tick index") {
@@ -106,7 +106,7 @@ class IdempotencyKeyTest extends AnyFunSuite {
     val panics = panicEvents.collect { case e: ServicePanic => e }
     assert(panics.nonEmpty)
     panics.foreach(e =>
-      assert(idempotencyKey(e) == s"${e.serviceIdentity.serviceId.value}-panic-${e.tick.index}"))
+      assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-panic-${e.tick.index}"))
   }
 
   test("10.adhoc MetricsSnapshot keys carry the metrics-adhoc tag and epoch-milli scrape time") {
@@ -122,7 +122,7 @@ class IdempotencyKeyTest extends AnyFunSuite {
     adhoc.foreach { e =>
       val ts = e.index.asInstanceOf[MetricsSnapshot.Adhoc].scrapeTime
       assert(
-        idempotencyKey(e) ==
+        idempotencyKey(e).key ==
           s"${e.serviceIdentity.serviceId.value}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}")
     }
   }

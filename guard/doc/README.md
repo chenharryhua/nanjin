@@ -83,17 +83,17 @@ sequenceDiagram
     participant L as Logger
 
     R->>R: start = monotonic
-    R->>L: logKickoff, info level
+    R->>L: logKickoff at info level
     R->>J: run effect inside attempt
     J-->>R: Right value or Left ex
-    R->>R: end = monotonic, took = end minus start
+    R->>R: end = monotonic and took = end minus start
     R->>R: build JobRecord and JobState
     Note over R,L: guaranteeCase handleOutcome
     alt completed
-        R->>P: updatePanel record; append progress, and bump ratio only for sequential/parallel panels
-        R->>L: logCompleted: Succeeded, Unsatisfied, Nonfatal, Critical
+        R->>P: updatePanel record - append progress and bump ratio only for sequential/parallel panels
+        R->>L: logCompleted - Succeeded / Unsatisfied / Nonfatal / Critical
     else canceled
-        R->>L: logCanceled, warn level
+        R->>L: logCanceled at warn level
     end
 ```
 

@@ -16,15 +16,6 @@ import io.circe.Json
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
-object SnsObserver {
-
-  /** Create an observer that renders events as pretty-printed JSON using the default `PrettyJsonTranslator`.
-    * Refine the translator with `withTranslator`.
-    */
-  def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SnsObserver[F] =
-    new SnsObserver[F](client, PrettyJsonTranslator[F])
-}
-
 /** Observer that renders each event as JSON and publishes it to an SNS topic.
   *
   * The translator produces a `Json` payload, which is serialized and published to the given SNS topic. Every
@@ -35,14 +26,36 @@ object SnsObserver {
   * For Slack-formatted delivery, use the dedicated webhook-based Slack observer instead; this observer is a
   * generic JSON sink for any SNS subscriber.
   */
-final class SnsObserver[F[_]: Clock] private (
-  client: Resource[F, SimpleNotificationService[F]],
-  translator: Translator[F, Json])(using F: Concurrent[F])
-    extends UpdateTranslator[F, Json, SnsObserver[F]] {
+sealed trait SnsObserver[F[_]] extends UpdateTranslator[F, Json, SnsObserver[F]] {
 
   /** Transform the event-to-`Json` translator, e.g. to filter events or adjust formatting. */
+  override def withTranslator(f: Endo[Translator[F, Json]]): SnsObserver[F]
+
+  /** Observe events, publishing each rendered JSON message to the given SNS topic. Events pass through
+    * unchanged.
+    *
+    * @param snsArn
+    *   the ARN of the SNS topic to publish to.
+    */
+  def observe(snsArn: SnsArn): Pipe[F, Event, Event]
+}
+
+object SnsObserver {
+
+  /** Create an observer that renders events as pretty-printed JSON using the default `PrettyJsonTranslator`.
+    * Refine the translator with `withTranslator`.
+    */
+  def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SnsObserver[F] =
+    new SnsObserverImpl[F](client, PrettyJsonTranslator[F])
+}
+
+final private class SnsObserverImpl[F[_]: Clock](
+  client: Resource[F, SimpleNotificationService[F]],
+  translator: Translator[F, Json])(using F: Concurrent[F])
+    extends SnsObserver[F] {
+
   override def withTranslator(f: Endo[Translator[F, Json]]): SnsObserver[F] =
-    new SnsObserver[F](client, translator = f(translator))
+    new SnsObserverImpl[F](client, translator = f(translator))
 
   // Publish one already-rendered message to the SNS topic. attempt swallows failures so a single failed
   // publish does not terminate the observer stream.
@@ -51,13 +64,7 @@ final class SnsObserver[F[_]: Clock] private (
     client.publish(req.build()).attempt.void
   }
 
-  /** Observe events, publishing each rendered JSON message to the given SNS topic. Events pass through
-    * unchanged.
-    *
-    * @param snsArn
-    *   the ARN of the SNS topic to publish to.
-    */
-  def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
+  override def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       sns <- Stream.resource(client)
       ofm <- Stream.eval(FinalizeMonitor[F])

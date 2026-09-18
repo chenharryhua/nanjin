@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.observers.slack
 
-import com.github.chenharryhua.nanjin.guard.translator.TextEntry
+import cats.effect.kernel.Resource
+import com.github.chenharryhua.nanjin.guard.translator.{TextEntry, Translator}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
+import org.http4s.Uri
+import org.http4s.client.Client
 
 final private case class TextField(tag: String, value: String)
 private object TextField {
@@ -46,22 +49,15 @@ final private case class HeaderSection(text: String) extends Section derives Enc
 
 final private case class Attachment(color: String, blocks: List[Section]) derives Encoder
 
-final private case class SlackApp(username: String, attachments: List[Attachment]) derives Encoder {
-  // before first section
-  def prependMarkdown(text: String): SlackApp =
-    SlackApp(
-      username,
-      attachments match {
-        case Nil          => Nil
-        case head :: rest => Attachment(head.color, MarkdownSection(text) :: head.blocks) :: rest
-      })
+final private case class SlackApp(
+  username: String,
+  attachments: List[Attachment],
+  icon_url: Option[String] = None)
+    derives Encoder
 
-  // after last section
-  def appendMarkdown(text: String): SlackApp = {
-    val updated = attachments.reverse match {
-      case Nil          => Nil
-      case head :: rest => Attachment(head.color, head.blocks ::: List(MarkdownSection(text))) :: rest
-    }
-    SlackApp(username, updated.reverse)
-  }
-}
+final private case class Params[F[_]](
+  client: Resource[F, Client[F]],
+  translator: Translator[F, SlackApp],
+  maxStackTraceFrames: Option[Int],
+  icon_url: Option[Uri]
+)
