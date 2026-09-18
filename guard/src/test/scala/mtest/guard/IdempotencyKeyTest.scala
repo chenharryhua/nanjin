@@ -91,7 +91,8 @@ class IdempotencyKeyTest extends AnyFunSuite {
       .collect { case e: ReportedEvent => e }
     assert(reported.nonEmpty)
     reported.foreach(e =>
-      assert(idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-reported-${e.correlation.value}"))
+      assert(
+        idempotencyKey(e).key == s"${e.serviceIdentity.serviceId.value}-reported-${e.correlation.value}"))
   }
 
   test("9.ServicePanic keys carry the panic tag and tick index") {
