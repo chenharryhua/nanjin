@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.NonEmptyHotswap
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
@@ -49,7 +48,7 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     for {
-      authToken <- Resource.eval(getToken.flatMap(F.ref))
+      auth_token <- Resource.eval(getToken.flatMap(F.ref))
       // Background renewal loop. `renewToken` schedules the next fetch via its own `delayBy`
       // on the success path, but if it fails (network blip, decode error, short-lived token,
       // ...) that internal delay may never be reached. Without a floor here, a persistently
@@ -57,34 +56,27 @@ abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4
       // hammering the auth endpoint. `handleErrorWith` swallows the failure but enforces a
       // minimum backoff before the loop retries, guaranteeing progress bounded from below.
       _ <- F.background[Nothing](
-        renewToken(authToken).handleErrorWith(_ => F.sleep(RENEW_FAILURE_BACKOFF)).foreverM)
-      singleFlight <- Resource.eval(SingleFlight[F, T])
+        renewToken(auth_token).handleErrorWith(_ => F.sleep(RENEW_FAILURE_BACKOFF)).foreverM)
+      single_flight <- Resource.eval(SingleFlight[F, T])
     } yield Client[F] { request =>
-      def runWithToken(token: T): Resource[F, Response[F]] =
-        client.run(withToken(token, request))
+      def allocate_response(token: T): F[(Response[F], Resource.ExitCase => F[Unit])] =
+        client.run(withToken(token, request)).allocatedCase
 
-      // Retry once on 401 with a freshly fetched token. `NonEmptyHotswap.swap` acquires the retry
-      // response first and then immediately releases the unauthorized one, so the 401 connection is
-      // freed as part of issuing the retry rather than being held open — bound to the outer resource
-      // — until the retried response is finalized after the caller is done with it. (This is not a
-      // strict release-before-acquire: `swap` overlaps the two so the hotswap is never empty; the
-      // guarantee is that the 401 is released by the time the caller observes the final response.)
-      // The status probe borrows the current response only long enough to read its `status` (a pure
-      // field that does not touch the body/connection) and lets just that `Boolean` escape; the
-      // response handed back to the caller is `hotswap.get` returned as a resource, so its lifetime
-      // is the hotswap scope rather than an escaped, already-returned borrow.
-      Resource.eval(authToken.get).flatMap { token =>
-        NonEmptyHotswap(runWithToken(token)).flatMap { hotswap =>
-          val refreshIfUnauthorized: F[Unit] =
-            hotswap.get.use(response => F.pure(response.status === Status.Unauthorized)).flatMap {
-              case true =>
-                singleFlight(getToken.flatTap(authToken.set))
-                  .flatMap(newToken => hotswap.swap(runWithToken(newToken)))
-              case false =>
-                F.unit
+      // `makeCaseFull` masks the handoff from each allocated response to this outer resource while
+      // `poll` keeps response acquisition and token refresh cancelable. On 401, the first response
+      // is finalized before the retry is acquired so a bounded connection pool can supply the retry.
+      Resource.eval(auth_token.get).flatMap { token =>
+        Resource
+          .makeCaseFull[F, (Response[F], Resource.ExitCase => F[Unit])] { poll =>
+            poll(allocate_response(token)).flatMap {
+              case (response, release) if response.status === Status.Unauthorized =>
+                release(Resource.ExitCase.Succeeded).flatMap(_ =>
+                  poll(single_flight(getToken.flatTap(auth_token.set))
+                    .flatMap(allocate_response)))
+              case allocated_response => F.pure(allocated_response)
             }
-          Resource.eval(refreshIfUnauthorized).flatMap(_ => hotswap.get)
-        }
+          } { case ((_, release), exit_case) => release(exit_case) }
+          .map(_._1)
       }
     }
 }
