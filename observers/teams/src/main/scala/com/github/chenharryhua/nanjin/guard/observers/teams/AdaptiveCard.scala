@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.observers.teams
 
+import cats.effect.kernel.Resource
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.translator.Translator
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
+import org.http4s.client.Client
 
 /** Microsoft Teams Adaptive Card data model.
   *
@@ -150,3 +153,9 @@ private object AdaptiveCard {
       )
     )
 }
+
+final private case class Params[F[_]](
+  client: Resource[F, Client[F]],
+  translator: Translator[F, AdaptiveCard],
+  maxStackTrace: Option[Int]
+)

@@ -7,7 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.observers.{idempotencyKey, FinalizeMonitor}
+import com.github.chenharryhua.nanjin.guard.observers.{idempotencyKey, limitStackTraceDepth, FinalizeMonitor}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
 import org.http4s.circe.CirceEntityEncoder.*
@@ -66,28 +66,18 @@ final private class SlackObserverImpl[F[_]: Clock](params: Params[F])(using F: C
     httpClient: Client[F],
     webhook: Uri,
     card: SlackApp,
-    idempotencyKey: String): F[Unit] = {
+    idempotencyKey: `Idempotency-Key`): F[Unit] = {
     val req = Request[F](method = Method.POST, uri = webhook)
       .withEntity(card)
-      .withHeaders(`Idempotency-Key`(idempotencyKey))
+      .withHeaders(idempotencyKey)
     httpClient.successful(req).attempt.void
-  }
-
-  // Truncate the rendered stack trace to the configured depth. Only the copy fed to the translator is
-  // limited; the event re-emitted downstream is left intact for other observers.
-  private def limit(evt: Event): Event = evt match {
-    case p: Event.ServicePanic =>
-      p.copy(stackTrace = params.maxStackTrace.fold(p.stackTrace)(p.stackTrace.topN))
-    case r: Event.ReportedEvent =>
-      r.copy(stackTrace = params.maxStackTrace.fold(r.stackTrace)(n => r.stackTrace.map(_.topN(n))))
-    case other => other
   }
 
   // Translate one event, stamp the configured icon on the card, and POST it. Shared by the streaming tap and
   // the finalizer flush so the two paths cannot drift.
   private def publishEvent(httpClient: Client[F], webhook: Uri, evt: Event): F[Unit] =
     params.translator
-      .translate(limit(evt))
+      .translate(limitStackTraceDepth(evt, params.maxStackTrace))
       .flatMap(_.traverse_ { card =>
         publish(
           httpClient,

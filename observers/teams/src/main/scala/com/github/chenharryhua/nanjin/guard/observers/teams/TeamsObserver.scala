@@ -8,7 +8,7 @@ import cats.syntax.foldable.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
+import com.github.chenharryhua.nanjin.guard.observers.{limitStackTraceDepth, FinalizeMonitor}
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import org.http4s.circe.CirceEntityEncoder.*
@@ -33,6 +33,8 @@ sealed trait TeamsObserver[F[_]] extends UpdateTranslator[F, AdaptiveCard, Teams
   /** Transform the event-to-`AdaptiveCard` translator, e.g. to skip certain event kinds. */
   override def withTranslator(f: Endo[Translator[F, AdaptiveCard]]): TeamsObserver[F]
 
+  def withMaxStackTrace(num: Int): TeamsObserver[F]
+
   /** Build a pipe that observes events, renders each into an `AdaptiveCard`, and POSTs it to `webhook`.
     *
     * Events pass through unchanged (the pipe is a side-effecting tap). A failed POST is swallowed so one bad
@@ -47,43 +49,38 @@ sealed trait TeamsObserver[F[_]] extends UpdateTranslator[F, AdaptiveCard, Teams
 
 object TeamsObserver {
   def apply[F[_]: {Concurrent, Clock}](client: Resource[F, Client[F]]): TeamsObserver[F] =
-    new TeamsObserverImpl[F](client, TeamsTranslator[F])
+    new TeamsObserverImpl[F](Params(client, TeamsTranslator[F], None))
 }
 
-final private class TeamsObserverImpl[F[_]: Clock](
-  client: Resource[F, Client[F]],
-  translator: Translator[F, AdaptiveCard])(using F: Concurrent[F])
+final private class TeamsObserverImpl[F[_]: Clock](params: Params[F])(using F: Concurrent[F])
     extends TeamsObserver[F] with Http4sClientDsl[F] {
+  private def copy(p: Params[F]): TeamsObserverImpl[F] =
+    new TeamsObserverImpl[F](p)
 
   override def withTranslator(f: Endo[Translator[F, AdaptiveCard]]): TeamsObserver[F] =
-    new TeamsObserverImpl[F](client, f(translator))
+    copy(params.copy(translator = f(params.translator)))
+
+  override def withMaxStackTrace(num: Int): TeamsObserver[F] =
+    copy(params.copy(maxStackTrace = Some(num)))
 
   // No `Idempotency-Key` header: Teams' incoming webhook accepts the POST (HTTP 2xx) but then silently fails
   // to render the card when that header is present; omitting it makes the card render. Teams webhooks do not
   // honour `Idempotency-Key` for dedup anyway, so nothing is lost. This is a deliberate divergence from the
   // Slack observer, whose endpoint renders fine with the header and keeps it for retry dedup.
-  private def publish(httpClient: Client[F], webhook: Uri, card: AdaptiveCard): F[Unit] = {
-    val req = Request[F](method = Method.POST, uri = webhook).withEntity(card)
-    httpClient.successful(req).attempt.void
-  }
+  private def publishEvent(httpClient: Client[F], webhook: Uri, event: Event): F[Unit] =
+    params.translator.translate(limitStackTraceDepth(event, params.maxStackTrace))
+      .flatMap(_.traverse { card =>
+        val req = Request[F](method = Method.POST, uri = webhook).withEntity(card)
+        httpClient.successful(req).attempt
+      }).void
 
   override def observe(webhook: Uri): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
-      http <- Stream.resource(client)
+      http <- Stream.resource(params.client)
       ofm <- Stream.eval(FinalizeMonitor[F])
       event <- es
         .evalTap(ofm.monitoring)
-        .evalTap { e =>
-          translator.translate(e)
-            .flatMap(_.traverse(card => publish(http, webhook, card)))
-        }
-        .onFinalize {
-          ofm.terminated
-            .flatMap(_.traverse_ { e =>
-              translator
-                .translate(e)
-                .flatMap(_.traverse_(card => publish(http, webhook, card)))
-            })
-        }
+        .evalTap(publishEvent(http, webhook, _))
+        .onFinalize(ofm.terminated.flatMap(_.traverse_(publishEvent(http, webhook, _))))
     } yield event
 }
