@@ -34,12 +34,10 @@ class EmailHeartbeatTest extends AnyFunSuite {
     val program =
       Ref.of[IO, List[String]](Nil).flatMap { sent =>
         val mail =
-          EmailObserver(
-            EmailObserver
-              .Params(recording_client(sent))
-              // a repeating schedule so ticks keep firing while the event stream is open
-              .withPolicy(_.fixedDelay(1.second).repeat)
-              .withZoneId(sydneyTime))
+          EmailObserver(recording_client(sent))
+            // a repeating schedule so ticks keep firing while the event stream is open
+            .withPolicy(_.fixedDelay(1.second).repeat)
+            .withZoneId(sydneyTime)
             .observe(Email("from@test.com"), NonEmptyList.one(Email("to@test.com")), "heartbeat")
 
         // An event source that emits no events but stays open for a few seconds, then completes. Under

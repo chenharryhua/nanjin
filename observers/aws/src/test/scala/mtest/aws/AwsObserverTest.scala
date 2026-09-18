@@ -38,13 +38,11 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("2.ses mail") {
     val mail =
-      EmailObserver(
-        EmailObserver
-          .Params(ses_client)
-          .withPolicy(_.fixedDelay(5.seconds).repeat)
-          .withZoneId(sydneyTime)
-          .withCapacity(200)
-          .withOldestFirst)
+      EmailObserver(ses_client)
+        .withPolicy(_.fixedDelay(5.seconds).repeat)
+        .withZoneId(sydneyTime)
+        .withCapacity(200)
+        .withOldestFirst
 
     service
       .through(mail.observe(Email("abc@google.com"), NonEmptyList.one(Email("efg@tek.com")), "title"))
@@ -54,7 +52,7 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("3.syntax") {
-    EmailObserver.Params(ses_client).withTranslator {
+    EmailObserver(ses_client).withTranslator {
       _.skipMetricsSnapshot.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
@@ -91,11 +89,9 @@ class AwsObserverTest extends AnyFunSuite {
     // A never-ending (repeat) policy would run forever; the observer must still terminate because the event
     // stream is finite. This exercises the mergeHaltL semantics: lifetime tracks events, not ticks.
     val mail =
-      EmailObserver(
-        EmailObserver
-          .Params(ses_client)
-          .withPolicy(_.fixedDelay(2.seconds).repeat)
-          .withZoneId(sydneyTime))
+      EmailObserver(ses_client)
+        .withPolicy(_.fixedDelay(2.seconds).repeat)
+        .withZoneId(sydneyTime)
         .observe(Email("a@b.c"), NonEmptyList.one(Email("b@c.d")), "email")
 
     TaskGuard[IO]("email")
