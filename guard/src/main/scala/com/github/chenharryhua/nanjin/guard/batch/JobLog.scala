@@ -18,8 +18,11 @@ import org.apache.commons.lang3.exception.ExceptionUtils
   *   - `inBatch` — reached only when the user explicitly serializes a returned `BatchResult` — shows the
   *     value under `result`, and correspondingly requires an `Encoder[A]`.
   *
-  * So the `Encoder[A]` requirement lives solely on `inBatch` (hence on the `BatchResult` encoders), never on
-  * the execution path: showing the value is opt-in via serialization, never automatic.
+  * So the `Encoder[A]` requirement lives solely on `inBatch`, never on the execution path: showing the value
+  * is opt-in via serialization, never automatic. It surfaces on the `QuasiBatch`/`ValueBatch` encoders, whose
+  * per-job entries render the produced `A`. The `MonadicBatch` encoder is `Encoder[A]`-free: its jobs are
+  * `JobState[Unit]`, so `inBatch` is called at `Unit`, and the batch's own final `A` is not serialized (see
+  * `MonadicBatch`).
   */
 sealed private trait JobLog[A] extends Product {
   // The JSON status key is derived from the case's name (`Succeeded` -> "succeeded", etc.). This couples the

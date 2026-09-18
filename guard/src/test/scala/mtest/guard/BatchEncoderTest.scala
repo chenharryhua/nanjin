@@ -90,14 +90,14 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(quasiJob.get[String]("error").toOption.exists(_.endsWith("boom")))
 
     // the monadic per-job entry now correctly renders the thrown step as "critical" with its message under
-    // "error" (before the JobState[Unit] change the sentinel forced it to look non-thrown); the batch-level
-    // failure is carried by the top-level "error" tag holding the stack trace (a successful monadic batch
-    // would use "result")
+    // "error" (before the JobState[Unit] change the sentinel forced it to look non-thrown). The batch-level
+    // failure is not serialized: the MonadicBatch encoder emits neither a top-level "result" nor "error" — a
+    // failure's throwable belongs in the log entry's exception section, not the report body.
     val monadicJobJson = monadicJson.hcursor.downField("jobs").downArray
     assert(monadicJobJson.get[String]("job-1 work").toOption.contains("critical"))
     assert(monadicJobJson.get[String]("took").toOption.exists(_.nonEmpty))
     assert(monadicJobJson.get[String]("error").toOption.exists(_.endsWith("boom")))
-    assert(monadicJson.hcursor.downField("error").focus.nonEmpty)
+    assert(monadicJson.hcursor.downField("error").focus.isEmpty)
   }
 
   test("3.QuasiBatch: allPassed reflects per-job outcomes") {
@@ -176,7 +176,8 @@ class BatchEncoderTest extends AnyFunSuite {
     assert(jobJson.get[String]("job-1 check").toOption.contains("unsatisfied"))
     assert(jobJson.get[String]("took").toOption.exists(_.nonEmpty))
     assert(jobJson.downField("result").focus.isEmpty)
-    // a completed monadic batch shows its final result (the user's declared output) under "result"
-    assert(json.hcursor.get[Int]("result").toOption.contains(0))
+    // the MonadicBatch encoder emits no top-level "result": unlike QuasiBatch/ValueBatch it does not render
+    // the batch's aggregate output, so even a completed batch carries only framing and per-job outcomes
+    assert(json.hcursor.downField("result").focus.isEmpty)
   }
 }
