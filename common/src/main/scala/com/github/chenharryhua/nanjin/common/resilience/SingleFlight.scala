@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Applicative
 import cats.effect.kernel.{Async, Deferred, Ref}
+import cats.effect.std.Mutex
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
@@ -12,29 +13,25 @@ import cats.syntax.option.{none, given}
 
 /** A single-flight abstraction that treats each `SingleFlight` instance as one implicit key.
   *
-  * At most one submitted effect runs at a time. Concurrent callers wait for that leader effect and receive
-  * its result; their own effects are not evaluated. Callers sharing an instance must therefore submit
-  * logically equivalent operations.
+  * At most one submitted effect runs at a time. Concurrent callers join that flight and normally receive its
+  * result without evaluating their own effects. If a joined flight is canceled after losing its previous
+  * waiters, remaining callers resubmit their effects to a replacement flight. Callers sharing an instance
+  * must therefore submit logically equivalent operations.
   *
   * The shared computation runs in a dedicated worker fiber. Canceling one caller only stops that caller from
-  * waiting. When the last caller cancels, it cancels the worker and waits for its termination. Failures
-  * raised by the worker's cancellation finalizers follow the effect runtime's reporting semantics; they are
-  * not returned as a normal result to the canceled caller.
+  * waiting. When the last caller cancels, it cancels the worker and waits for its termination; if the worker
+  * remains indefinitely uncancelable, that cancellation remains pending. Failures raised by the worker's
+  * cancellation finalizers follow the effect runtime's reporting semantics; they are not returned as a normal
+  * result to the canceled caller.
   */
 trait SingleFlight[F[_], A] {
 
-  /** Return a snapshot indicating whether a flight exists at the time this effect reads the state.
-    *
-    * The result can become stale immediately and provides no admission or synchronization guarantee. Use
-    * `apply` or `tryApply`, rather than checking `isBusy`, when deciding whether to submit work.
-    */
-  def isBusy: F[Boolean]
-
   /** Submit an operation, or join the operation already in flight.
     *
-    * When a flight already exists, `fa` is not evaluated and this caller receives the existing flight's
-    * result. Consequently, every `fa` submitted to the same instance must represent the same logical
-    * operation.
+    * When an active flight completes, a follower's `fa` is not evaluated and the follower receives that
+    * flight's result. A caller that joins a flight already being canceled waits for its teardown and
+    * resubmits `fa` to a replacement flight. Consequently, every `fa` submitted to the same instance must
+    * represent the same logical operation.
     */
   def apply(fa: F[A]): F[A]
 
@@ -55,8 +52,14 @@ object SingleFlight {
     cancel: Deferred[F, Unit],
     waiters: Long)
 
+  sealed private trait Admission[F[_], A]
+  private object Admission {
+    final case class Leader[F[_], A](flight: Flight[F, A]) extends Admission[F, A]
+    final case class Follower[F[_], A](flight: Flight[F, A]) extends Admission[F, A]
+    final case class Busy[F[_], A]() extends Admission[F, A]
+  }
+
   def noop[F[_]: Applicative, A]: SingleFlight[F, A] = new SingleFlight[F, A] {
-    override def isBusy: F[Boolean] = false.pure[F]
     override def apply(fa: F[A]): F[A] = fa
     override def tryApply(fa: F[A]): F[Option[A]] = fa.map(Some(_))
   }
@@ -65,9 +68,13 @@ object SingleFlight {
     for {
       in_flight <- Ref.of[F, Option[Flight[F, A]]](None)
       next_id <- Ref.of[F, Long](0L)
-    } yield new Impl[F, A](in_flight, next_id)
+      initialization_lock <- Mutex[F]
+    } yield new Impl[F, A](in_flight, next_id, initialization_lock)
 
-  final private class Impl[F[_]: Async, A](in_flight: Ref[F, Option[Flight[F, A]]], next_id: Ref[F, Long])
+  final private class Impl[F[_], A](
+    in_flight: Ref[F, Option[Flight[F, A]]],
+    next_id: Ref[F, Long],
+    initialization_lock: Mutex[F])(using F: Async[F])
       extends SingleFlight[F, A] {
 
     private def new_flight: F[Flight[F, A]] =
@@ -96,8 +103,8 @@ object SingleFlight {
     private def cancel_worker(flight: Flight[F, A]): F[Unit] =
       flight.cancel.complete(()).flatMap(_ =>
         flight.result.get.flatMap {
-          case FlightResult.Completed(Left(error)) => Async[F].raiseError(error)
-          case _                                   => Applicative[F].unit
+          case FlightResult.Completed(Left(error)) => F.raiseError(error)
+          case _                                   => F.unit
         })
 
     private def remove_waiter(flight: Flight[F, A]): F[Unit] =
@@ -105,53 +112,62 @@ object SingleFlight {
         case Some(current) if current.id === flight.id && current.waiters > 0L =>
           val remaining = current.waiters - 1L
           val updated = current.copy(waiters = remaining)
-          val cancel = if (remaining === 0L) cancel_worker(current) else Applicative[F].unit
+          val cancel = if (remaining === 0L) cancel_worker(current) else F.unit
           Some(updated) -> cancel
         case current =>
-          current -> Applicative[F].unit
+          current -> F.unit
       }.flatMap(identity)
 
     private def await_result(flight: Flight[F, A], fa: F[A]): F[A] =
       flight.result.get
         .flatMap {
-          case FlightResult.Completed(result) => result.fold(Async[F].raiseError, Async[F].pure)
+          case FlightResult.Completed(result) => result.fold(F.raiseError, F.pure)
           case FlightResult.Retry()           => apply(fa)
         }
         .onCancel(remove_waiter(flight))
 
     private def start_worker(fa: F[A], flight: Flight[F, A]): F[Unit] =
-      Async[F].start(run_worker(fa, flight)).attempt.flatMap {
-        case Right(_)    => Applicative[F].unit
+      F.start(run_worker(fa, flight)).attempt.flatMap {
+        case Right(_)    => F.unit
         case Left(error) =>
-          publish(flight, FlightResult.Completed(Left(error))).flatMap(_ => Async[F].raiseError(error))
+          publish(flight, FlightResult.Completed(Left(error))).flatMap(_ => F.raiseError(error))
       }
+
+    private def admit_existing(wait_if_busy: Boolean): F[Option[Admission[F, A]]] =
+      in_flight.modify {
+        case Some(current) if wait_if_busy =>
+          Some(current.copy(waiters = current.waiters + 1L)) -> Some(Admission.Follower(current))
+        case current @ Some(_) => current -> Some(Admission.Busy())
+        case None              => None -> None
+      }
+
+    private def initialize(wait_if_busy: Boolean): F[Admission[F, A]] =
+      initialization_lock.lock.surround(admit_existing(wait_if_busy).flatMap {
+        case Some(admission) => F.pure(admission)
+        case None            =>
+          new_flight.flatMap { flight =>
+            in_flight.set(Some(flight)).flatMap(_ => Admission.Leader(flight).pure)
+          }
+      })
+
+    private def proceed(fa: F[A], poll: cats.effect.kernel.Poll[F]): Admission[F, A] => F[Option[A]] = {
+      case Admission.Leader(flight) =>
+        start_worker(fa, flight).flatMap(_ => poll(await_result(flight, fa)).map(_.some))
+      case Admission.Follower(flight) =>
+        poll(await_result(flight, fa)).map(_.some)
+      case Admission.Busy() => none[A].pure[F]
+    }
 
     private def run(fa: F[A], wait_if_busy: Boolean): F[Option[A]] =
-      new_flight.flatMap { candidate =>
-        Async[F].uncancelable { poll =>
-          in_flight.modify {
-            case Some(current) if wait_if_busy =>
-              Some(current.copy(waiters = current.waiters + 1L)) -> Some(Right(current))
-            case Some(current) =>
-              Some(current) -> None
-            case None =>
-              Some(candidate) -> Some(Left(candidate))
-          }.flatMap {
-            case Some(Left(leader)) =>
-              start_worker(fa, leader).flatMap(_ => poll(await_result(leader, fa)).map(_.some))
-            case Some(Right(follower)) =>
-              poll(await_result(follower, fa)).map(_.some)
-            case None =>
-              none[A].pure[F]
-          }
-        }
+      Async[F].uncancelable { poll =>
+        admit_existing(wait_if_busy)
+          .flatMap(_.fold(initialize(wait_if_busy))(_.pure))
+          .flatMap(proceed(fa, poll))
       }
-
-    override val isBusy: F[Boolean] = in_flight.get.map(_.isDefined)
 
     override def apply(fa: F[A]): F[A] =
       run(fa, wait_if_busy = true).flatMap(
-        _.fold(Async[F].raiseError[A](new IllegalStateException("unreachable")))(Async[F].pure))
+        _.fold(F.raiseError[A](new IllegalStateException("unreachable")))(_.pure))
 
     override def tryApply(fa: F[A]): F[Option[A]] =
       run(fa, wait_if_busy = false)

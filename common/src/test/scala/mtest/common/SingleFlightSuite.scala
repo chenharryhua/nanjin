@@ -67,11 +67,9 @@ final class SingleFlightSuite extends CatsEffectSuite {
         canceled_before_release <- worker_canceled.tryGet
         _ <- release.complete(())
         result <- follower.joinWithNever.timeout(1.second)
-        busy <- single_flight.isBusy
       } yield {
         assertEquals(canceled_before_release, None)
         assertEquals(result, 42)
-        assertEquals(busy, false)
       }
     }
   }
@@ -99,13 +97,11 @@ final class SingleFlightSuite extends CatsEffectSuite {
         _ <- cancellation.joinWithNever.timeout(1.second)
         result <- replacement.joinWithNever.timeout(1.second)
         replacement_after_cleanup <- replacement_started.tryGet
-        busy <- single_flight.isBusy
       } yield {
         assertEquals(cancellation_before_cleanup, None)
         assertEquals(replacement_before_cleanup, None)
         assertEquals(replacement_after_cleanup, Some(()))
         assertEquals(result, 42)
-        assertEquals(busy, false)
       }
     }
   }
@@ -154,26 +150,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("8.isBusy reflects the observed in-flight lifecycle") {
-    for {
-      single_flight <- SingleFlight[IO, Int]
-      started <- Deferred[IO, Unit]
-      release <- Deferred[IO, Unit]
-      before <- single_flight.isBusy
-      running <- single_flight(started.complete(()).void *> release.get.as(1)).start
-      _ <- started.get
-      during <- single_flight.isBusy
-      _ <- release.complete(())
-      _ <- running.joinWithNever
-      after <- single_flight.isBusy
-    } yield {
-      assertEquals(before, false)
-      assertEquals(during, true)
-      assertEquals(after, false)
-    }
-  }
-
-  test("9.SingleFlight executes once per high-contention wave") {
+  test("8.SingleFlight executes once per high-contention wave") {
     TestControl.executeEmbed {
       for {
         single_flight <- SingleFlight[IO, Int]
