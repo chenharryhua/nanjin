@@ -3,6 +3,7 @@ package mtest.http
 import cats.data.NonEmptyList
 import cats.effect.*
 import cats.syntax.parallel.given
+import cats.syntax.foldable.given
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth
 import com.github.chenharryhua.nanjin.http.client.auth.{
@@ -666,15 +667,174 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(protectedResource).use { authed =>
-      for {
-        _ <- authed.expect[String](uri"/a")
-        // expires_in=1 is shorter than the renewal skew, so the scheduled delay is clamped to
-        // the renewMinDelay floor (5s) rather than firing immediately. Wait past that floor.
-        _ <- IO.sleep(6.seconds)
-        _ <- authed.expect[String](uri"/b")
-        n <- tokenCalls.get
-      } yield assert(n >= 2)
+    cats.effect.testkit.TestControl.executeEmbed {
+      auth.clientCredentials[IO](authClient, credential).login(protectedResource).use { _ =>
+        for {
+          _ <- IO.sleep(499.millis)
+          before_half_life <- tokenCalls.get
+          _ <- IO.sleep(2.millis)
+          after_half_life <- tokenCalls.get
+        } yield {
+          assertEquals(before_half_life, 1)
+          assertEquals(after_half_life, 2)
+        }
+      }
+    }
+  }
+
+  test("10.1.oauth renewal delay follows short and long lifetime boundaries") {
+    def assert_renewal(lifetime_seconds: Long, expected_delay: FiniteDuration): IO[Unit] =
+      cats.effect.testkit.TestControl.executeEmbed {
+        val token_calls = Ref.unsafe[IO, Int](0)
+        val auth_app = HttpApp[IO] { _ =>
+          token_calls.updateAndGet(_ + 1).flatMap {
+            case 1 =>
+              Ok(s"""{"access_token":"token-1","token_type":"Bearer","expires_in":$lifetime_seconds}""")
+            case _ =>
+              Ok("""{"access_token":"token-2","token_type":"Bearer"}""")
+          }
+        }
+        val credential = ClientCredentials(uri"/token", "id", Secret("secret"))
+
+        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .login(protectedResource)
+          .use { _ =>
+            for {
+              _ <- IO.sleep(expected_delay - 1.millis)
+              before <- token_calls.get
+              _ <- IO.sleep(2.millis)
+              after <- token_calls.get
+            } yield {
+              assertEquals(before, 1)
+              assertEquals(after, 2)
+            }
+          }
+      }
+
+    def assert_extreme_lifetime_does_not_overflow: IO[Unit] =
+      cats.effect.testkit.TestControl.executeEmbed {
+        val token_calls = Ref.unsafe[IO, Int](0)
+        val auth_app = HttpApp[IO] { _ =>
+          token_calls.updateAndGet(_ + 1).flatMap { n =>
+            Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":${Long.MaxValue}}""")
+          }
+        }
+        val credential = ClientCredentials(uri"/token", "id", Secret("secret"))
+
+        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .login(protectedResource)
+          .use(_ => IO.sleep(1.second) *> token_calls.get.map(calls => assertEquals(calls, 1)))
+      }
+
+    List(
+      1L -> 500.millis,
+      60L -> 30.seconds,
+      61L -> 31.seconds,
+      3600L -> 3570.seconds
+    ).traverse_ { case (lifetime_seconds, expected_delay) =>
+      assert_renewal(lifetime_seconds, expected_delay)
+    } *> assert_extreme_lifetime_does_not_overflow
+  }
+
+  test("10.2.oauth token acquisition rejects non-positive expires_in") {
+    val client_credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = Secret("secret")
+    )
+    val authorization_code = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = Secret("secret"),
+      code = Secret("code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    val zero_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
+      Ok("""{"access_token":"token","token_type":"Bearer","expires_in":0}""")
+    }))
+    val negative_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
+      Ok("""{"access_token":"token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":-1}""")
+    }))
+
+    for {
+      zero <- auth.clientCredentials[IO](zero_client, client_credential).login(protectedResource).use_.attempt
+      negative <- auth.authorizationCode[IO](negative_client, authorization_code).login(
+        protectedResource).use_.attempt
+    } yield {
+      assertEquals(zero.swap.toOption.map(_.getMessage), Some("expires_in must be positive, but was 0"))
+      assertEquals(negative.swap.toOption.map(_.getMessage), Some("expires_in must be positive, but was -1"))
+    }
+  }
+
+  test("10.3.oauth token refresh rejects non-positive expires_in before publication") {
+    val client_credential = ClientCredentials(uri"/token", "id", Secret("secret"))
+    val authorization_code = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "id",
+      client_secret = Secret("secret"),
+      code = Secret("code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    for {
+      client_token_calls <- Ref.of[IO, Int](0)
+      client_business_tokens <- Ref.of[IO, List[String]](Nil)
+      _ <- cats.effect.testkit.TestControl.executeEmbed {
+        val auth_app = HttpApp[IO] { _ =>
+          client_token_calls.updateAndGet(_ + 1).flatMap {
+            case 1 =>
+              Ok("""{"access_token":"old-token","token_type":"Bearer","expires_in":1,"refresh_token":"refresh"}""")
+            case _ =>
+              Ok("""{"access_token":"invalid-token","token_type":"Bearer","expires_in":0}""")
+          }
+        }
+        val business_app = HttpApp[IO] { request =>
+          val token = request.headers.get[Authorization].fold("missing")(_.value.stripPrefix("Bearer "))
+          client_business_tokens.update(_ :+ token) *> Ok("ok")
+        }
+
+        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), client_credential)
+          .login(Client.fromHttpApp(business_app))
+          .use { authed =>
+            IO.sleep(501.millis) *> authed.expect[String](uri"/resource")
+          }
+      }
+      client_calls <- client_token_calls.get
+      published_client_tokens <- client_business_tokens.get
+      authorization_business_tokens <- Ref.of[IO, List[String]](Nil)
+      authorization_result <- {
+        val auth_app = HttpApp[IO] { request =>
+          request.as[UrlForm].flatMap { form =>
+            form.getFirst("grant_type") match {
+              case Some("authorization_code") =>
+                Ok("""{"access_token":"old-token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":3600}""")
+              case Some("refresh_token") =>
+                Ok("""{"access_token":"invalid-token","refresh_token":"refresh-2","id_token":"id-2","token_type":"Bearer","expires_in":-1}""")
+              case _ =>
+                InternalServerError()
+            }
+          }
+        }
+        val business_app = HttpApp[IO] { request =>
+          val token = request.headers.get[Authorization].fold("missing")(_.value.stripPrefix("Bearer "))
+          authorization_business_tokens.update(_ :+ token) *>
+            IO.pure(Response[IO](Status.Unauthorized))
+        }
+
+        auth.authorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), authorization_code)
+          .login(Client.fromHttpApp(business_app))
+          .use(_.run(Request[IO](uri = uri"/resource")).use_)
+          .attempt
+      }
+      published_authorization_tokens <- authorization_business_tokens.get
+    } yield {
+      assertEquals(client_calls, 2)
+      assertEquals(published_client_tokens, List("old-token"))
+      assertEquals(
+        authorization_result.swap.toOption.map(_.getMessage),
+        Some("expires_in must be positive, but was -1"))
+      assertEquals(published_authorization_tokens, List("old-token"))
     }
   }
 
@@ -878,7 +1038,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           for {
             _ <- IO.sleep(10.seconds)
             body <- authed.expect[String](uri"/resource")
-            _ <- IO.sleep(9.seconds)
+            _ <- IO.sleep(19.seconds)
             before_new_schedule <- token_calls.get
             _ <- IO.sleep(2.seconds)
             after_new_schedule <- token_calls.get
@@ -928,7 +1088,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         .use { authed =>
           for {
             body <- authed.expect[String](uri"/resource")
-            _ <- IO.sleep(9.seconds)
+            _ <- IO.sleep(19.seconds)
             before_schedule <- token_calls.get
             _ <- IO.sleep(2.seconds)
             after_schedule <- token_calls.get

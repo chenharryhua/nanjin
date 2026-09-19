@@ -7,7 +7,7 @@ import org.http4s.client.Client
 /** Creates a `Login` instance using OAuth 2.0 Client Credentials flow.
   *
   * Automatically handles token acquisition, attaching the access token to requests, and optional token
-  * renewal.
+  * renewal. When a token response includes `expires_in`, its value must be positive; omission is accepted.
   *
   * Example usage:
   * {{{
@@ -40,7 +40,7 @@ def clientCredentials[F[_]: Async](
 /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
   *
   * Automatically exchanges the authorization code for an access token, attaches it to requests, and handles
-  * token refresh if applicable.
+  * token refresh if applicable. Token responses must include a positive `expires_in` value.
   *
   * Example usage:
   * {{{

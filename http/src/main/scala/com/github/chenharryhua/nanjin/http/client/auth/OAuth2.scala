@@ -66,6 +66,16 @@ final case class AuthorizationCode(
  * private section
  */
 
+private def validate_expires_in[F[_]: Async, A](fa: F[A])(expires_in: A => Option[Long]): F[A] =
+  Async[F].flatMap(fa) { value =>
+    expires_in(value) match {
+      case Some(seconds) if seconds <= 0L =>
+        Async[F].raiseError(new IllegalArgumentException(s"expires_in must be positive, but was $seconds"))
+      case _ =>
+        Async[F].pure(value)
+    }
+  }
+
 /** OAuth 2.0 Client Credentials flow authenticator.
   *
   * Automatically obtains an access token from the authorization server and attaches it to requests. Supports
@@ -101,20 +111,21 @@ private class ClientCredentialsAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getToken: F[Token] =
-          postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
+          validate_expires_in(postToken[Token](authenticationClient, credential.auth_endpoint, urlForm))(
+            _.expires_in)
 
         override protected def refreshToken: Token => F[Token] = _ => getToken
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
-          authenticationClient.expect[Token](
-            POST(
+          validate_expires_in(
+            authenticationClient.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "refresh_token",
                 "refresh_token" -> refresh_token,
                 "client_id" -> credential.client_id,
                 "client_secret" -> credential.client_secret.value),
               credential.auth_endpoint
-            ))
+            )))(_.expires_in)
 
         override protected def renewToken: Token => F[Token] =
           token => token.refresh_token.fold(getToken)(refreshAccessToken)
@@ -168,23 +179,24 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getToken: F[Token] =
-          authenticationClient.expect[Token](
-            POST(
-              urlForm,
-              credential.auth_endpoint,
-              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-            ))
+          validate_expires_in(
+            authenticationClient.expect[Token](
+              POST(
+                urlForm,
+                credential.auth_endpoint,
+                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+              )))(token => Some(token.expires_in))
 
         private def refreshAccessToken(pre: Token): F[Token] =
-          authenticationClient.expect[Token](
-            POST(
+          validate_expires_in(
+            authenticationClient.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "refresh_token",
                 "client_id" -> credential.client_id,
                 "refresh_token" -> pre.refresh_token),
               credential.auth_endpoint,
               Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-            ))
+            )))(token => Some(token.expires_in))
 
         override protected def refreshToken: Token => F[Token] =
           refreshAccessToken
@@ -202,25 +214,20 @@ private class AuthorizationCodeAuth[F[_]: Async](
 
 /** Renewal-scheduling strategy for token-based auth.
   *
-  * Two floors keep the background renewal loop in `TokenAuthClient.wrap` from degenerating into a zero-delay
-  * busy loop:
-  *
-  *   - `skewed` governs the success path: it renews `SKEW` early so a request never races an expiring token,
-  *     but never schedules sooner than `RENEW_MIN_DELAY`. A provider issuing short-lived tokens (`expires_in
-  *     <= SKEW`) would otherwise collapse the delay to `0.seconds` and re-fetch immediately, forever.
-  *   - `RENEW_FAILURE_BACKOFF` governs the failure path: after a renewal fails, the same replacement is
-  *     retried after this delay without reapplying the token's full renewal schedule.
+  * `skewed` renews long-lived tokens `SKEW` early. For lifetimes of `2 * SKEW` or less, renewal occurs
+  * halfway through the lifetime so the delay remains positive while retaining time to replace the token
+  * before expiry. `RENEW_FAILURE_BACKOFF` governs the failure path: after a renewal fails, the same
+  * replacement is retried after this delay without reapplying the token's full renewal schedule.
   */
 
-/** Renew this long before expiry to avoid racing an in-flight request against an expiring token. */
+/** Renew long-lived tokens this early to avoid racing an in-flight request against expiry. */
 private val SKEW: FiniteDuration = 30.seconds
-
-/** Lower bound on the scheduled-renewal delay, so short-lived tokens cannot drive a zero-delay loop. */
-private val RENEW_MIN_DELAY: FiniteDuration = 5.seconds
 
 /** Delay before the renewal loop retries after a failed renewal, bounding CPU / auth-endpoint load. */
 private val RENEW_FAILURE_BACKOFF: FiniteDuration = 5.seconds
 
-/** Schedule delay until the next renewal: `SKEW` before expiry, but never below `RENEW_MIN_DELAY`. */
-private def skewed(expire: Long): FiniteDuration =
-  (expire.seconds - SKEW).max(RENEW_MIN_DELAY)
+/** Schedule renewal `SKEW` early for long lifetimes, or halfway through a short lifetime. */
+private def skewed(lifetime_seconds: Long): FiniteDuration = {
+  val lifetime = lifetime_seconds.seconds
+  lifetime - SKEW.min(lifetime / 2L)
+}
