@@ -1,13 +1,12 @@
 package mtest.kafka
 
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.record.NJProducerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec
 import com.sksamuel.avro4s.SchemaFor
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class PushGenericRecordTest extends AnyFunSuite {
+class PushGenericRecordTest extends CatsEffectSuite {
   private val topicName: TopicName = TopicName("push.generic.record.test")
   test("1.schema") {
     val nj = NJProducerRecord[Foo, Int](topicName.value, Foo(1, "a"), 1)
@@ -22,8 +21,9 @@ class PushGenericRecordTest extends AnyFunSuite {
       push >>
       ctx.schemaRegistry(topicName.value).fetchOptionalAvroSchema
 
-    val res = schema.unsafeRunSync()
-    assert(res.key.get == KafkaCodec.avro[Foo].schema)
-    assert(res.value.isEmpty)
+    schema.map { res =>
+      assert(res.key.get == KafkaCodec.avro[Foo].schema)
+      assert(res.value.isEmpty)
+    }
   }
 }

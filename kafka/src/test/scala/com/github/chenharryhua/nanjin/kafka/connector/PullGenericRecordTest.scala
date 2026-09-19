@@ -7,9 +7,9 @@ import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.common.serialization.Serdes
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class PullGenericRecordTest extends AnyFunSuite {
+class PullGenericRecordTest extends FunSuite {
   private val topic = "pull.generic.record.test"
 
   test("1.primitive decoding: STRING key and INT value") {

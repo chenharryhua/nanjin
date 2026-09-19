@@ -5,11 +5,11 @@ import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.kafka.consumer.KafkaTopics
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.concurrent.duration.FiniteDuration
 
-class TopicUtilsTest extends AnyFunSuite {
+class TopicUtilsTest extends FunSuite {
 
   private val topic: String = "topic-utils-test"
 
@@ -60,21 +60,21 @@ class TopicUtilsTest extends AnyFunSuite {
   test("1.explicit range within the topic bounds is preserved") {
     val client = fakeTopics(numPartitions = 1, begin = 0L, end = 100L)
     val res = resolve(client, Map(0 -> (10L, 50L)))
-    assert(res === Map(0 -> (10L, 50L)))
+    assert(res == Map(0 -> (10L, 50L)))
   }
 
   test("2.explicit range is clamped to the topic's [begin, end)") {
     val client = fakeTopics(numPartitions = 1, begin = 20L, end = 80L)
     // request beyond both ends -> clamped to [20, 80)
     val res = resolve(client, Map(0 -> (0L, 1000L)))
-    assert(res === Map(0 -> (20L, 80L)))
+    assert(res == Map(0 -> (20L, 80L)))
   }
 
   test("3.partition not on the topic is dropped") {
     val client = fakeTopics(numPartitions = 1, begin = 0L, end = 100L)
     // partition 5 does not exist; only partition 0 survives
     val res = resolve(client, Map(0 -> (0L, 10L), 5 -> (0L, 10L)))
-    assert(res.keySet === Set(0))
+    assert(res.keySet == Set(0))
   }
 
   test("4.empty clamped range is dropped") {
@@ -87,6 +87,6 @@ class TopicUtilsTest extends AnyFunSuite {
   test("5.multiple partitions each clamped independently") {
     val client = fakeTopics(numPartitions = 2, begin = 0L, end = 100L)
     val res = resolve(client, Map(0 -> (10L, 20L), 1 -> (50L, 500L)))
-    assert(res === Map(0 -> (10L, 20L), 1 -> (50L, 100L)))
+    assert(res == Map(0 -> (10L, 20L), 1 -> (50L, 100L)))
   }
 }

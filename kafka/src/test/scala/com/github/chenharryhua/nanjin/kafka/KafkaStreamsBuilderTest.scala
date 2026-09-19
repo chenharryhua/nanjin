@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{IO, Ref}
 import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings}
 import com.github.chenharryhua.nanjin.kafka.streaming.{
@@ -19,8 +18,7 @@ import io.confluent.kafka.schemaregistry.client.rest.entities.SchemaReference
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.kstream.Consumed
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.CatsEffectSuite
 
 import java.util
 import java.util.Optional
@@ -28,7 +26,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Random
 
-class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
+class KafkaStreamsBuilderTest extends CatsEffectSuite {
   private class FakeSchemaRegistryClient extends SchemaRegistryClient {
     override def parseSchema(
       schemaType: String,
@@ -68,24 +66,24 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
   )
 
   test("1.should include application id in properties") {
-    builder.properties("application.id") shouldBe applicationId
-    builder.properties("state.dir") shouldBe "bar"
+    assertEquals(builder.properties("application.id"), applicationId)
+    assertEquals(builder.properties("state.dir"), "bar")
   }
 
   test("2.withProperty should produce an updated builder without mutating the original") {
     val updated = builder.withProperty(_.STATE_DIR_CONFIG, "baz")
 
-    updated.properties("state.dir") shouldBe "baz"
-    builder.properties("state.dir") shouldBe "bar"
+    assertEquals(updated.properties("state.dir"), "baz")
+    assertEquals(builder.properties("state.dir"), "bar")
   }
 
   test("3.withProperties should merge multiple properties immutably") {
     val updated = builder.withProperties(Map("k1" -> "v1", "k2" -> "v2"))
 
-    updated.properties("k1") shouldBe "v1"
-    updated.properties("k2") shouldBe "v2"
-    builder.properties.contains("k1") shouldBe false
-    builder.properties.contains("k2") shouldBe false
+    assertEquals(updated.properties("k1"), "v1")
+    assertEquals(updated.properties("k2"), "v2")
+    assertEquals(builder.properties.contains("k1"), false)
+    assertEquals(builder.properties.contains("k2"), false)
   }
 
   test("4.withStartupTimeout should return a distinct builder instance") {
@@ -107,11 +105,11 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
       }
     )
 
-    executed shouldBe false
+    assertEquals(executed, false)
     val topology = lazyBuilder.topology
-    executed shouldBe true
-    topology should not be null
-    topology.describe().toString should include("KSTREAM-SOURCE")
+    assertEquals(executed, true)
+    assert(topology != null)
+    assert(topology.describe().toString.contains("KSTREAM-SOURCE"))
   }
 
   private def newStateChange(
@@ -150,10 +148,10 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         _ <- startup.get
         entries <- logged.get
       } yield {
-        entries.map(_._1) shouldBe List(LogLevel.Good)
-        entries.map(_._2) shouldBe List(StateTransition(applicationId, State.CREATED, State.RUNNING))
+        assertEquals(entries.map(_._1), List(LogLevel.Good))
+        assertEquals(entries.map(_._2), List(StateTransition(applicationId, State.CREATED, State.RUNNING)))
       }
-    }.unsafeRunSync()
+    }
   }
 
   test("7.StateChange should complete stop with error on ERROR") {
@@ -169,10 +167,10 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         }
         result <- stop.get
       } yield result match {
-        case Left(err) => err.getMessage shouldBe "KafkaStreams(app-id) were stopped abnormally"
+        case Left(err) => assertEquals(err.getMessage, "KafkaStreams(app-id) were stopped abnormally")
         case Right(_)  => fail("expected KafkaStreamsAbnormallyStopped")
       }
-    }.unsafeRunSync()
+    }
   }
 
   test("8.StateChange should complete stop without error on NOT_RUNNING") {
@@ -187,8 +185,8 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
             .invoke(stateChange, State.NOT_RUNNING, State.RUNNING)
         }
         result <- stop.get
-      } yield result shouldBe Right(())
-    }.unsafeRunSync()
+      } yield assertEquals(result, Right(()))
+    }
   }
 
   test("9.withLog should log the correct level per state") {
@@ -212,8 +210,8 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
           m.invoke(stateChange, State.NOT_RUNNING, State.RUNNING)
         }
         levels <- logged.get
-      } yield levels shouldBe List(LogLevel.Good, LogLevel.Info)
-    }.unsafeRunSync()
+      } yield assertEquals(levels, List(LogLevel.Good, LogLevel.Info))
+    }
   }
 
   test("10.kafkaStreams should fail when startup does not complete before the timeout") {
@@ -221,9 +219,9 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
       .withProperty(_.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
       .withStartupTimeout(FiniteDuration(1, TimeUnit.MILLISECONDS))
 
-    val result = failingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
-
-    result.isLeft shouldBe true
+    failingBuilder.kafkaStreams.compile.drain.attempt.map { result =>
+      assertEquals(result.isLeft, true)
+    }
   }
 
   test("11.kafkaStreams should fail when the topology builder throws") {
@@ -235,9 +233,9 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
       (_, _) => throw new IllegalStateException("topology failed")
     )
 
-    val result = throwingBuilder.kafkaStreams.compile.drain.attempt.unsafeRunSync()
-
-    result.isLeft shouldBe true
+    throwingBuilder.kafkaStreams.compile.drain.attempt.map { result =>
+      assertEquals(result.isLeft, true)
+    }
   }
 
   test("12.StateChange should complete stop on close path (PENDING_SHUTDOWN -> NOT_RUNNING)") {
@@ -252,8 +250,8 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
           m.invoke(stateChange, State.NOT_RUNNING, State.PENDING_SHUTDOWN)
         }
         result <- stop.get
-      } yield result shouldBe Right(())
-    }.unsafeRunSync()
+      } yield assertEquals(result, Right(()))
+    }
   }
 
   test("13.fs2 stream should terminate when stop is completed with Right") {
@@ -264,7 +262,7 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
       done <- fiber.joinWithNever.timeout(1.second).attempt
     } yield done
 
-    result.unsafeRunSync() shouldBe Right(())
+    result.map(done => assertEquals(done, Right(())))
   }
 
   test("14.fs2 stream should fail when internal KafkaStreams error is signaled") {
@@ -281,11 +279,11 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
         }
         result <- fiber.joinWithNever.timeout(1.second)
       } yield result match {
-        case Left(err: KafkaStreamsAbnormallyStopped) => err.applicationId shouldBe applicationId
+        case Left(err: KafkaStreamsAbnormallyStopped) => assertEquals(err.applicationId, applicationId)
         case Left(other)                              => fail(s"unexpected error: ${other.getClass.getName}")
         case Right(_)                                 => fail("expected fs2 stream failure on internal error")
       }
-    }.unsafeRunSync()
+    }
   }
 
   test("15.StateChange randomized terminal invariant: first terminal signal wins") {
@@ -325,15 +323,15 @@ class KafkaStreamsBuilderTest extends AnyFunSuite with Matchers {
             stopResult <- stop.get.timeout(1.second)
           } yield firstTerminal(seq) match {
             case Some(Left(_)) =>
-              stopResult.isLeft shouldBe true
+              assertEquals(stopResult.isLeft, true)
               ()
             case Some(Right(_)) =>
-              stopResult shouldBe Right(())
+              assertEquals(stopResult, Right(()))
               ()
             case None => fail("scenario generation error: terminal state missing")
           }
         }
       }
-    }.unsafeRunSync()
+    }
   }
 }

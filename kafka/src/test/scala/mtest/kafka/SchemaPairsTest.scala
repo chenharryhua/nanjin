@@ -5,9 +5,9 @@ import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import org.apache.avro.SchemaBuilder
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class SchemaPairsTest extends AnyFunSuite {
+class SchemaPairsTest extends FunSuite {
 
   // --- helper schemas ---
 

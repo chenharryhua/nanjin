@@ -1,7 +1,6 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
@@ -15,7 +14,7 @@ import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.*
 
@@ -69,12 +68,12 @@ object Fs2ChannelTestData {
     } """
 }
 
-class Fs2ChannelTest extends AnyFunSuite {
+class Fs2ChannelTest extends CatsEffectSuite {
   import Fs2ChannelTestData.*
 
   test("1.register") {
     val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
-    ctx.schemaRegistry(avroTopic.topicName.value).register(value = v).void.unsafeRunSync()
+    ctx.schemaRegistry(avroTopic.topicName.value).register(value = v).void
   }
 
   test("2.should be able to consume avro topic") {
@@ -94,14 +93,19 @@ class Fs2ChannelTest extends AnyFunSuite {
           .timeout(3.seconds)
           .compile
           .toList
-    assert(ret.unsafeRunSync().size == 1)
-    assert(ctx.ungroup("g1").unsafeRunSync() == List(avroTopic.topicName))
+    for {
+      xs <- ret
+      grouped <- ctx.ungroup("g1")
+    } yield {
+      assert(xs.size == 1)
+      assert(grouped == List(avroTopic.topicName))
+    }
   }
 
   test("3.record format") {
-    val ret =
-      ctx.consume(avroTopic).subscribe.take(1).map(_.record).timeout(3.seconds).compile.toList.unsafeRunSync()
-    assert(ret.size == 1)
+    ctx.consume(avroTopic).subscribe.take(1).map(_.record).timeout(3.seconds).compile.toList.map { ret =>
+      assert(ret.size == 1)
+    }
   }
 
   test("4.serde") {
@@ -127,7 +131,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .timeout(3.seconds)
       .compile
       .toList
-      .unsafeRunSync()
   }
 
   test("5.consumer config") {
@@ -194,7 +197,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("9.generic record range - offset") {
-    val res = ctx
+    ctx
       .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
@@ -202,12 +205,11 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .drain
       .as(true)
-
-    assert(res.unsafeRunSync())
+      .map(res => assert(res))
   }
 
   test("10.generic record range - date time") {
-    val res = ctx
+    ctx
       .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(DateTimeRange(sydneyTime).withToday)
@@ -215,12 +217,11 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .drain
       .as(true)
-
-    assert(res.unsafeRunSync())
+      .map(res => assert(res))
   }
 
   test("11.generic record manualCommitStream") {
-    val res = ctx
+    ctx
       .consumeGenericRecord("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
@@ -229,11 +230,11 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .drain
       .as(true)
-    assert(res.unsafeRunSync())
+      .map(res => assert(res))
   }
 
   test("12.range - should stop") {
-    val res = ctx
+    ctx
       .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 1L)))
@@ -241,11 +242,11 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .drain
       .as(true)
-    assert(res.unsafeRunSync())
+      .map(res => assert(res))
   }
 
   test("13.manualCommitStream") {
-    val res = ctx
+    ctx
       .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
@@ -254,28 +255,29 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .drain
       .as(true)
-    assert(res.unsafeRunSync())
+      .map(res => assert(res))
   }
 
   test("14.generic record without schema registry") {
-    val ret =
-      ctx
-        .consumeGenericRecord(avroTopic.topicName.value, Some(SchemaFor[Int].schema))
-        .subscribe
-        .take(1)
-        .map(_.record)
-        .timeout(3.seconds)
-        .compile
-        .toList
-        .unsafeRunSync()
-    assert(ret.size == 1)
-    assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
+    ctx
+      .consumeGenericRecord(avroTopic.topicName.value, Some(SchemaFor[Int].schema))
+      .subscribe
+      .take(1)
+      .map(_.record)
+      .timeout(3.seconds)
+      .compile
+      .toList
+      .map { ret =>
+        assert(ret.size == 1)
+        assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
+      }
   }
 
   test("15.attempt consume") {
-    val ret = ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record)
-      .timeout(3.seconds).compile.toList.unsafeRunSync()
-    assert(ret.size == 1)
-    assert(ret.head.value.isRight)
+    ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record)
+      .timeout(3.seconds).compile.toList.map { ret =>
+        assert(ret.size == 1)
+        assert(ret.head.value.isRight)
+      }
   }
 }

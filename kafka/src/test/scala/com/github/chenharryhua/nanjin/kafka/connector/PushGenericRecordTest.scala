@@ -8,9 +8,9 @@ import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.common.serialization.Serdes
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class PushGenericRecordTest extends AnyFunSuite {
+class PushGenericRecordTest extends FunSuite {
 
   private val topic: TopicName = TopicName("push.generic.record.unit.test")
 
@@ -37,10 +37,10 @@ class PushGenericRecordTest extends AnyFunSuite {
 
   test("1.primitive key/value round-trip through Serdes") {
     val pr = push(stringSchema, intSchema).fromGenericRecord(wrapper("the-key", Integer.valueOf(42)))
-    assert(pr.topic === topic.value)
+    assert(pr.topic == topic.value)
     // decode the produced bytes back with the matching Kafka deserializers
-    assert(Serdes.String().deserializer().deserialize(topic.value, pr.key) === "the-key")
-    assert(Serdes.Integer().deserializer().deserialize(topic.value, pr.value) === 42)
+    assert(Serdes.String().deserializer().deserialize(topic.value, pr.key) == "the-key")
+    assert(Serdes.Integer().deserializer().deserialize(topic.value, pr.value) == 42)
   }
 
   test("2.null key and value encode to null bytes") {
@@ -51,7 +51,7 @@ class PushGenericRecordTest extends AnyFunSuite {
 
   test("3.type mismatch raises IllegalArgumentException") {
     // value schema is INT but we supply a String
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       push(stringSchema, intSchema).fromGenericRecord(wrapper("k", "not-an-int"))
     }
   }
@@ -59,7 +59,7 @@ class PushGenericRecordTest extends AnyFunSuite {
   test("4.unsupported schema type raises UnsupportedOperationException") {
     // an ARRAY schema is not a supported key/value type
     val arraySchema = Schema.createArray(Schema.create(Schema.Type.INT))
-    assertThrows[UnsupportedOperationException] {
+    intercept[UnsupportedOperationException] {
       push(arraySchema, intSchema)
     }
   }

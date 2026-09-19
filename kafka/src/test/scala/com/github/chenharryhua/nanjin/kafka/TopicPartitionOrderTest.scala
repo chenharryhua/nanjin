@@ -5,11 +5,11 @@ import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.jawn.decode
 import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 final case class Abc(a: Int, b: String, c: Long)
 
-class TopicPartitionOrderTest extends AnyFunSuite {
+class TopicPartitionOrderTest extends FunSuite {
   test("1.order") {
     val tp0 = new TopicPartition("a", 0)
     val tp1 = new TopicPartition("a", 1)

@@ -1,16 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, SchemaIncompatible, TopicName}
 import fs2.kafka.{ProducerSettings, Serializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
 import org.apache.avro.Schema
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class ProduceGenericRecordTest extends AnyFunSuite {
+class ProduceGenericRecordTest extends CatsEffectSuite {
 
   private val topic: TopicName = TopicName("produce.generic.record.test")
 
@@ -58,9 +57,10 @@ class ProduceGenericRecordTest extends AnyFunSuite {
 
   test("3.schema resolves the write schema from the registry") {
     val p = producer(OptionalAvroSchemaPair(None, None), registryWith(stringSchema, intSchema))
-    val resolved = p.schema.unsafeRunSync()
-    assert(resolved.getType === Schema.Type.RECORD)
-    assert(resolved.getName === "NJConsumerRecord")
+    p.schema.map { resolved =>
+      assert(resolved.getType == Schema.Type.RECORD)
+      assert(resolved.getName == "NJConsumerRecord")
+    }
   }
 
   test("4.schema raises SchemaIncompatible when caller schema is not backward-compatible with the registry") {
@@ -69,7 +69,7 @@ class ProduceGenericRecordTest extends AnyFunSuite {
       OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema))),
       registryWith(stringSchema, stringSchema)
     )
-    assertThrows[SchemaIncompatible](p.schema.unsafeRunSync())
+    interceptIO[SchemaIncompatible](p.schema)
   }
 
   test("5.absent registry schema is treated as compatible; caller schema is used") {
@@ -80,8 +80,9 @@ class ProduceGenericRecordTest extends AnyFunSuite {
       emptyClient
     )
     // a missing broker schema is treated as compatible, so this resolves using the caller's schemas
-    val resolved = p.schema.unsafeRunSync()
-    assert(resolved.getType === Schema.Type.RECORD)
-    assert(resolved.getName === "NJConsumerRecord")
+    p.schema.map { resolved =>
+      assert(resolved.getType == Schema.Type.RECORD)
+      assert(resolved.getName == "NJConsumerRecord")
+    }
   }
 }

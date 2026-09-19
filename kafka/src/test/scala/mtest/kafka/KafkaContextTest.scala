@@ -18,10 +18,9 @@ import fs2.kafka.{
   ValueDeserializer,
   ValueSerializer
 }
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
-class KafkaContextTest extends AnyFunSuite with Matchers {
+class KafkaContextTest extends FunSuite {
 
   /** Settings with no broker/registry endpoints configured: enough to build a context and any operation that
     * does not force the schema registry client. Forcing the registry (an absent URL) throws
@@ -48,39 +47,40 @@ class KafkaContextTest extends AnyFunSuite with Matchers {
     Resource.pure(Serializer[IO, Array[Byte]])
 
   test("1.consumeBytes does not require schema registry configuration") {
-    noException shouldBe thrownBy(ctx.consumeBytes("raw-bytes"))
+    val _ = ctx.consumeBytes("raw-bytes")
   }
 
   test("2.consume with explicit deserializers does not require schema registry configuration") {
-    noException shouldBe thrownBy(ctx.consume("topic", byteKeyDeserializer, byteValueDeserializer))
+    val _ = ctx.consume("topic", byteKeyDeserializer, byteValueDeserializer)
   }
 
   test("3.produce with explicit serializers does not require schema registry configuration") {
-    noException shouldBe thrownBy(ctx.produce("topic", byteKeySerializer, byteValueSerializer))
+    val _ = ctx.produce("topic", byteKeySerializer, byteValueSerializer)
   }
 
   test("4.settings returns the settings the context was built with") {
-    ctx.settings shouldBe emptySettings
+    assertEquals(ctx.settings, emptySettings)
   }
 
   test("5.updateConfig returns a new context with updated settings and leaves the original unchanged") {
     val updated = ctx.updateConfig(_.withBrokers("new-broker:9092"))
     // the new context reflects the update on a visible property
-    updated.settings.consumerSettings.properties
-      .get("bootstrap.servers") shouldBe Some("new-broker:9092")
+    assertEquals(
+      updated.settings.consumerSettings.properties.get("bootstrap.servers"),
+      Some("new-broker:9092"))
     // the original context is immutable: its settings still carry no bootstrap.servers
-    ctx.settings.consumerSettings.properties.get("bootstrap.servers") shouldBe None
+    assertEquals(ctx.settings.consumerSettings.properties.get("bootstrap.servers"), None)
   }
 
   test("6.schemaRegistry throws SchemaRegistryUrlAbsent when the registry URL is absent") {
     // schemaRegistry forces the lazy schema-registry client, which requires the URL config
-    a[SchemaRegistryUrlAbsent] shouldBe thrownBy(ctx.schemaRegistry("topic"))
+    intercept[SchemaRegistryUrlAbsent](ctx.schemaRegistry("topic"))
   }
 
   test("7.schemaRegistry builds a TopicSchemaRegistry when the registry URL is configured") {
     val configured =
       KafkaContext[IO](emptySettings.withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081"))
     // constructing the (cached) registry client and the topic view performs no network I/O
-    noException shouldBe thrownBy(configured.schemaRegistry("topic"))
+    val _ = configured.schemaRegistry("topic")
   }
 }

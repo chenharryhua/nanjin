@@ -1,15 +1,13 @@
 package mtest.kafka
 
 import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
-import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, Partition, TopicPartitionMap}
+import munit.{DisciplineSuite, FunSuite}
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 import org.scalacheck.{Arbitrary, Cogen, Gen}
-import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
+class KafkaOffsetTest extends DisciplineSuite {
 
   implicit val arbOffset: Arbitrary[Offset] = Arbitrary(Gen.choose[Long](0, Long.MaxValue).map(Offset(_)))
 
@@ -37,7 +35,7 @@ class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
   checkAll("kafka offset range", PartialOrderTests[OffsetRange].partialOrder)
 }
 
-class KafkaOffsetBuildTest extends AnyFunSuite {
+class KafkaOffsetBuildTest extends FunSuite {
 
   test("1.partition") {
     val p1 = Partition(1)
