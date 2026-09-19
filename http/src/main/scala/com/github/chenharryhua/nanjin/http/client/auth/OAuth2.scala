@@ -2,18 +2,15 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.flatMap.given
-import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Codec
 import org.http4s.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
-import org.http4s.headers.{`Idempotency-Key`, Authorization}
+import org.http4s.headers.Authorization
 import org.typelevel.ci.CIString
 
-import java.util.UUID
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 /*
@@ -81,8 +78,7 @@ final case class AuthorizationCode(
   */
 private class ClientCredentialsAuth[F[_]: Async](
   credential: ClientCredentials,
-  authClient: Resource[F, Client[F]],
-  uuidGenerator: F[UUID]
+  authClient: Resource[F, Client[F]]
 ) extends Login[F] {
   private case class Token(
     token_type: String,
@@ -105,22 +101,20 @@ private class ClientCredentialsAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getToken: F[Token] =
-          postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+          postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
 
         override protected def refreshToken: Token => F[Token] = _ => getToken
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
-          uuidGenerator.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "refresh_token",
-                  "refresh_token" -> refresh_token,
-                  "client_id" -> credential.client_id,
-                  "client_secret" -> credential.client_secret.value),
-                credential.auth_endpoint
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
-          }
+          authenticationClient.expect[Token](
+            POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "refresh_token" -> refresh_token,
+                "client_id" -> credential.client_id,
+                "client_secret" -> credential.client_secret.value),
+              credential.auth_endpoint
+            ))
 
         override protected def renewToken: Token => F[Token] =
           token => token.refresh_token.fold(getToken)(refreshAccessToken)
@@ -148,8 +142,7 @@ private class ClientCredentialsAuth[F[_]: Async](
   */
 private class AuthorizationCodeAuth[F[_]: Async](
   credential: AuthorizationCode,
-  authClient: Resource[F, Client[F]],
-  uuidGenerator: F[UUID])
+  authClient: Resource[F, Client[F]])
     extends Login[F] {
   private case class Token(
     access_token: String,
@@ -175,27 +168,23 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getToken: F[Token] =
-          uuidGenerator.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                urlForm,
-                credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
-          }
+          authenticationClient.expect[Token](
+            POST(
+              urlForm,
+              credential.auth_endpoint,
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+            ))
 
         private def refreshAccessToken(pre: Token): F[Token] =
-          uuidGenerator.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "refresh_token",
-                  "client_id" -> credential.client_id,
-                  "refresh_token" -> pre.refresh_token),
-                credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
-          }
+          authenticationClient.expect[Token](
+            POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "client_id" -> credential.client_id,
+                "refresh_token" -> pre.refresh_token),
+              credential.auth_endpoint,
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+            ))
 
         override protected def refreshToken: Token => F[Token] =
           refreshAccessToken

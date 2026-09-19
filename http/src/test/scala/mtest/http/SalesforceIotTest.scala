@@ -53,7 +53,7 @@ class SalesforceIotTest extends AnyFunSuite {
     .map(Logger(logHeaders = true, logBody = false, _ => false))
     .map(httpRetry(sydneyTime, _.fixedDelay(1.second).repeat))
 
-  val login: Resource[IO, Login[IO]] = Salesforce(
+  val login: Login[IO] = Salesforce(
     authClient,
     Salesforce.PasswordGrant(
       auth_endpoint = uri"http://127.0.0.1:8080/services/oauth2/token",
@@ -68,7 +68,7 @@ class SalesforceIotTest extends AnyFunSuite {
     EmberClientBuilder
       .default[IO]
       .build
-      .flatMap(c => login.flatMap(_.login(c)))
+      .flatMap(login.login)
       .map(Logger(logHeaders = true, logBody = false, _ => false))
       .map(httpRetry(sydneyTime, _.fixedDelay(2.second).repeat))
 

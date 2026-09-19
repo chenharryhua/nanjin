@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
 import io.circe.Codec
@@ -12,7 +10,6 @@ import org.http4s.client.Client
 import org.http4s.headers.Authorization
 import org.typelevel.ci.CIString
 
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 /** Salesforce-specific OAuth authentication helpers.
@@ -35,8 +32,7 @@ object Salesforce {
   private class PasswordGrantAuth[F[_]: Async](
     credential: PasswordGrant,
     expiresIn: FiniteDuration,
-    authClient: Resource[F, Client[F]],
-    uuidGenerator: F[UUID]
+    authClient: Resource[F, Client[F]]
   ) extends Login[F] {
 
     private val urlForm: UrlForm = UrlForm(
@@ -62,7 +58,7 @@ object Salesforce {
           override protected type T = Token
 
           override protected def getToken: F[Token] =
-            postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+            postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
 
           override protected def refreshToken: Token => F[Token] = _ => getToken
 
@@ -100,13 +96,6 @@ object Salesforce {
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
-    expiresIn: FiniteDuration): Resource[F, Login[F]] =
-    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
-      new PasswordGrantAuth[F](
-        credential = credential,
-        expiresIn = expiresIn,
-        authClient = authClient,
-        uuidGenerator = UUIDGen.randomUUID[F]
-      )
-    })
+    expiresIn: FiniteDuration): Login[F] =
+    new PasswordGrantAuth[F](credential, expiresIn, authClient)
 }
