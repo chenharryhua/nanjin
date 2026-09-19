@@ -13,19 +13,27 @@ import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
 
 import scala.concurrent.duration.FiniteDuration
 
-/** Wraps an HTTP client with authentication. */
+/** Wraps an HTTP client with authentication.
+  *
+  * @note
+  *   An implementation may replay a request once after an authentication failure. Request entities supplied
+  *   to the wrapped client must therefore be safe to evaluate again, and the target authentication layer
+  *   should reject unauthorized requests before application side effects occur.
+  */
 trait Login[F[_]] {
 
-  def login(client: Client[F]): Resource[F, Client[F]]
+  def login(businessClient: Client[F]): Resource[F, Client[F]]
 
-  final def login(client: Resource[F, Client[F]]): Resource[F, Client[F]] =
-    client.flatMap(login)
+  final def login(businessClient: Resource[F, Client[F]]): Resource[F, Client[F]] =
+    businessClient.flatMap(login)
 
 }
 
 /** Provides token-based authentication for an HTTP client.
   *
-  * Manages fetching, refreshing, and applying tokens to requests.
+  * Manages fetching, refreshing, and applying tokens to requests. When a request returns `Unauthorized`, the
+  * wrapped client refreshes the token and replays that request once. The request entity must therefore be
+  * safely repeatable; a second `Unauthorized` response is returned without another refresh or retry.
   *
   * Subclasses need to implement:
   *   - `getToken`: how to obtain a token without using a current token

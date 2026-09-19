@@ -95,7 +95,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def login(client: Client[F]): Resource[F, Client[F]] =
+  override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
       val tac: TokenAuthClient[F] = new TokenAuthClient[F]() {
         override protected type T = Token
@@ -126,7 +126,7 @@ private class ClientCredentialsAuth[F[_]: Async](
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      tac.wrap(client)
+      tac.wrap(businessClient)
     }
 }
 
@@ -162,7 +162,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def login(client: Client[F]): Resource[F, Client[F]] =
+  override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
       val tac = new TokenAuthClient[F] {
         override protected type T = Token
@@ -196,7 +196,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      tac.wrap(client)
+      tac.wrap(businessClient)
     }
 }
 

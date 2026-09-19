@@ -17,7 +17,7 @@ import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.dsl.io.*
-import org.http4s.headers.{`Content-Type`, Authorization}
+import org.http4s.headers.{`Content-Type`, Authorization, Host}
 import org.http4s.implicits.*
 
 import scala.concurrent.duration.*
@@ -478,7 +478,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     assertEquals(decoded, Right(uri))
   }
 
-  test("7.Salesforce password grant rewrites the request URI") {
+  test("7.Salesforce password grant rewrites the URI and removes a stale Host header") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
         Ok(
@@ -502,6 +502,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           val token = authHeader.value.stripPrefix("Bearer ")
           assertEquals(token, "sf-token")
           assertEquals(req.uri.host.map(_.value), Some("example.my.salesforce.com"))
+          assertEquals(req.headers.get[Host].map(_.host), Some("example.my.salesforce.com"))
           Ok("ok")
         case _ => Forbidden("missing auth")
       }
@@ -517,11 +518,12 @@ final class AuthLoginSuite extends CatsEffectSuite {
     )
 
     Salesforce[IO](authClient, credential, 2.hours).login(Client.fromHttpApp(resourceApp)).use { authed =>
-      authed.expect[String](uri"/resource")
+      val request = Request[IO](uri = uri"/resource").putHeaders(Host("original.example", None))
+      authed.expect[String](request)
     }
   }
 
-  test("8.Salesforce password grant preserves query string") {
+  test("8.Salesforce password grant preserves full path, query, and fragment after path-info translation") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
         Ok(
@@ -544,6 +546,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         case Some(_) =>
           assertEquals(req.uri.host.map(_.value), Some("example.my.salesforce.com"))
           assertEquals(req.uri.query.params.get("q"), Some("SELECT Id FROM Account"))
+          assertEquals(req.uri.fragment, Some("details"))
           assertEquals(req.uri.path.renderString, "/services/data/v58.0/query")
           Ok("ok")
         case _ => Forbidden("missing auth")
@@ -560,7 +563,26 @@ final class AuthLoginSuite extends CatsEffectSuite {
     )
 
     Salesforce[IO](authClient, credential, 2.hours).login(Client.fromHttpApp(resourceApp)).use { authed =>
-      authed.expect[String](Uri.unsafeFromString("/services/data/v58.0/query?q=SELECT+Id+FROM+Account"))
+      val request = Request[IO](
+        uri = Uri.unsafeFromString("/services/data/v58.0/query?q=SELECT+Id+FROM+Account#details")
+      ).withAttribute(Request.Keys.PathInfoCaret, 1)
+      authed.expect[String](request)
+    }
+  }
+
+  test("8a.Salesforce password grant requires a positive renewal duration") {
+    val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp.notFound[IO]))
+    val credential = Salesforce.PasswordGrant(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      username = "user",
+      password = Secret("pass")
+    )
+
+    List(Duration.Zero, (-1).second).foreach { expires_in =>
+      val error = intercept[IllegalArgumentException](Salesforce[IO](auth_client, credential, expires_in))
+      assertEquals(error.getMessage, s"requirement failed: expiresIn must be positive, but was $expires_in")
     }
   }
 

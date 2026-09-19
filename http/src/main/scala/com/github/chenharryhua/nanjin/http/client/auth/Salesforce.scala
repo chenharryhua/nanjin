@@ -7,10 +7,10 @@ import io.circe.Codec
 import org.http4s.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
-import org.http4s.headers.Authorization
+import org.http4s.headers.{Authorization, Host}
 import org.typelevel.ci.CIString
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /** Salesforce-specific OAuth authentication helpers.
   *
@@ -52,7 +52,7 @@ object Salesforce {
       signature: String)
         derives Codec.AsObject
 
-    override def login(client: Client[F]): Resource[F, Client[F]] =
+    override def login(businessClient: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val tac = new TokenAuthClient[F] {
           override protected type T = Token
@@ -65,17 +65,17 @@ object Salesforce {
           override protected def renewalDelay: Token => Option[FiniteDuration] =
             _ => Some(expiresIn)
 
-          // Salesforce returns a fully-qualified instance_url; it is guaranteed to be a valid absolute URI.
           override protected def withToken(token: Token, req: Request[F]): Request[F] =
             req
               .withUri(
                 token.instance_url
-                  .withPath(req.pathInfo)
+                  .withPath(req.uri.path)
                   .copy(query = req.uri.query, fragment = req.uri.fragment))
+              .removeHeader[Host]
               .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
         }
 
-        tac.wrap(client)
+        tac.wrap(businessClient)
       }
   }
 
@@ -92,10 +92,21 @@ object Salesforce {
     *   - Fetches an access token using the password grant
     *   - Routes requests to the Salesforce `instance_url`
     *   - Periodically re-authenticates using the supplied credentials
+    *
+    * @param authClient
+    *   the HTTP client resource used for Salesforce token requests
+    * @param credential
+    *   password-grant credentials
+    * @param expiresIn
+    *   positive duration between scheduled token renewals
+    * @throws IllegalArgumentException
+    *   when `expiresIn` is zero or negative
     */
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
-    expiresIn: FiniteDuration): Login[F] =
+    expiresIn: FiniteDuration): Login[F] = {
+    require(expiresIn > Duration.Zero, s"expiresIn must be positive, but was $expiresIn")
     new PasswordGrantAuth[F](credential, expiresIn, authClient)
+  }
 }
