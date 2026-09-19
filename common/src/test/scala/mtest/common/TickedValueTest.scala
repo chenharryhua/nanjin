@@ -3,21 +3,20 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-class TickedValueTest extends AnyFunSuite with Matchers {
+class TickedValueTest extends FunSuite {
 
   test("1.TickedValue map preserves tick") {
     val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
     val tv = TickedValue(tick, 10)
     val mapped = tv.map(_ * 2)
 
-    mapped.value shouldEqual 20
-    mapped.tick shouldEqual tick
+    assertEquals(mapped.value, 20)
+    assertEquals(mapped.tick, tick)
   }
 
   test("2.TickedValue withSnoozeStretch updates tick") {
@@ -25,7 +24,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
     val tv = TickedValue(tick, "x")
     val updated = tv.withSnoozeStretch(Duration.ofSeconds(5))
 
-    updated.tick.conclude shouldEqual tick.conclude.plusSeconds(5)
+    assertEquals(updated.tick.conclude, tick.conclude.plusSeconds(5))
   }
 
   test("3.TickedValue withConclude updates tick") {
@@ -34,7 +33,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
     val newConclude = tick.conclude.plusSeconds(100)
     val updated = tv.withConclude(newConclude)
 
-    updated.tick.conclude shouldEqual newConclude
+    assertEquals(updated.tick.conclude, newConclude)
   }
 
   test("4.TickedValue resolveTime produces TimeStamped") {
@@ -42,7 +41,7 @@ class TickedValueTest extends AnyFunSuite with Matchers {
     val tv = TickedValue(tick, 42)
     val ts = tv.resolveTime(t => FiniteDuration(t.active.toMillis, scala.concurrent.duration.MILLISECONDS))
 
-    ts.value shouldEqual 42
+    assertEquals(ts.value, 42)
   }
 
   test("5.TickedValue JSON encoding and decoding") {
@@ -51,8 +50,8 @@ class TickedValueTest extends AnyFunSuite with Matchers {
     val json = tv.asJson.noSpaces
     val decoded = decode[TickedValue[Int]](json).toOption.get
 
-    decoded.value shouldEqual tv.value
-    decoded.tick shouldEqual tv.tick
+    assertEquals(decoded.value, tv.value)
+    assertEquals(decoded.tick, tv.tick)
   }
 
 }

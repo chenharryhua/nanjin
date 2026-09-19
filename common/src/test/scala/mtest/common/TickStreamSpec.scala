@@ -1,15 +1,14 @@
 package mtest.common
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Temporal}
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import cron4s.Cron
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import java.time.{Duration as JDuration, LocalTime, ZoneId}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.*
-class TickStreamSpec extends AnyFunSuite {
+class TickStreamSpec extends CatsEffectSuite {
 
   val zoneId: ZoneId = ZoneId.systemDefault()
   val policy: Policy = Policy.fixedDelay(100.milliseconds).repeat // example fixed policy
@@ -18,43 +17,46 @@ class TickStreamSpec extends AnyFunSuite {
     stream.take(n).compile.toList
 
   test("1.tickScheduled emits first tick after snooze") {
-    val ticks = takeTicks(tickStream.tickScheduled[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
-    assert(ticks.nonEmpty)
-    assert(ticks.head.index == 1)
-    assert(ticks.sliding(2).forall {
-      case Seq(a, b) => a.conclude.isBefore(b.conclude) || a.conclude.equals(b.conclude)
-      case _         => true
-    })
+    takeTicks(tickStream.tickScheduled[IO](zoneId, _.fresh(policy)), 3).map { ticks =>
+      assert(ticks.nonEmpty)
+      assert(ticks.head.index == 1)
+      assert(ticks.sliding(2).forall {
+        case Seq(a, b) => a.conclude.isBefore(b.conclude) || a.conclude.equals(b.conclude)
+        case _         => true
+      })
+    }
   }
 
   test("2.tickFuture emits first tick immediately and sleeps afterward") {
-    val start = LocalTime.now()
-    val ticks =
-      takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds).repeat), 3).unsafeRunSync()
-    val elapsed = JDuration.between(start, LocalTime.now())
-    assert(ticks.nonEmpty)
-    assert(ticks.head.index == 1)
-    val expectedMinDuration = ticks.dropRight(1).map(_.snooze.toScala).foldLeft(0.seconds)(_ + _)
-    assert(elapsed.toScala >= expectedMinDuration)
-    assert(JDuration.between(start, ticks.head.local(_.acquires).toLocalTime).toScala < 1.second)
+    IO(LocalTime.now()).flatMap { start =>
+      takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds).repeat), 3).map { ticks =>
+        val elapsed = JDuration.between(start, LocalTime.now())
+        assert(ticks.nonEmpty)
+        assert(ticks.head.index == 1)
+        val expectedMinDuration = ticks.dropRight(1).map(_.snooze.toScala).foldLeft(0.seconds)(_ + _)
+        assert(elapsed.toScala >= expectedMinDuration)
+        assert(JDuration.between(start, ticks.head.local(_.acquires).toLocalTime).toScala < 1.second)
+      }
+    }
   }
 
   test("3.tickScheduled fails on impossible cron schedule") {
-    val ticks = tickStream
+    tickStream
       .tickScheduled[IO](zoneId, _.crontab(_ => Cron.unsafeParse("0 0 0 31 2 ?")))
       .take(1)
       .compile
       .toList
-      .unsafeRunSync()
-    assert(ticks.isEmpty)
+      .map(ticks => assert(ticks.isEmpty))
   }
 
   test("4.empty policy produces no ticks") {
-    val scheduled = takeTicks(tickStream.tickScheduled[IO](zoneId, _.empty), 1).unsafeRunSync()
-    val future = takeTicks(tickStream.tickFuture[IO](zoneId, _.empty), 1).unsafeRunSync()
-
-    assert(scheduled.isEmpty)
-    assert(future.isEmpty)
+    for {
+      scheduled <- takeTicks(tickStream.tickScheduled[IO](zoneId, _.empty), 1)
+      future <- takeTicks(tickStream.tickFuture[IO](zoneId, _.empty), 1)
+    } yield {
+      assert(scheduled.isEmpty)
+      assert(future.isEmpty)
+    }
   }
 
 }

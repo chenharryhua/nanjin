@@ -1,13 +1,13 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 import squants.time.Milliseconds
 
 import java.time.{Duration as JavaDuration, Instant, ZoneOffset, ZonedDateTime}
 import scala.concurrent.duration.*
 
-class DurationFormatterExtTest extends AnyFunSuite {
+class DurationFormatterExtTest extends FunSuite {
 
   // --- create(maxParts) ---
 

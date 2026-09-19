@@ -2,7 +2,7 @@ package mtest.common
 
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.LocalTime
 import scala.concurrent.duration.DurationInt
@@ -11,7 +11,7 @@ import scala.concurrent.duration.DurationInt
   * package-private). Covers every `PolicyF` node: the four leaf schedules and all seven operator nodes, plus
   * nesting/precedence and the leaf value formats (ISO-8601 `Duration`, `LocalTime`, raw cron string).
   */
-class ShowPolicyTest extends AnyFunSuite {
+class ShowPolicyTest extends FunSuite {
 
   // ---- leaf schedules ------------------------------------------------------------------------------
 

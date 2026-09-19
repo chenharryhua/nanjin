@@ -4,9 +4,9 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class SecretTest extends AnyFunSuite {
+class SecretTest extends FunSuite {
 
   private val secret = "s3cr3t-p@ss"
 

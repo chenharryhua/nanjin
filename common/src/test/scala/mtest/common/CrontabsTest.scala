@@ -3,11 +3,11 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.LocalDateTime
 
-class CrontabsTest extends AnyFunSuite {
+class CrontabsTest extends FunSuite {
   test("1.validate crontabs") {
     val now = LocalDateTime.now()
     assert(crontabs.everySecond.next(now).nonEmpty)
