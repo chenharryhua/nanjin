@@ -3,38 +3,38 @@ package mtest
 import cats.Alternative
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, DateTimeRange}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
-class DateTimeParserTest extends AnyFunSuite {
+class DateTimeParserTest extends FunSuite {
 
   val zoneId: ZoneId = sydneyTime
   val range: DateTimeRange = DateTimeRange(sydneyTime)
 
   test("1.Local Time") {
     assert(
-      range.withStartTime("00:00:00").zonedStartTime.get === ZonedDateTime
+      range.withStartTime("00:00:00").zonedStartTime.get == ZonedDateTime
         .of(LocalDate.now, LocalTime.MIDNIGHT, zoneId))
 
   }
 
   test("2.Local Date Time") {
     assert(
-      range.withStartTime("2020-01-01T00:00:00").zonedStartTime.get === ZonedDateTime
+      range.withStartTime("2020-01-01T00:00:00").zonedStartTime.get == ZonedDateTime
         .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId))
   }
 
   test("3.Zoned Date Time") {
     val date =
       ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId)
-    assert(range.withStartTime("2020-01-01T00:00+11:00[Australia/Melbourne]").zonedStartTime.get === date)
+    assert(range.withStartTime("2020-01-01T00:00+11:00[Australia/Melbourne]").zonedStartTime.get == date)
 
   }
   test("4.Offset Date Time") {
     val date =
       ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId)
-    assert(range.withStartTime("2020-01-01T00:00+11:00").zonedStartTime.get === date)
+    assert(range.withStartTime("2020-01-01T00:00+11:00").zonedStartTime.get == date)
   }
 
   test("5.empty parser always return failure") {

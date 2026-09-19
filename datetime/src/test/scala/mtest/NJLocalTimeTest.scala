@@ -2,13 +2,13 @@ package mtest
 
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{distance, LocalTimeRange}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.{LocalDateTime, LocalTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
-class NJLocalTimeTest extends AnyFunSuite {
+class NJLocalTimeTest extends FunSuite {
   test("1.local time distance") {
     val base = LocalTime.of(18, 0)
     val localTime1 = LocalTime.of(19, 0)

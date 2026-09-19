@@ -10,16 +10,14 @@ import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.given
 import io.circe.syntax.EncoderOps
 import org.scalacheck.{Arbitrary, Cogen, Gen}
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.Configuration
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import munit.DisciplineSuite
 
 import java.sql.Timestamp
 import java.time.*
 import scala.concurrent.duration.*
 import scala.util.Random
 
-class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+class DateTimeRangeTest extends DisciplineSuite {
 
   implicit val arbiNJDateTimeRange: Arbitrary[DateTimeRange] =
     Arbitrary(for {
@@ -196,7 +194,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val sr = dr.subranges(12.hours)
     assert(sr.size == 63)
     sr.sliding(2).map(_.toList).foreach {
-      case List(a, b) => assert(a.end === b.start)
+      case List(a, b) => assert(a.end == b.start)
       case _          => ()
     }
   }
@@ -241,7 +239,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
   test("16.subranges rejects sub-millisecond intervals") {
     val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-01-02")
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       dr.subranges(500.microseconds)
     }
   }
@@ -314,16 +312,16 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   }
 
   test("22.malformed strings fail fast at the setter") {
-    assertThrows[java.time.format.DateTimeParseException] {
+    intercept[java.time.format.DateTimeParseException] {
       DateTimeRange(utcTime).withStartTime("not-a-date")
     }
-    assertThrows[java.time.format.DateTimeParseException] {
+    intercept[java.time.format.DateTimeParseException] {
       DateTimeRange(utcTime).withEndTime("2021-99-99")
     }
-    assertThrows[java.time.format.DateTimeParseException] {
+    intercept[java.time.format.DateTimeParseException] {
       DateTimeRange(utcTime).withTimeRange("2021-01-01", "garbage")
     }
-    assertThrows[java.time.format.DateTimeParseException] {
+    intercept[java.time.format.DateTimeParseException] {
       DateTimeRange(utcTime).withOneDay("nope")
     }
   }
