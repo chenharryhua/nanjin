@@ -83,11 +83,24 @@ object Retry {
 
     extension (ra: Attempt)
       // observations
+
+      /** The zoned timestamp of this failure.
+        *
+        * Sampled when the policy advances after the operation threw, not at the exact instant of the throw.
+        * It is therefore shortly after the true failure by the policy-advance latency.
+        */
       def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
       def cause: Throwable = ra.cause
       def ordinal: Long = ra.tick.index
       def snooze: FiniteDuration = ra.tick.snooze.toScala
       def previousCause: Option[Throwable] = ra.previousCause
+
+      /** Real wall-clock time since the first failure.
+        *
+        * Both endpoints are `failedAt`-style samples taken when the policy advances, so this spans sleep, the
+        * operation's own runtime, and coordination and decision-function time. It is not a sum of policy
+        * delays and is not measured from the literal throw instant.
+        */
       def elapsed: FiniteDuration = Duration.between(ra.firstFailureAt, ra.tick.acquires).toScala
 
       // transitions
@@ -219,6 +232,6 @@ object Retry {
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] = {
     import Attempt.followPolicy
-    f(new Builder[F](Policy.empty, Kleisli(_.followPolicy.pure[F]))).build(zoneId)
+    Async[F].defer(f(new Builder[F](Policy.empty, Kleisli(_.followPolicy.pure[F]))).build(zoneId))
   }
 }
