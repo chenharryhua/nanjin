@@ -2,22 +2,21 @@ package mtest.guard
 
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.port
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
 import io.circe.{jawn, Json}
+import munit.CatsEffectSuite
 import org.http4s.Method.POST
 import org.http4s.Request
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.implicits.uri
-import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Megabytes}
 
 import scala.concurrent.duration.*
 
-class HttpServerTest extends AnyFunSuite {
+class HttpServerTest extends CatsEffectSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomepage("https://abc.com/efg")
       .withZoneId(_.londonTime)
@@ -65,9 +64,10 @@ class HttpServerTest extends AnyFunSuite {
         .map(checkJson)
         .compile
         .toList <& client
-    val res = run.unsafeRunSync()
-    assert(res.head.isInstanceOf[ServiceStart])
-    assert(res.last.asInstanceOf[ServiceStop].cause === Maintenance)
+    run.map { res =>
+      assert(res.head.isInstanceOf[ServiceStart])
+      assert(res.last.asInstanceOf[ServiceStop].cause == Maintenance)
+    }
   }
 
   test("2.log threshold - set both via POST /log/{level}") {
@@ -95,14 +95,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(3.seconds)
 
-    val res = guard
+    guard
       .service("log-both")
       .updateConfig(_.withHttpServer(_.withPort(port"9998")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
       .compile
       .drain <& client
-    res.unsafeRunSync()
   }
 
   test("3.log threshold - POST /log/logger/{level} changes only logger") {
@@ -129,14 +128,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(3.seconds)
 
-    val res = guard
+    guard
       .service("log-logger")
       .updateConfig(_.withHttpServer(_.withPort(port"9996")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
       .compile
       .drain <& client
-    res.unsafeRunSync()
   }
 
   test("4.log threshold - POST /log/channel/{level} changes only channel") {
@@ -163,14 +161,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(3.seconds)
 
-    val res = guard
+    guard
       .service("log-channel")
       .updateConfig(_.withHttpServer(_.withPort(port"9995")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
       .compile
       .drain <& client
-    res.unsafeRunSync()
   }
 
   test("5.log threshold - POST /log/logger/Disabled disables logging") {
@@ -191,14 +188,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(3.seconds)
 
-    val res = guard
+    guard
       .service("log-disable")
       .updateConfig(_.withHttpServer(_.withPort(port"9994")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
       .compile
       .drain <& client
-    res.unsafeRunSync()
   }
 
   test("6.log threshold - invalid level returns BadRequest") {
@@ -212,14 +208,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(3.seconds)
 
-    val res = guard
+    guard
       .service("log-bad")
       .updateConfig(_.withHttpServer(_.withPort(port"9993")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
       .compile
       .drain <& client
-    res.unsafeRunSync()
   }
 
   test("7.panic history") {
@@ -237,7 +232,7 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(5.seconds)
 
-    val res = TaskGuard[IO]("panic")
+    TaskGuard[IO]("panic")
       .service("history")
       .updateConfig(
         _.withRestartPolicy(1.hour, _.fixedDelay(1.second).repeat)
@@ -247,6 +242,5 @@ class HttpServerTest extends AnyFunSuite {
       .map(checkJson)
       .compile
       .drain &> client
-    res.unsafeRunSync()
   }
 }

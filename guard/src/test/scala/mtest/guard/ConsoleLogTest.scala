@@ -2,19 +2,18 @@ package mtest.guard
 
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import squants.information.Bytes
 
 import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.ConsoleLogTest"
-class ConsoleLogTest extends AnyFunSuite {
+class ConsoleLogTest extends CatsEffectSuite {
   private def action(agent: Agent[IO]): IO[Unit] = {
     val mtx = agent.facilitate("job") { mtx =>
       for {
@@ -44,15 +43,14 @@ class ConsoleLogTest extends AnyFunSuite {
           _.fixedRate(2.second).repeat.limited(1)))
 
   test("1.console - verbose json") {
-    val mr = service
+    service
       .updateConfig(_.withLogFormat(_.ConsoleJsonVerbose))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    assert(!mr.snapshot.hasDuplication)
+      .map(mr => assert(!mr.snapshot.hasDuplication))
   }
 
   test("2.console - pretty json") {
@@ -62,19 +60,19 @@ class ConsoleLogTest extends AnyFunSuite {
       .map(checkJson)
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("3.console - simple text") {
-    val mr = service
+    service
       .updateConfig(_.withLogFormat(_.ConsolePlainText).withHomepage("homepage.com"))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    val tags = mr.snapshot.metricIds.sortBy(_.token.age).map(_.token.metricName.toInt)
-    assert(tags == List(7, 6, 5, 4, 3, 2, 1))
+      .map { mr =>
+        val tags = mr.snapshot.metricIds.sortBy(_.token.age).map(_.token.metricName.toInt)
+        assert(tags == List(7, 6, 5, 4, 3, 2, 1))
+      }
   }
 }

@@ -1,37 +1,37 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
-class BatchParallelTest extends AnyFunSuite {
+class BatchParallelTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("parallel")
 
   test("1.invalid parallelism should fail fast") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("invalid.parallelism")
         .parallel(0)("a" -> IO(1))
         .quasiBatch
         .use_
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }
   }
 
   test("2.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("good job").parallel(jobs*).quasiBatch
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("3.exception - quasi") {
@@ -39,7 +39,7 @@ class BatchParallelTest extends AnyFunSuite {
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("exception.quasi")
         .parallel(jobs*)
@@ -51,8 +51,9 @@ class BatchParallelTest extends AnyFunSuite {
             assert(!mb.outcomes(2).record.succeeded)
           }.void
         }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("4.exception - value") {
@@ -60,7 +61,7 @@ class BatchParallelTest extends AnyFunSuite {
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("exception.value")
         .parallel(jobs*)
@@ -68,14 +69,15 @@ class BatchParallelTest extends AnyFunSuite {
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("5.predicate - quasi") {
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(3.seconds), "c" -> IO(3).delayBy(2.seconds))
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("predicate.quasi")
         .parallel(jobs*)
@@ -84,20 +86,21 @@ class BatchParallelTest extends AnyFunSuite {
         .use { mb =>
           IO {
             assert(!mb.outcomes.head.record.succeeded)
-            assert(mb.outcomes.head.record.job.mode === BatchMode.Parallel(3))
-            assert(mb.outcomes.head.record.job.kind === Some(BatchKind.Quasi))
+            assertEquals(mb.outcomes.head.record.job.mode, BatchMode.Parallel(3))
+            assertEquals(mb.outcomes.head.record.job.kind, Option(BatchKind.Quasi))
             assert(!mb.outcomes(1).record.succeeded)
             assert(mb.outcomes(2).record.succeeded)
           }.void
         }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("6.predicate - value") {
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("predicate.value")
         .parallel(jobs*)
@@ -106,8 +109,9 @@ class BatchParallelTest extends AnyFunSuite {
         .attempt
         .use(e => IO(assert(e.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false))))
         .void
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("7.failed action cancels sibling jobs") {
@@ -117,7 +121,7 @@ class BatchParallelTest extends AnyFunSuite {
       "c" -> IO(3).delayBy(3.seconds)
     )
 
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("failed-cancels-siblings")
         .parallel(jobs*)
@@ -125,9 +129,9 @@ class BatchParallelTest extends AnyFunSuite {
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
 }
