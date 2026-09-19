@@ -10,15 +10,35 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.option.{none, given}
 
-/** A single-flight abstraction. Ensures that for a given effect, at most one computation runs at a time, and
-  * all concurrent callers get the same result.
+/** A single-flight abstraction that treats each `SingleFlight` instance as one implicit key.
+  *
+  * At most one submitted effect runs at a time. Concurrent callers wait for that leader effect and receive
+  * its result; their own effects are not evaluated. Callers sharing an instance must therefore submit
+  * logically equivalent operations.
   *
   * The shared computation runs in a dedicated worker fiber. Canceling one caller only stops that caller from
-  * waiting. When the last caller cancels, it cancels the worker and waits for its termination.
+  * waiting. When the last caller cancels, it cancels the worker and waits for its termination. Failures
+  * raised by the worker's cancellation finalizers follow the effect runtime's reporting semantics; they are
+  * not returned as a normal result to the canceled caller.
   */
 trait SingleFlight[F[_], A] {
+
+  /** Return a snapshot indicating whether a flight exists at the time this effect reads the state.
+    *
+    * The result can become stale immediately and provides no admission or synchronization guarantee. Use
+    * `apply` or `tryApply`, rather than checking `isBusy`, when deciding whether to submit work.
+    */
   def isBusy: F[Boolean]
+
+  /** Submit an operation, or join the operation already in flight.
+    *
+    * When a flight already exists, `fa` is not evaluated and this caller receives the existing flight's
+    * result. Consequently, every `fa` submitted to the same instance must represent the same logical
+    * operation.
+    */
   def apply(fa: F[A]): F[A]
+
+  /** Run `fa` only when no operation is in flight; otherwise return `None` without evaluating `fa`. */
   def tryApply(fa: F[A]): F[Option[A]]
 }
 
