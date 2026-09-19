@@ -658,94 +658,413 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10a.failing renewal backs off instead of busy-looping the auth endpoint") {
-    // First fetch succeeds with a short-lived token; every subsequent renewal fails. Without a
-    // backoff floor the loop would spin `foreverM` with no delay and hammer the endpoint. With the
-    // fix, renewal attempts over a fixed window are bounded by renewFailureBackoff (~5s).
-    val tokenCalls = Ref.unsafe[IO, Int](0)
+  test("10a.failed scheduled renewal retries after backoff without rescheduling lifetime") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
 
-    val app = HttpApp[IO] {
-      case POST -> Root / "token" =>
-        tokenCalls.updateAndGet(_ + 1).flatMap { n =>
-          if (n == 1)
-            Ok("""{"access_token":"t1","token_type":"Bearer","expires_in":1}""")
-          else
-            InternalServerError("renewal boom")
+      val app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.updateAndGet(_ + 1).flatMap { n =>
+            if (n == 1)
+              Ok("""{"access_token":"t1","token_type":"Bearer","expires_in":130}""")
+            else
+              InternalServerError("renewal boom")
+          }
+        case _ => InternalServerError()
+      }
+
+      val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
+      val credential = ClientCredentials(
+        auth_endpoint = uri"/token",
+        client_id = "id",
+        client_secret = Secret("secret")
+      )
+
+      auth.clientCredentials[IO](auth_client, credential).flatMap(_.login(protectedResource)).use { _ =>
+        IO.sleep(106.seconds) *> token_calls.get.map { calls =>
+          // Initial acquisition at t=0, scheduled failure at t=100, and direct backoff retry at t=105.
+          assertEquals(calls, 3)
         }
-      case _ => InternalServerError()
-    }
-
-    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
-    val credential = ClientCredentials(
-      auth_endpoint = uri"/token",
-      client_id = "id",
-      client_secret = Secret("secret")
-    )
-
-    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(protectedResource)).use { authed =>
-      for {
-        _ <- authed.expect[String](uri"/a")
-        _ <- IO.sleep(3.seconds) // shorter than the renewFailureBackoff floor
-        n <- tokenCalls.get
-      } yield
-        // initial fetch (1) + at most a couple of backed-off renewal attempts.
-        // A busy loop would produce hundreds/thousands here.
-        assert(n <= 3, s"expected the renewal loop to back off, but it made $n token calls")
+      }
     }
   }
 
-  test("11.concurrent 401s use SingleFlight to deduplicate token refresh") {
-    val tokenCalls = Ref.unsafe[IO, Int](0)
-    val requestCount = Ref.unsafe[IO, Int](0)
+  test("10b.scheduled and unauthorized refreshes share one successful replacement") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      for {
+        token_calls <- Ref.of[IO, Int](0)
+        grant_types <- Ref.of[IO, List[String]](Nil)
+        refresh_started <- Deferred[IO, Unit]
+        allow_refresh <- Deferred[IO, Unit]
+        stale_request_seen <- Deferred[IO, Unit]
+        _ <- {
+          val auth_app = HttpApp[IO] {
+            case request @ POST -> Root / "token" =>
+              request.as[UrlForm].flatMap { form =>
+                val grant_type = form.getFirst("grant_type").getOrElse(fail("missing grant_type"))
+                grant_types.update(_ :+ grant_type) *> token_calls.updateAndGet(_ + 1).flatMap {
+                  case 1 =>
+                    Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":1,"refresh_token":"refresh-1"}""")
+                  case 2 =>
+                    refresh_started.complete(()).flatMap(_ =>
+                      allow_refresh.get *> IO.sleep(1.second) *>
+                        Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":3600}"""))
+                  case n =>
+                    Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+                }
+              }
+            case _ => InternalServerError()
+          }
 
-    val authApp = HttpApp[IO] {
-      case POST -> Root / "token" =>
-        tokenCalls.updateAndGet(_ + 1).flatMap { n =>
-          IO.sleep(100.millis) *> Ok(
-            s"""
-               |{
-               |  "access_token": "token-$n",
-               |  "token_type": "Bearer",
-               |  "expires_in": 3600
-               |}
-               |""".stripMargin
+          val resource_app = HttpApp[IO] { request =>
+            request.headers.get[Authorization] match {
+              case Some(header) if header.value == "Bearer token-1" =>
+                stale_request_seen.complete(()).flatMap(_ => IO.pure(Response[IO](Status.Unauthorized)))
+              case Some(_) => Ok("ok")
+              case None    => Forbidden("missing auth")
+            }
+          }
+
+          val credential = ClientCredentials(
+            auth_endpoint = uri"/token",
+            client_id = "id",
+            client_secret = Secret("secret")
           )
-        }
-      case _ => InternalServerError()
-    }
 
-    val resourceApp = HttpApp[IO] { req =>
-      req.headers.get[Authorization] match {
-        case Some(authHeader) =>
-          requestCount.updateAndGet(_ + 1).flatMap { _ =>
-            val token = authHeader.value.stripPrefix("Bearer ")
-            // First token always triggers 401
-            if (token == "token-1") IO.pure(Response[IO](Status.Unauthorized))
-            else Ok("ok")
+          auth
+            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .flatMap(_.login(Client.fromHttpApp(resource_app)))
+            .use { authed =>
+              for {
+                _ <- IO.sleep(5.seconds)
+                _ <- refresh_started.get
+                request <- authed.expect[String](uri"/resource").start
+                _ <- stale_request_seen.get
+                _ <- allow_refresh.complete(())
+                body <- request.joinWithNever
+                calls <- token_calls.get
+                grants <- grant_types.get
+              } yield {
+                assertEquals(body, "ok")
+                assertEquals(calls, 2)
+                assertEquals(grants, List("client_credentials", "refresh_token"))
+              }
+            }
+        }
+      } yield ()
+    }
+  }
+
+  test("10c.failed scheduled refresh allows unauthorized recovery policy") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      for {
+        token_calls <- Ref.of[IO, Int](0)
+        grant_types <- Ref.of[IO, List[String]](Nil)
+        refresh_started <- Deferred[IO, Unit]
+        allow_failure <- Deferred[IO, Unit]
+        stale_request_seen <- Deferred[IO, Unit]
+        _ <- {
+          val auth_app = HttpApp[IO] {
+            case request @ POST -> Root / "token" =>
+              request.as[UrlForm].flatMap { form =>
+                val grant_type = form.getFirst("grant_type").getOrElse(fail("missing grant_type"))
+                grant_types.update(_ :+ grant_type) *> token_calls.updateAndGet(_ + 1).flatMap {
+                  case 1 =>
+                    Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":1,"refresh_token":"refresh-1"}""")
+                  case 2 =>
+                    refresh_started.complete(()).flatMap(_ =>
+                      allow_failure.get *> InternalServerError("scheduled refresh failed"))
+                  case n =>
+                    Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+                }
+              }
+            case _ => InternalServerError()
           }
-        case _ => Forbidden("missing auth")
+
+          val resource_app = HttpApp[IO] { request =>
+            request.headers.get[Authorization] match {
+              case Some(header) if header.value == "Bearer token-1" =>
+                stale_request_seen.complete(()).flatMap(_ => IO.pure(Response[IO](Status.Unauthorized)))
+              case Some(_) => Ok("ok")
+              case None    => Forbidden("missing auth")
+            }
+          }
+
+          val credential = ClientCredentials(
+            auth_endpoint = uri"/token",
+            client_id = "id",
+            client_secret = Secret("secret")
+          )
+
+          auth
+            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .flatMap(_.login(Client.fromHttpApp(resource_app)))
+            .use { authed =>
+              for {
+                _ <- IO.sleep(5.seconds)
+                _ <- refresh_started.get
+                request <- authed.expect[String](uri"/resource").start
+                _ <- stale_request_seen.get
+                _ <- allow_failure.complete(())
+                body <- request.joinWithNever
+                calls <- token_calls.get
+                grants <- grant_types.get
+              } yield {
+                assertEquals(body, "ok")
+                assertEquals(calls, 3)
+                assertEquals(grants, List("client_credentials", "refresh_token", "client_credentials"))
+              }
+            }
+        }
+      } yield ()
+    }
+  }
+
+  test("10d.unauthorized refresh resets the scheduled renewal timer") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val auth_app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.updateAndGet(_ + 1).flatMap {
+            case 1 =>
+              Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":130}""")
+            case 2 =>
+              Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":40}""")
+            case n =>
+              Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+          }
+        case _ => InternalServerError()
       }
-    }
 
-    val authClient = Resource.pure[IO, Client[IO]](Client.fromHttpApp(authApp))
-    val credential = ClientCredentials(
-      auth_endpoint = uri"/token",
-      client_id = "id",
-      client_secret = Secret("secret")
-    )
+      val resource_app = HttpApp[IO] { request =>
+        request.headers.get[Authorization] match {
+          case Some(header) if header.value == "Bearer token-1" =>
+            IO.pure(Response[IO](Status.Unauthorized))
+          case Some(_) => Ok("ok")
+          case None    => Forbidden("missing auth")
+        }
+      }
 
-    auth.clientCredentials[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use {
-      authed =>
-        // Fire 5 concurrent requests — all should hit 401 on first token, but only one refresh should happen
-        val requests = List.fill(5)(authed.expect[String](uri"/data"))
-        requests.parSequence.flatMap { results =>
-          tokenCalls.get.map { n =>
-            results.foreach(r => assertEquals(r, "ok"))
-            // Initial fetch + exactly one refresh via SingleFlight = 2
-            assertEquals(n, 2)
+      val credential = ClientCredentials(
+        auth_endpoint = uri"/token",
+        client_id = "id",
+        client_secret = Secret("secret")
+      )
+
+      auth
+        .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .flatMap(_.login(Client.fromHttpApp(resource_app)))
+        .use { authed =>
+          for {
+            _ <- IO.sleep(10.seconds)
+            body <- authed.expect[String](uri"/resource")
+            _ <- IO.sleep(9.seconds)
+            before_new_schedule <- token_calls.get
+            _ <- IO.sleep(2.seconds)
+            after_new_schedule <- token_calls.get
+          } yield {
+            assertEquals(body, "ok")
+            assertEquals(before_new_schedule, 2)
+            assertEquals(after_new_schedule, 3)
           }
         }
     }
+  }
+
+  test("10e.unauthorized refresh starts scheduling after an unscheduled token") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val auth_app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.updateAndGet(_ + 1).flatMap {
+            case 1 =>
+              Ok("""{"access_token":"token-1","token_type":"Bearer"}""")
+            case 2 =>
+              Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":40}""")
+            case n =>
+              Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+          }
+        case _ => InternalServerError()
+      }
+
+      val resource_app = HttpApp[IO] { request =>
+        request.headers.get[Authorization] match {
+          case Some(header) if header.value == "Bearer token-1" =>
+            IO.pure(Response[IO](Status.Unauthorized))
+          case Some(_) => Ok("ok")
+          case None    => Forbidden("missing auth")
+        }
+      }
+
+      val credential = ClientCredentials(
+        auth_endpoint = uri"/token",
+        client_id = "id",
+        client_secret = Secret("secret")
+      )
+
+      auth
+        .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .flatMap(_.login(Client.fromHttpApp(resource_app)))
+        .use { authed =>
+          for {
+            body <- authed.expect[String](uri"/resource")
+            _ <- IO.sleep(9.seconds)
+            before_schedule <- token_calls.get
+            _ <- IO.sleep(2.seconds)
+            after_schedule <- token_calls.get
+          } yield {
+            assertEquals(body, "ok")
+            assertEquals(before_schedule, 2)
+            assertEquals(after_schedule, 3)
+          }
+        }
+    }
+  }
+
+  test("10f.releasing the authenticated client cancels a blocked renewal") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      for {
+        token_calls <- Ref.of[IO, Int](0)
+        renewal_started <- Deferred[IO, Unit]
+        renewal_canceled <- Deferred[IO, Unit]
+        _ <- {
+          val auth_app = HttpApp[IO] {
+            case POST -> Root / "token" =>
+              token_calls.updateAndGet(_ + 1).flatMap {
+                case 1 =>
+                  Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":1}""")
+                case _ =>
+                  renewal_started.complete(()).void *>
+                    IO.never[Response[IO]].onCancel(renewal_canceled.complete(()).void)
+              }
+            case _ => InternalServerError()
+          }
+
+          val credential = ClientCredentials(
+            auth_endpoint = uri"/token",
+            client_id = "id",
+            client_secret = Secret("secret")
+          )
+
+          auth
+            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .flatMap(_.login(protectedResource))
+            .use(_ => IO.sleep(5.seconds) *> renewal_started.get)
+        }
+        _ <- renewal_canceled.get
+        _ <- IO.sleep(100.seconds)
+        calls <- token_calls.get
+      } yield assertEquals(calls, 2)
+    }
+  }
+
+  test("11.concurrent 401s share one token refresh") {
+    for {
+      token_calls <- Ref.of[IO, Int](0)
+      stale_requests <- Ref.of[IO, Int](0)
+      all_stale_requests_seen <- Deferred[IO, Unit]
+      release_stale_responses <- Deferred[IO, Unit]
+      _ <- {
+        val auth_app = HttpApp[IO] {
+          case POST -> Root / "token" =>
+            token_calls.updateAndGet(_ + 1).flatMap { n =>
+              Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+            }
+          case _ => InternalServerError()
+        }
+
+        val resource_app = HttpApp[IO] { request =>
+          request.headers.get[Authorization] match {
+            case Some(header) if header.value == "Bearer token-1" =>
+              stale_requests.updateAndGet(_ + 1).flatMap { count =>
+                val signal = if (count == 5) all_stale_requests_seen.complete(()) else IO.pure(false)
+                signal *> release_stale_responses.get *> IO.pure(Response[IO](Status.Unauthorized))
+              }
+            case Some(_) => Ok("ok")
+            case None    => Forbidden("missing auth")
+          }
+        }
+
+        val credential = ClientCredentials(
+          auth_endpoint = uri"/token",
+          client_id = "id",
+          client_secret = Secret("secret")
+        )
+
+        auth
+          .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .flatMap(_.login(Client.fromHttpApp(resource_app)))
+          .use { authed =>
+            for {
+              batch <- List.fill(5)(authed.expect[String](uri"/data")).parSequence.start
+              _ <- all_stale_requests_seen.get
+              _ <- release_stale_responses.complete(())
+              results <- batch.joinWithNever
+              calls <- token_calls.get
+            } yield {
+              results.foreach(result => assertEquals(result, "ok"))
+              assertEquals(calls, 2)
+            }
+          }
+      }
+    } yield ()
+  }
+
+  test("11a.stale 401 retries the current token without refreshing again") {
+    for {
+      token_calls <- Ref.of[IO, Int](0)
+      delayed_request_seen <- Deferred[IO, Unit]
+      first_refresh_completed <- Deferred[IO, Unit]
+      _ <- {
+        val auth_app = HttpApp[IO] {
+          case POST -> Root / "token" =>
+            token_calls.updateAndGet(_ + 1).flatMap { n =>
+              Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+            }
+          case _ => InternalServerError()
+        }
+
+        val resource_app = HttpApp[IO] { request =>
+          val token = request.headers.get[Authorization].map(_.value.stripPrefix("Bearer "))
+          (token, request.uri.path.renderString) match {
+            case (Some("token-1"), "/delayed") =>
+              delayed_request_seen.complete(()).flatMap(_ =>
+                first_refresh_completed.get *> IO.pure(Response[IO](Status.Unauthorized)))
+            case (Some("token-1"), "/first") =>
+              IO.pure(Response[IO](Status.Unauthorized))
+            case (Some("token-2"), "/first") =>
+              first_refresh_completed.complete(()).flatMap(_ => Ok("ok"))
+            case (Some(token), _) if token != "token-1" =>
+              Ok("ok")
+            case _ =>
+              Forbidden("missing auth")
+          }
+        }
+
+        val credential = ClientCredentials(
+          auth_endpoint = uri"/token",
+          client_id = "id",
+          client_secret = Secret("secret")
+        )
+
+        auth
+          .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .flatMap(_.login(Client.fromHttpApp(resource_app)))
+          .use { authed =>
+            for {
+              delayed <- authed.expect[String](uri"/delayed").start
+              _ <- delayed_request_seen.get
+              first <- authed.expect[String](uri"/first")
+              second <- delayed.joinWithNever
+              calls <- token_calls.get
+            } yield {
+              assertEquals(first, "ok")
+              assertEquals(second, "ok")
+              assertEquals(calls, 2)
+            }
+          }
+      }
+    } yield ()
   }
 
   test("12.Login.login(Resource) convenience method works") {

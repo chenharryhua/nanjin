@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.syntax.temporal.given
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.flatMap.given
-import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Codec
@@ -105,6 +103,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     authClient.flatMap { authenticationClient =>
       val tac: TokenAuthClient[F] = new TokenAuthClient[F]() {
         override protected type T = Token
+
         override protected def getToken: F[Token] =
           postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
@@ -123,19 +122,11 @@ private class ClientCredentialsAuth[F[_]: Async](
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
-        override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
-          for {
-            oldToken <- ref.get
-            newToken <- (oldToken.expires_in, oldToken.refresh_token) match {
-              case (Some(expire), None) =>
-                getToken.delayBy(skewed(expire))
-              case (Some(expire), Some(token)) =>
-                refreshAccessToken(token).delayBy(skewed(expire))
-              case _ =>
-                Async[F].never[Token]
-            }
-            _ <- ref.set(newToken)
-          } yield ()
+        override protected def renewToken: Token => F[Token] =
+          token => token.refresh_token.fold(getToken)(refreshAccessToken)
+
+        override protected def renewalDelay: Token => Option[FiniteDuration] =
+          token => token.expires_in.map(skewed)
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
@@ -182,6 +173,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
     authClient.flatMap { authenticationClient =>
       val tac = new TokenAuthClient[F] {
         override protected type T = Token
+
         override protected def getToken: F[Token] =
           uuidGenerator.flatMap { uuid =>
             authenticationClient.expect[Token](
@@ -208,12 +200,8 @@ private class AuthorizationCodeAuth[F[_]: Async](
         override protected def refreshToken: Token => F[Token] =
           refreshAccessToken
 
-        override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
-          for {
-            oldToken <- ref.get
-            newToken <- refreshToken(oldToken).delayBy(skewed(oldToken.expires_in))
-            _ <- ref.set(newToken)
-          } yield ()
+        override protected def renewalDelay: Token => Option[FiniteDuration] =
+          token => Some(skewed(token.expires_in))
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
@@ -231,8 +219,8 @@ private class AuthorizationCodeAuth[F[_]: Async](
   *   - `skewed` governs the success path: it renews `SKEW` early so a request never races an expiring token,
   *     but never schedules sooner than `RENEW_MIN_DELAY`. A provider issuing short-lived tokens (`expires_in
   *     <= SKEW`) would otherwise collapse the delay to `0.seconds` and re-fetch immediately, forever.
-  *   - `RENEW_FAILURE_BACKOFF` governs the failure path: when a renewal throws before reaching its own
-  *     `delayBy`, the loop waits this long before retrying, bounding CPU and auth-endpoint load.
+  *   - `RENEW_FAILURE_BACKOFF` governs the failure path: after a renewal fails, the same replacement is
+  *     retried after this delay without reapplying the token's full renewal schedule.
   */
 
 /** Renew this long before expiry to avoid racing an in-flight request against an expiring token. */

@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.effect.syntax.temporal.given
-import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
@@ -62,13 +60,14 @@ object Salesforce {
       authClient.flatMap { authenticationClient =>
         val tac = new TokenAuthClient[F] {
           override protected type T = Token
+
           override protected def getToken: F[Token] =
             postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
           override protected def refreshToken: Token => F[Token] = _ => getToken
 
-          override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
-            getToken.delayBy(expiresIn).flatMap(ref.set)
+          override protected def renewalDelay: Token => Option[FiniteDuration] =
+            _ => Some(expiresIn)
 
           // Salesforce returns a fully-qualified instance_url; it is guaranteed to be a valid absolute URI.
           override protected def withToken(token: Token, req: Request[F]): Request[F] =
