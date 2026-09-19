@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.{information, time, Dimensionless, Dozen, Each, Gross, Percent, Score}
 
@@ -11,7 +11,7 @@ import squants.{information, time, Dimensionless, Dozen, Each, Gross, Percent, S
   * wrong dimension falls through to `NONE`. Binary units (Ki/Mi/...) are rescaled to their decimal CloudWatch
   * counterparts, and nanoseconds are folded into microseconds.
   */
-class CloudWatchTimeUnitTest extends AnyFunSuite {
+class CloudWatchTimeUnitTest extends FunSuite {
 
   private def convert(unitSymbol: String, dimensionName: String, data: Double): (StandardUnit, Double) =
     CloudWatchTimeUnit.toStandardUnit(unitSymbol, dimensionName, data)

@@ -1,8 +1,8 @@
 package mtest.postgres
 
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class PostgresTest extends AnyFunSuite {
+class PostgresTest extends FunSuite {
 
   test("1.postgres") {
 

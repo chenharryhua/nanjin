@@ -2,7 +2,6 @@ package mtest.aws
 
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.aws.Email
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -10,13 +9,13 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import squants.information.Bytes
 import squants.mass.Micrograms
 
 import scala.concurrent.duration.DurationInt
 
-class AwsObserverTest extends AnyFunSuite {
+class AwsObserverTest extends CatsEffectSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
     .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).repeat.limited(1)))
@@ -48,7 +47,6 @@ class AwsObserverTest extends AnyFunSuite {
       .through(mail.observe(Email("abc@google.com"), NonEmptyList.one(Email("efg@tek.com")), "title"))
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("3.syntax") {
@@ -82,7 +80,6 @@ class AwsObserverTest extends AnyFunSuite {
       }
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("6.email observer terminates with the event stream, not the policy") {
@@ -100,6 +97,5 @@ class AwsObserverTest extends AnyFunSuite {
       .through(mail)
       .compile
       .drain
-      .unsafeRunSync()
   }
 }

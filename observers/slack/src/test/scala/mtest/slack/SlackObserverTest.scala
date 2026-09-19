@@ -2,19 +2,18 @@ package mtest.slack
 
 import cats.effect.IO
 import cats.effect.kernel.{Ref, Resource}
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.slack.SlackObserver
+import munit.CatsEffectSuite
 import org.http4s.client.Client
 import org.http4s.{Request, Response, Status, Uri}
-import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*
 
-class SlackObserverTest extends AnyFunSuite {
+class SlackObserverTest extends CatsEffectSuite {
 
   private val webhook: Uri = Uri.unsafeFromString("https://hooks.slack.com/services/T/B/xyz")
 
@@ -39,39 +38,36 @@ class SlackObserverTest extends AnyFunSuite {
     })
 
   test("1.publishes one POST per translated event, each carrying an idempotency key") {
-    val captured =
-      Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
-        val slack = SlackObserver[IO](recording(sent))
-        service.through(slack.observe(webhook)).compile.drain *> sent.get
-      }.unsafeRunSync()
-
-    assert(captured.nonEmpty)
-    // every publish carries an Idempotency-Key header
-    assert(captured.forall(_.idempotencyKey.nonEmpty))
-    // the Block Kit payload is JSON with a username and attachments
-    assert(captured.forall(c => c.body.contains("username") && c.body.contains("attachments")))
+    Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
+      val slack = SlackObserver[IO](recording(sent))
+      service.through(slack.observe(webhook)).compile.drain *> sent.get
+    }.map { captured =>
+      assert(captured.nonEmpty)
+      // every publish carries an Idempotency-Key header
+      assert(captured.forall(_.idempotencyKey.nonEmpty))
+      // the Block Kit payload is JSON with a username and attachments
+      assert(captured.forall(c => c.body.contains("username") && c.body.contains("attachments")))
+    }
   }
 
   test("2.idempotency keys are distinct across the different events in a run") {
-    val keys =
-      Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
-        val slack = SlackObserver[IO](recording(sent))
-        service.through(slack.observe(webhook)).compile.drain *> sent.get
-      }.unsafeRunSync().flatMap(_.idempotencyKey)
-
-    assert(keys.nonEmpty)
-    // no two events collapse onto the same key (which would make Slack dedupe and drop one)
-    assert(keys.distinct.size == keys.size)
+    Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
+      val slack = SlackObserver[IO](recording(sent))
+      service.through(slack.observe(webhook)).compile.drain *> sent.get
+    }.map(_.flatMap(_.idempotencyKey)).map { keys =>
+      assert(keys.nonEmpty)
+      // no two events collapse onto the same key (which would make Slack dedupe and drop one)
+      assert(keys.distinct.size == keys.size)
+    }
   }
 
   test("3.skipAll translator publishes nothing") {
-    val captured =
-      Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
-        val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipAll)
-        service.through(slack.observe(webhook)).compile.drain *> sent.get
-      }.unsafeRunSync()
-
-    assert(captured.isEmpty)
+    Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
+      val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipAll)
+      service.through(slack.observe(webhook)).compile.drain *> sent.get
+    }.map { captured =>
+      assert(captured.isEmpty)
+    }
   }
 
   test("4.a failing webhook does not drop events: the stream still completes with every event") {
@@ -79,11 +75,10 @@ class SlackObserverTest extends AnyFunSuite {
     val failing: Resource[IO, Client[IO]] =
       Resource.pure(Client[IO](_ => Resource.pure(Response[IO](Status.InternalServerError))))
 
-    val events =
-      service.through(SlackObserver[IO](failing).observe(webhook)).compile.toList.unsafeRunSync()
-
-    assert(events.exists(_.isInstanceOf[ServiceStart]))
-    assert(events.exists(_.isInstanceOf[ServiceStop]))
+    service.through(SlackObserver[IO](failing).observe(webhook)).compile.toList.map { events =>
+      assert(events.exists(_.isInstanceOf[ServiceStart]))
+      assert(events.exists(_.isInstanceOf[ServiceStop]))
+    }
   }
 
   test("5.withTranslator can skip a single event type, publishing fewer than the events seen") {
@@ -94,14 +89,13 @@ class SlackObserverTest extends AnyFunSuite {
         .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
         .eventStream(_.adhoc.report)
 
-    val (captured, events) =
-      Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
-        val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipMetricsSnapshot)
-        reporting.through(slack.observe(webhook)).compile.toList.flatMap(evts => sent.get.map(_ -> evts))
-      }.unsafeRunSync()
-
-    assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-    // the metrics snapshot was translated to nothing, so fewer POSTs than events
-    assert(captured.size < events.size)
+    Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
+      val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipMetricsSnapshot)
+      reporting.through(slack.observe(webhook)).compile.toList.flatMap(evts => sent.get.map(_ -> evts))
+    }.map { case (captured, events) =>
+      assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
+      // the metrics snapshot was translated to nothing, so fewer POSTs than events
+      assert(captured.size < events.size)
+    }
   }
 }

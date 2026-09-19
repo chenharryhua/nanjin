@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.observers.splunk
 
 import org.http4s.Uri
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
 
-class SplunkLogLocatorTest extends AnyFunSuite {
+class SplunkLogLocatorTest extends FunSuite {
 
   private val webBase: Uri = Uri.unsafeFromString("https://splunk.example.com:8000")
 

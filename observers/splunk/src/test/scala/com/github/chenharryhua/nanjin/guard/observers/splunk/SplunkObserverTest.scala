@@ -2,22 +2,21 @@ package com.github.chenharryhua.nanjin.guard.observers.splunk
 
 import cats.effect.IO
 import cats.effect.kernel.{Ref, Resource}
-import cats.effect.unsafe.implicits.global
 import cats.syntax.foldable.toFoldableOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import io.circe.Json
 import io.circe.jawn.parse
+import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.dsl.io.*
 import org.http4s.headers.Authorization
 import org.http4s.implicits.*
-import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
-class SplunkObserverTest extends AnyFunSuite {
+class SplunkObserverTest extends CatsEffectSuite {
 
   private val service = TaskGuard[IO]("splunk-test")
     .service("splunk-observer-test")
@@ -47,21 +46,22 @@ class SplunkObserverTest extends AnyFunSuite {
     val client = Resource.pure[IO, Client[IO]](mockClient(envelopes, auths))
     val observer = SplunkObserver[IO](client)
 
-    val events = service
-      .eventStream(_ => IO.unit)
-      .through(observer.observe(hec()))
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    val posted = envelopes.get.unsafeRunSync()
-    assert(events.exists(_.isInstanceOf[ServiceStart]))
-    assert(events.exists(_.isInstanceOf[ServiceStop]))
-    assert(posted.size == events.size)
-    // every envelope carries the HEC fields
-    assert(posted.forall(_.hcursor.downField("event").focus.nonEmpty))
-    assert(posted.forall(_.hcursor.get[String]("sourcetype").toOption.contains("_json")))
-    assert(posted.forall(_.hcursor.get[Double]("time").toOption.nonEmpty))
+    for {
+      events <- service
+        .eventStream(_ => IO.unit)
+        .through(observer.observe(hec()))
+        .compile
+        .toList
+      posted <- envelopes.get
+    } yield {
+      assert(events.exists(_.isInstanceOf[ServiceStart]))
+      assert(events.exists(_.isInstanceOf[ServiceStop]))
+      assert(posted.size == events.size)
+      // every envelope carries the HEC fields
+      assert(posted.forall(_.hcursor.downField("event").focus.nonEmpty))
+      assert(posted.forall(_.hcursor.get[String]("sourcetype").toOption.contains("_json")))
+      assert(posted.forall(_.hcursor.get[Double]("time").toOption.nonEmpty))
+    }
   }
 
   test("2.sends the HEC token as a Bearer Authorization header") {
@@ -70,16 +70,17 @@ class SplunkObserverTest extends AnyFunSuite {
     val client = Resource.pure[IO, Client[IO]](mockClient(envelopes, auths))
     val observer = SplunkObserver[IO](client)
 
-    service
-      .eventStream(_ => IO.unit)
-      .through(observer.observe(hec()))
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val seen = auths.get.unsafeRunSync()
-    assert(seen.nonEmpty)
-    assert(seen.forall(_ == "Bearer hec-token-123"))
+    for {
+      _ <- service
+        .eventStream(_ => IO.unit)
+        .through(observer.observe(hec()))
+        .compile
+        .drain
+      seen <- auths.get
+    } yield {
+      assert(seen.nonEmpty)
+      assert(seen.forall(_ == "Bearer hec-token-123"))
+    }
   }
 
   test("3.optional index and source are included only when configured") {
@@ -87,28 +88,29 @@ class SplunkObserverTest extends AnyFunSuite {
     val withoutOpt = Ref.unsafe[IO, List[Json]](Nil)
     val auths = Ref.unsafe[IO, List[String]](Nil)
 
-    def run(sink: Ref[IO, List[Json]], config: HecConfig): Unit = {
+    def run(sink: Ref[IO, List[Json]], config: HecConfig): IO[Unit] = {
       val client = Resource.pure[IO, Client[IO]](mockClient(sink, auths))
       service
         .eventStream(_ => IO.unit)
         .through(SplunkObserver[IO](client).observe(config))
         .compile
         .drain
-        .unsafeRunSync()
     }
 
-    run(withOpt, hec(_.copy(index = Some("main"), source = Some("nanjin"))))
-    run(withoutOpt, hec())
-
-    val withOptJson = withOpt.get.unsafeRunSync()
-    val withoutOptJson = withoutOpt.get.unsafeRunSync()
-    assert(withOptJson.nonEmpty && withoutOptJson.nonEmpty)
-    // present when configured
-    assert(withOptJson.forall(_.hcursor.get[String]("index").toOption.contains("main")))
-    assert(withOptJson.forall(_.hcursor.get[String]("source").toOption.contains("nanjin")))
-    // absent when not configured
-    assert(withoutOptJson.forall(_.hcursor.downField("index").focus.isEmpty))
-    assert(withoutOptJson.forall(_.hcursor.downField("source").focus.isEmpty))
+    for {
+      _ <- run(withOpt, hec(_.copy(index = Some("main"), source = Some("nanjin"))))
+      _ <- run(withoutOpt, hec())
+      withOptJson <- withOpt.get
+      withoutOptJson <- withoutOpt.get
+    } yield {
+      assert(withOptJson.nonEmpty && withoutOptJson.nonEmpty)
+      // present when configured
+      assert(withOptJson.forall(_.hcursor.get[String]("index").toOption.contains("main")))
+      assert(withOptJson.forall(_.hcursor.get[String]("source").toOption.contains("nanjin")))
+      // absent when not configured
+      assert(withoutOptJson.forall(_.hcursor.downField("index").focus.isEmpty))
+      assert(withoutOptJson.forall(_.hcursor.downField("source").focus.isEmpty))
+    }
   }
 
   test("4.custom sourceType overrides the _json default") {
@@ -116,16 +118,17 @@ class SplunkObserverTest extends AnyFunSuite {
     val auths = Ref.unsafe[IO, List[String]](Nil)
     val client = Resource.pure[IO, Client[IO]](mockClient(envelopes, auths))
 
-    service
-      .eventStream(_ => IO.unit)
-      .through(SplunkObserver[IO](client).observe(hec(_.copy(sourceType = Some("nanjin:event")))))
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val posted = envelopes.get.unsafeRunSync()
-    assert(posted.nonEmpty)
-    assert(posted.forall(_.hcursor.get[String]("sourcetype").toOption.contains("nanjin:event")))
+    for {
+      _ <- service
+        .eventStream(_ => IO.unit)
+        .through(SplunkObserver[IO](client).observe(hec(_.copy(sourceType = Some("nanjin:event")))))
+        .compile
+        .drain
+      posted <- envelopes.get
+    } yield {
+      assert(posted.nonEmpty)
+      assert(posted.forall(_.hcursor.get[String]("sourcetype").toOption.contains("nanjin:event")))
+    }
   }
 
   test("5.survives HEC failure without dropping events") {
@@ -133,15 +136,15 @@ class SplunkObserverTest extends AnyFunSuite {
     val client = Resource.pure[IO, Client[IO]](failClient)
     val observer = SplunkObserver[IO](client)
 
-    val events = service
+    service
       .eventStream(_ => IO.unit)
       .through(observer.observe(hec()))
       .compile
       .toList
-      .unsafeRunSync()
-
-    assert(events.exists(_.isInstanceOf[ServiceStart]))
-    assert(events.exists(_.isInstanceOf[ServiceStop]))
+      .map { events =>
+        assert(events.exists(_.isInstanceOf[ServiceStart]))
+        assert(events.exists(_.isInstanceOf[ServiceStop]))
+      }
   }
 
   test("6.withTranslator allows skipping event types") {
@@ -150,15 +153,16 @@ class SplunkObserverTest extends AnyFunSuite {
     val client = Resource.pure[IO, Client[IO]](mockClient(envelopes, auths))
     val observer = SplunkObserver[IO](client).withTranslator(_.skipMetricsSnapshot)
 
-    val events = service
-      .eventStream(agent => agent.adhoc.report)
-      .through(observer.observe(hec()))
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    val posted = envelopes.get.unsafeRunSync()
-    assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-    assert(posted.size < events.size)
+    for {
+      events <- service
+        .eventStream(agent => agent.adhoc.report)
+        .through(observer.observe(hec()))
+        .compile
+        .toList
+      posted <- envelopes.get
+    } yield {
+      assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
+      assert(posted.size < events.size)
+    }
   }
 }

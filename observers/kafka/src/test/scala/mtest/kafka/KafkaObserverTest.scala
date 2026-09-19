@@ -1,14 +1,13 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.kafka.KafkaObserver
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class KafkaObserverTest extends AnyFunSuite {
+class KafkaObserverTest extends CatsEffectSuite {
   private val topic = "observer"
   private val ctx = KafkaContext[IO](KafkaSettings.local)
   test("1.observer") {
@@ -19,6 +18,5 @@ class KafkaObserverTest extends AnyFunSuite {
       .debug()
       .compile
       .drain
-      .unsafeRunSync()
   }
 }
