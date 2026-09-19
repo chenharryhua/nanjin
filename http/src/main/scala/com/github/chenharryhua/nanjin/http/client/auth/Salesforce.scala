@@ -61,6 +61,7 @@ object Salesforce {
             postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
 
           override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
+          override protected def renewOnSchedule: Token => F[Token] = _ => getTokenFromCredentials
 
           override protected def renewalDelay: Token => Option[FiniteDuration] =
             _ => Some(expiresIn)

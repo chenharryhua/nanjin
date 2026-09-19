@@ -31,13 +31,16 @@ trait Login[F[_]] {
 
 /** Provides token-based authentication for an HTTP client.
   *
-  * Manages fetching, refreshing, and applying tokens to requests. When a request returns `Unauthorized`, the
-  * wrapped client refreshes the token and replays that request once. The request entity must therefore be
-  * safely repeatable; a second `Unauthorized` response is returned without another refresh or retry.
+  * Manages fetching, renewing, and applying tokens to requests. A token is renewed on two paths: proactively
+  * on a schedule (`renewOnSchedule`, driven by `renewalDelay`) before it expires, and reactively when a
+  * request returns `Unauthorized` (`renewOnRejection`), after which that request is replayed once. The
+  * request entity must therefore be safely repeatable; a second `Unauthorized` response is returned without
+  * another renewal or retry.
   *
   * Subclasses need to implement:
   *   - `getTokenFromCredentials`: how to obtain a token without using a current token
   *   - `renewOnRejection`: how to replace a token rejected by the protected resource
+  *   - `renewOnSchedule`: how to replace a token proactively before it expires
   *   - `renewalDelay`: when to schedule renewal, or `None` to disable it
   *   - `withToken`: how to attach the token to an HTTP request
   *
@@ -49,10 +52,10 @@ trait Login[F[_]] {
   *   - `renewOnSchedule` runs on the *proactive* path: the background loop replaces the token on the
   *     `renewalDelay` schedule (and retries after `RENEW_FAILURE_BACKOFF` on failure) before it expires.
   *
-  * `renewOnSchedule` defaults to `renewOnRejection`, so a subclass that treats both paths identically
-  * overrides only `renewOnRejection`. Override `renewOnSchedule` as well only when proactive renewal should
-  * use a different grant than rejected-token replacement (e.g. renew via a stored `refresh_token` grant, but
-  * on a hard rejection fall back to a fresh `getTokenFromCredentials`).
+  * Both hooks are abstract, so each flow states its two strategies explicitly. They may be the same function
+  * when both paths use one grant, or differ when proactive renewal uses a different grant than rejected-token
+  * replacement (e.g. renew via a stored `refresh_token` grant, but on a hard rejection fall back to a fresh
+  * `getTokenFromCredentials`).
   */
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
@@ -61,7 +64,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
 
   protected def getTokenFromCredentials: F[T]
   protected def renewOnRejection: T => F[T]
-  protected def renewOnSchedule: T => F[T] = renewOnRejection
+  protected def renewOnSchedule: T => F[T]
   protected def renewalDelay: T => Option[FiniteDuration]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
@@ -76,9 +79,9 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
       getTokenFromCredentials.flatMap(token =>
         Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))
     ).flatMap { token_state_ref =>
-      Resource.eval(Mutex[F]).flatMap { refresh_lock =>
+      Resource.eval(Mutex[F]).flatMap { renewal_lock =>
         def replace_token(expected_generation: Long, replace: T => F[T]): F[TokenState] =
-          refresh_lock.lock.surround {
+          renewal_lock.lock.surround {
             F.uncancelable { poll =>
               token_state_ref.get.flatMap { current =>
                 if (current.generation === expected_generation)
@@ -125,7 +128,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
               client.run(withToken(token, request)).allocatedCase
 
             // `makeCaseFull` masks the handoff from each allocated response to this outer resource while
-            // `poll` keeps response acquisition and token refresh cancelable. On 401, the first response
+            // `poll` keeps response acquisition and token renewal cancelable. On 401, the first response
             // is finalized before the retry is acquired so a bounded connection pool can supply the retry.
             Resource.eval(token_state_ref.get).flatMap { requested =>
               Resource

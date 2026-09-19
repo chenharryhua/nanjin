@@ -96,8 +96,8 @@ final private class AuthorizationCodeAuth[F[_]: Async](
               Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
             )))(token => Some(token.expires_in))
 
-        override protected def renewOnRejection: Token => F[Token] =
-          refreshAccessToken
+        override protected def renewOnRejection: Token => F[Token] = refreshAccessToken
+        override protected def renewOnSchedule: Token => F[Token] = refreshAccessToken
 
         override protected def renewalDelay: Token => Option[FiniteDuration] =
           token => Some(skewed(token.expires_in))
