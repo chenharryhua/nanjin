@@ -15,7 +15,7 @@ import org.http4s.headers.Authorization
 import org.typelevel.ci.CIString
 
 import java.util.UUID
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 
 /** Salesforce-specific OAuth authentication helpers.
   *
@@ -101,7 +101,7 @@ object Salesforce {
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
-    expiresIn: FiniteDuration = 2.hours): Resource[F, Login[F]] =
+    expiresIn: FiniteDuration): Resource[F, Login[F]] =
     Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
       new PasswordGrantAuth[F](
         credential = credential,
