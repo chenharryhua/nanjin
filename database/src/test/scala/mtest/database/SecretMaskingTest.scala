@@ -2,9 +2,9 @@ package mtest.database
 
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class SecretMaskingTest extends AnyFunSuite {
+class SecretMaskingTest extends FunSuite {
 
   private val secret = "s3cr3t-p@ss"
 

@@ -1,17 +1,14 @@
 package mtest.database
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
 import org.typelevel.doobie.ConnectionIO
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.Configuration
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import munit.CatsEffectSuite
 
-class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+class DoobieMetaTest extends CatsEffectSuite {
 
   val postgres: Postgres =
     Postgres("unknown", Secret("unknown"), "localhost", 5432, "postgres")
@@ -32,10 +29,11 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
       n <- Stream.eval(tnx.trans.apply(42.pure[ConnectionIO]))
     } yield n
 
-    val res: Int = stream.compile.lastOrError.unsafeRunSync()
-    assert(res === 42)
-
-    assert(nj.testConnection[IO].unsafeRunSync())
+    for {
+      res <- stream.compile.lastOrError
+      _ = assert(res == 42)
+      connected <- nj.testConnection[IO]
+    } yield assert(connected)
   }
 
 }

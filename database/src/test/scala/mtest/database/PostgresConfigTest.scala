@@ -2,13 +2,13 @@ package mtest.database
 
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 /** Pure tests for the Postgres wiring: the `Protocols` JDBC prefix/URL builder, and how `DBConfig(Postgres)`
   * composes the driver, JDBC URL, credentials, and replays `set` mutations. Complements `DBConfigSuite`
   * (which covers transactor/connection) and `SecretMaskingTest` (password masking) without duplicating them.
   */
-class PostgresConfigTest extends AnyFunSuite {
+class PostgresConfigTest extends FunSuite {
 
   private def pg(host: String = "localhost", port: Int = 5432, database: String = "mydb"): Postgres =
     Postgres("user", Secret("pw"), host, port, database)
