@@ -2,14 +2,12 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.Resource
 import cats.effect.kernel.Async
-import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.syntax.functor.given
 import org.http4s.client.Client
 
 /** Creates a `Login` instance using OAuth 2.0 Client Credentials flow.
   *
   * Automatically handles token acquisition, attaching the access token to requests, and optional token
-  * renewal.
+  * renewal. When a token response includes `expires_in`, its value must be positive; omission is accepted.
   *
   * Example usage:
   * {{{
@@ -21,7 +19,7 @@ import org.http4s.client.Client
   *   val credentials: ClientCredentials =
   *     ClientCredentials(auth_endpoint, client_id, client_secret)
   *
-  *   val login: Resource[IO, Login[IO]] = auth.clientCredentials(clientResource, credentials)
+  *   val login: Login[IO] = auth.clientCredentials(clientResource, credentials)
   * }}}
   *
   * @param client
@@ -36,15 +34,13 @@ import org.http4s.client.Client
 def clientCredentials[F[_]: Async](
   client: Resource[F, Client[F]],
   credential: ClientCredentials
-): Resource[F, Login[F]] =
-  Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
-    new ClientCredentialsAuth[F](credential, client, UUIDGen.randomUUID)
-  })
+): Login[F] =
+  new ClientCredentialsAuth[F](credential, client)
 
 /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
   *
   * Automatically exchanges the authorization code for an access token, attaches it to requests, and handles
-  * token refresh if applicable.
+  * token refresh if applicable. Token responses must include a positive `expires_in` value.
   *
   * Example usage:
   * {{{
@@ -56,7 +52,7 @@ def clientCredentials[F[_]: Async](
   *   val credential: AuthorizationCode =
   *     AuthorizationCode(auth_endpoint, client_id, client_secret, code, redirect_uri)
   *
-  *   val login: Resource[IO, Login[IO]] = auth.authorizationCode(clientResource, credential)
+  *   val login: Login[IO] = auth.authorizationCode(clientResource, credential)
   * }}}
   *
   * @param client
@@ -71,7 +67,5 @@ def clientCredentials[F[_]: Async](
 def authorizationCode[F[_]: Async](
   client: Resource[F, Client[F]],
   credential: AuthorizationCode
-): Resource[F, Login[F]] =
-  Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
-    new AuthorizationCodeAuth[F](credential, client, UUIDGen.randomUUID)
-  })
+): Login[F] =
+  new AuthorizationCodeAuth[F](credential, client)

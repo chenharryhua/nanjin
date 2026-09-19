@@ -103,6 +103,22 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
+  test("4a.Retry: repeating an empty policy behaves as an exhausted policy") {
+    val failure = new RuntimeException("boom")
+
+    for {
+      attempts <- Ref.of[IO, Int](0)
+      retry <- Retry[IO](ZoneId.systemDefault(), _.withPolicy(_.empty.repeat))
+      result <- retry(
+        attempts.update(_ + 1).flatMap(_ => IO.raiseError[Int](failure))
+      ).attempt
+      count <- attempts.get
+    } yield {
+      assertEquals(result, Left(failure))
+      assertEquals(count, 1)
+    }
+  }
+
   test("5.Retry: decision should not be called when effect succeeds immediately") {
     val zoneId = ZoneId.systemDefault()
 
@@ -165,35 +181,97 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("8.Retry: decision retryAfter can override policy delay") {
-    val zoneId = ZoneId.systemDefault()
+  test("7a.Retry: decision failure identical to operation failure avoids self-suppression") {
+    val failure = new RuntimeException("boom")
 
-    val prom = for {
-      invokedAt <- Ref.of[IO, List[Long]](Nil)
-      attempts <- Ref.of[IO, Int](0)
+    for {
       retry <- Retry[IO](
-        zoneId,
-        _.withPolicy(_.fixedDelay(2.seconds).repeat.limited(2)).withDecision { tv =>
-          IO.pure(tv.retryAfter(20.millis))
-        })
-      result <- retry {
-        IO(System.nanoTime()).flatMap { ts =>
-          invokedAt.update(_ :+ ts) >>
-            attempts.updateAndGet(_ + 1).flatMap { n =>
-              if (n == 1) IO.raiseError[String](new RuntimeException("boom"))
-              else IO.pure("ok")
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(10.millis)).withDecision(attempt => IO.raiseError(attempt.cause)))
+      result <- retry(IO.raiseError[String](failure)).attempt
+    } yield {
+      assertEquals(result, Left(failure))
+      assertEquals(failure.getSuppressed.toList, Nil)
+    }
+  }
+
+  test("7b.Retry: synchronous decision failure preserves the operation failure") {
+    val operation_failure = new RuntimeException("operation boom")
+    val decision_failure = new RuntimeException("decision boom")
+
+    for {
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(10.millis)).withDecision(_ => throw decision_failure))
+      result <- retry(IO.raiseError[String](operation_failure)).attempt
+    } yield {
+      assertEquals(result, Left(operation_failure))
+      assertEquals(operation_failure.getSuppressed.toList, List(decision_failure))
+    }
+  }
+
+  test("8.Retry: retryAfter normalizes negative and preserves exact positive delays") {
+    def observed_delay(delay: FiniteDuration): IO[FiniteDuration] =
+      cats.effect.testkit.TestControl.executeEmbed {
+        for {
+          invoked_at <- Ref.of[IO, List[FiniteDuration]](Nil)
+          attempts <- Ref.of[IO, Int](0)
+          retry <- Retry[IO](
+            ZoneId.systemDefault(),
+            _.withPolicy(_.fixedDelay(2.seconds)).withDecision(attempt => IO.pure(attempt.retryAfter(delay))))
+          result <- retry {
+            IO.monotonic.flatMap { timestamp =>
+              invoked_at.update(_ :+ timestamp).flatMap(_ =>
+                attempts.updateAndGet(_ + 1).flatMap { count =>
+                  if (count == 1) IO.raiseError[String](new RuntimeException("boom"))
+                  else IO.pure("ok")
+                })
             }
+          }
+          history <- invoked_at.get
+          List(first, second) = history
+        } yield {
+          assertEquals(result, "ok")
+          second - first
         }
       }
-      history <- invokedAt.get
-      List(first, second) = history
-      elapsed = (second - first).nanos
-    } yield {
-      assertEquals(result, "ok")
-      assert(elapsed < 500.millis, s"retryAfter should override 2s policy delay, observed $elapsed")
-    }
 
-    prom
+    for {
+      negative <- observed_delay((-1).second)
+      zero <- observed_delay(Duration.Zero)
+      positive <- observed_delay(20.millis)
+    } yield {
+      assertEquals(negative, Duration.Zero)
+      assertEquals(zero, Duration.Zero)
+      assertEquals(positive, 20.millis)
+    }
+  }
+
+  test("8a.Retry: negative retryAfter encodes normalized timing metadata") {
+    import io.circe.Encoder
+
+    for {
+      decision_json <- Ref.of[IO, Option[io.circe.Json]](None)
+      attempts <- Ref.of[IO, Int](0)
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(1.second)).withDecision { attempt =>
+          val decision = attempt.retryAfter((-1).second)
+          decision_json.set(Some(Encoder[Retry.Decision].apply(decision))).as(decision)
+        }
+      )
+      _ <- retry(attempts.updateAndGet(_ + 1).flatMap { count =>
+        if (count == 1) IO.raiseError[String](new RuntimeException("boom"))
+        else IO.pure("ok")
+      })
+      json <- decision_json.get.map(_.get)
+      failed_at <- IO.fromEither(json.hcursor.get[String]("failed_at"))
+      wakeup_at <- IO.fromEither(json.hcursor.get[String]("wakeup_at"))
+      snooze <- IO.fromEither(json.hcursor.get[String]("snooze"))
+    } yield {
+      assertEquals(wakeup_at, failed_at)
+      assertEquals(snooze, "0 second")
+    }
   }
 
   test("9.Retry: decision can observe attempt cause retries and snooze") {
@@ -324,6 +402,40 @@ class RetrySpec extends CatsEffectSuite {
     }
 
     prom
+  }
+
+  test("13a.Retry: reused fixed-rate policy anchors tick 1 to each invocation") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      def observed_delay(retry: Retry[IO]): IO[FiniteDuration] =
+        for {
+          invoked_at <- Ref.of[IO, List[FiniteDuration]](Nil)
+          attempts <- Ref.of[IO, Int](0)
+          result <- retry {
+            IO.monotonic.flatMap { timestamp =>
+              invoked_at.update(_ :+ timestamp).flatMap(_ =>
+                attempts.updateAndGet(_ + 1).flatMap { count =>
+                  if (count == 1) IO.raiseError[String](new RuntimeException("boom"))
+                  else IO.pure("ok")
+                })
+            }
+          }
+          history <- invoked_at.get
+          List(first, second) = history
+        } yield {
+          assertEquals(result, "ok")
+          second - first
+        }
+
+      for {
+        retry <- Retry[IO](ZoneId.systemDefault(), _.withPolicy(_.fixedRate(700.millis).limited(1)))
+        first_delay <- observed_delay(retry)
+        _ <- IO.sleep(1.second)
+        second_delay <- observed_delay(retry)
+      } yield {
+        assertEquals(first_delay, 700.millis)
+        assertEquals(second_delay, 700.millis)
+      }
+    }
   }
 
   test("14.Retry: Decision.accepted is true for followPolicy") {

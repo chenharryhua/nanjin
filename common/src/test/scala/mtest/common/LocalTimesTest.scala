@@ -1,11 +1,11 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.chrono.localTimes
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.LocalTime
 
-class LocalTimesTest extends AnyFunSuite {
+class LocalTimesTest extends FunSuite {
 
   test("1.midnight is 00:00") {
     assert(localTimes.midnight == LocalTime.of(0, 0, 0))

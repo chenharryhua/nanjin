@@ -1,12 +1,12 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.sequence.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
 import scala.concurrent.duration.FiniteDuration
 
-class SequenceTest extends AnyFunSuite {
+class SequenceTest extends FunSuite {
 
   test("1.fibonacci values") {
     assert(fibonacci.take(10).toList == List(1L, 1L, 2L, 3L, 5L, 8L, 13L, 21L, 34L, 55L))
@@ -51,7 +51,7 @@ class SequenceTest extends AnyFunSuite {
 
   test("8.exponential in seconds eventually exceeds FiniteDuration range") {
     // FiniteDuration holds at most Long.MaxValue nanoseconds; a large power of two in SECONDS overflows it.
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       exponential(SECONDS).take(60).toList
     }
   }

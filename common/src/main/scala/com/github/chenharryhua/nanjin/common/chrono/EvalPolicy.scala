@@ -46,7 +46,10 @@ private object EvalPolicy {
 
       case FixedRate(delay) =>
         LazyList(TickStepper { case Acquisition(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).some.pure[F]
+          val conclude =
+            if (tick.index === 0L) now.plus(delay)
+            else fixedRateSnooze(tick.conclude, now, delay, 1L)
+          tick.nextTick(now, conclude).some.pure[F]
         })
 
       // ops
@@ -54,7 +57,9 @@ private object EvalPolicy {
 
       case FollowedBy(leader, follower) => leader #::: follower
 
-      case Repeat(policy) => LazyList.continually(policy).flatten
+      case Repeat(policy) =>
+        if (policy.isEmpty) LazyList.empty
+        else LazyList.continually(policy).flatten
 
       case Meet(first, second) =>
         first.zip(second).map { case (sa, sb) =>
@@ -95,15 +100,6 @@ private object EvalPolicy {
           }
         }
 
-      case Expire(policy, ttl) =>
-        policy.map { stepper =>
-          TickStepper { (acq: Acquisition) =>
-            val elapsed = Duration.between(acq.tick.launchTime, acq.now)
-            if (elapsed.compareTo(ttl) >= 0) None.pure[F]
-            else
-              stepper(acq).map(_.filter(t => Duration.between(t.launchTime, t.conclude).compareTo(ttl) < 0))
-          }
-        }
     }
 
   def apply[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =

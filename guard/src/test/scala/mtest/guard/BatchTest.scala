@@ -1,26 +1,25 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import squants.information.InformationConversions.InformationConversions
 
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 
-class BatchTest extends AnyFunSuite {
+class BatchTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
       .updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat))
 
   test("1.quasi.sequential") {
-    val se = service.eventStream { ga =>
+    service.eventStream { ga =>
       ga.batch("quasi.sequential")
         .sequential[Unit](
           "a" -> IO.raiseError(new Exception()),
@@ -42,12 +41,13 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(b => ga.logger.good(b) >> ga.adhoc.report)
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("2.quasi.parallel") {
-    val se = service.eventStream { ga =>
+    service.eventStream { ga =>
       ga.batch("quasi.parallel")
         .parallel(3)(
           "a" -> IO.sleep(3.second),
@@ -69,13 +69,13 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(_ => ga.adhoc.report.void)
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("3.sequential") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("sequential")
         .sequential(
@@ -84,12 +84,13 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(1.seconds).as(3.bytes.toString))
         .valueBatch
         .use_
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("4.parallel") {
-    val se = service.eventStream { ga =>
+    service.eventStream { ga =>
       ga.batch("parallel")
         .parallel(3)(
           "a" -> IO.sleep(3.second),
@@ -102,12 +103,13 @@ class BatchTest extends AnyFunSuite {
         .use(_.map(_.outcomes.forall(_.record.succeeded)))
         .map(assert(_))
         .void
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("5.sequential.exception") {
-    val se = service.eventStream { ga =>
+    service.eventStream { ga =>
       ga.batch("sequential")
         .sequential(
           "a" -> IO.sleep(1.second),
@@ -116,9 +118,9 @@ class BatchTest extends AnyFunSuite {
           "d" -> IO.sleep(1.seconds))
         .valueBatch
         .use_
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
-
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }
   }
 
   test("6.parallel.exception") {
@@ -129,12 +131,11 @@ class BatchTest extends AnyFunSuite {
       "d" -> (IO.sleep(3.seconds) >> IO.raiseError(new Exception)),
       "e" -> IO.sleep(4.seconds)
     )
-    val se = service.eventStream { ga =>
+    service.eventStream { ga =>
       ga.batch("parallel").parallel(3)(jobs*).valueBatch.use_
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
-
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }
   }
 
   test("7.batch mode") {
@@ -159,11 +160,11 @@ class BatchTest extends AnyFunSuite {
       .map(checkJson)
       .compile
       .drain
-    (j1 >> j2).unsafeRunSync()
+    j1 >> j2
   }
 
   test("8.monadic for comprehension") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("monadic")
         .monadic { job =>
@@ -184,13 +185,13 @@ class BatchTest extends AnyFunSuite {
           assert(qr.outcomes.map(_.record.job.name) == List("a", "b", "c", "d", "e", "f", "g"))
           agent.adhoc.report.void
         }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("9.invincible monadic error") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("monadic")
         .monadic { job =>
@@ -216,8 +217,9 @@ class BatchTest extends AnyFunSuite {
           assert(qr.outcomes.size == 7)
           agent.adhoc.report.void
         }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("10.monadic one") {
@@ -227,11 +229,11 @@ class BatchTest extends AnyFunSuite {
         .monadic(job => job("a", IO(0)))
         .monadicBatch
         .use(_ => agent.adhoc.report.void)
-    }.compile.drain.unsafeRunSync()
+    }.compile.drain
   }
 
   test("11.monadic many") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .batch("monadic")
         .monadic { (job: Batch.JobBuilder[IO]) =>
@@ -254,24 +256,24 @@ class BatchTest extends AnyFunSuite {
         .monadicBatch
         .use { qr =>
           val details = qr.outcomes
-          assert(details.head.record.job.name === "1")
-          assert(details.head.record.job.index === 1)
-          assert(details(1).record.job.name === "2")
-          assert(details(1).record.job.index === 2)
-          assert(details(2).record.job.name === "3")
-          assert(details(2).record.job.index === 3)
-          assert(details(3).record.job.name === "10")
-          assert(details(3).record.job.index === 4)
-          assert(details(4).record.job.name === "20")
-          assert(details(4).record.job.index === 5)
-          assert(details(5).record.job.name === "30")
-          assert(details(5).record.job.index === 6)
+          assert(details.head.record.job.name == "1")
+          assert(details.head.record.job.index == 1)
+          assert(details(1).record.job.name == "2")
+          assert(details(1).record.job.index == 2)
+          assert(details(2).record.job.name == "3")
+          assert(details(2).record.job.index == 3)
+          assert(details(3).record.job.name == "10")
+          assert(details(3).record.job.index == 4)
+          assert(details(4).record.job.name == "20")
+          assert(details(4).record.job.index == 5)
+          assert(details(5).record.job.name == "30")
+          assert(details(5).record.job.index == 6)
           assert(details.size == 6)
           agent.adhoc.report.void
         }
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   private val jobs: List[(String, IO[Int])] = List(
@@ -283,7 +285,7 @@ class BatchTest extends AnyFunSuite {
   )
 
   test("12.sorted parallel") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent.batch("sorted.parallel").parallel(jobs*).valueBatch.use {
         case ValueBatch(_, _, _, _, outcomes, values) =>
           IO {
@@ -305,12 +307,13 @@ class BatchTest extends AnyFunSuite {
             assert(outcomes(4).record.job.index == 5)
           }.void
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("13.sorted sequential") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent.batch("sorted.sequential").sequential(jobs*).valueBatch.use {
         case ValueBatch(_, _, _, _, outcomes, values) =>
           IO {
@@ -332,8 +335,9 @@ class BatchTest extends AnyFunSuite {
             assert(outcomes(4).record.job.index == 5)
           }.void
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("14.all batch types preserve job order") {
@@ -341,7 +345,7 @@ class BatchTest extends AnyFunSuite {
     var parallelResult: List[(Int, String)] = Nil
     var monadicResult: List[(Int, String)] = Nil
 
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       val sequential = agent
         .batch("ordered.sequential")
         .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
@@ -379,44 +383,43 @@ class BatchTest extends AnyFunSuite {
         }
 
       sequential >> parallel >> monadic
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(sequentialResult == List((1, "a"), (2, "b"), (3, "c")))
-    assert(parallelResult == List((1, "a"), (2, "b"), (3, "c")))
-    assert(monadicResult == List((1, "a"), (2, "b"), (3, "c")))
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(sequentialResult == List((1, "a"), (2, "b"), (3, "c")))
+      assert(parallelResult == List((1, "a"), (2, "b"), (3, "c")))
+      assert(monadicResult == List((1, "a"), (2, "b"), (3, "c")))
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("15.empty sequential") {
-    val se = service
+    service
       .eventStreamR(_.batch("b").sequential[Int]().valueBatch)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+      .map(se => assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0))
   }
 
   test("16.empty parallel") {
-    val se = service
+    service
       .eventStreamR(_.batch("b").parallel[Int](1)().valueBatch)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+      .map(se => assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0))
   }
 
   test("17.monadic flatMap limits") {
-    val se = service.updateConfig(_.withReportPolicy(_.fixedDelay(1.hour).repeat)).eventStreamR { agent =>
+    service.updateConfig(_.withReportPolicy(_.fixedDelay(1.hour).repeat)).eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
         List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch >>
           (1 to 5_000).toList.traverse(x => job(x.toString, IO(x))).monadicBatch
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("18.monadic lift(F[A]) - Batch") {
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("lift").monadic { job =>
         val result = for {
           config <- job.untracked(IO("hello"))
@@ -430,12 +433,13 @@ class BatchTest extends AnyFunSuite {
           assert(mb.outcomes.head.record.job.name == "length")
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("19.monadic lift(F[A]) - BatchLight") {
-    val result = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batchLight("lift-light").monadic { job =>
         val batch = for {
           x <- job.untracked(IO(42))
@@ -448,12 +452,13 @@ class BatchTest extends AnyFunSuite {
           assert(mb.outcomes.head.record.job.name == "double")
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(result.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { result =>
+      assert(result.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("20.monadic lift(F[A]) - failure short-circuits the chain") {
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("lift-error").monadic { job =>
         val boom = new Exception("boom")
         val result = for {
@@ -472,12 +477,13 @@ class BatchTest extends AnyFunSuite {
           }
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("21.monadic lift(F[A]) - BatchLight - failure short-circuits the chain") {
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent.batchLight("lift-light-error").monadic { job =>
         val oops = new Exception("oops")
         val batch = for {
@@ -494,12 +500,13 @@ class BatchTest extends AnyFunSuite {
           }
         }.void
       }
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.map(checkJson).compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("22.monadic lift(Resource) - resource acquired and used") {
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("lift-resource").monadic { job =>
         val result = for {
           ref <- job.untracked(cats.effect.Resource.eval(cats.effect.Ref[IO].of(0)))
@@ -514,12 +521,13 @@ class BatchTest extends AnyFunSuite {
           assert(mb.outcomes.map(_.record.job.name) == List("increment", "increment2", "read"))
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("23.monadic lift(Resource) - acquisition failure short-circuits the chain") {
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("lift-resource-error").monadic { job =>
         val result = for {
           _ <- job.untracked(
@@ -531,15 +539,16 @@ class BatchTest extends AnyFunSuite {
           assert(mb.outcomes.isEmpty)
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("24.monadic spent counts invisible lift steps between jobs") {
     // Regression: the old spent summed per-job took, dropping wall-clock consumed by
     // invisible lift/pure steps. spent is now the full span, so a 200ms lifted sleep
     // between two fast jobs must be reflected in spent.
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("monadic-invisible-lift").monadic { job =>
         val result = for {
           a <- job("a", IO(1))
@@ -552,8 +561,9 @@ class BatchTest extends AnyFunSuite {
           assert(mb.spent.toMillis >= 200L)
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("25.monadic sum of per-job took within spent (gaps redistributed)") {
@@ -567,7 +577,7 @@ class BatchTest extends AnyFunSuite {
     // must hold identically here and in BatchLightMonadicTest "sum of per-job took telescopes
     // to the span through the last job". If one changes, both must — do not let the two
     // variants drift apart.
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("monadic-took-sum").monadic { job =>
         val result = for {
           a <- job("a", IO.sleep(30.millis).as(1))
@@ -584,8 +594,9 @@ class BatchTest extends AnyFunSuite {
           assert(mb.spent.toNanos - sumTook < 50_000_000L) // 50ms
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("26.single-job monadic batch spent covers that job's took, within a tiny remainder") {
@@ -596,7 +607,7 @@ class BatchTest extends AnyFunSuite {
     //
     // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent covers
     // that job's took". Batch and BatchLight must agree on this edge of the timing model.
-    val se = service.eventStreamR { agent =>
+    service.eventStreamR { agent =>
       agent.batch("monadic-single-job").monadic { job =>
         job("only", IO.sleep(40.millis).as(1)).monadicBatch.map { mb =>
           assert(mb.outcomes.size == 1)
@@ -605,8 +616,9 @@ class BatchTest extends AnyFunSuite {
           assert(mb.spent.toMillis >= 40L)
         }
       }
-    }.compile.lastOrError.unsafeRunSync()
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
   test("27.monadic untracked(Resource) release failure surfaces through the scope") {
@@ -615,7 +627,7 @@ class BatchTest extends AnyFunSuite {
     // untracked resource acquires fine and every job succeeds (so mb.result is Right),
     // yet releasing it on scope close throws, which fails the effect that ran the batch.
     @volatile var observedResult: Option[Either[Throwable, Int]] = None
-    val se = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent.batch("release-fail").monadic { job =>
         val result = for {
           _ <- job.untracked(
@@ -626,10 +638,11 @@ class BatchTest extends AnyFunSuite {
           IO { observedResult = Some(mb.result) }
         }
       }
-    }.map(checkJson).compile.lastOrError.unsafeRunSync()
-    // inside the scope the batch succeeded ...
-    assert(observedResult == Some(Right(1)))
-    // ... yet the release fault brought the service down (uncaught in F)
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }.map(checkJson).compile.lastOrError.map { se =>
+      // inside the scope the batch succeeded ...
+      assert(observedResult == Some(Right(1)))
+      // ... yet the release fault brought the service down (uncaught in F)
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+    }
   }
 }

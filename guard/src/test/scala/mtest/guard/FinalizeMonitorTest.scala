@@ -1,19 +1,19 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.translator.Translator
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
 /** Tests that observer finalization produces synthetic ServiceStop events for services that were started but
   * never stopped (simulating abrupt termination from the observer's perspective).
   */
-class FinalizeMonitorTest extends AnyFunSuite {
+class FinalizeMonitorTest extends CatsEffectSuite {
 
   private val service = TaskGuard[IO]("finalize").service("finalize")
 
@@ -47,7 +47,7 @@ class FinalizeMonitorTest extends AnyFunSuite {
       assert(tracked.size == 1)
     }
 
-    test.unsafeRunSync()
+    test
   }
 
   test("2.observer tracking clears on normal ServiceStop") {
@@ -70,58 +70,56 @@ class FinalizeMonitorTest extends AnyFunSuite {
       // After normal completion, the ServiceStop should have cleared the tracked start
       assert(tracked.isEmpty)
 
-    test.unsafeRunSync()
+    test
   }
 
   test("3.Translator.idTranslator translates all event types") {
-    val events = service
+    service
       .eventStream(agent => agent.logger.info("msg"))
       .compile
       .toList
-      .unsafeRunSync()
-
-    val translated = events.map(e => translator.translate(e).unsafeRunSync())
-    // idTranslator should produce Some for all events
-    assert(translated.forall(_.isDefined))
-    assert(translated.map(_.get) == events)
+      .flatMap { events =>
+        events.traverse(e => translator.translate(e)).map { translated =>
+          // idTranslator should produce Some for all events
+          assert(translated.forall(_.isDefined))
+          assert(translated.map(_.get) == events)
+        }
+      }
   }
 
   test("4.Translator.empty skips all events") {
     val empty = Translator.empty[IO, Event]
-    val events = service
+    service
       .eventStream(_ => IO.unit)
       .compile
       .toList
-      .unsafeRunSync()
-
-    val translated = events.map(e => empty.translate(e).unsafeRunSync())
-    assert(translated.forall(_.isEmpty))
+      .flatMap(events => events.traverse(e => empty.translate(e)))
+      .map(translated => assert(translated.forall(_.isEmpty)))
   }
 
   test("5.Translator.skipAll produces empty translator") {
     val skipper = Translator.idTranslator[IO].skipAll
-    val events = service
+    service
       .eventStream(_ => IO.unit)
       .compile
       .toList
-      .unsafeRunSync()
-
-    val translated = events.map(e => skipper.translate(e).unsafeRunSync())
-    assert(translated.forall(_.isEmpty))
+      .flatMap(events => events.traverse(e => skipper.translate(e)))
+      .map(translated => assert(translated.forall(_.isEmpty)))
   }
 
   test("6.Translator skip individual event types") {
     val noStart = Translator.idTranslator[IO].skipServiceStart
-    val events = service
+    service
       .eventStream(_ => IO.unit)
       .compile
       .toList
-      .unsafeRunSync()
-
-    val translated = events.flatMap(e => noStart.translate(e).unsafeRunSync())
-    // ServiceStart should be filtered out
-    assert(translated.forall(!_.isInstanceOf[ServiceStart]))
-    // ServiceStop should still be present
-    assert(translated.exists(_.isInstanceOf[ServiceStop]))
+      .flatMap(events => events.traverse(e => noStart.translate(e)))
+      .map { translatedOpts =>
+        val translated = translatedOpts.flatten
+        // ServiceStart should be filtered out
+        assert(translated.forall(!_.isInstanceOf[ServiceStart]))
+        // ServiceStop should still be present
+        assert(translated.exists(_.isInstanceOf[ServiceStop]))
+      }
   }
 }

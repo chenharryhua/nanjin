@@ -6,9 +6,9 @@ import com.github.chenharryhua.nanjin.common.fixpoint
 import com.github.chenharryhua.nanjin.common.fixpoint.given
 import higherkindness.droste.data.{Attr, Coattr, Fix}
 import monocle.function.Plated
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class FixpointTest extends AnyFunSuite {
+class FixpointTest extends FunSuite {
 
   // A simple recursive functor for testing
   sealed trait ExprF[A]

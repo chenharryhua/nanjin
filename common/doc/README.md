@@ -139,22 +139,26 @@ Drawbacks:
 
 ### SingleFlight
 
-Deduplicates concurrent effectful calls. At most one computation runs at a time; concurrent callers wait for the leader's result.
+Deduplicates concurrent effectful calls. Each `SingleFlight` instance represents one implicit key: at most one
+submitted effect runs at a time, and concurrent callers normally receive that flight's result without evaluating
+their own effects.
 
 ```scala
 import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
 
 SingleFlight[IO, Result].flatMap { sf =>
-  sf(expensiveComputation)      // leader runs, followers wait
-  sf.tryApply(computation)      // returns None if already in-flight
-  sf.isBusy                     // check if a computation is running
+  sf(expensiveComputation) // starts or joins a flight
+  sf.tryApply(computation) // returns None without evaluating computation if a flight exists
 }
 ```
 
 Drawbacks:
-- All followers get the same result — including the same error. If the leader fails, all followers fail with the same exception.
-- If the leader fiber is canceled, followers receive `LeaderCancelledException` — they don't automatically retry.
-- No TTL or cache — each new call after the leader completes starts a fresh computation.
+- Callers sharing an instance must submit logically equivalent operations.
+- All followers receive the same result, including the same error when the worker fails.
+- Canceling one caller does not cancel shared work while other waiters remain.
+- Canceling the last waiter cancels the worker and waits for termination, which can remain pending if the worker
+  is indefinitely uncancelable.
+- There is no TTL or cache; each call after a flight completes can start a new computation.
 
 ---
 

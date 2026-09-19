@@ -1,11 +1,11 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.Duration
 
-class DurationFormatterTest extends AnyFunSuite {
+class DurationFormatterTest extends FunSuite {
   private val fmt = DurationFormatter.defaultFormatter
 
   test("1.nano") {

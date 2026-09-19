@@ -1,21 +1,16 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.syntax.temporal.given
-import cats.syntax.flatMap.given
-import cats.syntax.functor.given
-import cats.syntax.show.showInterpolator
+import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Codec
 import org.http4s.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
-import org.http4s.headers.{`Idempotency-Key`, Authorization}
+import org.http4s.headers.Authorization
 import org.typelevel.ci.CIString
 
-import java.util.UUID
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 /*
@@ -71,6 +66,16 @@ final case class AuthorizationCode(
  * private section
  */
 
+private def validate_expires_in[F[_]: Async, A](fa: F[A])(expires_in: A => Option[Long]): F[A] =
+  Async[F].flatMap(fa) { value =>
+    expires_in(value) match {
+      case Some(seconds) if seconds <= 0L =>
+        Async[F].raiseError(new IllegalArgumentException(s"expires_in must be positive, but was $seconds"))
+      case _ =>
+        Async[F].pure(value)
+    }
+  }
+
 /** OAuth 2.0 Client Credentials flow authenticator.
   *
   * Automatically obtains an access token from the authorization server and attaches it to requests. Supports
@@ -83,8 +88,7 @@ final case class AuthorizationCode(
   */
 private class ClientCredentialsAuth[F[_]: Async](
   credential: ClientCredentials,
-  authClient: Resource[F, Client[F]],
-  uuidGenerator: F[UUID]
+  authClient: Resource[F, Client[F]]
 ) extends Login[F] {
   private case class Token(
     token_type: String,
@@ -101,44 +105,39 @@ private class ClientCredentialsAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def login(client: Client[F]): Resource[F, Client[F]] =
+  override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
-      val tac: TokenAuthClient[F, Token] = new TokenAuthClient[F, Token]() {
+      val tac: TokenAuthClient[F] = new TokenAuthClient[F]() {
+        override protected type T = Token
+
         override protected def getToken: F[Token] =
-          postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+          validate_expires_in(postToken[Token](authenticationClient, credential.auth_endpoint, urlForm))(
+            _.expires_in)
+
+        override protected def refreshToken: Token => F[Token] = _ => getToken
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
-          uuidGenerator.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "refresh_token",
-                  "refresh_token" -> refresh_token,
-                  "client_id" -> credential.client_id,
-                  "client_secret" -> credential.client_secret.value),
-                credential.auth_endpoint
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
-          }
+          validate_expires_in(
+            authenticationClient.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "refresh_token" -> refresh_token,
+                "client_id" -> credential.client_id,
+                "client_secret" -> credential.client_secret.value),
+              credential.auth_endpoint
+            )))(_.expires_in)
 
-        override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
-          for {
-            oldToken <- ref.get
-            newToken <- (oldToken.expires_in, oldToken.refresh_token) match {
-              case (Some(expire), None) =>
-                getToken.delayBy(skewed(expire))
-              case (Some(expire), Some(token)) =>
-                refreshAccessToken(token).delayBy(skewed(expire))
-              case _ =>
-                Async[F].never[Token]
-            }
-            _ <- ref.set(newToken)
-          } yield ()
+        override protected def renewToken: Token => F[Token] =
+          token => token.refresh_token.fold(getToken)(refreshAccessToken)
+
+        override protected def renewalDelay: Token => Option[FiniteDuration] =
+          token => token.expires_in.map(skewed)
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      tac.wrap(client)
+      tac.wrap(businessClient)
     }
 }
 
@@ -154,8 +153,7 @@ private class ClientCredentialsAuth[F[_]: Async](
   */
 private class AuthorizationCodeAuth[F[_]: Async](
   credential: AuthorizationCode,
-  authClient: Resource[F, Client[F]],
-  uuidGenerator: F[UUID])
+  authClient: Resource[F, Client[F]])
     extends Login[F] {
   private case class Token(
     access_token: String,
@@ -175,68 +173,61 @@ private class AuthorizationCodeAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def login(client: Client[F]): Resource[F, Client[F]] =
+  override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
-      val tac = new TokenAuthClient[F, Token] {
+      val tac = new TokenAuthClient[F] {
+        override protected type T = Token
+
         override protected def getToken: F[Token] =
-          uuidGenerator.flatMap { uuid =>
+          validate_expires_in(
             authenticationClient.expect[Token](
               POST(
                 urlForm,
                 credential.auth_endpoint,
                 Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
-          }
+              )))(token => Some(token.expires_in))
 
         private def refreshAccessToken(pre: Token): F[Token] =
-          uuidGenerator.flatMap { uuid =>
-            authClient.use(
-              _.expect[Token](POST(
-                UrlForm(
-                  "grant_type" -> "refresh_token",
-                  "client_id" -> credential.client_id,
-                  "refresh_token" -> pre.refresh_token),
-                credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-          }
+          validate_expires_in(
+            authenticationClient.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "client_id" -> credential.client_id,
+                "refresh_token" -> pre.refresh_token),
+              credential.auth_endpoint,
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+            )))(token => Some(token.expires_in))
 
-        override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
-          for {
-            oldToken <- ref.get
-            newToken <- refreshAccessToken(oldToken).delayBy(skewed(oldToken.expires_in))
-            _ <- ref.set(newToken)
-          } yield ()
+        override protected def refreshToken: Token => F[Token] =
+          refreshAccessToken
+
+        override protected def renewalDelay: Token => Option[FiniteDuration] =
+          token => Some(skewed(token.expires_in))
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      tac.wrap(client)
+      tac.wrap(businessClient)
     }
 }
 
 /** Renewal-scheduling strategy for token-based auth.
   *
-  * Two floors keep the background renewal loop in `TokenAuthClient.wrap` from degenerating into a zero-delay
-  * busy loop:
-  *
-  *   - `skewed` governs the success path: it renews `SKEW` early so a request never races an expiring token,
-  *     but never schedules sooner than `RENEW_MIN_DELAY`. A provider issuing short-lived tokens (`expires_in
-  *     <= SKEW`) would otherwise collapse the delay to `0.seconds` and re-fetch immediately, forever.
-  *   - `RENEW_FAILURE_BACKOFF` governs the failure path: when a renewal throws before reaching its own
-  *     `delayBy`, the loop waits this long before retrying, bounding CPU and auth-endpoint load.
+  * `skewed` renews long-lived tokens `SKEW` early. For lifetimes of `2 * SKEW` or less, renewal occurs
+  * halfway through the lifetime so the delay remains positive while retaining time to replace the token
+  * before expiry. `RENEW_FAILURE_BACKOFF` governs the failure path: after a renewal fails, the same
+  * replacement is retried after this delay without reapplying the token's full renewal schedule.
   */
 
-/** Renew this long before expiry to avoid racing an in-flight request against an expiring token. */
+/** Renew long-lived tokens this early to avoid racing an in-flight request against expiry. */
 private val SKEW: FiniteDuration = 30.seconds
-
-/** Lower bound on the scheduled-renewal delay, so short-lived tokens cannot drive a zero-delay loop. */
-private val RENEW_MIN_DELAY: FiniteDuration = 5.seconds
 
 /** Delay before the renewal loop retries after a failed renewal, bounding CPU / auth-endpoint load. */
 private val RENEW_FAILURE_BACKOFF: FiniteDuration = 5.seconds
 
-/** Schedule delay until the next renewal: `SKEW` before expiry, but never below `RENEW_MIN_DELAY`. */
-private def skewed(expire: Long): FiniteDuration =
-  (expire.seconds - SKEW).max(RENEW_MIN_DELAY)
+/** Schedule renewal `SKEW` early for long lifetimes, or halfway through a short lifetime. */
+private def skewed(lifetime_seconds: Long): FiniteDuration = {
+  val lifetime = lifetime_seconds.seconds
+  lifetime - SKEW.min(lifetime / 2L)
+}

@@ -3,11 +3,11 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.json
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.Duration
 
-class JsonTest extends AnyFunSuite {
+class JsonTest extends FunSuite {
   private val redacted = "redacted(*****)"
 
   // ---------------- redact ----------------

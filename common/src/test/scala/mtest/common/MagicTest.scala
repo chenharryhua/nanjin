@@ -2,7 +2,7 @@ package mtest.common
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.{FieldNames, OpaqueLift, TypeName}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 object MagicTest {
   opaque type WrappedInt = Int
@@ -12,7 +12,7 @@ object MagicTest {
   }
 }
 
-class MagicTest extends AnyFunSuite {
+class MagicTest extends FunSuite {
   import MagicTest.*
 
   test("1.TypeName - resolves simple types") {

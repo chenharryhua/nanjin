@@ -1,11 +1,11 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.chrono.zones
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.ZoneId
 
-class ZonesTest extends AnyFunSuite {
+class ZonesTest extends FunSuite {
 
   test("1.utcTime is Etc/UTC") {
     assert(zones.utcTime == ZoneId.of("Etc/UTC"))

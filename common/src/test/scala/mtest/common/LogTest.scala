@@ -1,13 +1,12 @@
 package mtest.common
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import io.circe.Encoder
 import io.circe.syntax.given
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class LogTest extends AnyFunSuite {
+class LogTest extends CatsEffectSuite {
 
   final private class RecordingLog(enabledLevels: Set[LogLevel]) extends Log[IO] {
     protected type M = (LogLevel, String, Option[Throwable])
@@ -30,9 +29,9 @@ class LogTest extends AnyFunSuite {
     val log = new RecordingLog(Set(LogLevel.Error, LogLevel.Warn))
     val ex = new IllegalStateException("boom")
 
-    log.error("failed", ex).unsafeRunSync()
-
-    assert(log.snapshot == Vector((LogLevel.Error, "\"failed\"", Some(ex))))
+    log.error("failed", ex).map { _ =>
+      assertEquals(log.snapshot, Vector((LogLevel.Error, "\"failed\"", Some(ex))))
+    }
   }
 
   test("does not evaluate a message when the level is disabled") {
@@ -41,34 +40,29 @@ class LogTest extends AnyFunSuite {
     val boom = new RuntimeException("should not be evaluated")
     def msg: String = throw boom
 
-    try {
-      log.warn(msg).unsafeRunSync()
+    log.warn(msg).map { _ =>
       assert(log.snapshot.isEmpty)
-    } catch {
-      case ex: Throwable => fail(s"expected no exception, got ${ex.getMessage}")
     }
   }
 
   test("debug effect logs the value on success and a fallback message on failure") {
     val log = new RecordingLog(Set(LogLevel.Debug))
-
-    log.debug(IO.pure("ok")).unsafeRunSync()
-    assert(log.snapshot == Vector((LogLevel.Debug, "\"ok\"", None)))
-
     val failure = new RuntimeException("broken")
-    log.debug(IO.raiseError[String](failure)).unsafeRunSync()
-    assert(log.snapshot.last == (LogLevel.Debug, "\"Debug Error\"", Some(failure)))
+
+    for {
+      _ <- log.debug(IO.pure("ok"))
+      _ = assertEquals(log.snapshot, Vector((LogLevel.Debug, "\"ok\"", None)))
+      _ <- log.debug(IO.raiseError[String](failure))
+    } yield assertEquals(log.snapshot.last, (LogLevel.Debug, "\"Debug Error\"", Some(failure)))
   }
 
   test("noop logger ignores messages without throwing") {
     val log = Log.noop[IO]
 
-    try {
-      log.good("silent").unsafeRunSync()
-      log.debug(IO.raiseError[String](new RuntimeException("should be ignored"))).unsafeRunSync()
-    } catch {
-      case ex: Throwable => fail(s"expected no exception, got ${ex.getMessage}")
-    }
+    for {
+      _ <- log.good("silent")
+      _ <- log.debug(IO.raiseError[String](new RuntimeException("should be ignored")))
+    } yield ()
   }
 
   test("LogLevel exposes the expected ordering and encoding") {

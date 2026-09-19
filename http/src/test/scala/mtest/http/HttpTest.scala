@@ -1,11 +1,11 @@
 package mtest.http
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, httpRetry}
 import io.circe.Json
+import munit.CatsEffectSuite
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger as MLogger
@@ -16,7 +16,6 @@ import org.http4s.implicits.*
 import org.http4s.server.middleware.GZip
 import org.http4s.server.{Router, Server}
 import org.http4s.{HttpRoutes, Method, Request}
-import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -24,7 +23,7 @@ import java.net.CookieManager
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
-class HttpTest extends AnyFunSuite {
+class HttpTest extends CatsEffectSuite {
   implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("logger")
 
   private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
@@ -32,7 +31,7 @@ class HttpTest extends AnyFunSuite {
     case GET -> Root / "cookie"           => Ok("cookie")
     case POST -> Root / "post"            => Ok("posted")
     case GET -> Root / "timeout" / reason =>
-      if (Random.nextInt(5) === 0) Ok(reason) else RequestTimeout(reason)
+      if (Random.nextInt(5) == 0) Ok(reason) else RequestTimeout(reason)
     case GET -> Root / "failure" => InternalServerError()
   }
 
@@ -57,21 +56,20 @@ class HttpTest extends AnyFunSuite {
             c.expect[String]("http://127.0.0.1:8080/timeout/four").attempt.flatMap(IO.println) >>
             c.expect[String]("http://127.0.0.1:8080/timeout/five").attempt.flatMap(IO.println) >>
             c.expect[String]("http://127.0.0.1:8080/timeout/six").attempt.flatMap(IO.println)))
-      .unsafeRunSync()
   }
 
   test("2.failure") {
     val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(3)))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
-    assertThrows[Exception](run.unsafeRunSync())
+    interceptIO[Exception](run)
   }
 
   test("3.give up") {
     val client = ember.map(httpRetry(sydneyTime, _.empty))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
-    assertThrows[Exception](run.unsafeRunSync())
+    interceptIO[Exception](run)
   }
 
   test("4.post") {
@@ -82,7 +80,7 @@ class HttpTest extends AnyFunSuite {
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
     val client = ember.map(httpRetry(sydneyTime, _.empty))
-    server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println))).unsafeRunSync()
+    server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println)))
   }
 
   test("5.cookie box") {
@@ -90,7 +88,6 @@ class HttpTest extends AnyFunSuite {
     server
       .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie").flatMap(IO.println)))
       .delayBy(2.seconds)
-      .unsafeRunSync()
   }
 
   test("6.trace") {
@@ -98,7 +95,6 @@ class HttpTest extends AnyFunSuite {
     server
       .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
       .delayBy(2.seconds)
-      .unsafeRunSync()
   }
 
 }

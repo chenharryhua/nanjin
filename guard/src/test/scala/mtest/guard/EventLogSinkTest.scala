@@ -1,17 +1,16 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.EventLogSinkTest"
-class EventLogSinkTest extends AnyFunSuite {
+class EventLogSinkTest extends CatsEffectSuite {
 
   private val base =
     TaskGuard[IO]("nanjin")
@@ -25,34 +24,33 @@ class EventLogSinkTest extends AnyFunSuite {
   }
 
   test("1.no log format (None) - no-op sink, events still emitted") {
-    val events = base
+    base
       .eventStream(_ => IO.unit)
       .map(checkJson)
       .compile
       .toList
-      .unsafeRunSync()
-    assertStartStop(events)
+      .map(assertStartStop)
   }
 
   test("2.log format does not suppress events on service panic") {
-    val events = base
+    base
       .updateConfig(_.withRestartPolicy(10.hour, _.fixedDelay(100.millis).repeat.limited(1)))
       .eventStream(_ => IO.raiseError(new Exception("boom")))
       .map(checkJson)
       .compile
       .toList
-      .unsafeRunSync()
-    assert(events.exists(_.isInstanceOf[Event.ServicePanic]))
-    assert(events.last.isInstanceOf[ServiceStop])
+      .map { events =>
+        assert(events.exists(_.isInstanceOf[Event.ServicePanic]))
+        assert(events.last.isInstanceOf[ServiceStop])
+      }
   }
 
   test("3.metrics snapshot included when adhoc report triggered") {
-    val events = base
+    base
       .eventStream(agent => agent.adhoc.report)
       .map(checkJson)
       .compile
       .toList
-      .unsafeRunSync()
-    assert(events.exists(_.isInstanceOf[Event.MetricsSnapshot]))
+      .map(events => assert(events.exists(_.isInstanceOf[Event.MetricsSnapshot])))
   }
 }

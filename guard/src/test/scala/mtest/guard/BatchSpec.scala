@@ -2,68 +2,68 @@ package mtest.guard
 
 import cats.Applicative
 import cats.effect.IO
-import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.PostConditionUnsatisfied
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.freespec.AsyncFreeSpec
-import org.scalatest.matchers.should.Matchers
+import munit.CatsEffectSuite
 
-class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
+class BatchSpec extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat))
 
-  "monadic" -
-    "filter - fully".in {
-      val se = service.eventStream { agent =>
-        val result: IO[Int] = agent
-          .batch("monadic")
-          .monadic { job =>
-            for {
-              a <- job("a", IO(1))
-              if a == 1
-              b <- job("b", IO(2))
-              if a == 10
-              c <- job("c", IO(3))
-            } yield a + b + c
+  test("monadic: filter - fully") {
+    service.eventStream { agent =>
+      val result: IO[Int] = agent
+        .batch("monadic")
+        .monadic { job =>
+          for {
+            a <- job("a", IO(1))
+            if a == 1
+            b <- job("b", IO(2))
+            if a == 10
+            c <- job("c", IO(3))
+          } yield a + b + c
+        }
+        .monadicBatch
+        .use { monadicResult =>
+          monadicResult.result match {
+            case Left(ex) => IO.raiseError[Int](ex)
+            case Right(v) => IO.pure(v)
           }
-          .monadicBatch
-          .use { monadicResult =>
-            monadicResult.result match {
-              case Left(ex) => IO.raiseError[Int](ex)
-              case Right(v) => IO.pure(v)
-            }
-          }
-        result.assertThrowsError[PostConditionUnsatisfied](_.job.map(_.name).shouldBe(Some("b"))).void
-      }.compile.lastOrError.unsafeRunSync()
-
+        }
+      result.attempt.map {
+        case Left(e: PostConditionUnsatisfied) => assertEquals(e.job.map(_.name), Some("b"))
+        case other                             => fail(s"expected PostConditionUnsatisfied, got $other")
+      }.void
+    }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
+  }
 
-  "applicative" -
-    "combines values sequentially".in {
-      val se = service.eventStream { agent =>
-        val result = agent
-          .batch("monadic")
-          .monadic { job =>
-            type M[A] = job.Monadic[A]
-            val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
-            combined
-          }
-          .monadicBatch
-          .use(qr => agent.adhoc.report.as(qr))
+  test("applicative: combines values sequentially") {
+    service.eventStream { agent =>
+      val result = agent
+        .batch("monadic")
+        .monadic { job =>
+          type M[A] = job.Monadic[A]
+          val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
+          combined
+        }
+        .monadicBatch
+        .use(qr => agent.adhoc.report.as(qr))
 
-        result.asserting(_.result.shouldBe(Right(3))) >>
-          result.asserting(_.outcomes.size.shouldBe(2)) >>
-          IO.unit
-      }.compile.lastOrError.unsafeRunSync()
-
+      result.map { r =>
+        assertEquals(r.result, Right(3))
+        assertEquals(r.outcomes.size, 2)
+      }
+    }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
+  }
 
-  "identity law preserves the job result".in {
-    val se = service.eventStream { agent =>
+  test("identity law preserves the job result") {
+    service.eventStream { agent =>
       val left = agent
         .batch("monadic")
         .monadic { job =>
@@ -90,17 +90,17 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         l <- left
         r <- right
       } yield {
-        l shouldBe 1
-        r shouldBe 1
+        assertEquals(l, 1)
+        assertEquals(r, 1)
         ()
       }
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 
-  "invincible".in {
-    val se = service.eventStream { agent =>
+  test("invincible") {
+    service.eventStream { agent =>
       val result = agent
         .batch("monadic")
         .monadic { job =>
@@ -113,13 +113,14 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadicBatch
         .use(qr => agent.adhoc.report.as(qr))
 
-      result.asserting(_.result.shouldBe(Right(3))) >>
-        result.asserting(_.outcomes.head.record.succeeded.shouldBe(true)) >>
-        result.asserting(_.outcomes(1).record.succeeded.shouldBe(false)) >>
-        result.asserting(_.outcomes(2).record.succeeded.shouldBe(true)) >>
-        IO.unit
-    }.compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+      result.map { r =>
+        assertEquals(r.result, Right(3))
+        assert(r.outcomes.head.record.succeeded)
+        assert(!r.outcomes(1).record.succeeded)
+        assert(r.outcomes(2).record.succeeded)
+      }
+    }.compile.lastOrError.map { se =>
+      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
   }
 }

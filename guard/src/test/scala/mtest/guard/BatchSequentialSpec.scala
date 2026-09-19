@@ -2,112 +2,117 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchKind, BatchMode, PostConditionUnsatisfied, ValueBatch}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.freespec.AsyncFreeSpec
-import org.scalatest.matchers.should.Matchers
+import munit.CatsEffectSuite
 
-class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
+class BatchSequentialSpec extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("sequential")
 
-  "quasi" - {
-    "good job".in {
-      val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).quasiBatch
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
-    }
-
-    "exception".in {
-      val jobs =
-        List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        val result = agent.batch("exception").sequential(jobs*).quasiBatch
-        result.asserting { mb =>
-          mb.outcomes.head.record.succeeded.shouldBe(true)
-          mb.outcomes.head.record.job.mode.shouldBe(BatchMode.Sequential)
-          mb.outcomes.head.record.job.kind.shouldBe(Some(BatchKind.Quasi))
-          mb.outcomes(1).record.succeeded.shouldBe(false)
-          mb.outcomes(2).record.succeeded.shouldBe(true)
-          mb.outcomes(3).record.succeeded.shouldBe(true)
-          mb.outcomes(4).record.succeeded.shouldBe(true)
-        }
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
-    }
-
-    "predicate".in {
-      val jobs =
-        List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        val result =
-          agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch
-        result.asserting { mb =>
-          mb.outcomes.head.record.succeeded.shouldBe(false)
-          mb.outcomes(1).record.succeeded.shouldBe(false)
-          mb.outcomes(2).record.succeeded.shouldBe(false)
-          mb.outcomes(3).record.succeeded.shouldBe(true)
-          mb.outcomes(4).record.succeeded.shouldBe(true)
-        }
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+  test("quasi: good job") {
+    val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      agent.batch("good job").sequential(jobs*).quasiBatch
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
   }
 
-  "value" - {
-    "good job".in {
-      val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        agent
-          .batch("good job")
-          .sequential(jobs*)
-          .valueBatch
-          .evalTap { bv =>
-            IO {
-              bv.outcomes.map(_.record.job.kind).shouldBe(List.fill(5)(Some(BatchKind.Value)))
-              bv.outcomes.map(_.record.job.mode).shouldBe(List.fill(5)(BatchMode.Sequential))
-            }
-          }
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+  test("quasi: exception") {
+    val jobs =
+      List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      agent.batch("exception").sequential(jobs*).quasiBatch.evalTap { mb =>
+        IO {
+          assert(mb.outcomes.head.record.succeeded)
+          assertEquals(mb.outcomes.head.record.job.mode, BatchMode.Sequential)
+          assertEquals(mb.outcomes.head.record.job.kind, Option(BatchKind.Quasi))
+          assert(!mb.outcomes(1).record.succeeded)
+          assert(mb.outcomes(2).record.succeeded)
+          assert(mb.outcomes(3).record.succeeded)
+          assert(mb.outcomes(4).record.succeeded)
+        }
+      }
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
+  }
 
-    "exception".in {
-      val jobs =
-        List(
-          "a" -> IO(1),
-          "b" -> IO.raiseError(new Exception("abc")),
-          "c" -> IO(3),
-          "d" -> IO(4),
-          "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        val result = agent
+  test("quasi: predicate") {
+    val jobs =
+      List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch.evalTap { mb =>
+        IO {
+          assert(!mb.outcomes.head.record.succeeded)
+          assert(!mb.outcomes(1).record.succeeded)
+          assert(!mb.outcomes(2).record.succeeded)
+          assert(mb.outcomes(3).record.succeeded)
+          assert(mb.outcomes(4).record.succeeded)
+        }
+      }
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("value: good job") {
+    val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      agent
+        .batch("good job")
+        .sequential(jobs*)
+        .valueBatch
+        .evalTap { bv =>
+          IO {
+            assertEquals(bv.outcomes.map(_.record.job.kind), List.fill(5)(Option(BatchKind.Value)))
+            assertEquals(bv.outcomes.map(_.record.job.mode), List.fill(5)(BatchMode.Sequential))
+          }
+        }
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("value: exception") {
+    val jobs =
+      List("a" -> IO(1), "b" -> IO.raiseError(new Exception("abc")), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
           .batch("exception")
           .sequential(jobs*)
           .valueBatch
-        result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+          .use_
+          .attempt
+          .map {
+            case Left(e: Exception) => assertEquals(e.getMessage, "abc")
+            case other              => fail(s"expected Exception(abc), got $other")
+          })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
+  }
 
-    "predicate".in {
-      val jobs =
-        List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
-        val result: Resource[IO, ValueBatch[Int]] =
-          agent
-            .batch("predicate")
-            .sequential(jobs*)
-            .withPostCondition(_ > 3)
-            .valueBatch
-        result.assertThrowsError[PostConditionUnsatisfied](_.job.map(_.index).shouldBe(Some(1)))
-      }.compile.lastOrError
-      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+  test("value: predicate") {
+    val jobs =
+      List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+    service.eventStreamR { agent =>
+      val result: Resource[IO, ValueBatch[Int]] =
+        agent
+          .batch("predicate")
+          .sequential(jobs*)
+          .withPostCondition(_ > 3)
+          .valueBatch
+      Resource.eval(result.use_.attempt.map {
+        case Left(e: PostConditionUnsatisfied) => assertEquals(e.job.map(_.index), Some(1))
+        case other                             => fail(s"expected PostConditionUnsatisfied, got $other")
+      })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
   }
 }
