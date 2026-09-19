@@ -1,16 +1,15 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationDouble
 
-class ServiceMessageTest extends AnyFunSuite {
+class ServiceMessageTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("Messaging System")
       .service("Forward")
@@ -49,7 +48,6 @@ class ServiceMessageTest extends AnyFunSuite {
       .eventStream(info)
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("2.info json space2") {
@@ -58,7 +56,6 @@ class ServiceMessageTest extends AnyFunSuite {
       .eventStream(info)
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("3.warn json no spaces") {
@@ -67,13 +64,12 @@ class ServiceMessageTest extends AnyFunSuite {
       .eventStream(warn)
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("4.warn console plain text") {
     service.updateConfig(_.withLogFormat(_.ConsolePlainText))
       .eventStream(warn)
-      .compile.drain.unsafeRunSync()
+      .compile.drain
   }
 
   test("5.mix") {
@@ -82,6 +78,5 @@ class ServiceMessageTest extends AnyFunSuite {
       .eventStream(mix)
       .compile
       .drain
-      .unsafeRunSync()
   }
 }

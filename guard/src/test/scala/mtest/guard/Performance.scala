@@ -1,14 +1,13 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import squants.information.Bytes
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class Performance extends AnyFunSuite {
+class Performance extends CatsEffectSuite {
   // sbt "guard/testOnly mtest.guard.Performance"
 
   private val service = TaskGuard[IO]("performance").service("performance")
@@ -22,10 +21,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("2.performance counter") {
@@ -35,10 +34,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("3.performance meter") {
@@ -48,10 +47,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("4.performance histogram") {
@@ -63,10 +62,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("5.performance timer") {
@@ -76,10 +75,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("6.performance timer - timing") {
@@ -89,10 +88,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("7.performance circuit breaker") {
@@ -106,10 +105,10 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("8.performance batch") {
@@ -119,21 +118,21 @@ class Performance extends AnyFunSuite {
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
+      .map { _ =>
+        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
   }
 
   test("9.performance channel") {
-    val (fd, i) = service
+    service
       .eventStreamS(agent => fs2.Stream.repeatEval(agent.logger.error("hello")).take(3_000_000))
       .compile
       .fold(0)((s, _) => s + 1)
       .timed
-      .unsafeRunSync()
-
-    println(s"cost:  ${fd.toNanos / i} nano")
-    println(s"speed: ${i / fd.toMillis} k/s")
+      .map { case (fd, i) =>
+        println(s"cost:  ${fd.toNanos / i} nano")
+        println(s"speed: ${i / fd.toMillis} k/s")
+      }
   }
 }

@@ -3,9 +3,9 @@ package mtest.guard
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class SyntaxTest extends AnyFunSuite {
+class SyntaxTest extends FunSuite {
 
   private val service: ServiceGuard[IO] = TaskGuard[IO]("syntax").service("syntax")
 

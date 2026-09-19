@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricRegistry, SlidingWindowReservoir}
 import com.github.chenharryhua.nanjin.common.resilience.Retry
@@ -15,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MetricElement.Count
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import squants.information.{Bytes, Information}
 import squants.market.{AUD, Money}
 import squants.time.{Milliseconds, Time}
@@ -26,7 +25,7 @@ import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
 
-class MetricsTest extends AnyFunSuite {
+class MetricsTest extends CatsEffectSuite {
   val zoneId: ZoneId = ZoneId.systemDefault()
 
   private val service: ServiceGuard[IO] =
@@ -35,77 +34,80 @@ class MetricsTest extends AnyFunSuite {
       .service("metrics")
 
   test("1.counter") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
         .use(_.inc(10) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(mr.snapshot.nonEmpty)
-    assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
-    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
-    assert(mr.index.isInstanceOf[MetricsSnapshot.Adhoc])
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(mr.snapshot.nonEmpty)
+      assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
+      assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+      assert(mr.index.isInstanceOf[MetricsSnapshot.Adhoc])
+    }
   }
 
   test("1a.metric identifier round trip") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
         .use(_.inc(10) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    val metricId = mr.snapshot.counters.head.metricId
-    assert(decode[MetricId](metricId.identifier) == Right(metricId))
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val metricId = mr.snapshot.counters.head.metricId
+      assert(decode[MetricId](metricId.identifier) == Right(metricId))
+    }
   }
 
   test("1b.scraper ignores a metric identifier with the wrong registry type") {
-    val metricId = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
         .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError
       .map(_.snapshot.counters.head.metricId)
-      .unsafeRunSync()
-
-    val registry = new MetricRegistry
-    registry.meter(metricId.identifier).mark(1)
+      .map { metricId =>
+        val registry = new MetricRegistry
+        registry.meter(metricId.identifier).mark(1)
+      }
   }
 
   test("2.counter risk") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.asRisk))
         .use(_.inc(10) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(retrieve.riskCounter(mr.snapshot.counters).values.head.value == 10)
-    assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(retrieve.riskCounter(mr.snapshot.counters).values.head.value == 10)
+      assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
+    }
   }
 
   test("3.counter disable") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.enable(false)))
         .use(_.inc(10) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(mr.snapshot.isEmpty)
-    assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
-    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(mr.snapshot.isEmpty)
+      assert(retrieve.counter(mr.snapshot.counters).values.isEmpty)
+      assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+    }
   }
 
   test("3b.counter inc") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
         .use { counter =>
           counter.inc(10) >> agent.adhoc.report.void
         }
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
-    assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(retrieve.counter(mr.snapshot.counters).values.head.value == 10)
+      assert(retrieve.riskCounter(mr.snapshot.counters).values.isEmpty)
+    }
   }
 
   test("3c.counter reset by policy") {
-    val snapshots = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis).repeat)))
         .use { counter =>
@@ -115,171 +117,180 @@ class MetricsTest extends AnyFunSuite {
             counter.inc(3) >>
             agent.adhoc.report
         }
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.map { snapshots =>
+      assert(snapshots.size == 2)
 
-    assert(snapshots.size == 2)
+      val first = retrieve.counter(snapshots.head.snapshot.counters).values.head.value
+      val second = retrieve.counter(snapshots(1).snapshot.counters).values.head.value
 
-    val first = retrieve.counter(snapshots.head.snapshot.counters).values.head.value
-    val second = retrieve.counter(snapshots(1).snapshot.counters).values.head.value
-
-    assert(first == 10)
-    assert(second == 3)
+      assert(first == 10)
+      assert(second == 3)
+    }
   }
 
   test("4.meter") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       val meter: Resource[IO, Meter[IO]] = agent.facilitate("meter")(_.meter("meter", _.withUnit(AUD)))
       meter.use(m => m.mark(10) >> m.mark(20) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val meter = retrieve.meter(mr.snapshot.meters).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(meter.aggregate == 30)
-    assert(meter.squants.unitSymbol == AUD.symbol)
-    assert(meter.squants.dimensionName == Money.name)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val meter = retrieve.meter(mr.snapshot.meters).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(meter.aggregate == 30)
+      assert(meter.squants.unitSymbol == AUD.symbol)
+      assert(meter.squants.dimensionName == Money.name)
+    }
   }
 
   test("4b.meter mark") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("meter")(_.meter("meter"))
         .use { meter =>
           meter.mark(10) >> agent.adhoc.report.void
         }
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    val meter = retrieve.meter(mr.snapshot.meters).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(meter.aggregate == 10)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val meter = retrieve.meter(mr.snapshot.meters).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(meter.aggregate == 10)
+    }
   }
 
   test("5.meter disable") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("meter")(_.meter("meter", _.enable(false)))
         .use(_.mark(10) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(mr.snapshot.isEmpty)
-    assert(retrieve.meter(mr.snapshot.meters).isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(mr.snapshot.isEmpty)
+      assert(retrieve.meter(mr.snapshot.meters).isEmpty)
+    }
   }
 
   test("6.histogram") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Bytes)))
         .use(m => m.update(10) >> m.update(20) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(histo.updates == 2)
-    assert(histo.max == 20)
-    assert(histo.squants.unitSymbol == Bytes.symbol)
-    assert(histo.squants.dimensionName == Information.name)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(histo.updates == 2)
+      assert(histo.max == 20)
+      assert(histo.squants.unitSymbol == Bytes.symbol)
+      assert(histo.squants.dimensionName == Information.name)
+    }
   }
 
   test("6b.histogram update") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram"))
         .use { histogram =>
           histogram.update(10) >> agent.adhoc.report.void
         }
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(histo.updates == 1)
-    assert(histo.max == 10)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(histo.updates == 1)
+      assert(histo.max == 10)
+    }
   }
 
   test("7.histogram timer") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Milliseconds)))
         .use(m => m.update(1030) >> m.update(200) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(histo.updates == 2)
-    assert(histo.max == 1030)
-    assert(histo.squants.unitSymbol == Milliseconds.symbol)
-    assert(histo.squants.dimensionName == Time.name)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(histo.updates == 2)
+      assert(histo.max == 1030)
+      assert(histo.squants.unitSymbol == Milliseconds.symbol)
+      assert(histo.squants.dimensionName == Time.name)
+    }
   }
 
   test("8.histogram percent") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Percent)))
         .use(m => m.update(30) >> m.update(50) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val histo = retrieve.histogram(mr.snapshot.histograms).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(histo.updates == 2)
-    assert(histo.max == 50)
-    assert(histo.squants.unitSymbol == Percent.symbol)
-    assert(histo.squants.dimensionName == Dimensionless.name)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val histo = retrieve.histogram(mr.snapshot.histograms).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(histo.updates == 2)
+      assert(histo.max == 50)
+      assert(histo.squants.unitSymbol == Percent.symbol)
+      assert(histo.squants.dimensionName == Dimensionless.name)
+    }
   }
 
   test("9.histogram disable") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.enable(false).withUnit(Bytes)))
         .use(_.update(10) >>
           agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(mr.snapshot.isEmpty)
-    assert(retrieve.histogram(mr.snapshot.histograms).isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(mr.snapshot.isEmpty)
+      assert(retrieve.histogram(mr.snapshot.histograms).isEmpty)
+    }
   }
 
   test("10.timer") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
         .use(_.elapsedNano(30.seconds.toNanos) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    val timer = retrieve.timer(mr.snapshot.timers).values.head
-    assert(timer.max == 30.seconds.toJava)
-    assert(mr.snapshot.nonEmpty)
-    assert(timer.calls == 1)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val timer = retrieve.timer(mr.snapshot.timers).values.head
+      assert(timer.max == 30.seconds.toJava)
+      assert(mr.snapshot.nonEmpty)
+      assert(timer.calls == 1)
+    }
   }
 
   test("10b.timer elapsedNano") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
         .use { timer =>
           timer.elapsedNano(10) >> agent.adhoc.report.void
         }
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    val timer = retrieve.timer(mr.snapshot.timers).values.head
-    assert(mr.snapshot.nonEmpty)
-    assert(timer.calls == 1)
-    assert(timer.max == 10.nanos.toJava)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val timer = retrieve.timer(mr.snapshot.timers).values.head
+      assert(mr.snapshot.nonEmpty)
+      assert(timer.calls == 1)
+      assert(timer.max == 10.nanos.toJava)
+    }
   }
 
   test("11.timer disable") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))))
         .use(_.elapsedNano(10) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-    assert(mr.snapshot.isEmpty)
-    assert(retrieve.timer(mr.snapshot.timers).isEmpty)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      assert(mr.snapshot.isEmpty)
+      assert(retrieve.timer(mr.snapshot.timers).isEmpty)
+    }
   }
 
   test("12.empty") {
-    val mr = service
+    service
       .eventStream(_.adhoc.report)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    assert(mr.snapshot.isEmpty)
+      .map { mr =>
+        assert(mr.snapshot.isEmpty)
+      }
   }
 
   test("13.conflict name") {
-    val mr = service
+    service
       .eventStream(agent =>
         agent.facilitate("same.name") { mtx =>
           val exec = for {
@@ -292,15 +303,16 @@ class MetricsTest extends AnyFunSuite {
       .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    assert(mr.snapshot.hasDuplication)
-    val counts: Map[MetricId, CounterData] = retrieve.counter(mr.snapshot.counters)
-    assert(counts.values.toList.map(_.value).contains(1L))
-    assert(counts.values.toList.map(_.value).contains(2L))
+      .map { mr =>
+        assert(mr.snapshot.hasDuplication)
+        val counts: Map[MetricId, CounterData] = retrieve.counter(mr.snapshot.counters)
+        assert(counts.values.toList.map(_.value).contains(1L))
+        assert(counts.values.toList.map(_.value).contains(2L))
+      }
   }
 
   test("13a.concurrent metric registration") {
-    val mr = service.eventStream { agent =>
+    service.eventStream { agent =>
       val acquire = (1 to 128).toList.parTraverse { index =>
         agent.facilitate(s"concurrent-$index")(_.counter("counter")).allocated
       }
@@ -309,15 +321,15 @@ class MetricsTest extends AnyFunSuite {
         counters.parTraverse_ { case (counter, _) => counter.inc(1) } >>
           agent.adhoc.report
       }(_.traverse_ { case (_, release) => release })
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
-
-    val counts = retrieve.counter(mr.snapshot.counters).values.toList.map(_.value)
-    assert(counts.size == 128)
-    assert(counts.forall(_ == 1L))
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val counts = retrieve.counter(mr.snapshot.counters).values.toList.map(_.value)
+      assert(counts.size == 128)
+      assert(counts.forall(_ == 1L))
+    }
   }
 
   test("13b.periodic reports stop with downstream cancellation") {
-    val reports = TaskGuard[IO]("periodic-metrics")
+    TaskGuard[IO]("periodic-metrics")
       .service("periodic-metrics")
       .updateConfig(_.withReportPolicy(_.fixedDelay(100.millis).repeat))
       .eventStream(_ => IO.never)
@@ -326,34 +338,35 @@ class MetricsTest extends AnyFunSuite {
       .take(2)
       .compile
       .toList
-      .unsafeRunSync()
-
-    assert(reports.size == 2)
-    assert(reports.forall(_.index.isInstanceOf[MetricsSnapshot.Periodic]))
+      .map { reports =>
+        assert(reports.size == 2)
+        assert(reports.forall(_.index.isInstanceOf[MetricsSnapshot.Periodic]))
+      }
   }
 
   test("14.measured.retry - give up") {
-    val sm = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .retry(_.withDecision(tv => IO(tv.followPolicy)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
-    assert(sm.isEmpty)
+    }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.map { sm =>
+      assert(sm.isEmpty)
+    }
   }
 
   test("15.measured.retry - unworthy retry") {
-    val sm = service.eventStream { agent =>
+    service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
           IO(ra.giveUp).flatTap(d => agent.logger.warn(d, ra.cause))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.unsafeRunSync()
-
-    assert(sm.size == 1)
+    }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.map { sm =>
+      assert(sm.size == 1)
+    }
   }
 
   test("16.meter + counter") {
-    val List(report) = service.eventStream { agent =>
+    service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {
           m <- mtx.meter("aaa-bbb")
@@ -361,7 +374,9 @@ class MetricsTest extends AnyFunSuite {
         } yield m.mark(10) >> c.inc(10)
       }
       run.use(a => a >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
-    assert(report.index.isInstanceOf[MetricsSnapshot.Adhoc])
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.map { xs =>
+      val List(report) = xs: @unchecked
+      assert(report.index.isInstanceOf[MetricsSnapshot.Adhoc])
+    }
   }
 }

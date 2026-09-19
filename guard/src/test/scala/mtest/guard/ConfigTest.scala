@@ -1,14 +1,13 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
-class ConfigTest extends AnyFunSuite {
+class ConfigTest extends CatsEffectSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
@@ -20,18 +19,18 @@ class ConfigTest extends AnyFunSuite {
       .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).repeat.limited(5)))
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("2.withZoneId builder function") {
-    val events = TaskGuard[IO]("zone")
+    TaskGuard[IO]("zone")
       .updateConfig(_.withZoneId(_.sydneyTime))
       .service("zone")
       .eventStream(_ => IO.unit)
       .compile
       .toList
-      .unsafeRunSync()
-    assert(events.head.serviceIdentity.launchTime.zoneId.getId == "Australia/Sydney")
+      .map { events =>
+        assert(events.head.serviceIdentity.launchTime.zoneId.getId == "Australia/Sydney")
+      }
   }
 
 }

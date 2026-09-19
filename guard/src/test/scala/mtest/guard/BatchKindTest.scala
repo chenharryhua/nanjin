@@ -4,14 +4,14 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.batch.BatchKind
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 /** `BatchKind` is a two-case enum whose `Encoder` and `Show` both render the case name (`productPrefix`).
   * Both renders are wire contracts: the `Encoder` feeds the batch JSON reports, and `Show` feeds the batch
   * report key built in `data.batchEntry` (e.g. `show"$mode $k Batch"` -> "Sequential Quasi Batch"). These
   * tests pin the exact strings so a rename of a case cannot silently change the wire format.
   */
-class BatchKindTest extends AnyFunSuite {
+class BatchKindTest extends FunSuite {
 
   test("1.Encoder renders each case to its case name") {
     assert(BatchKind.Quasi.asJson == Json.fromString("Quasi"))
