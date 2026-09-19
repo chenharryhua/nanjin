@@ -5,6 +5,7 @@ import cats.effect.std.Mutex
 import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import cats.syntax.show.showInterpolator
 import org.http4s.Method.POST
 import org.http4s.client.Client
@@ -59,19 +60,20 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     Resource.eval(
-      getToken.flatMap(token => Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed)))))
-      .flatMap { auth_token =>
+      getToken.flatMap(token => Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))) // init
+      .flatMap { token_state_ref =>
         Resource.eval(Mutex[F]).flatMap { refresh_lock =>
           def replace_token(expected_generation: Long, replace: T => F[T]): F[TokenState] =
             refresh_lock.lock.surround {
               F.uncancelable { poll =>
-                auth_token.get.flatMap { current =>
+                token_state_ref.get.flatMap { current =>
                   if (current.generation === expected_generation)
                     poll(replace(current.token)).flatMap { token =>
                       Deferred[F, Unit].flatMap { changed =>
                         val updated = TokenState(token, current.generation + 1L, changed)
-                        auth_token.set(updated).flatMap(_ =>
-                          current.changed.complete(()).flatMap(_ => F.pure(updated)))
+                        token_state_ref.set(updated)
+                          .flatMap(_ => current.changed.complete(()))
+                          .as(updated)
                       }
                     }
                   else
@@ -92,15 +94,14 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
               .handleErrorWith(_ => await_retry_or_change(scheduled))
 
           def renew_after_delay: F[Unit] =
-            auth_token.get.flatMap { scheduled =>
+            token_state_ref.get.flatMap { scheduled =>
               renewalDelay(scheduled.token) match {
                 case Some(delay) =>
                   F.race(F.sleep(delay), scheduled.changed.get).flatMap {
                     case Left(_)  => renew_until_success(scheduled)
                     case Right(_) => F.unit
                   }
-                case None =>
-                  scheduled.changed.get
+                case None => scheduled.changed.get
               }
             }
 
@@ -112,7 +113,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
               // `makeCaseFull` masks the handoff from each allocated response to this outer resource while
               // `poll` keeps response acquisition and token refresh cancelable. On 401, the first response
               // is finalized before the retry is acquired so a bounded connection pool can supply the retry.
-              Resource.eval(auth_token.get).flatMap { requested =>
+              Resource.eval(token_state_ref.get).flatMap { requested =>
                 Resource
                   .makeCaseFull[F, (Response[F], Resource.ExitCase => F[Unit])] { poll =>
                     poll(allocate_response(requested.token)).flatMap {
