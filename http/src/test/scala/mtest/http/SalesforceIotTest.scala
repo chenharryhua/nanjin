@@ -1,15 +1,15 @@
 package mtest.http
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
-import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
+import com.github.chenharryhua.nanjin.http.client.middleware.{httpRetry, recklessHttpRetry}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import munit.CatsEffectSuite
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
@@ -19,11 +19,10 @@ import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*
 import org.http4s.server.{Router, Server}
-import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 
-class SalesforceIotTest extends AnyFunSuite {
+class SalesforceIotTest extends CatsEffectSuite {
   private val token = Json.obj(
     "access_token" -> "access".asJson,
     "instance_url" -> "http://127.0.0.1:8080".asJson,
@@ -51,7 +50,8 @@ class SalesforceIotTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = false, _ => false))
-    .map(httpRetry(sydneyTime, _.fixedDelay(1.second).repeat))
+    // token endpoint is a POST, so retry regardless of method to survive transient 5xx
+    .map(recklessHttpRetry(sydneyTime, _.fixedDelay(1.second).repeat))
 
   val login: Login[IO] = Salesforce(
     authClient,
@@ -73,6 +73,9 @@ class SalesforceIotTest extends AnyFunSuite {
       .map(httpRetry(sydneyTime, _.fixedDelay(2.second).repeat))
 
   test("1.salesforce.iot") {
-    (server *> client).use(_.expect[String]("data")).unsafeRunSync()
+    // body is JSON-encoded by circeEntityEncoder, so it comes back quoted
+    (server *> client).use(_.expect[String]("data")).map { data =>
+      assertEquals(data, "\"salesforce.iot.data\"")
+    }
   }
 }
