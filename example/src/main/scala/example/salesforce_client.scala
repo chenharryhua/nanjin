@@ -43,7 +43,7 @@ object salesforce_client {
         client_secret = Secret(cs.value),
         username = un.value,
         password = Secret(pw.value))
-    }.flatMap(pg => Salesforce(authClient, pg))
+    }.flatMap(pg => Salesforce(authClient, pg, 2.hours))
 
   // a request client whose calls carry the acquired Salesforce OAuth token
   private val client: Resource[IO, Client[IO]] =
