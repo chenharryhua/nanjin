@@ -1,19 +1,18 @@
 package mtest.terminals
 
 import better.files.*
-import cats.effect.unsafe.implicits.global
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
 import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionResult}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
+import munit.CatsEffectSuite
 import mtest.terminals.HadoopTestData.hdp
-import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, LocalDateTime}
 
-class HadoopTest extends AnyFunSuite {
+class HadoopTest extends CatsEffectSuite {
   private val path: Url = Url.parse("./data/test/terminals/hadoop")
 
   private val p1 = path / ymdh(LocalDateTime.of(2023, 8, 28, 2, 0, 0)) / "a.txt"
@@ -27,34 +26,38 @@ class HadoopTest extends AnyFunSuite {
   File(p4.toString()).createFileIfNotExists(createParents = true)
 
   test("1.ymd") {
-    assert(hdp.earliestYmd(path).unsafeRunSync().get.toString().takeRight(25) === "Year=2023/Month=08/Day=28")
-    assert(hdp.latestYmd(path).unsafeRunSync().get.toString().takeRight(25) === "Year=2023/Month=08/Day=30")
+    for {
+      earliest <- hdp.earliestYmd(path)
+      latest <- hdp.latestYmd(path)
+    } yield {
+      assert(earliest.get.toString().takeRight(25) == "Year=2023/Month=08/Day=28")
+      assert(latest.get.toString().takeRight(25) == "Year=2023/Month=08/Day=30")
+    }
   }
   test("2.ymdh") {
-    assert(
-      hdp
-        .earliestYmdh(path)
-        .unsafeRunSync()
-        .get
-        .toString()
-        .takeRight(33) === "Year=2023/Month=08/Day=28/Hour=02")
-    assert(
-      hdp
-        .latestYmdh(path)
-        .unsafeRunSync()
-        .get
-        .toString()
-        .takeRight(33) === "Year=2023/Month=08/Day=30/Hour=01")
+    for {
+      earliest <- hdp.earliestYmdh(path)
+      latest <- hdp.latestYmdh(path)
+    } yield {
+      assert(earliest.get.toString().takeRight(33) == "Year=2023/Month=08/Day=28/Hour=02")
+      assert(latest.get.toString().takeRight(33) == "Year=2023/Month=08/Day=30/Hour=01")
+    }
   }
   test("3.exist") {
-    assert(hdp.exists(p1).unsafeRunSync())
-    assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) >= 4)
+    for {
+      exists <- hdp.exists(p1)
+      statuses <- hdp.locatedFileStatus(path)
+    } yield {
+      assert(exists)
+      assert(statuses.count(_.isFile) >= 4)
+    }
   }
 
   test("4.file in") {
-    val files = hdp.filesIn(p1).unsafeRunSync()
-    assert(files.size === 1)
-    assert(files.head.toString().takeRight(5) === "a.txt")
+    hdp.filesIn(p1).map { files =>
+      assert(files.size == 1)
+      assert(files.head.toString().takeRight(5) == "a.txt")
+    }
   }
 
   test("5.delete") {
@@ -64,10 +67,11 @@ class HadoopTest extends AnyFunSuite {
       after <- hdp.exists(p1)
     } yield (before, del, after)
 
-    val (before, del, after) = delAction.unsafeRunSync()
-    assert(before)
-    assert(del)
-    assert(!after)
+    delAction.map { case (before, del, after) =>
+      assert(before)
+      assert(del)
+      assert(!after)
+    }
   }
 
   test("6.empty folders") {
@@ -78,10 +82,11 @@ class HadoopTest extends AnyFunSuite {
     File(nestedEmptyFolder.toString()).createDirectories()
     File(nestedParent.toString()).createDirectories()
 
-    val empties = hdp.emptyFolders(path).unsafeRunSync().map(_.toString)
-    assert(empties.exists(_.endsWith("/empty")))
-    assert(empties.exists(_.endsWith("/sub")))
-    assert(empties.exists(_.endsWith("/parent")))
+    hdp.emptyFolders(path).map(_.map(_.toString)).map { empties =>
+      assert(empties.exists(_.endsWith("/empty")))
+      assert(empties.exists(_.endsWith("/sub")))
+      assert(empties.exists(_.endsWith("/parent")))
+    }
   }
 
   test("7.toHadoopPath") {
@@ -137,31 +142,45 @@ class HadoopTest extends AnyFunSuite {
 
   test("13.date folder retention removes stale partitions") {
     val retentionRoot = path / "retention" / "isolated"
-    hdp.delete(retentionRoot).unsafeRunSync()
 
     val keep = retentionRoot / ymd(LocalDate.of(2025, 8, 10))
     val stale = retentionRoot / ymd(LocalDate.of(2024, 8, 10))
-    File(keep.toString()).createDirectories()
-    File(stale.toString()).createDirectories()
-    File((keep / "data.txt").toString()).createFileIfNotExists(createParents = true)
-    File((stale / "old.txt").toString()).createFileIfNotExists(createParents = true)
 
-    val result = hdp.dateFolderRetention(retentionRoot, List(LocalDate.of(2025, 8, 10))).unsafeRunSync()
-
-    assert(result.exists(_.status == Retained))
-    assert(result.exists(_.status == Removed))
-    assert(hdp.exists(keep).unsafeRunSync())
-    assert(!hdp.exists(stale).unsafeRunSync())
+    for {
+      _ <- hdp.delete(retentionRoot)
+      _ <- IO {
+        File(keep.toString()).createDirectories()
+        File(stale.toString()).createDirectories()
+        File((keep / "data.txt").toString()).createFileIfNotExists(createParents = true)
+        File((stale / "old.txt").toString()).createFileIfNotExists(createParents = true)
+      }
+      result <- hdp.dateFolderRetention(retentionRoot, List(LocalDate.of(2025, 8, 10)))
+      keepExists <- hdp.exists(keep)
+      staleExists <- hdp.exists(stale)
+    } yield {
+      assert(result.exists(_.status == Retained))
+      assert(result.exists(_.status == Removed))
+      assert(keepExists)
+      assert(!staleExists)
+    }
   }
 
   test("14.missing paths are handled as empty") {
     val missingRoot = path / "retention" / "missing"
 
-    assert(!hdp.exists(missingRoot).unsafeRunSync())
-    assert(hdp.filesIn(missingRoot).unsafeRunSync().isEmpty)
-    assert(hdp.dataFolders(missingRoot).unsafeRunSync().isEmpty)
-    assert(hdp.emptyFolders(missingRoot).unsafeRunSync().isEmpty)
-    assert(hdp.dateFolderRetention(missingRoot, List(LocalDate.of(2025, 8, 10))).unsafeRunSync().isEmpty)
+    for {
+      exists <- hdp.exists(missingRoot)
+      files <- hdp.filesIn(missingRoot)
+      dataFolders <- hdp.dataFolders(missingRoot)
+      emptyFolders <- hdp.emptyFolders(missingRoot)
+      retention <- hdp.dateFolderRetention(missingRoot, List(LocalDate.of(2025, 8, 10)))
+    } yield {
+      assert(!exists)
+      assert(files.isEmpty)
+      assert(dataFolders.isEmpty)
+      assert(emptyFolders.isEmpty)
+      assert(retention.isEmpty)
+    }
   }
 
   test("15.copy keeps source and overwrites target") {
@@ -169,16 +188,21 @@ class HadoopTest extends AnyFunSuite {
     val source = root / "source.txt"
     val target = root / "target.txt"
 
-    hdp.delete(root).unsafeRunSync()
-    File(source.toString()).createFileIfNotExists(createParents = true).overwrite("copied-content")
-    File(target.toString()).createFileIfNotExists(createParents = true).overwrite("old-content")
-
-    val copied = hdp.copy(source, target).unsafeRunSync()
-
-    assert(copied)
-    assert(hdp.exists(source).unsafeRunSync())
-    assert(hdp.exists(target).unsafeRunSync())
-    assert(File(target.toString()).contentAsString == "copied-content")
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO {
+        File(source.toString()).createFileIfNotExists(createParents = true).overwrite("copied-content")
+        File(target.toString()).createFileIfNotExists(createParents = true).overwrite("old-content")
+      }
+      copied <- hdp.copy(source, target)
+      sourceExists <- hdp.exists(source)
+      targetExists <- hdp.exists(target)
+    } yield {
+      assert(copied)
+      assert(sourceExists)
+      assert(targetExists)
+      assert(File(target.toString()).contentAsString == "copied-content")
+    }
   }
 
   test("16.move deletes source and keeps target") {
@@ -186,19 +210,22 @@ class HadoopTest extends AnyFunSuite {
     val source = root / "source.txt"
     val target = root / "target.txt"
 
-    hdp.delete(root).unsafeRunSync()
-    File(source.toString()).createFileIfNotExists(createParents = true).overwrite("moved-content")
-
-    val moved = hdp.move(source, target).unsafeRunSync()
-
-    assert(moved)
-    assert(!hdp.exists(source).unsafeRunSync())
-    assert(hdp.exists(target).unsafeRunSync())
-    assert(File(target.toString()).contentAsString == "moved-content")
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO(File(source.toString()).createFileIfNotExists(createParents = true).overwrite("moved-content"))
+      moved <- hdp.move(source, target)
+      sourceExists <- hdp.exists(source)
+      targetExists <- hdp.exists(target)
+    } yield {
+      assert(moved)
+      assert(!sourceExists)
+      assert(targetExists)
+      assert(File(target.toString()).contentAsString == "moved-content")
+    }
   }
 
   test("17.FileSource.bytes rejects sub-byte buffer size") {
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       hdp.source(path / "any.txt").bytes(squants.information.Bytes(0))
     }
   }
@@ -209,13 +236,13 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("19.rotateSink rejects size=0") {
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       hdp.rotateSink(java.time.ZoneId.systemDefault(), 0L)(_ => path)
     }
   }
 
   test("20.rotateSink rejects negative size") {
-    assertThrows[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       hdp.rotateSink(java.time.ZoneId.systemDefault(), -1L)(_ => path)
     }
   }

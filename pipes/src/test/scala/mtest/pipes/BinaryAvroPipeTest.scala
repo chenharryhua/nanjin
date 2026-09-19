@@ -1,18 +1,17 @@
 package mtest.pipes
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.binaryAvro
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import fs2.Stream
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
+import munit.CatsEffectSuite
 import org.apache.hadoop.conf.Configuration
-import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.InformationConversions
 
-class BinaryAvroPipeTest extends AnyFunSuite {
+class BinaryAvroPipeTest extends CatsEffectSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = Tiger.to
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
@@ -20,15 +19,14 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   val root: Url = Url("./data/test/pipes/bin_avro/")
   test("1.binary-json identity") {
 
-    assert(
-      data
-        .map(encoder.to)
-        .through(binaryAvro.toBytes[IO](AvroSchema[Tiger]))
-        .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
-        .map(Tiger.from.from)
-        .compile
-        .toList
-        .unsafeRunSync() === tigers)
+    data
+      .map(encoder.to)
+      .through(binaryAvro.toBytes[IO](AvroSchema[Tiger]))
+      .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
+      .map(Tiger.from.from)
+      .compile
+      .toList
+      .map(res => assert(res == tigers))
   }
 
 //  test("binary-json identity akka") {
@@ -50,7 +48,6 @@ class BinaryAvroPipeTest extends AnyFunSuite {
 
   test("2.write/read identity") {
     val path = root / "bin-avro.avro"
-    hdp.delete(path).unsafeRunSync()
     val write =
       data.map(encoder.to).through(binaryAvro.toBytes[IO](AvroSchema[Tiger])).through(hdp.sink(path).bytes)
     val read =
@@ -59,7 +56,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .bytes(1.kb)
         .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.from.from)
-    val run = write.compile.drain >> read.compile.toList
-    assert(run.unsafeRunSync() === tigers)
+    val run = hdp.delete(path) >> write.compile.drain >> read.compile.toList
+    run.map(res => assert(res == tigers))
   }
 }

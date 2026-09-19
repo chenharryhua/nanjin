@@ -1,7 +1,6 @@
 package mtest.terminals
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import fs2.Stream
 import fs2.text.{lines, utf8}
@@ -10,19 +9,17 @@ import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
+import munit.CatsEffectSuite
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.scalatest.Assertion
-import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
 
-class NJBytesTest extends AnyFunSuite {
+class NJBytesTest extends CatsEffectSuite {
 
-  def fs2(path: Url, data: Set[Tiger]): Assertion = {
-    hdp.delete(path).unsafeRunSync()
+  def fs2(path: Url, data: Set[Tiger]): IO[Unit] = {
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(path).bytes
     val src = hdp.source(path).bytes(64.bytes)
@@ -34,27 +31,28 @@ class NJBytesTest extends AnyFunSuite {
       .compile
       .drain >>
       src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
-    assert(action.unsafeRunSync().toSet == data)
-    assert(
-      hdp
-        .source(path)
-        .bytes(1.kb)
-        .prefetchN(3)
-        .chunks
-        .map { c =>
-          assert(c.nonEmpty)
-          c
-        }
-        .unchunks
-        .through(utf8.decode)
-        .through(lines)
-        .map(decode[Tiger](_))
-        .rethrow
-        .compile
-        .toList
-        .unsafeRunSync()
-        .toSet == data)
-
+    for {
+      _ <- hdp.delete(path)
+      actionResult <- action
+      _ = assert(actionResult.toSet == data)
+      roundTrip <-
+        hdp
+          .source(path)
+          .bytes(1.kb)
+          .prefetchN(3)
+          .chunks
+          .map { c =>
+            assert(c.nonEmpty)
+            c
+          }
+          .unchunks
+          .through(utf8.decode)
+          .through(lines)
+          .map(decode[Tiger](_))
+          .rethrow
+          .compile
+          .toList
+    } yield assert(roundTrip.toSet == data)
   }
   val fs2Root: Url = Url.parse("./data/test/terminals/bytes/fs2")
 
@@ -79,7 +77,7 @@ class NJBytesTest extends AnyFunSuite {
     fs2(fs2Root / "tiger.json.deflate", TestData.tigerSet)
   }
 
-  ignore("ZSTANDARD") {
+  test("ZSTANDARD".ignore) {
     fs2(fs2Root / "tiger.json.zst", TestData.tigerSet)
   }
 
@@ -91,11 +89,10 @@ class NJBytesTest extends AnyFunSuite {
   test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
-    hdp.delete(path).unsafeRunSync()
     val sink =
       hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
         path / s"${t.index}.json").bytes
-    Stream
+    hdp.delete(path) >> Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
@@ -105,15 +102,13 @@ class NJBytesTest extends AnyFunSuite {
       .through(sink)
       .compile
       .drain
-      .unsafeRunSync()
   }
 
   test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
-    hdp.delete(path).unsafeRunSync()
     val sink = hdp.rotateSink(sydneyTime, 10000)(t => path / s"${t.index}.json").bytes
-    Stream
+    hdp.delete(path) >> Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
@@ -123,6 +118,5 @@ class NJBytesTest extends AnyFunSuite {
       .through(sink)
       .compile
       .drain
-      .unsafeRunSync()
   }
 }

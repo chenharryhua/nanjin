@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class ChunkSizeTest extends AnyFunSuite {
+class ChunkSizeTest extends FunSuite {
   def fun(cs: ChunkSize): Unit = assert(cs.value > 0): Unit
 
   test("1.chunk size - construct and value") {
