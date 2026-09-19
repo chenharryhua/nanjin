@@ -97,15 +97,6 @@ private object EvalPolicy {
           }
         }
 
-      case Expire(policy, ttl) =>
-        policy.map { stepper =>
-          TickStepper { (acq: Acquisition) =>
-            val elapsed = Duration.between(acq.tick.launchTime, acq.now)
-            if (elapsed.compareTo(ttl) >= 0) None.pure[F]
-            else
-              stepper(acq).map(_.filter(t => Duration.between(t.launchTime, t.conclude).compareTo(ttl) < 0))
-          }
-        }
     }
 
   def apply[F[_]: {Random, Monad}](policy: Fix[PolicyF]): LazyList[TickStepper[F]] =

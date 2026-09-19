@@ -29,7 +29,6 @@ private object PolicyF {
   final case class Except[K](policy: K, except: LocalTime) extends PolicyF[K]
   final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
   final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
-  final case class Expire[K](policy: K, ttl: Duration) extends PolicyF[K]
 
   inline val EMPTY = "empty"
   inline val CRONTAB = "crontab"
@@ -49,13 +48,12 @@ private object PolicyF {
   inline val REPEAT = "repeat"
   inline val EXCEPT = "except"
   inline val OFFSET = "offset"
-  inline val EXPIRE = "expire"
 }
 
 // don't extend AnyVal as monocle doesn't like it
 // use case class for free equal method
 final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
-  import PolicyF.{Except, Expire, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
+  import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
   override def toString: String = ShowPolicy(policy)
 
   /** Limit the policy to at most `num` ticks. Non-positive values produce an empty policy.
@@ -115,16 +113,6 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   def jitter(max: FiniteDuration): Policy =
     jitter(ScalaDuration.Zero, max)
 
-  /** Set an absolute time-to-live for this policy. After `ttl` has elapsed since the policy's launch time, no
-    * more ticks are produced — regardless of `repeat`, `followedBy`, or any other combinator.
-    *
-    * @param ttl
-    *   must be positive
-    */
-  def expire(ttl: FiniteDuration): Policy = {
-    require(ttl > ScalaDuration.Zero, show"$ttl must be positive")
-    Policy(Fix(Expire(policy, ttl.toJava)))
-  }
 }
 
 object Policy {

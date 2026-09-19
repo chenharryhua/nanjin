@@ -8,7 +8,7 @@ import java.time.LocalTime
 import scala.concurrent.duration.DurationInt
 
 /** Rendering tests for `ShowPolicy`, exercised through `Show[Policy]`/`toString` (the object itself is
-  * package-private). Covers every `PolicyF` node: the four leaf schedules and all eight operator nodes, plus
+  * package-private). Covers every `PolicyF` node: the four leaf schedules and all seven operator nodes, plus
   * nesting/precedence and the leaf value formats (ISO-8601 `Duration`, `LocalTime`, raw cron string).
   */
 class ShowPolicyTest extends AnyFunSuite {
@@ -81,19 +81,15 @@ class ShowPolicyTest extends AnyFunSuite {
     assert(Policy.fixedDelay(1.second).jitter(30.seconds).show == "fixedDelay(PT1S).jitter(PT0S,PT30S)")
   }
 
-  test("15.expire appends the ISO-8601 ttl") {
-    assert(Policy.fixedDelay(1.second).repeat.expire(1.hour).show == "fixedDelay(PT1S).repeat.expire(PT1H)")
-  }
-
   // ---- nesting / precedence ------------------------------------------------------------------------
 
-  test("16.chained operators render left-to-right, each wrapping the accumulated policy") {
+  test("15.chained operators render left-to-right, each wrapping the accumulated policy") {
     assert(
       Policy.crontab(_.every5Minutes).repeat.jitter(30.seconds).limited(10).show ==
         "crontab(0 */5 * ? * *).repeat.jitter(PT0S,PT30S).limited(10)")
   }
 
-  test("17.followedBy composes rendered subpolicies on both sides") {
+  test("16.followedBy composes rendered subpolicies on both sides") {
     val leader = Policy.fixedDelay(1.second).limited(2)
     val follower = Policy.fixedRate(5.seconds).repeat
     assert(
@@ -101,7 +97,7 @@ class ShowPolicyTest extends AnyFunSuite {
         "fixedDelay(PT1S).limited(2).followedBy(fixedRate(PT5S).repeat)")
   }
 
-  test("18.Show[Policy] agrees with toString") {
+  test("17.Show[Policy] agrees with toString") {
     val policy = Policy.crontab(_.every5Minutes).repeat.jitter(30.seconds)
     assert(policy.show == policy.toString)
   }
