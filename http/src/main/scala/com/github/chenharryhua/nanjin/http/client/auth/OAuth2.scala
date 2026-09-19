@@ -103,9 +103,12 @@ private class ClientCredentialsAuth[F[_]: Async](
 
   override def login(client: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
-      val tac: TokenAuthClient[F, Token] = new TokenAuthClient[F, Token]() {
+      val tac: TokenAuthClient[F] = new TokenAuthClient[F]() {
+        override protected type T = Token
         override protected def getToken: F[Token] =
           postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+
+        override protected def refreshToken: Token => F[Token] = _ => getToken
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
           uuidGenerator.flatMap { uuid =>
@@ -177,7 +180,8 @@ private class AuthorizationCodeAuth[F[_]: Async](
 
   override def login(client: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
-      val tac = new TokenAuthClient[F, Token] {
+      val tac = new TokenAuthClient[F] {
+        override protected type T = Token
         override protected def getToken: F[Token] =
           uuidGenerator.flatMap { uuid =>
             authenticationClient.expect[Token](

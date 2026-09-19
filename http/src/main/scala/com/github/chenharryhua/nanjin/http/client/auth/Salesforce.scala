@@ -60,9 +60,12 @@ object Salesforce {
 
     override def login(client: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
-        val tac = new TokenAuthClient[F, Token] {
+        val tac = new TokenAuthClient[F] {
+          override protected type T = Token
           override protected def getToken: F[Token] =
             postToken[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
+
+          override protected def refreshToken: Token => F[Token] = _ => getToken
 
           override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
             getToken.delayBy(expiresIn).flatMap(ref.set)

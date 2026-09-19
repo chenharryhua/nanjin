@@ -30,15 +30,14 @@ trait Login[F[_]] {
   *
   * Subclasses need to implement:
   *   - `getToken`: how to obtain a token without using a current token
+  *   - `refreshToken`: how to replace a token rejected by the protected resource
   *   - `renewToken`: how to refresh or schedule token renewal
   *   - `withToken`: how to attach the token to an HTTP request
-  *
-  * By default, a rejected token is replaced with `getToken`. Subclasses may override `refreshToken` when
-  * replacement depends on the current token, such as an OAuth refresh-token grant.
   */
-abstract private class TokenAuthClient[F[_], T](using F: Async[F]) extends Http4sClientDsl[F] {
+abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
+  protected type T // token type
   protected def getToken: F[T]
-  protected def refreshToken: T => F[T] = _ => getToken
+  protected def refreshToken: T => F[T]
   protected def renewToken(ref: Ref[F, T]): F[Unit]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
