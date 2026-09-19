@@ -3,9 +3,9 @@ package mtest.kafka
 import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import fs2.kafka.ConsumerRecord
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class NJConsumerRecordDecoderTest extends AnyFunSuite {
+class NJConsumerRecordDecoderTest extends FunSuite {
 
   val topic = TopicDef[Integer, Integer]("decode.test", Primitive[Integer], Primitive[Integer])
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =

@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.Json
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.concurrent.duration.DurationInt
 
@@ -19,7 +19,7 @@ import scala.concurrent.duration.DurationInt
   * The `MonadicBatch` encoder renders no produced value at all (its jobs are `JobState[Unit]` and its final
   * `A` is not serialized).
   */
-class JobLogRenderTest extends AnyFunSuite {
+class JobLogRenderTest extends FunSuite {
 
   private val batchId: BatchId = BatchId(1L)
   private val scope =

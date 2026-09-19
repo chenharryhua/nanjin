@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.aws
 
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 import software.amazon.awssdk.services.sqs.model.{Message, ReceiveMessageRequest}
 
-class SqsS3EventParserTest extends AnyFunSuite {
+class SqsS3EventParserTest extends FunSuite {
 
 // https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
   val event =

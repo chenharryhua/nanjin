@@ -10,9 +10,9 @@ import com.google.protobuf.DynamicMessage
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import io.circe.Json
 import org.apache.avro.generic.GenericRecord
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class TopicSyntaxTest extends AnyFunSuite {
+class TopicSyntaxTest extends FunSuite {
   test("1.topic name") {
     val _ = TopicName("abc.checked")
   }

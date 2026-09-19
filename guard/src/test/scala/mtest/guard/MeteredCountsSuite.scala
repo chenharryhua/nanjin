@@ -1,7 +1,7 @@
 package mtest.guard
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
@@ -46,7 +46,7 @@ object MeteredTestUtils {
       values.toMap
     )
 }
-class MeteredCountsSuite extends AnyFunSuite {
+class MeteredCountsSuite extends FunSuite {
 
   import MeteredTestUtils.*
   import MetricFixtures.*

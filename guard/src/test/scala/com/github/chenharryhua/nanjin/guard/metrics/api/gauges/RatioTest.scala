@@ -2,18 +2,17 @@ package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
 
 import cats.data.Ior
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 /** Tests for `Ratio`: the pure default `translator` (percentage rendering and its edge cases), the `noop`
   * instance, and the accumulation semantics (`incNumerator`/`incDenominator`/`incBoth`/`run` combine via the
   * `Ior` semigroup) observed end-to-end through a live registered ratio gauge.
   */
-class RatioTest extends AnyFunSuite {
+class RatioTest extends CatsEffectSuite {
 
   // ---- translator (pure) ---------------------------------------------------------------------------
 
@@ -49,17 +48,15 @@ class RatioTest extends AnyFunSuite {
 
   test("6.noop: every operation is a no-op that succeeds") {
     val r = Ratio.noop[IO]
-    (r.incNumerator(1) >> r.incDenominator(2) >> r.incBoth(3, 4) >> r.run(Ior.both(5, 6)))
-      .unsafeRunSync()
-    succeed
+    r.incNumerator(1) >> r.incDenominator(2) >> r.incBoth(3, 4) >> r.run(Ior.both(5, 6))
   }
 
   // ---- accumulation via a live gauge ---------------------------------------------------------------
 
   private val service = TaskGuard[IO]("ratio-test").service("ratio")
 
-  private def liveRatioValue(drive: Ratio[IO] => IO[Unit]): String = {
-    val mr = service
+  private def liveRatioValue(drive: Ratio[IO] => IO[Unit]): IO[String] =
+    service
       .eventStream { agent =>
         agent
           .metricsHubS("ratio")
@@ -71,23 +68,25 @@ class RatioTest extends AnyFunSuite {
       .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
-      .unsafeRunSync()
-    retrieve
-      .gauge[String](mr.snapshot.gauges)
-      .values
-      .headOption
-      .getOrElse(fail("no ratio gauge in snapshot"))
-  }
+      .map { mr =>
+        retrieve
+          .gauge[String](mr.snapshot.gauges)
+          .values
+          .headOption
+          .getOrElse(fail("no ratio gauge in snapshot"))
+      }
 
   test("7.live ratio accumulates increments across the three inc methods") {
     // 60/500 then +299/+500 via incBoth => 359/1000 = 35.9%
-    val value = liveRatioValue(r => r.incDenominator(500) >> r.incNumerator(60) >> r.incBoth(299, 500))
-    assert(value == "35.9%")
+    liveRatioValue(r => r.incDenominator(500) >> r.incNumerator(60) >> r.incBoth(299, 500)).map { value =>
+      assert(value == "35.9%")
+    }
   }
 
   test("8.live ratio: run folds an Ior the same as the direct inc methods") {
     // 1/2 accumulated purely through run(Ior)
-    val value = liveRatioValue(r => r.run(Ior.both(1L, 2L)))
-    assert(value == "50.0%")
+    liveRatioValue(r => r.run(Ior.both(1L, 2L))).map { value =>
+      assert(value == "50.0%")
+    }
   }
 }

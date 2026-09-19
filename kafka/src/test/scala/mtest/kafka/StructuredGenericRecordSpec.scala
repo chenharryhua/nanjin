@@ -8,13 +8,12 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.Serde
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import java.util
 import java.util.Optional
 
-class StructuredGenericRecordSpec extends AnyFlatSpec with Matchers {
+class StructuredGenericRecordSpec extends FunSuite {
 
   class FakeSchemaRegistryClient extends io.confluent.kafka.schemaregistry.client.SchemaRegistryClient {
     override def parseSchema(
@@ -65,30 +64,31 @@ class StructuredGenericRecordSpec extends AnyFlatSpec with Matchers {
   val structured: Unregistered[GenericRecord] = summon[Structured[GenericRecord]]
   val serde: Serde[GenericRecord] = ctx.asKey(structured).serde
 
-  it should "round-trip GenericRecord" in {
+  test("round-trip GenericRecord") {
     val bytes = serde.serializer.serialize("topic", record(1, "a"))
     val out = serde.deserializer.deserialize("topic", bytes)
 
-    out.get("id").asInstanceOf[Int] shouldBe 1
-    out.get("name").toString shouldBe "a"
+    assertEquals(out.get("id").asInstanceOf[Int], 1)
+    assertEquals(out.get("name").toString, "a")
   }
 
-  it should "support headers" in {
+  test("support headers") {
     val headers = new RecordHeaders().add("k", "v".getBytes)
 
     val bytes = serde.serializer.serialize("topic", headers, record(2, "b"))
     val out = serde.deserializer.deserialize("topic", bytes)
 
-    out.get("id").asInstanceOf[Int] shouldBe 2
+    assertEquals(out.get("id").asInstanceOf[Int], 2)
   }
 
-  it should "handle null" in {
+  test("handle null") {
     val bytes = serde.serializer.serialize("topic", null)
-    serde.deserializer.deserialize("topic", bytes) shouldBe null
+    assertEquals(serde.deserializer.deserialize("topic", bytes), null)
   }
 
-  it should "fail on corrupted input" in
+  test("fail on corrupted input") {
     intercept[Exception] {
       serde.deserializer.deserialize("topic", Array(1, 2, 3))
     }
+  }
 }

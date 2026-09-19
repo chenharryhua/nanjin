@@ -3,12 +3,11 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.{Outcome, Ref, Resource}
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
@@ -23,7 +22,7 @@ import scala.concurrent.duration.DurationInt
   * completion log, a canceled outcome emits the canceled log without touching the panel, and the defensive
   * `Errored` branch logs "should not happen".
   */
-class LifecycleTest extends AnyFunSuite {
+class LifecycleTest extends CatsEffectSuite {
 
   private val scope =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
@@ -59,102 +58,109 @@ class LifecycleTest extends AnyFunSuite {
     Kleisli((js: JobState[?]) => sink.update(_ :+ js))
 
   private def run[A](f: (Log[IO], BatchPanel.Update[IO]) => IO[A])
-    : (A, List[(Json, LogLevel, Option[Throwable])], List[JobState[?]]) =
-    (for {
+    : IO[(A, List[(Json, LogLevel, Option[Throwable])], List[JobState[?]])] =
+    for {
       logSink <- Ref[IO].of(List.empty[(Json, LogLevel, Option[Throwable])])
       panelSink <- Ref[IO].of(List.empty[JobState[?]])
       a <- f(capturingLog(logSink), recordingPanel(panelSink))
       logs <- logSink.get
       panels <- panelSink.get
-    } yield (a, logs, panels)).unsafeRunSync()
+    } yield (a, logs, panels)
 
   // ---- handleOutcome (F) ----------------------------------------------------------------------------
 
   test("1.handleOutcome Succeeded: updates the panel with the record and emits the completion log") {
     val js = state(succeeded = true)
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle.handleOutcome[IO, Int](log, js.record.job, update)(Outcome.succeeded(IO.pure(js)))
+    }.map { case (_, logs, panels) =>
+      assert(panels == List(js)) // panel updated with the completed job state
+      assert(logs.size == 1)
+      // a succeeded job logs at Good with no cause
+      assert(logs.head._2 == LogLevel.Good)
+      assert(logs.head._3.isEmpty)
     }
-    assert(panels == List(js)) // panel updated with the completed job state
-    assert(logs.size == 1)
-    // a succeeded job logs at Good with no cause
-    assert(logs.head._2 == LogLevel.Good)
-    assert(logs.head._3.isEmpty)
   }
 
   test("2.handleOutcome Canceled: emits the canceled log and does not touch the panel") {
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
         Outcome.canceled[IO, Throwable, JobState[Int]])
+    }.map { case (_, logs, panels) =>
+      assert(panels.isEmpty) // a canceled job never reaches the panel
+      assert(logs.size == 1)
+      assert(logs.head._2 == LogLevel.Warn) // Canceled renders at Warn
     }
-    assert(panels.isEmpty) // a canceled job never reaches the panel
-    assert(logs.size == 1)
-    assert(logs.head._2 == LogLevel.Warn) // Canceled renders at Warn
   }
 
   test("3.handleOutcome Errored: logs the defensive should-not-happen at Error with the cause") {
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle.handleOutcome[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
         Outcome.errored[IO, Throwable, JobState[Int]](boom))
+    }.map { case (_, logs, panels) =>
+      assert(panels.isEmpty)
+      assert(logs.size == 1)
+      assert(logs.head._2 == LogLevel.Error)
+      assert(logs.head._3.contains(boom)) // the throwable is attached
     }
-    assert(panels.isEmpty)
-    assert(logs.size == 1)
-    assert(logs.head._2 == LogLevel.Error)
-    assert(logs.head._3.contains(boom)) // the throwable is attached
   }
 
   // ---- handleOutcomeR (Resource) --------------------------------------------------------------------
 
   test("4.handleOutcomeR Succeeded: updates the panel and emits the completion log") {
     val js = state(succeeded = false) // a retained miss still logs on completion
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle
         .handleOutcomeR[IO, Int](log, js.record.job, update)(
           Outcome.succeeded(Resource.pure[IO, JobState[Int]](js)))
         .use_
+    }.map { case (_, logs, panels) =>
+      assert(panels == List(js))
+      assert(logs.size == 1)
+      // a retained predicate miss renders Unsatisfied at Warn
+      assert(logs.head._2 == LogLevel.Warn)
     }
-    assert(panels == List(js))
-    assert(logs.size == 1)
-    // a retained predicate miss renders Unsatisfied at Warn
-    assert(logs.head._2 == LogLevel.Warn)
   }
 
   test("5.handleOutcomeR Canceled: emits the canceled log and does not touch the panel") {
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle
         .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
           Outcome.canceled[Resource[IO, *], Throwable, JobState[Int]])
         .use_
+    }.map { case (_, logs, panels) =>
+      assert(panels.isEmpty)
+      assert(logs.size == 1)
+      assert(logs.head._2 == LogLevel.Warn)
     }
-    assert(panels.isEmpty)
-    assert(logs.size == 1)
-    assert(logs.head._2 == LogLevel.Warn)
   }
 
   test("6.handleOutcomeR Errored: logs the defensive should-not-happen at Error with the cause") {
-    val (_, logs, panels) = run { (log, update) =>
+    run { (log, update) =>
       lifecycle
         .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
           Outcome.errored[Resource[IO, *], Throwable, JobState[Int]](boom))
         .use_
+    }.map { case (_, logs, panels) =>
+      assert(panels.isEmpty)
+      assert(logs.size == 1)
+      assert(logs.head._2 == LogLevel.Error)
+      assert(logs.head._3.contains(boom))
     }
-    assert(panels.isEmpty)
-    assert(logs.size == 1)
-    assert(logs.head._2 == LogLevel.Error)
-    assert(logs.head._3.contains(boom))
   }
 
   // ---- the plain log writers ------------------------------------------------------------------------
 
   test("7.logKickoff renders under the kickoff key at Info; logCanceled under canceled at Warn") {
-    val (_, logs, _) = run { (log, _) =>
+    run { (log, _) =>
       lifecycle.logKickoff[IO](log, job(None)) *> lifecycle.logCanceled[IO](log, job(None))
+    }.map { case (_, logs, _) =>
+      assert(logs.size == 2)
+      val (kickoff, canceled) = (logs.head, logs(1))
+      assert(kickoff._2 == LogLevel.Info)
+      assert(kickoff._1.hcursor.downField("kickoff").focus.nonEmpty)
+      assert(canceled._2 == LogLevel.Warn)
+      assert(canceled._1.hcursor.downField("canceled").focus.nonEmpty)
     }
-    assert(logs.size == 2)
-    val (kickoff, canceled) = (logs.head, logs(1))
-    assert(kickoff._2 == LogLevel.Info)
-    assert(kickoff._1.hcursor.downField("kickoff").focus.nonEmpty)
-    assert(canceled._2 == LogLevel.Warn)
-    assert(canceled._1.hcursor.downField("canceled").focus.nonEmpty)
   }
 }

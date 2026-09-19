@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 /** Direct tests for `JobExecutor`, the shared per-job builder behind `Batch` and `BatchLight`.
   *
@@ -20,7 +19,7 @@ import org.scalatest.funsuite.AnyFunSuite
   *   - both builders emit a kickoff log when a `Log` is supplied (`Batch`), and neither does when it is
   *     absent (`BatchLight`).
   */
-class JobExecutorTest extends AnyFunSuite {
+class JobExecutorTest extends CatsEffectSuite {
 
   private val scope =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
@@ -53,88 +52,98 @@ class JobExecutorTest extends AnyFunSuite {
 
   test("1.quasiJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(1)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(js.record.succeeded)
-    assert(js.result == Right(1))
-    assert(cj.job.kind.contains(BatchKind.Quasi))
+    cj.compute.map { js =>
+      assert(js.record.succeeded)
+      assert(js.result == Right(1))
+      assert(cj.job.kind.contains(BatchKind.Quasi))
+    }
   }
 
   test("2.quasiJob: a predicate miss records failure but retains the produced value as Right") {
     val cj = executor(_ => false, None).quasiJob(jni(IO.pure(42)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(!js.record.succeeded)
-    // the value is kept — a quasi batch reports the miss without discarding data
-    assert(js.result == Right(42))
+    cj.compute.map { js =>
+      assert(!js.record.succeeded)
+      // the value is kept — a quasi batch reports the miss without discarding data
+      assert(js.result == Right(42))
+    }
   }
 
   test("3.quasiJob: a thrown effect records failure and keeps the original Left") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.raiseError(boom)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(!js.record.succeeded)
-    assert(js.result == Left(boom))
+    cj.compute.map { js =>
+      assert(!js.record.succeeded)
+      assert(js.result == Left(boom))
+    }
   }
 
   // ---- valueJob -------------------------------------------------------------------------------------
 
   test("4.valueJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).valueJob(jni(IO.pure(1)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(js.record.succeeded)
-    assert(js.result == Right(1))
-    assert(cj.job.kind.contains(BatchKind.Value))
+    cj.compute.map { js =>
+      assert(js.record.succeeded)
+      assert(js.result == Right(1))
+      assert(cj.job.kind.contains(BatchKind.Value))
+    }
   }
 
   test("5.valueJob: a predicate miss folds into Left(PostConditionUnsatisfied)") {
     val cj = executor(_ => false, None).valueJob(jni(IO.pure(42)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(!js.record.succeeded)
-    js.result match {
-      case Left(_: PostConditionUnsatisfied) => ()
-      case other                             => fail(s"expected Left(PostConditionUnsatisfied), got $other")
+    cj.compute.map { js =>
+      assert(!js.record.succeeded)
+      js.result match {
+        case Left(_: PostConditionUnsatisfied) => ()
+        case other                             => fail(s"expected Left(PostConditionUnsatisfied), got $other")
+      }
     }
   }
 
   test("6.valueJob: a thrown effect records failure and keeps the original Left") {
     val cj = executor(_ => true, None).valueJob(jni(IO.raiseError(boom)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(!js.record.succeeded)
-    assert(js.result == Left(boom))
+    cj.compute.map { js =>
+      assert(!js.record.succeeded)
+      assert(js.result == Left(boom))
+    }
   }
 
   // ---- kickoff logging ------------------------------------------------------------------------------
 
   test("7.quasiJob: emits a kickoff log when a Log is supplied") {
-    val logged = (for {
+    (for {
       sink <- Ref[IO].of(List.empty[Json])
       _ <- executor(_ => true, Some(capturingLog(sink))).quasiJob(jni(IO.pure(1)), batchId).compute
       out <- sink.get
-    } yield out).unsafeRunSync()
-    assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
+    } yield out).map { logged =>
+      assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
+    }
   }
 
   test("8.valueJob: emits a kickoff log when a Log is supplied") {
-    val logged = (for {
+    (for {
       sink <- Ref[IO].of(List.empty[Json])
       _ <- executor(_ => true, Some(capturingLog(sink))).valueJob(jni(IO.pure(1)), batchId).compute
       out <- sink.get
-    } yield out).unsafeRunSync()
-    assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
+    } yield out).map { logged =>
+      assert(logged.exists(_.hcursor.downField("kickoff").focus.nonEmpty))
+    }
   }
 
   test("9.no Log (BatchLight path): the job still runs and produces a JobState") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(7)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(js.result == Right(7))
-    assert(js.record.succeeded)
+    cj.compute.map { js =>
+      assert(js.result == Right(7))
+      assert(js.record.succeeded)
+    }
   }
 
   // ---- timing ---------------------------------------------------------------------------------------
 
   test("10.a completed job has end >= start and a non-negative took") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(1)), batchId)
-    val js = cj.compute.unsafeRunSync()
-    assert(js.record.end >= js.record.start)
-    assert(!js.record.took.isNegative)
+    cj.compute.map { js =>
+      assert(js.record.end >= js.record.start)
+      assert(!js.record.took.isNegative)
+    }
   }
 
   // ---- name / index propagation ---------------------------------------------------------------------
@@ -144,7 +153,7 @@ class JobExecutorTest extends AnyFunSuite {
     assert(cj.job.name == "alpha")
     assert(cj.job.index == 3)
     // the same name/index reach the run's JobState record
-    assert(cj.compute.unsafeRunSync().record.job.index == 3)
+    cj.compute.map(js => assert(js.record.job.index == 3))
   }
 
   test("12.valueJob: the JobNameIndex name and index flow onto the built Job") {

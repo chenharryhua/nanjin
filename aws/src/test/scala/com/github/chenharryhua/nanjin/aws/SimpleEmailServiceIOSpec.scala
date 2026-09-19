@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.ses.SesClient
 import software.amazon.awssdk.services.ses.model.*
-class SimpleEmailServiceIOSpec extends AnyFunSuite {
+class SimpleEmailServiceIOSpec extends CatsEffectSuite {
 
   // Fake SES client for testing
   private class FakeSesClient extends SesClient {
@@ -51,8 +50,9 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
       )
       .build()
 
-    val resp = service.send(req).unsafeRunSync()
-    assert(resp.messageId().startsWith("fake-"))
+    service.send(req).map { resp =>
+      assert(resp.messageId().startsWith("fake-"))
+    }
   }
 
   test("2.send SendRawEmailRequest returns fake messageId") {
@@ -61,8 +61,9 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
       .rawMessage(RawMessage.builder().data(SdkBytes.fromByteArray("data".getBytes)).build())
       .build()
 
-    val resp = service.send(req).unsafeRunSync()
-    assert(resp.messageId().startsWith("raw-fake-"))
+    service.send(req).map { resp =>
+      assert(resp.messageId().startsWith("raw-fake-"))
+    }
   }
 
   test("3.send EmailContent returns SendEmailResponse with fake messageId") {
@@ -75,12 +76,14 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
       body = "<h1>body</h1>"
     )
 
-    val resp = service.send(content).unsafeRunSync()
-    assert(resp.messageId().startsWith("fake-"))
+    service.send(content).map { resp =>
+      assert(resp.messageId().startsWith("fake-"))
+    }
   }
 
   test("4.send builder function returns SendEmailResponse with fake messageId") {
-    val resp = service.send(_.source("from@example.com")).unsafeRunSync()
-    assert(resp.messageId().startsWith("fake-"))
+    service.send(_.source("from@example.com")).map { resp =>
+      assert(resp.messageId().startsWith("fake-"))
+    }
   }
 }

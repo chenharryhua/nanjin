@@ -3,19 +3,18 @@ package mtest.kafka
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.serdes.Structured
 import org.apache.kafka.common.serialization.Serde
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
-class JsonNodeStructuredSerdeSpec extends AnyFunSuite with Matchers {
+class JsonNodeStructuredSerdeSpec extends FunSuite {
 
   val serde: Serde[JsonNode] = ctx.asValue(Structured[JsonNode]).serde
 
   test("1.serializer should return null for null input") {
-    serde.serializer.serialize("topic", null) shouldBe null
+    assertEquals(serde.serializer.serialize("topic", null), null)
   }
 
   test("2.deserializer should return null for null input") {
-    serde.deserializer.deserialize("topic", null) shouldBe null
+    assertEquals(serde.deserializer.deserialize("topic", null), null)
   }
 
   test("3.deserializer should throw SerializationException for corrupted input bytes") {
@@ -24,7 +23,7 @@ class JsonNodeStructuredSerdeSpec extends AnyFunSuite with Matchers {
     }
 
     // depending on underlying implementation this may be a SerializationException or another exception
-    ex shouldBe a[Exception]
+    assert(ex.isInstanceOf[Exception])
   }
 
 }

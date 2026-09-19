@@ -3,9 +3,9 @@ package mtest.kafka
 import com.github.chenharryhua.nanjin.kafka.utils.*
 import org.apache.avro.generic.{GenericData, GenericRecordBuilder}
 import org.apache.avro.{Schema, SchemaBuilder}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class ConversionTest extends AnyFunSuite {
+class ConversionTest extends FunSuite {
 
   private val schema: Schema = SchemaBuilder
     .record("TestRecord")

@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.kafka.serdes
 
 import com.kjetland.jackson.jsonSchema.JsonSchemaDraft
 import mtest.kafka.objectMapper
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 final case class JsonSchemaPerson(name: String, age: Int)
 
-class KafkaJsonSchemaCodecTest extends AnyFunSuite {
+class KafkaJsonSchemaCodecTest extends FunSuite {
   private val codec = KafkaCodec.json[JsonSchemaPerson](objectMapper)
     .updateConfig(_.jsonSchemaDraft(JsonSchemaDraft.DRAFT_07))
 
@@ -26,10 +26,10 @@ class KafkaJsonSchemaCodecTest extends AnyFunSuite {
 
     assert(envelope.has("schema"))
     assert(envelope.has("payload"))
-    assert(envelope.get("payload").get("name").asText() === "alice")
-    assert(envelope.get("payload").get("age").asInt() === 30)
+    assert(envelope.get("payload").get("name").asText() == "alice")
+    assert(envelope.get("payload").get("age").asInt() == 30)
 
     val roundTripped = codec.to(envelope.get("payload"))
-    assert(roundTripped === person)
+    assert(roundTripped == person)
   }
 }

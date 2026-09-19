@@ -1,7 +1,6 @@
 package mtest.terminals
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
@@ -10,31 +9,33 @@ import io.circe.jawn
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
+import munit.CatsEffectSuite
 import org.apache.avro.generic.GenericRecord
-import org.scalatest.Assertion
-import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
 
-class NJAvroTest extends AnyFunSuite {
+class NJAvroTest extends CatsEffectSuite {
   import HadoopTestData.*
 
-  def fs2(path: Url, file: AvroFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: AvroFile, data: Set[GenericRecord]): IO[Unit] = {
     val tgt = path / file.fileName
-    hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).avro(file.compression)
     val src = hdp.source(tgt).avro(100)
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
 
-    assert(jawn.decode[FileKind](fileName).toOption.get == file)
-    assert(action.unsafeRunSync().toSet == data)
-    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
-    hdp.source(tgt).avro(100, readerSchema).debug().compile.drain.unsafeRunSync()
-    assert(size == data.size)
-    assert(hdp.source(tgt).avro(100).compile.toList.unsafeRunSync().toSet == data)
+    for {
+      _ <- hdp.delete(tgt)
+      _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
+      actionResult <- action
+      _ = assert(actionResult.toSet == data)
+      size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
+      _ <- hdp.source(tgt).avro(100, readerSchema).debug().compile.drain
+      _ = assert(size == data.size)
+      roundTrip <- hdp.source(tgt).avro(100).compile.toList
+    } yield assert(roundTrip.toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/avro/panda")
@@ -71,60 +72,63 @@ class NJAvroTest extends AnyFunSuite {
   test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
-    hdp.delete(path).unsafeRunSync()
     val file = AvroFile(_.Uncompressed)
-    val processedSize = Stream
-      .emits(pandaSet.toList)
-      .covary[IO]
-      .repeatN(number)
-      .through(hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t)).avro(
-        _.Uncompressed))
-      .fold(0L)((sum, v) => sum + v.recordCount)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number * 2)
-    assert(processedSize == number * 2)
+    for {
+      _ <- hdp.delete(path)
+      processedSize <- Stream
+        .emits(pandaSet.toList)
+        .covary[IO]
+        .repeatN(number)
+        .through(hdp.rotateSink(sydneyTime, _.fixedDelay(0.1.second).repeat)(t =>
+          path / file.fileName(t)).avro(_.Uncompressed))
+        .fold(0L)((sum, v) => sum + v.recordCount)
+        .compile
+        .lastOrError
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield {
+      assert(size == number * 2)
+      assert(processedSize == number * 2)
+    }
   }
 
   test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = AvroFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    val processedSize = Stream
-      .emits(pandaSet.toList)
-      .covary[IO]
-      .repeatN(number)
-      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
-      .fold(0L)((sum, v) => sum + v.recordCount)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number * 2)
-    assert(processedSize == number * 2)
+    for {
+      _ <- hdp.delete(path)
+      processedSize <- Stream
+        .emits(pandaSet.toList)
+        .covary[IO]
+        .repeatN(number)
+        .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
+        .fold(0L)((sum, v) => sum + v.recordCount)
+        .compile
+        .lastOrError
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield {
+      assert(size == number * 2)
+      assert(processedSize == number * 2)
+    }
   }
 
   test("10.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.avro"
 
-    (hdp.delete(path) >>
-      (s ++ s ++ s).through(hdp.sink(path).avro).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).avro(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
-    assert(size == 3000)
+    for {
+      _ <- hdp.delete(path) >>
+        (s ++ s ++ s).through(hdp.sink(path).avro).compile.drain
+      size <- hdp.source(path).avro(100).compile.fold(0) { case (s, _) => s + 1 }
+    } yield assert(size == 3000)
   }
 
   test("11.stream concat - 2") {
@@ -133,16 +137,15 @@ class NJAvroTest extends AnyFunSuite {
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
       path / AvroFile(_.Uncompressed).fileName(t))
 
-    (hdp.delete(path) >>
-      (s ++ s ++ s).through(sink.avro).compile.drain).unsafeRunSync()
+    hdp.delete(path) >>
+      (s ++ s ++ s).through(sink.avro).compile.drain
   }
 
-  ignore("large number (10000) of files - passed but too cost to run it") {
+  test("large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 5000L
     val file = AvroFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    Stream
+    hdp.delete(path) >> Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
@@ -150,6 +153,6 @@ class NJAvroTest extends AnyFunSuite {
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
-      .unsafeRunSync()
+      .void
   }
 }

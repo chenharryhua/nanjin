@@ -4,12 +4,12 @@ import cats.Alternative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, FailedParsers}
 //import com.github.chenharryhua.nanjin.datetime.instances.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.*
 import java.time.format.DateTimeParseException
 
-class DateTimeParserSpec extends AnyFunSuite {
+class DateTimeParserSpec extends FunSuite {
 
   // --- LocalDate parser ---
   test("1.LocalDate parses ISO date string") {

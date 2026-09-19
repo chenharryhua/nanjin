@@ -2,9 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.unsafe.implicits.global
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import munit.CatsEffectSuite
 import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
@@ -28,7 +26,7 @@ import java.net.URI
 import scala.concurrent.duration._
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
+class SimpleStorageServiceIOSpec extends CatsEffectSuite {
 
   final private class FakeS3Client extends S3Client {
     @volatile var lastHeadRequest: Option[HeadObjectRequest] = None
@@ -112,45 +110,45 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
       }
     }
 
-  "SimpleStorageService" should "head object using request" in {
+  test("SimpleStorageService: head object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
     val request = HeadObjectRequest.builder().bucket("bucket-a").key("key-a").build()
-    val response = service.headObject(request).unsafeRunSync()
-
-    response.eTag() shouldBe "fake-etag"
-    client.lastHeadRequest.map(_.bucket()) shouldBe Some("bucket-a")
-    client.lastHeadRequest.map(_.key()) shouldBe Some("key-a")
+    service.headObject(request).map { response =>
+      assertEquals(response.eTag(), "fake-etag")
+      assertEquals(client.lastHeadRequest.map(_.bucket()), Some("bucket-a"))
+      assertEquals(client.lastHeadRequest.map(_.key()), Some("key-a"))
+    }
   }
 
-  it should "head object using builder syntax" in {
+  test("SimpleStorageService: head object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    val response = service
+    service
       .headObject(_.bucket("bucket-b").key("key-b"))
-      .unsafeRunSync()
-
-    response.eTag() shouldBe "fake-etag"
-    client.lastHeadRequest.map(_.bucket()) shouldBe Some("bucket-b")
-    client.lastHeadRequest.map(_.key()) shouldBe Some("key-b")
+      .map { response =>
+        assertEquals(response.eTag(), "fake-etag")
+        assertEquals(client.lastHeadRequest.map(_.bucket()), Some("bucket-b"))
+        assertEquals(client.lastHeadRequest.map(_.key()), Some("key-b"))
+      }
   }
 
-  it should "rename object using request" in {
+  test("SimpleStorageService: rename object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
     val request =
       RenameObjectRequest.builder().bucket("bucket-r").key("target").renameSource("source").build()
-    service.renameObject(request).unsafeRunSync()
-
-    client.lastRenameRequest.map(_.bucket()) shouldBe Some("bucket-r")
-    client.lastRenameRequest.map(_.key()) shouldBe Some("target")
-    client.lastRenameRequest.map(_.renameSource()) shouldBe Some("source")
+    service.renameObject(request).map { _ =>
+      assertEquals(client.lastRenameRequest.map(_.bucket()), Some("bucket-r"))
+      assertEquals(client.lastRenameRequest.map(_.key()), Some("target"))
+      assertEquals(client.lastRenameRequest.map(_.renameSource()), Some("source"))
+    }
   }
 
-  it should "copy object using request" in {
+  test("SimpleStorageService: copy object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -161,15 +159,15 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
         .destinationBucket("bucket-target")
         .destinationKey("key-target")
         .build()
-    service.copyObject(request).unsafeRunSync()
-
-    client.lastCopyRequest.map(_.sourceBucket()) shouldBe Some("bucket-source")
-    client.lastCopyRequest.map(_.sourceKey()) shouldBe Some("key-source")
-    client.lastCopyRequest.map(_.destinationBucket()) shouldBe Some("bucket-target")
-    client.lastCopyRequest.map(_.destinationKey()) shouldBe Some("key-target")
+    service.copyObject(request).map { _ =>
+      assertEquals(client.lastCopyRequest.map(_.sourceBucket()), Some("bucket-source"))
+      assertEquals(client.lastCopyRequest.map(_.sourceKey()), Some("key-source"))
+      assertEquals(client.lastCopyRequest.map(_.destinationBucket()), Some("bucket-target"))
+      assertEquals(client.lastCopyRequest.map(_.destinationKey()), Some("key-target"))
+    }
   }
 
-  it should "copy object using builder syntax" in {
+  test("SimpleStorageService: copy object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -179,42 +177,45 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
           .sourceKey("key-source")
           .destinationBucket("bucket-target")
           .destinationKey("key-target"))
-      .unsafeRunSync()
-
-    client.lastCopyRequest.map(_.sourceBucket()) shouldBe Some("bucket-source")
-    client.lastCopyRequest.map(_.sourceKey()) shouldBe Some("key-source")
-    client.lastCopyRequest.map(_.destinationBucket()) shouldBe Some("bucket-target")
-    client.lastCopyRequest.map(_.destinationKey()) shouldBe Some("key-target")
+      .map { _ =>
+        assertEquals(client.lastCopyRequest.map(_.sourceBucket()), Some("bucket-source"))
+        assertEquals(client.lastCopyRequest.map(_.sourceKey()), Some("key-source"))
+        assertEquals(client.lastCopyRequest.map(_.destinationBucket()), Some("bucket-target"))
+        assertEquals(client.lastCopyRequest.map(_.destinationKey()), Some("key-target"))
+      }
   }
 
-  it should "delete object using request and builder syntax" in {
+  test("SimpleStorageService: delete object using request and builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    service.deleteObject(
-      DeleteObjectRequest.builder().bucket("bucket-d").key("key-d").build()).unsafeRunSync()
-    client.lastDeleteRequest.map(_.bucket()) shouldBe Some("bucket-d")
-    client.lastDeleteRequest.map(_.key()) shouldBe Some("key-d")
+    service
+      .deleteObject(DeleteObjectRequest.builder().bucket("bucket-d").key("key-d").build())
+      .flatMap { _ =>
+        assertEquals(client.lastDeleteRequest.map(_.bucket()), Some("bucket-d"))
+        assertEquals(client.lastDeleteRequest.map(_.key()), Some("key-d"))
 
-    service.deleteObject(_.bucket("bucket-e").key("key-e")).unsafeRunSync()
-    client.lastDeleteRequest.map(_.bucket()) shouldBe Some("bucket-e")
-    client.lastDeleteRequest.map(_.key()) shouldBe Some("key-e")
+        service.deleteObject(_.bucket("bucket-e").key("key-e")).map { _ =>
+          assertEquals(client.lastDeleteRequest.map(_.bucket()), Some("bucket-e"))
+          assertEquals(client.lastDeleteRequest.map(_.key()), Some("key-e"))
+        }
+      }
   }
 
-  it should "rename object using builder syntax" in {
+  test("SimpleStorageService: rename object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
     service
       .renameObject(_.bucket("bucket-s").key("dst").renameSource("src"))
-      .unsafeRunSync()
-
-    client.lastRenameRequest.map(_.bucket()) shouldBe Some("bucket-s")
-    client.lastRenameRequest.map(_.key()) shouldBe Some("dst")
-    client.lastRenameRequest.map(_.renameSource()) shouldBe Some("src")
+      .map { _ =>
+        assertEquals(client.lastRenameRequest.map(_.bucket()), Some("bucket-s"))
+        assertEquals(client.lastRenameRequest.map(_.key()), Some("dst"))
+        assertEquals(client.lastRenameRequest.map(_.renameSource()), Some("src"))
+      }
   }
 
-  it should "presign get object using request" in {
+  test("SimpleStorageService: presign get object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -225,13 +226,13 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
         .getObjectRequest(GetObjectRequest.builder().bucket("bucket-p").key("key-p").build())
         .build()
 
-    service.presignGetObject(request).unsafeRunSync()
-
-    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket-p")
-    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key-p")
+    service.presignGetObject(request).map { _ =>
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().bucket()), Some("bucket-p"))
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().key()), Some("key-p"))
+    }
   }
 
-  it should "presign get object using builder syntax" in {
+  test("SimpleStorageService: presign get object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -239,39 +240,42 @@ class SimpleStorageServiceIOSpec extends AnyFlatSpec with Matchers {
       .presignGetObject(
         _.signatureDuration(java.time.Duration.ofMinutes(5))
           .getObjectRequest(GetObjectRequest.builder().bucket("bucket-b").key("key-b").build()))
-      .unsafeRunSync()
-
-    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket-b")
-    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key-b")
+      .map { _ =>
+        assertEquals(client.lastPresignRequest.map(_.getObjectRequest().bucket()), Some("bucket-b"))
+        assertEquals(client.lastPresignRequest.map(_.getObjectRequest().key()), Some("key-b"))
+      }
   }
 
-  it should "presign get object using an S3 URL" in {
+  test("SimpleStorageService: presign get object using an S3 URL") {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    service.presignGetObject("s3://bucket-u/path/to/key-u", 5.minutes).unsafeRunSync()
-
-    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket-u")
-    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("path/to/key-u")
-    client.lastPresignRequest.map(_.signatureDuration()) shouldBe Some(java.time.Duration.ofMinutes(5))
+    service.presignGetObject("s3://bucket-u/path/to/key-u", 5.minutes).map { _ =>
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().bucket()), Some("bucket-u"))
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().key()), Some("path/to/key-u"))
+      assertEquals(
+        client.lastPresignRequest.map(_.signatureDuration()),
+        Some(java.time.Duration.ofMinutes(5)))
+    }
   }
 
-  it should "accept a URI with a host and path when presigning by URL" in {
+  test("SimpleStorageService: accept a URI with a host and path when presigning by URL") {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    service.presignGetObject("https://bucket.example.com/key", 5.minutes).unsafeRunSync()
-    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket.example.com")
-    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
+    service.presignGetObject("https://bucket.example.com/key", 5.minutes).map { _ =>
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().bucket()), Some("bucket.example.com"))
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().key()), Some("key"))
+    }
   }
 
-  it should "delegate URI validation to S3" in {
+  test("SimpleStorageService: delegate URI validation to S3") {
     val client = new FakeS3Client
     val service = mkService(client)
 
-    service.presignGetObject("s3://user@bucket/key?versionId=abc", 5.minutes).unsafeRunSync()
-
-    client.lastPresignRequest.map(_.getObjectRequest().bucket()) shouldBe Some("bucket")
-    client.lastPresignRequest.map(_.getObjectRequest().key()) shouldBe Some("key")
+    service.presignGetObject("s3://user@bucket/key?versionId=abc", 5.minutes).map { _ =>
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().bucket()), Some("bucket"))
+      assertEquals(client.lastPresignRequest.map(_.getObjectRequest().key()), Some("key"))
+    }
   }
 }

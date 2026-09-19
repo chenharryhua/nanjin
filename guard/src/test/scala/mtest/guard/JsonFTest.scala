@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class JsonFTest extends AnyFunSuite {
+class JsonFTest extends FunSuite {
   private val space: Char = ' '
 
   test("1.json obj") {

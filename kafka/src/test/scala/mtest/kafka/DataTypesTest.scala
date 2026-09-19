@@ -5,9 +5,9 @@ import com.github.chenharryhua.nanjin.kafka.*
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class DataTypesTest extends AnyFunSuite {
+class DataTypesTest extends FunSuite {
 
   // --- OffsetRange ---
 

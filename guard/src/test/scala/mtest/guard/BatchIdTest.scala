@@ -5,9 +5,9 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.batch.BatchId
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class BatchIdTest extends AnyFunSuite {
+class BatchIdTest extends FunSuite {
 
   test("1.apply then value round-trips the underlying Long") {
     assert(BatchId(1L).value == 1L)

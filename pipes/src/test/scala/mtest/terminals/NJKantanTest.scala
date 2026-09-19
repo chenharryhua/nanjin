@@ -1,6 +1,5 @@
 package mtest.terminals
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
@@ -11,16 +10,15 @@ import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import kantan.csv.CsvConfiguration
+import munit.CatsEffectSuite
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.*
-import org.scalatest.Assertion
-import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.util.Try
 
-class NJKantanTest extends AnyFunSuite {
+class NJKantanTest extends CatsEffectSuite {
   val zoneId: ZoneId = ZoneId.systemDefault()
 
   val tigerHeader: CsvHeaderOf[Tiger] = summon
@@ -35,28 +33,29 @@ class NJKantanTest extends AnyFunSuite {
   def encode(t: Tiger): List[String] =
     List(t.id.toString, t.zooName.getOrElse(""))
 
-  def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
+  def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): IO[Unit] = {
     val tgt = path / file.fileName
-    hdp.delete(tgt).unsafeRunSync()
     val ts = Stream.emits(data.toList).covary[IO].map(encode)
     val sink = hdp.sink(tgt).kantan(csvConfiguration)
     val src = hdp.source(tgt).kantan(100, csvConfiguration).map(decode).unNone
     val action = ts.through(sink).compile.drain >> src.compile.toList
-    assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
-    assert(jawn.decode[FileKind](fileName).toOption.get == file)
-    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
-    assert(size == data.size)
-    assert(
-      hdp
-        .source(tgt)
-        .kantan(100, csvConfiguration)
-        .map(decode)
-        .unNone
-        .compile
-        .toList
-        .unsafeRunSync()
-        .toSet == data)
+    for {
+      _ <- hdp.delete(tgt)
+      actionResult <- action
+      _ = assert(actionResult.toSet == data)
+      _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
+      size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
+      _ = assert(size == data.size)
+      roundTrip <-
+        hdp
+          .source(tgt)
+          .kantan(100, csvConfiguration)
+          .map(decode)
+          .unNone
+          .compile
+          .toList
+    } yield assert(roundTrip.toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")
@@ -112,162 +111,158 @@ class NJKantanTest extends AnyFunSuite {
   test("11.rotation - with-header - tick") {
     val path = fs2Root / "rotation" / "header" / "tick"
     val file = KantanFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    herd
-      .map(encode)
-      .through(
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(
+          hdp
+            .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      size <-
         hdp
-          .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
-          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(
-          _.traverse(
-            hdp
-              .source(_)
-              .kantan(1000, _.withHeader)
-              .map(decode)
-              .unNone
-              .compile
-              .toList
-              .map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == herd_number)
+          .filesIn(path)
+          .flatMap(
+            _.traverse(
+              hdp
+                .source(_)
+                .kantan(1000, _.withHeader)
+                .map(decode)
+                .unNone
+                .compile
+                .toList
+                .map(_.size)))
+          .map(_.sum)
+    } yield assert(size == herd_number)
   }
 
   test("12.rotation - with-header - size") {
     val path = fs2Root / "rotation" / "header" / "index"
-    hdp.delete(path).unsafeRunSync()
     val file = KantanFile(_.Uncompressed)
-    herd
-      .map(encode)
-      .through(
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(
+          hdp
+            .rotateSink(sydneyTime, 1000)(t => path / file.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      size <-
         hdp
-          .rotateSink(sydneyTime, 1000)(t => path / file.fileName(t))
-          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(
-          _.traverse(
-            hdp
-              .source(_)
-              .kantan(1000, _.withHeader)
-              .map(decode)
-              .unNone
-              .compile
-              .toList
-              .map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == herd_number)
+          .filesIn(path)
+          .flatMap(
+            _.traverse(
+              hdp
+                .source(_)
+                .kantan(1000, _.withHeader)
+                .map(decode)
+                .unNone
+                .compile
+                .toList
+                .map(_.size)))
+          .map(_.sum)
+    } yield assert(size == herd_number)
   }
 
   test("13.rotation - empty(with header)") {
     val path = fs2Root / "rotation" / "header" / "empty"
-    hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
-    (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]])
-      .through(
-        hdp
-          .rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t => path / fk.fileName(t))
-          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
-      .compile
-      .drain
-      .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.size == 1))
+    for {
+      _ <- hdp.delete(path)
+      _ <- (Stream.sleep[IO](10.hours) >>
+        Stream.empty.covaryAll[IO, Seq[String]])
+        .through(
+          hdp
+            .rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t => path / fk.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      files <- hdp.filesIn(path)
+    } yield files.foreach(np => assert(File(np.toJavaURI).lines.size == 1))
   }
 
   test("14.rotation - no header - policy") {
     val path = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
     val file = KantanFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    herd
-      .map(encode)
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t =>
-        path / file.fileName(t)).kantan.andThen(_.drain))
-      .map(decode)
-      .unNone
-      .compile
-      .drain
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t =>
+          path / file.fileName(t)).kantan.andThen(_.drain))
+        .map(decode)
+        .unNone
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield assert(size == number)
   }
 
   test("15.rotation - no header - size") {
     val path = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
     val file = KantanFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    herd
-      .map(encode)
-      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).kantan.andThen(_.drain))
-      .map(decode)
-      .unNone
-      .compile
-      .drain
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).kantan.andThen(_.drain))
+        .map(decode)
+        .unNone
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield assert(size == number)
   }
 
   test("16.rotation - empty(no header)") {
     val path = fs2Root / "rotation" / "no-header" / "empty"
-    hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
-    (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]])
-      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t =>
-        path / fk.fileName(t)).kantan)
-      .compile
-      .drain
-      .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
+    for {
+      _ <- hdp.delete(path)
+      _ <- (Stream.sleep[IO](10.hours) >>
+        Stream.empty.covaryAll[IO, Seq[String]])
+        .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t =>
+          path / fk.fileName(t)).kantan)
+        .compile
+        .drain
+      files <- hdp.filesIn(path)
+    } yield files.foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 
   test("17.stream concat") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(encode)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 
-    (hdp.delete(path) >>
-      (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) =>
-      s + 1
-    }.unsafeRunSync()
-    assert(size == 15000)
+    for {
+      _ <- hdp.delete(path) >>
+        (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain
+      size <- hdp.source(path).kantan(100).compile.fold(0) { case (s, _) =>
+        s + 1
+      }
+    } yield assert(size == 15000)
   }
 
-  ignore("large number (10000) of files - passed but too cost to run it") {
+  test("large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 1000L
     val file = KantanFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    Stream
+    hdp.delete(path) >> Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
@@ -276,6 +271,6 @@ class NJKantanTest extends AnyFunSuite {
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
-      .unsafeRunSync()
+      .void
   }
 }

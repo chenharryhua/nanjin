@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka.admins
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
@@ -20,11 +19,11 @@ import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import java.time.Instant
 
-class ConsumerApiOffsetRangeTest extends AnyFunSuite {
+class ConsumerApiOffsetRangeTest extends CatsEffectSuite {
 
   /*
    *
@@ -50,10 +49,18 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .unchunks
       .through(ctx.produce(topic).sink)
 
-  (ctx
-    .admin(topic.topicName.value)
-    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-    topicData.compile.drain).unsafeRunSync()
+  // Suite-local fixture that runs the topic setup once before the tests. Replaces the class-level
+  // `.unsafeRunSync()` block, which cannot run under CatsEffectSuite (no IORuntime in scope).
+  private val setup: IO[Unit] =
+    (ctx
+      .admin(topic.topicName.value)
+      .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      topicData.compile.drain).void
+
+  private val setupFixture =
+    ResourceSuiteLocalFixture("consumer-api-offset-range-setup", Resource.eval(setup))
+
+  override def munitFixtures = List(setupFixture)
 
   val transientConsumer: Resource[IO, SnapshotConsumer[IO]] =
     SnapshotConsumer[IO](
@@ -72,9 +79,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("2.start > end") {
@@ -83,9 +91,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(250).withEndTime(110)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      res <- client.circumscribedStream(r).take(1).compile.last
+    } yield assert(res.isEmpty)
   }
 
   test("3.when end is exactly match") {
@@ -94,9 +103,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(0).withEndTime(300)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("4.start is equal to beginning and end is equal to ending") {
@@ -107,9 +117,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("5.start is equal to beginning and end is after ending") {
@@ -120,10 +131,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("6.start after beginning and end after ending") {
@@ -134,10 +145,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("7.start before beginning and end before ending") {
@@ -148,10 +159,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("8.both start and end are before beginning") {
@@ -160,10 +171,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      res <- client.circumscribedStream(r).take(1).compile.last
+    } yield assert(res.isEmpty)
   }
 
   test("9.both start and end are after ending") {
@@ -172,9 +183,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      res <- client.circumscribedStream(r).take(1).compile.last
+    } yield assert(res.isEmpty)
   }
 
   test("10.when there is no data in the range") {
@@ -183,18 +195,19 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = DateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
 
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val res = client.circumscribedStream(r).take(1).compile.last.unsafeRunSync()
-    assert(res.isEmpty)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      res <- client.circumscribedStream(r).take(1).compile.last
+    } yield assert(res.isEmpty)
   }
 
   test("11.same range") {
     val r = DateTimeRange(darwinTime)
-    val res = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
     val r2 = Map(0 -> (-1000L, 1000000000L), 100 -> (0L, 9999L))
-    val res2 = client.circumscribedStream(r2).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(res == res2)
+    for {
+      res <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+      res2 <- client.circumscribedStream(r2).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(res == res2)
   }
 
   test("12.time range is infinite") {
@@ -204,10 +217,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
           OffsetRange(Offset(0), Offset(3))))
 
     val r = DateTimeRange(darwinTime)
-    transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x === expect))).unsafeRunSync()
-    val tpm = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
-    assert(tpm === expect.flatten)
-
+    for {
+      _ <- transientConsumer.use(_.offsetRangeFor(r).map(x => assert(x == expect)))
+      tpm <- client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError
+    } yield assert(tpm == expect.flatten)
   }
 
   test("13.kafka offset range") {
@@ -217,24 +230,26 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("14.offsetRangeSince") {
-    val r = transientConsumer.use(_.offsetRangeSince(Instant.ofEpochMilli(100))).unsafeRunSync()
-    val v = r.flatten
-    assert(v.nonEmpty)
+    transientConsumer.use(_.offsetRangeSince(Instant.ofEpochMilli(100))).map { r =>
+      val v = r.flatten
+      assert(v.nonEmpty)
+    }
   }
 
   test("15.partitionsFor") {
-    val r = transientConsumer.use(_.partitionsFor).unsafeRunSync()
-    assert(r.value.nonEmpty)
+    transientConsumer.use(_.partitionsFor).map { r =>
+      assert(r.value.nonEmpty)
+    }
   }
 
   test("16.retrieveRecordsForTimes") {
-    val r = transientConsumer.use(_.retrieveRecordsForTimes(Instant.ofEpochMilli(100))).unsafeRunSync()
-    assert(r.nonEmpty)
+    transientConsumer.use(_.retrieveRecordsForTimes(Instant.ofEpochMilli(100))).map { r =>
+      assert(r.nonEmpty)
+    }
   }
 
   test("17.commitSync") {
     transientConsumer
       .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
-      .unsafeRunSync()
   }
 }

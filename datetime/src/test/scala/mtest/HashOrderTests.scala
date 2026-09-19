@@ -1,13 +1,12 @@
 package mtest
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
-import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime.instances.given
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import munit.DisciplineSuite
 
 import java.sql.{Date, Timestamp}
 
-class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
+class HashOrderTests extends DisciplineSuite {
   import ArbitaryData.*
 
   checkAll("Timestamp", HashTests[Timestamp].hash)

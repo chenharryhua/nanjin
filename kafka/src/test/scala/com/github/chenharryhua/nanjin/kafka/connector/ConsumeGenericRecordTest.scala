@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName}
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.Schema
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class ConsumeGenericRecordTest extends AnyFunSuite {
+class ConsumeGenericRecordTest extends CatsEffectSuite {
 
   private val topic: TopicName = TopicName("consume.generic.record.test")
 
@@ -56,9 +55,10 @@ class ConsumeGenericRecordTest extends AnyFunSuite {
       OptionalAvroSchemaPair(None, None),
       OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema)))
     )
-    val resolved = c.schema.unsafeRunSync()
-    // the consumer schema is the wrapper record; its value field carries the resolved value schema
-    assert(resolved.getType === Schema.Type.RECORD)
+    c.schema.map { resolved =>
+      // the consumer schema is the wrapper record; its value field carries the resolved value schema
+      assert(resolved.getType == Schema.Type.RECORD)
+    }
   }
 
   test("4.caller-supplied schema takes precedence over the broker schema") {
@@ -69,17 +69,19 @@ class ConsumeGenericRecordTest extends AnyFunSuite {
       OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(callerValue))),
       OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(brokerValue)))
     )
-    val resolved = c.schema.unsafeRunSync()
-    val valueField = resolved.getField("value")
-    assert(valueField != null)
-    // the value field is a nullable union; it should carry the caller's STRING, not the broker's INT
-    val memberTypes: Set[Schema.Type] =
-      import scala.jdk.CollectionConverters.*
-      valueField.schema().getType match {
-        case Schema.Type.UNION => valueField.schema().getTypes.asScala.map(_.getType).toSet
-        case other             => Set(other)
+    c.schema.map { resolved =>
+      val valueField = resolved.getField("value")
+      assert(valueField != null)
+      // the value field is a nullable union; it should carry the caller's STRING, not the broker's INT
+      val memberTypes: Set[Schema.Type] = {
+        import scala.jdk.CollectionConverters.*
+        valueField.schema().getType match {
+          case Schema.Type.UNION => valueField.schema().getTypes.asScala.map(_.getType).toSet
+          case other             => Set(other)
+        }
       }
-    assert(memberTypes.contains(Schema.Type.STRING))
-    assert(!memberTypes.contains(Schema.Type.INT))
+      assert(memberTypes.contains(Schema.Type.STRING))
+      assert(!memberTypes.contains(Schema.Type.INT))
+    }
   }
 }

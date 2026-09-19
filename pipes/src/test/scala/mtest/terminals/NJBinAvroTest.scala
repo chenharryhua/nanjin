@@ -1,7 +1,6 @@
 package mtest.terminals
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, FileKind}
@@ -10,33 +9,34 @@ import io.circe.jawn
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
+import munit.CatsEffectSuite
 import org.apache.avro.generic.GenericRecord
-import org.scalatest.Assertion
-import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
 
-class NJBinAvroTest extends AnyFunSuite {
+class NJBinAvroTest extends CatsEffectSuite {
   import HadoopTestData.*
 
-  def fs2(path: Url, file: BinAvroFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: BinAvroFile, data: Set[GenericRecord]): IO[Unit] = {
     val tgt = path / file.fileName
 
-    hdp.delete(tgt).unsafeRunSync()
     val sink = hdp.sink(tgt).binAvro
     val src = hdp.source(tgt).binAvro(100, pandaSchema)
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: FileKind).asJson.noSpaces
-    assert(jawn.decode[FileKind](fileName).toOption.get == file)
-    assert(action.unsafeRunSync().toSet == data)
-    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
 
-    hdp.source(tgt).binAvro(100, pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
-
-    assert(size == data.size)
-    assert(hdp.source(tgt).binAvro(100, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
+    for {
+      _ <- hdp.delete(tgt)
+      _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
+      actionResult <- action
+      _ = assert(actionResult.toSet == data)
+      size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
+      _ <- hdp.source(tgt).binAvro(100, pandaSchema, readerSchema).debug().compile.drain
+      _ = assert(size == data.size)
+      roundTrip <- hdp.source(tgt).binAvro(100, pandaSchema).compile.toList
+    } yield assert(roundTrip.toSet == data)
   }
 
   val fs2Root: Url = "data/test/terminals/bin_avro/panda"
@@ -73,65 +73,67 @@ class NJBinAvroTest extends AnyFunSuite {
   test("8.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
-    hdp.delete(path).unsafeRunSync()
     val file = BinAvroFile(_.Uncompressed)
-    val processedSize = Stream
-      .emits(pandaSet.toList)
-      .covary[IO]
-      .repeatN(number)
-      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
-        path / file.fileName(t)).binAvro)
-      .fold(0L)((sum, v) => sum + v.recordCount)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number * 2)
-    assert(processedSize == number * 2)
+    for {
+      _ <- hdp.delete(path)
+      processedSize <- Stream
+        .emits(pandaSet.toList)
+        .covary[IO]
+        .repeatN(number)
+        .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
+          path / file.fileName(t)).binAvro)
+        .fold(0L)((sum, v) => sum + v.recordCount)
+        .compile
+        .lastOrError
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield {
+      assert(size == number * 2)
+      assert(processedSize == number * 2)
+    }
   }
 
   test("9.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = BinAvroFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    val processedSize = Stream
-      .emits(pandaSet.toList)
-      .covary[IO]
-      .repeatN(number)
-      .chunkN(1000)
-      .unchunks
-      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
-      .fold(0L)((sum, v) => sum + v.recordCount)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-    val size =
-      hdp
-        .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
-        .map(_.sum)
-        .unsafeRunSync()
-    assert(size == number * 2)
-    assert(processedSize == number * 2)
+    for {
+      _ <- hdp.delete(path)
+      processedSize <- Stream
+        .emits(pandaSet.toList)
+        .covary[IO]
+        .repeatN(number)
+        .chunkN(1000)
+        .unchunks
+        .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
+        .fold(0L)((sum, v) => sum + v.recordCount)
+        .compile
+        .lastOrError
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield {
+      assert(size == number * 2)
+      assert(processedSize == number * 2)
+    }
   }
 
   test("10.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "bin.avro"
 
-    (hdp.delete(path) >>
-      (s ++ s ++ s).through(hdp.sink(path).binAvro).compile.drain).unsafeRunSync()
-    val size =
-      hdp.source(path).binAvro(100, pandaSchema).compile.fold(0) { case (s, _) =>
+    for {
+      _ <- hdp.delete(path) >>
+        (s ++ s ++ s).through(hdp.sink(path).binAvro).compile.drain
+      size <- hdp.source(path).binAvro(100, pandaSchema).compile.fold(0) { case (s, _) =>
         s + 1
-      }.unsafeRunSync()
-    assert(size == 3000)
+      }
+    } yield assert(size == 3000)
   }
 
   test("11.stream concat - 2") {
@@ -140,16 +142,15 @@ class NJBinAvroTest extends AnyFunSuite {
     val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second).repeat)(t =>
       path / BinAvroFile(_.Uncompressed).fileName(t))
 
-    (hdp.delete(path) >>
-      (s ++ s ++ s).through(sink.binAvro).compile.drain).unsafeRunSync()
+    hdp.delete(path) >>
+      (s ++ s ++ s).through(sink.binAvro).compile.drain
   }
 
-  ignore("large number (10000) of files - passed but too cost to run it") {
+  test("large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 5000L
     val file = BinAvroFile(_.Uncompressed)
-    hdp.delete(path).unsafeRunSync()
-    Stream
+    hdp.delete(path) >> Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
@@ -157,6 +158,6 @@ class NJBinAvroTest extends AnyFunSuite {
       .fold(0L)((sum, v) => sum + v.recordCount)
       .compile
       .lastOrError
-      .unsafeRunSync()
+      .void
   }
 }

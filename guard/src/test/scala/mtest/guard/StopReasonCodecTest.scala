@@ -4,9 +4,9 @@ import com.github.chenharryhua.nanjin.guard.config.StackTrace
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class StopReasonCodecTest extends AnyFunSuite {
+class StopReasonCodecTest extends FunSuite {
 
   test("1.Successfully round-trip") {
     val json = StopReason.Successfully.asJson

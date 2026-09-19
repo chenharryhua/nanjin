@@ -1,43 +1,40 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
-class AdminApiTest extends AnyFunSuite {
+class AdminApiTest extends CatsEffectSuite {
   private val topicDef: TopicDef[Integer, Integer] =
     TopicDef("admin", Primitive[Integer], Primitive[Integer])
   private val topic = topicDef
   private val mirror = topicDef.withTopicName("admin.mirror")
 
   test("1.newTopic") {
-    val run = ctx.admin(topic.topicName.value).use { admin =>
+    ctx.admin(topic.topicName.value).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
         _ <- IO.sleep(1.seconds)
         _ <- admin.newTopic(3, 1)
         _ <- IO.sleep(1.seconds)
-      } yield assert(info != null)
+      } yield assert(admin != null)
     }
-    run.unsafeRunSync()
   }
 
   test("2.mirrorTo") {
     val admin = ctx.admin(topic.topicName.value)
     val madmin = ctx.admin(mirror.topicName.value)
-    val run = for {
+    for {
       _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- IO.sleep(1.seconds)
       _ <- admin.use(_.mirrorTo(mirror.topicName))
       _ <- IO.sleep(1.seconds)
     } yield ()
-    run.unsafeRunSync()
   }
 
 //  test("groups") {
@@ -64,8 +61,8 @@ class AdminApiTest extends AnyFunSuite {
     assert(end.asJson.as[TopicPartitionMap[Option[Offset]]].toOption.get == end)
   }
 
-  ignore("4.acls") {
-    val run = ctx.admin(topic.topicName.value).use { admin =>
+  test("4.acls".ignore) {
+    ctx.admin(topic.topicName.value).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
         _ <- IO.sleep(1.seconds)
@@ -78,7 +75,5 @@ class AdminApiTest extends AnyFunSuite {
         assert(principal.forall(_.principal() == "User:alice"))
       }
     }
-
-    run.unsafeRunSync()
   }
 }

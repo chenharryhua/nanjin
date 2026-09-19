@@ -3,11 +3,10 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.kernel.{Ref, Resource}
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.aws.{Email, SimpleEmailService}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import software.amazon.awssdk.services.ses.model.{
   SendEmailRequest,
   SendEmailResponse,
@@ -17,7 +16,7 @@ import software.amazon.awssdk.services.ses.model.{
 
 import scala.concurrent.duration.DurationInt
 
-class EmailHeartbeatTest extends AnyFunSuite {
+class EmailHeartbeatTest extends CatsEffectSuite {
 
   // Fake SES client that records the body of every structured email it is asked to send.
   private def recording_client(sent: Ref[IO, List[String]]): Resource[IO, SimpleEmailService[IO]] =
@@ -51,10 +50,11 @@ class EmailHeartbeatTest extends AnyFunSuite {
           .drain *> sent.get
       }
 
-    val bodies = program.unsafeRunSync()
-    // at least one email was sent despite there being no events to report
-    assert(bodies.nonEmpty)
-    // every flush is an empty heartbeat: the "All Good" notice with no warnings or errors
-    assert(bodies.forall(_.contains("All Good")))
+    program.map { bodies =>
+      // at least one email was sent despite there being no events to report
+      assert(bodies.nonEmpty)
+      // every flush is an empty heartbeat: the "All Good" notice with no warnings or errors
+      assert(bodies.forall(_.contains("All Good")))
+    }
   }
 }

@@ -1,15 +1,14 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
 import com.google.protobuf.DynamicMessage
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
-class UpAndDownProtoTest extends AnyFunSuite {
+class UpAndDownProtoTest extends CatsEffectSuite {
   private val ctx: KafkaContext[IO] =
     KafkaContext[IO](
       KafkaSettings.local
@@ -25,19 +24,18 @@ class UpAndDownProtoTest extends AnyFunSuite {
     val schema = KafkaCodec.protobuf[ProtoConsumerRecord].schema
     ctx.schemaRegistry(topic.value)
       .register(value = Some(schema))
-      .unsafeRunSync()
   }
 
   test("2.proto - produce") {
-    ctx.produce(proto).produceOne(1, ProtoConsumerRecord("abc")).void.unsafeRunSync()
+    ctx.produce(proto).produceOne(1, ProtoConsumerRecord("abc")).void
   }
 
   test("3.proto - consume") {
-    ctx.consume(proto).subscribe.take(1).compile.drain.unsafeRunSync()
+    ctx.consume(proto).subscribe.take(1).compile.drain
   }
 
   test("4.get schema") {
-    ctx.schemaRegistry(proto.topicName.value).fetchOptionalJsonSchema.void.unsafeRunSync()
+    ctx.schemaRegistry(proto.topicName.value).fetchOptionalJsonSchema.void
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()
   }

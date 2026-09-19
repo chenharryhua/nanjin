@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.admins
 
 import com.github.chenharryhua.nanjin.kafka.{LagBehind, Offset, TopicPartitionMap}
 import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 /** Lives in package `com.github.chenharryhua.nanjin.kafka.admins` so it can reach the package-private
   * `calculate` object. `calculate.admin_lagBehind` is the pure core of `AdminTopicGroup.lagBehind`: given the
@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
   * `AdminTopicGroup.lagBehind` only adds the effectful fetching and topic filtering around this call, so
   * pinning the computation here covers the behavior that matters without a live broker.
   */
-class CalculateLagBehindTest extends AnyFunSuite {
+class CalculateLagBehindTest extends FunSuite {
 
   private val topic = "topic"
   private def tp(partition: Int): TopicPartition = new TopicPartition(topic, partition)

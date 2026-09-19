@@ -2,14 +2,14 @@ package mtest.guard
 
 import com.github.chenharryhua.nanjin.guard.batch.*
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
-class BatchEncoderTest extends AnyFunSuite {
+class BatchEncoderTest extends FunSuite {
   private val batchId: BatchId = BatchId(1L)
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Id
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 import software.amazon.awssdk.services.sqs.model.*
 
 /** Tests for `SimpleQueueService` that do not require a live SQS endpoint:
@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.sqs.model.*
   *   - the trait's `final` builder-overloads of `receive`/`send`: they apply the builder function and
   *     delegate to the request-taking method. A capturing stub of the trait records what it was handed.
   */
-class SimpleQueueServiceTest extends AnyFunSuite {
+class SimpleQueueServiceTest extends FunSuite {
 
   private def message(batchIndex: Long, messageIndex: Int, batchSize: Int): SqsMessage =
     SqsMessage(

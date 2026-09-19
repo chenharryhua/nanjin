@@ -3,9 +3,9 @@ import cats.implicits.toBifunctorOps
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.*
 import io.circe.{Decoder, Encoder, Json}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class NJConsumerRecordJsonTest extends AnyFunSuite {
+class NJConsumerRecordJsonTest extends FunSuite {
 
   val base = NJConsumerRecord[String, String](
     topic = "test-topic",

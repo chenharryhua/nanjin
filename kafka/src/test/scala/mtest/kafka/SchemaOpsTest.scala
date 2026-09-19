@@ -2,11 +2,9 @@ package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.utils.*
 import org.apache.avro.{Schema, SchemaFormatter}
-import org.scalatest.Assertion
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
-class SchemaOpsTest extends AnyFunSuite with Matchers {
+class SchemaOpsTest extends FunSuite {
 
   private def pretty(schema: Schema): String =
     SchemaFormatter.format("json/pretty", schema)
@@ -14,9 +12,9 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
   private def compact(schema: Schema): String =
     SchemaFormatter.format("json", schema)
 
-  private def parseable(schema: Schema): Assertion =
-    noException should be thrownBy
-      new Schema.Parser().parse(compact(schema))
+  private def parseable(schema: Schema): Unit = {
+    val _ = new Schema.Parser().parse(compact(schema))
+  }
 
   private val schemaJson =
     """
@@ -98,7 +96,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
 
     val text = pretty(updated)
 
-    (text should not).include("\"default\"")
+    assert(!text.contains("\"default\""))
 
     parseable(updated)
   }
@@ -108,7 +106,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
 
     val text = pretty(updated)
 
-    (text should not).include("\"namespace\"")
+    assert(!text.contains("\"namespace\""))
 
     parseable(updated)
   }
@@ -118,7 +116,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
 
     val text = pretty(updated)
 
-    (text should not).include("\"doc\"")
+    assert(!text.contains("\"doc\""))
 
     parseable(updated)
   }
@@ -126,22 +124,26 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
   test("4.replaceNamespace replaces all namespaces recursively") {
     val updated = replaceNamespace(schema, "new.ns")
 
-    updated.getNamespace shouldBe "new.ns"
+    assertEquals(updated.getNamespace, "new.ns")
 
-    updated.getField("address").schema().getNamespace shouldBe "new.ns"
+    assertEquals(updated.getField("address").schema().getNamespace, "new.ns")
 
-    updated
-      .getField("tags")
-      .schema()
-      .getElementType
-      .getNamespace shouldBe "new.ns"
+    assertEquals(
+      updated
+        .getField("tags")
+        .schema()
+        .getElementType
+        .getNamespace,
+      "new.ns")
 
-    updated
-      .getField("status")
-      .schema()
-      .getTypes
-      .get(1)
-      .getNamespace shouldBe "new.ns"
+    assertEquals(
+      updated
+        .getField("status")
+        .schema()
+        .getTypes
+        .get(1)
+        .getNamespace,
+      "new.ns")
 
     parseable(updated)
   }
@@ -150,7 +152,7 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
     val once = replaceNamespace(schema, "new.ns")
     val twice = replaceNamespace(once, "new.ns")
 
-    pretty(twice) shouldBe pretty(once)
+    assertEquals(pretty(twice), pretty(once))
   }
 
   test("6.combined transformations produce a valid schema") {
@@ -166,9 +168,9 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
 
     val text = pretty(transformed)
 
-    (text should not).include("\"default\"")
-    (text should not).include("\"doc\"")
-    text should include("\"namespace\" : \"new.ns\"")
+    assert(!text.contains("\"default\""))
+    assert(!text.contains("\"doc\""))
+    assert(text.contains("\"namespace\" : \"new.ns\""))
   }
 
   test("7.removeDefaultField on schema without defaults is a no-op") {
@@ -188,19 +190,19 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
           |""".stripMargin
       )
 
-    pretty(removeDefaultField(simple)) shouldBe pretty(simple)
+    assertEquals(pretty(removeDefaultField(simple)), pretty(simple))
   }
 
   test("8.removeNamespace on primitive schema is a no-op") {
     val primitive = Schema.create(Schema.Type.STRING)
 
-    removeNamespace(primitive) shouldBe primitive
+    assertEquals(removeNamespace(primitive), primitive)
   }
 
   test("9.removeDocField on primitive schema is a no-op") {
     val primitive = Schema.create(Schema.Type.INT)
 
-    removeDocField(primitive) shouldBe primitive
+    assertEquals(removeDocField(primitive), primitive)
   }
 
   test("10.replaceNamespace on schema without namespace does not fail") {
@@ -220,7 +222,6 @@ class SchemaOpsTest extends AnyFunSuite with Matchers {
           |""".stripMargin
       )
 
-    noException should be thrownBy
-      replaceNamespace(simple, "new.ns")
+    val _ = replaceNamespace(simple, "new.ns")
   }
 }

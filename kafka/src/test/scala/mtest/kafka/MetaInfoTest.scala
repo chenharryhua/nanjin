@@ -3,11 +3,11 @@ package mtest.kafka
 import com.github.chenharryhua.nanjin.kafka.record.MetaInfo
 import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.generic.GenericData
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.util.{Failure, Success}
 
-class MetaInfoTest extends AnyFunSuite {
+class MetaInfoTest extends FunSuite {
 
   // Minimal Avro record carrying the fields MetaInfo reads. timestampType is a nullable int so we can
   // exercise both the present and absent cases. Extra/other fields are irrelevant: MetaInfo.apply only

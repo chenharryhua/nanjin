@@ -1,9 +1,9 @@
 package mtest.guard
 
 import com.github.chenharryhua.nanjin.guard.config.StackTrace
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class StackTraceTest extends AnyFunSuite {
+class StackTraceTest extends FunSuite {
 
   // a two-level exception so the root-cause-first ordering is observable
   private val ex: Throwable = new RuntimeException("outer", new IllegalStateException("root-cause"))

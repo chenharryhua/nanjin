@@ -5,10 +5,9 @@ import io.circe.Json
 import io.circe.jawn.parse
 import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serde
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
-class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
+class JsonStructuredSerdeSpec extends FunSuite {
 
   val serde: Serde[Json] = ctx.asValue(Structured[Json]).serde
 
@@ -17,11 +16,11 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
 
     val bytes = serde.serializer.serialize("topic", json)
 
-    new String(bytes, "UTF-8") shouldBe """{"name":"test","value":123}"""
+    assertEquals(new String(bytes, "UTF-8"), """{"name":"test","value":123}""")
   }
 
   test("2.serializer should return null for null input") {
-    serde.serializer.serialize("topic", null) shouldBe null
+    assertEquals(serde.serializer.serialize("topic", null), null)
   }
 
   test("3.deserializer should deserialize valid JSON bytes") {
@@ -30,11 +29,11 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
 
     val result = serde.deserializer.deserialize("topic", bytes)
 
-    result shouldBe parse(jsonString).toOption.get
+    assertEquals(result, parse(jsonString).toOption.get)
   }
 
   test("4.deserializer should return null for null input") {
-    serde.deserializer.deserialize("topic", null) shouldBe null
+    assertEquals(serde.deserializer.deserialize("topic", null), null)
   }
 
   test("5.deserializer should throw SerializationException for invalid JSON") {
@@ -45,13 +44,13 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
       serde.deserializer.deserialize("topic", bytes)
     }
 
-    ex.getCause should not be null
+    assert(ex.getCause != null)
   }
 
   test("6.serializer should correctly serialize Json.Null") {
     val bytes = serde.serializer.serialize("topic", Json.Null)
 
-    new String(bytes, "UTF-8") shouldBe "null"
+    assertEquals(new String(bytes, "UTF-8"), "null")
   }
 
   test("7.deserializer should correctly deserialize JSON null") {
@@ -59,7 +58,7 @@ class JsonStructuredSerdeSpec extends AnyFunSuite with Matchers {
 
     val result = serde.deserializer.deserialize("topic", bytes)
 
-    result shouldBe Json.Null
+    assertEquals(result, Json.Null)
   }
 
 }

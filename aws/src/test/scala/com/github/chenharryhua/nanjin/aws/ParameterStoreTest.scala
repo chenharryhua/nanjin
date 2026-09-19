@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.ssm.SsmClient
 import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse, Parameter}
@@ -10,7 +9,7 @@ import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParam
 import java.util.Base64
 import scala.jdk.CollectionConverters.*
 
-class ParameterStoreTest extends AnyFunSuite {
+class ParameterStoreTest extends CatsEffectSuite {
 
   /** Mock SSM client for testing */
   private class MockSsmClient(parameters: Map[String, String]) extends SsmClient {
@@ -57,31 +56,34 @@ class ParameterStoreTest extends AnyFunSuite {
     }
 
   test("1.fetch returns the correct parameter") {
-    val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
-
-    val result = store.fetch("foo", isSecure = false).unsafeRunSync()
-    assert(result.value == "bar")
+    createStore(Map("foo" -> "bar")).flatMap { store =>
+      store.fetch("foo", isSecure = false).map { result =>
+        assert(result.value == "bar")
+      }
+    }
   }
 
   test("2.fetch throws NoSuchElementException for missing parameter") {
-    val store = createStore(Map("foo" -> "bar")).unsafeRunSync()
-
-    assertThrows[NoSuchElementException](store.fetch("missing", isSecure = false).unsafeRunSync())
+    createStore(Map("foo" -> "bar")).flatMap { store =>
+      interceptIO[NoSuchElementException](store.fetch("missing", isSecure = false))
+    }
   }
 
   test("3.base64 decodes parameter value") {
     val encoded = java.util.Base64.getEncoder.encodeToString("hello".getBytes)
-    val store = createStore(Map("baz" -> encoded)).unsafeRunSync()
-
-    val result = store.base64("baz", isSecure = false).unsafeRunSync()
-    assert(new String(result) == "hello")
+    createStore(Map("baz" -> encoded)).flatMap { store =>
+      store.base64("baz", isSecure = false).map { result =>
+        assert(new String(result) == "hello")
+      }
+    }
   }
 
   test("4.fetch with GetParametersRequest returns correct value") {
-    val store = createStore(Map("key" -> "value")).unsafeRunSync()
-    val request = GetParametersRequest.builder().names("key").build()
-    val result = store.fetch(request).unsafeRunSync()
-
-    assert(result.parameters().asScala.head.value() == "value")
+    createStore(Map("key" -> "value")).flatMap { store =>
+      val request = GetParametersRequest.builder().names("key").build()
+      store.fetch(request).map { result =>
+        assert(result.parameters().asScala.head.value() == "value")
+      }
+    }
   }
 }

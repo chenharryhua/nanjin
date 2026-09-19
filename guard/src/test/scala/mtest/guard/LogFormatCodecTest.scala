@@ -3,9 +3,9 @@ package mtest.guard
 import com.github.chenharryhua.nanjin.guard.config.LogFormat
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class LogFormatCodecTest extends AnyFunSuite {
+class LogFormatCodecTest extends FunSuite {
 
   test("1.all LogFormat values round-trip through JSON") {
     LogFormat.values.foreach { lf =>

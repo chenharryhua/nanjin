@@ -3,11 +3,11 @@ package mtest
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import io.circe.jawn.decode
 import io.circe.syntax.*
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.time.*
 import scala.concurrent.duration.*
-final class DateTimeRangeSpec extends AnyFunSuite {
+final class DateTimeRangeSpec extends FunSuite {
 
   private val utc: ZoneId = ZoneId.of("UTC")
 

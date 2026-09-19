@@ -1,18 +1,17 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
 import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec.KafkaJsonCodec
 import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec
 
-class UpAndDownJsonTest extends AnyFunSuite {
+class UpAndDownJsonTest extends CatsEffectSuite {
   private val ctx: KafkaContext[IO] =
     KafkaContext[IO](
       KafkaSettings.local
@@ -30,19 +29,18 @@ class UpAndDownJsonTest extends AnyFunSuite {
     val schema = summon[KafkaJsonCodec[UpAndDown]].schema
     ctx.schemaRegistry(topic.value)
       .register(value = Some(schema))
-      .unsafeRunSync()
   }
 
   test("2.json - produce") {
-    ctx.produce(json).produceOne(1, UpAndDown(3, "abc")).void.unsafeRunSync()
+    ctx.produce(json).produceOne(1, UpAndDown(3, "abc")).void
   }
 
   test("3.json - consume") {
-    ctx.consume(json).subscribe.take(1).timeout(3.seconds).compile.drain.unsafeRunSync()
+    ctx.consume(json).subscribe.take(1).timeout(3.seconds).compile.drain
   }
 
   test("4.get schema") {
-    ctx.schemaRegistry(json.topicName.value).fetchOptionalJsonSchema.void.unsafeRunSync()
+    ctx.schemaRegistry(json.topicName.value).fetchOptionalJsonSchema.void
     // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
     // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()
   }
