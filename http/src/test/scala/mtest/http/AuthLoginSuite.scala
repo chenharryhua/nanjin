@@ -516,8 +516,9 @@ final class AuthLoginSuite extends CatsEffectSuite {
       password = Secret("pass")
     )
 
-    Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
-      authed.expect[String](uri"/resource")
+    Salesforce[IO](authClient, credential, 2.hours).flatMap(_.login(Client.fromHttpApp(resourceApp))).use {
+      authed =>
+        authed.expect[String](uri"/resource")
     }
   }
 
@@ -559,8 +560,9 @@ final class AuthLoginSuite extends CatsEffectSuite {
       password = Secret("pass")
     )
 
-    Salesforce[IO](authClient, credential).flatMap(_.login(Client.fromHttpApp(resourceApp))).use { authed =>
-      authed.expect[String](Uri.unsafeFromString("/services/data/v58.0/query?q=SELECT+Id+FROM+Account"))
+    Salesforce[IO](authClient, credential, 2.hours).flatMap(_.login(Client.fromHttpApp(resourceApp))).use {
+      authed =>
+        authed.expect[String](Uri.unsafeFromString("/services/data/v58.0/query?q=SELECT+Id+FROM+Account"))
     }
   }
 
