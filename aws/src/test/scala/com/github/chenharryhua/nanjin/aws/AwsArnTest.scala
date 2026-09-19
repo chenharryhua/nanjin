@@ -4,9 +4,9 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.aws.*
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class AwsArnTest extends AnyFunSuite {
+class AwsArnTest extends FunSuite {
   test("1.iam") {
     val iam: IamArn = IamArn("arn:aws:iam::123456789012:role/ab-c")
     println(iam.asJson)

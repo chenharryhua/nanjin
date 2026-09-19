@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import munit.CatsEffectSuite
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.secretsmanager.model.*
 
-class SecretsManagerIOSpec extends AnyFlatSpec with Matchers {
+class SecretsManagerIOSpec extends CatsEffectSuite {
 
   /** Pure in-memory implementation for testing */
   final class DummySecretsManager extends SecretsManager[IO] {
@@ -33,24 +31,27 @@ class SecretsManagerIOSpec extends AnyFlatSpec with Matchers {
       getValue(GetSecretValueRequest.builder().secretId(secretId).build()).map(_.secretBinary())
   }
 
-  "DummySecretsManager" should "return secret string" in {
+  test("DummySecretsManager: return secret string") {
     val sm = new DummySecretsManager
-    val result = sm.getString("string-secret").unsafeRunSync()
-    result shouldBe "super-secret"
-  }
-
-  it should "return secret binary" in {
-    val sm = new DummySecretsManager
-    val result = sm.getBinary("binary-secret").unsafeRunSync()
-    result.asUtf8String() shouldBe "binary-secret"
-  }
-
-  it should "fail for unknown secret" in {
-    val sm = new DummySecretsManager
-    val ex = intercept[NoSuchElementException] {
-      sm.getString("missing-secret").unsafeRunSync()
+    sm.getString("string-secret").map { result =>
+      assertEquals(result, "super-secret")
     }
-    ex.getMessage should include("Secret not found")
+  }
+
+  test("DummySecretsManager: return secret binary") {
+    val sm = new DummySecretsManager
+    sm.getBinary("binary-secret").map { result =>
+      assertEquals(result.asUtf8String(), "binary-secret")
+    }
+  }
+
+  test("DummySecretsManager: fail for unknown secret") {
+    val sm = new DummySecretsManager
+    interceptIO[NoSuchElementException] {
+      sm.getString("missing-secret")
+    }.map { ex =>
+      assert(ex.getMessage.contains("Secret not found"))
+    }
   }
 
   /** Simulates SecretsManagerImpl null-check behavior by returning responses with only one field set */
@@ -91,31 +92,37 @@ class SecretsManagerIOSpec extends AnyFlatSpec with Matchers {
       }
   }
 
-  "NullAwareSecretsManager" should "return string when secret is a string secret" in {
+  test("NullAwareSecretsManager: return string when secret is a string secret") {
     val sm = new NullAwareSecretsManager
-    sm.getString("only-string").unsafeRunSync() shouldBe "hello"
-  }
-
-  it should "return binary when secret is a binary secret" in {
-    val sm = new NullAwareSecretsManager
-    sm.getBinary("only-binary").unsafeRunSync().asUtf8String() shouldBe "bytes"
-  }
-
-  it should "fail with IllegalStateException when getString called on binary secret" in {
-    val sm = new NullAwareSecretsManager
-    val ex = intercept[IllegalStateException] {
-      sm.getString("only-binary").unsafeRunSync()
+    sm.getString("only-string").map { result =>
+      assertEquals(result, "hello")
     }
-    ex.getMessage should include("does not contain a string value")
-    ex.getMessage should include("only-binary")
   }
 
-  it should "fail with IllegalStateException when getBinary called on string secret" in {
+  test("NullAwareSecretsManager: return binary when secret is a binary secret") {
     val sm = new NullAwareSecretsManager
-    val ex = intercept[IllegalStateException] {
-      sm.getBinary("only-string").unsafeRunSync()
+    sm.getBinary("only-binary").map { result =>
+      assertEquals(result.asUtf8String(), "bytes")
     }
-    ex.getMessage should include("does not contain a binary value")
-    ex.getMessage should include("only-string")
+  }
+
+  test("NullAwareSecretsManager: fail with IllegalStateException when getString called on binary secret") {
+    val sm = new NullAwareSecretsManager
+    interceptIO[IllegalStateException] {
+      sm.getString("only-binary")
+    }.map { ex =>
+      assert(ex.getMessage.contains("does not contain a string value"))
+      assert(ex.getMessage.contains("only-binary"))
+    }
+  }
+
+  test("NullAwareSecretsManager: fail with IllegalStateException when getBinary called on string secret") {
+    val sm = new NullAwareSecretsManager
+    interceptIO[IllegalStateException] {
+      sm.getBinary("only-string")
+    }.map { ex =>
+      assert(ex.getMessage.contains("does not contain a binary value"))
+      assert(ex.getMessage.contains("only-string"))
+    }
   }
 }
