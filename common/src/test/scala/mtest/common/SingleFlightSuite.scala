@@ -1,7 +1,7 @@
 package mtest.common
 
 import cats.effect.IO
-import cats.effect.kernel.Ref
+import cats.effect.kernel.{Deferred, Ref}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.resilience.SingleFlight
@@ -61,17 +61,65 @@ class SingleFlightSuite extends CatsEffectSuite {
     prom.unsafeRunSync()
   }
 
-  test("4.SingleFlight should unblock followers when leader is canceled") {
-    val prom = for {
-      sf <- SingleFlight.apply[IO, Int]
-      leader <- sf(IO.never[Int]).attempt.start
-      _ <- IO.sleep(50.millis)
-      follower <- sf(IO.pure(42)).attempt.start
-      _ <- leader.cancel
-      outcome <- follower.joinWithNever.timeout(1.second)
-    } yield {
-      assert(outcome.isLeft)
-      assertEquals(outcome.swap.toOption.get.getMessage, "SingleFlight leader fiber canceled")
+  test("4.canceling the first caller does not cancel shared work for followers") {
+    val prom = cats.effect.testkit.TestControl.executeEmbed {
+      for {
+        sf <- SingleFlight.apply[IO, Int]
+        started <- Deferred[IO, Unit]
+        release <- Deferred[IO, Unit]
+        worker_canceled <- Deferred[IO, Unit]
+        shared = (started.complete(()).void *> release.get.as(42))
+          .onCancel(worker_canceled.complete(()).void)
+        first <- sf(shared).start
+        _ <- started.get
+        cancel_first <- (IO.sleep(1.second) *> first.cancel).start
+        follower <- sf(IO.pure(99)).start
+        _ <- cancel_first.joinWithNever
+        canceled_before_release <- worker_canceled.tryGet
+        _ <- release.complete(())
+        result <- follower.joinWithNever.timeout(1.second)
+        busy <- sf.isBusy
+      } yield {
+        assertEquals(canceled_before_release, None)
+        assertEquals(result, 42)
+        assertEquals(busy, false)
+      }
+    }
+
+    prom.unsafeRunSync()
+  }
+
+  test("4a.canceling the sole waiter waits for cleanup before starting a new flight") {
+    val prom = cats.effect.testkit.TestControl.executeEmbed {
+      for {
+        sf <- SingleFlight.apply[IO, Int]
+        started <- Deferred[IO, Unit]
+        cleanup_started <- Deferred[IO, Unit]
+        allow_cleanup <- Deferred[IO, Unit]
+        cancellation_finished <- Deferred[IO, Unit]
+        replacement_started <- Deferred[IO, Unit]
+        shared = (started.complete(()).void *> IO.never[Int]).onCancel(
+          cleanup_started.complete(()).void *> allow_cleanup.get)
+        only_waiter <- sf(shared).start
+        _ <- started.get
+        cancellation <- (only_waiter.cancel *> cancellation_finished.complete(()).void).start
+        _ <- cleanup_started.get.timeout(1.second)
+        cancellation_before_cleanup <- cancellation_finished.tryGet
+        replacement <- sf(replacement_started.complete(()).void.as(42)).start
+        _ <- IO.sleep(1.second)
+        replacement_before_cleanup <- replacement_started.tryGet
+        _ <- allow_cleanup.complete(())
+        _ <- cancellation.joinWithNever.timeout(1.second)
+        result <- replacement.joinWithNever.timeout(1.second)
+        replacement_after_cleanup <- replacement_started.tryGet
+        busy <- sf.isBusy
+      } yield {
+        assertEquals(cancellation_before_cleanup, None)
+        assertEquals(replacement_before_cleanup, None)
+        assertEquals(replacement_after_cleanup, Some(()))
+        assertEquals(result, 42)
+        assertEquals(busy, false)
+      }
     }
 
     prom.unsafeRunSync()
@@ -146,7 +194,6 @@ class SingleFlightSuite extends CatsEffectSuite {
       assertEquals(wave2.distinct, List(2))
       assertEquals(finalCount, 2)
     }
-
     prom.unsafeRunSync()
   }
 }
