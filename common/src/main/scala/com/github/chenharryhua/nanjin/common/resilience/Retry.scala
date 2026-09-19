@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Endo
 import cats.data.Kleisli
-import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
@@ -91,8 +90,14 @@ object Retry {
 
       // transitions
       def followPolicy: Decision = Decision(ra.tick)
+
+      /** Override the next retry delay.
+        *
+        * Negative values are normalized to zero. The normalized delay is reflected in encoded `wakeup_at` and
+        * `snooze` fields.
+        */
       def retryAfter(delay: FiniteDuration): Decision =
-        Decision(ra.tick.withConclude(ra.tick.acquires.plus(delay.toJava)))
+        Decision(ra.tick.withConclude(ra.tick.acquires.plus(delay.max(0.seconds).toJava)))
       def giveUp: Decision = Decision.stop(ra.tick)
     end extension
   end Attempt
@@ -130,7 +135,7 @@ object Retry {
   end Decision
 
   final private class Impl[F[_]](seed: PolicyTick[F], decide: Kleisli[F, Attempt, Decision])(using
-    F: Temporal[F]) {
+    F: Async[F]) {
 
     private case class LoopState(
       policyTick: PolicyTick[F],
@@ -145,9 +150,9 @@ object Retry {
             case Some(next) => // respect user's decision
               val firstFailure = state.firstFailureAt.getOrElse(next.tick.acquires)
               val attempt = Attempt(next.tick, ex, state.previousCause, firstFailure)
-              decide.run(attempt).attempt.flatMap {
-                case Left(decisionEx) =>
-                  ex.addSuppressed(decisionEx)
+              F.defer(decide.run(attempt)).attempt.flatMap {
+                case Left(decision_error) =>
+                  if (decision_error ne ex) ex.addSuppressed(decision_error)
                   F.raiseError(ex)
                 case Right(decision) =>
                   if (decision.accepted)
@@ -171,6 +176,10 @@ object Retry {
       *   - `followPolicy` to continue according to the configured policy
       *   - `retryAfter` to override the next retry delay
       *   - `giveUp` to terminate retrying
+      *
+      * Failures returned in `F`, or thrown while constructing it, stop retrying while the operation failure
+      * remains primary. A distinct decision failure is passed to `Throwable.addSuppressed`; throwables
+      * created with suppression disabled retain no suppressed exceptions.
       */
     def withDecision(f: Attempt => F[Decision]): Builder[F] =
       new Builder[F](policy, Kleisli(f))

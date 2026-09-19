@@ -54,7 +54,9 @@ private object EvalPolicy {
 
       case FollowedBy(leader, follower) => leader #::: follower
 
-      case Repeat(policy) => LazyList.continually(policy).flatten
+      case Repeat(policy) =>
+        if (policy.isEmpty) LazyList.empty
+        else LazyList.continually(policy).flatten
 
       case Meet(first, second) =>
         first.zip(second).map { case (sa, sb) =>
