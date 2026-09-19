@@ -36,22 +36,32 @@ trait Login[F[_]] {
   * safely repeatable; a second `Unauthorized` response is returned without another refresh or retry.
   *
   * Subclasses need to implement:
-  *   - `getToken`: how to obtain a token without using a current token
-  *   - `refreshToken`: how to replace a token rejected by the protected resource
+  *   - `getTokenFromCredentials`: how to obtain a token without using a current token
+  *   - `renewOnRejection`: how to replace a token rejected by the protected resource
   *   - `renewalDelay`: when to schedule renewal, or `None` to disable it
   *   - `withToken`: how to attach the token to an HTTP request
   *
-  * Scheduled renewal uses `refreshToken` by default. Subclasses may override `renewToken` when scheduled and
-  * rejected-token replacement use different grant strategies.
+  * ===`renewOnRejection` vs `renewOnSchedule`===
+  *
+  * The two token-replacement hooks correspond to the two paths that can replace a live token:
+  *   - `renewOnRejection` runs on the *reactive* path: a request came back `Unauthorized`, so the current
+  *     token is replaced and the request is replayed once.
+  *   - `renewOnSchedule` runs on the *proactive* path: the background loop replaces the token on the
+  *     `renewalDelay` schedule (and retries after `RENEW_FAILURE_BACKOFF` on failure) before it expires.
+  *
+  * `renewOnSchedule` defaults to `renewOnRejection`, so a subclass that treats both paths identically
+  * overrides only `renewOnRejection`. Override `renewOnSchedule` as well only when proactive renewal should
+  * use a different grant than rejected-token replacement (e.g. renew via a stored `refresh_token` grant, but
+  * on a hard rejection fall back to a fresh `getTokenFromCredentials`).
   */
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
 
   final private case class TokenState(token: T, generation: Long, changed: Deferred[F, Unit])
 
-  protected def getToken: F[T]
-  protected def refreshToken: T => F[T]
-  protected def renewToken: T => F[T] = refreshToken
+  protected def getTokenFromCredentials: F[T]
+  protected def renewOnRejection: T => F[T]
+  protected def renewOnSchedule: T => F[T] = renewOnRejection
   protected def renewalDelay: T => Option[FiniteDuration]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
@@ -63,7 +73,8 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     Resource.eval(
-      getToken.flatMap(token => Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))
+      getTokenFromCredentials.flatMap(token =>
+        Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))
     ).flatMap { token_state_ref =>
       Resource.eval(Mutex[F]).flatMap { refresh_lock =>
         def replace_token(expected_generation: Long, replace: T => F[T]): F[TokenState] =
@@ -92,7 +103,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
           }
 
         def renew_until_success(scheduled: TokenState): F[Unit] =
-          replace_token(scheduled.generation, renewToken)
+          replace_token(scheduled.generation, renewOnSchedule)
             .flatMap(_ => F.unit)
             .handleErrorWith(_ => await_retry_or_change(scheduled))
 
@@ -122,7 +133,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
                   poll(allocate_response(requested.token)).flatMap {
                     case (response, release) if response.status === Status.Unauthorized =>
                       release(Resource.ExitCase.Succeeded).flatMap(_ =>
-                        poll(replace_token(requested.generation, refreshToken)
+                        poll(replace_token(requested.generation, renewOnRejection)
                           .flatMap(current => allocate_response(current.token))))
                     case allocated_response => F.pure(allocated_response)
                   }

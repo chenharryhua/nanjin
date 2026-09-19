@@ -426,7 +426,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4d.getToken failure during 401 recovery propagates the error") {
+  test("4d.getTokenFromCredentials failure during 401 recovery propagates the error") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
 
     val authClient = Resource.pure[IO, Client[IO]](

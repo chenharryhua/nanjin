@@ -29,7 +29,7 @@ object Salesforce {
     * This flow exchanges a username and password directly for an access token. It should only be used in
     * trusted server-side environments.
     */
-  private class PasswordGrantAuth[F[_]: Async](
+  final private class PasswordGrantAuth[F[_]: Async](
     credential: PasswordGrant,
     expiresIn: FiniteDuration,
     authClient: Resource[F, Client[F]]
@@ -57,10 +57,10 @@ object Salesforce {
         val tac = new TokenAuthClient[F] {
           override protected type T = Token
 
-          override protected def getToken: F[Token] =
+          override protected def getTokenFromCredentials: F[Token] =
             postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
 
-          override protected def refreshToken: Token => F[Token] = _ => getToken
+          override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
 
           override protected def renewalDelay: Token => Option[FiniteDuration] =
             _ => Some(expiresIn)
