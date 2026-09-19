@@ -404,6 +404,40 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
+  test("13a.Retry: reused fixed-rate policy anchors tick 1 to each invocation") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      def observed_delay(retry: Retry[IO]): IO[FiniteDuration] =
+        for {
+          invoked_at <- Ref.of[IO, List[FiniteDuration]](Nil)
+          attempts <- Ref.of[IO, Int](0)
+          result <- retry {
+            IO.monotonic.flatMap { timestamp =>
+              invoked_at.update(_ :+ timestamp).flatMap(_ =>
+                attempts.updateAndGet(_ + 1).flatMap { count =>
+                  if (count == 1) IO.raiseError[String](new RuntimeException("boom"))
+                  else IO.pure("ok")
+                })
+            }
+          }
+          history <- invoked_at.get
+          List(first, second) = history
+        } yield {
+          assertEquals(result, "ok")
+          second - first
+        }
+
+      for {
+        retry <- Retry[IO](ZoneId.systemDefault(), _.withPolicy(_.fixedRate(700.millis).limited(1)))
+        first_delay <- observed_delay(retry)
+        _ <- IO.sleep(1.second)
+        second_delay <- observed_delay(retry)
+      } yield {
+        assertEquals(first_delay, 700.millis)
+        assertEquals(second_delay, 700.millis)
+      }
+    }
+  }
+
   test("14.Retry: Decision.accepted is true for followPolicy") {
     val zoneId = ZoneId.systemDefault()
 

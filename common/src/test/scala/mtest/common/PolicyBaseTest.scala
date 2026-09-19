@@ -69,7 +69,7 @@ class PolicyBaseTest extends AnyFunSuite {
       tickStream.testPolicy[IO]((_: Policy.type) => policy).take(5).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
-    assert(a1.conclude == a1.commence.plus(1.seconds.toJava))
+    assert(a1.conclude == a1.acquires.plus(1.seconds.toJava))
 
     assert(a2.index == 2)
     assert(a2.commence === a1.conclude)

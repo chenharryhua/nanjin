@@ -159,8 +159,10 @@ object Policy {
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
     fixedDelay(head :: tail.toList)
 
-  /** Fixed-rate scheduling. Produces a single tick that maintains a constant period from the previous
-    * conclude time. Use `.repeat` for continuous fixed-rate scheduling.
+  /** Fixed-rate scheduling. At sequence index 0, the tick concludes one `delay` after its acquisition.
+    * Subsequent sequence ticks maintain cadence from the previous conclude time and recursively skip elapsed
+    * periods. A fixed-rate policy reached later through composition therefore continues the existing sequence
+    * cadence. Use `.repeat` for continuous fixed-rate scheduling.
     *
     * @param delay
     *   must be positive

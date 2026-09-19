@@ -46,7 +46,10 @@ private object EvalPolicy {
 
       case FixedRate(delay) =>
         LazyList(TickStepper { case Acquisition(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).some.pure[F]
+          val conclude =
+            if (tick.index === 0L) now.plus(delay)
+            else fixedRateSnooze(tick.conclude, now, delay, 1L)
+          tick.nextTick(now, conclude).some.pure[F]
         })
 
       // ops
