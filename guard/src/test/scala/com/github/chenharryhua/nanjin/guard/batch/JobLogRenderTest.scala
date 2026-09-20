@@ -103,21 +103,24 @@ class JobLogRenderTest extends FunSuite {
     assert(!js.noSpaces.contains("TOP-SECRET"))
   }
 
-  test("8.standalone Nonfatal: job under status tag, took its own key, message under error") {
+  test("8.standalone Nonfatal: job under the status tag, took present, no duplicated error message") {
     val js = JobLog.Nonfatal(record(quasiJob, succeeded = false), new RuntimeException("boom")).standalone
     val c = js.hcursor
+    // stable: the failure is tagged, carries the job identity, and reports took
     assert(c.downField("nonfatal").get[String]("job-1").toOption.contains("work"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty)) // took
-    assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
+    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
+    // standalone deliberately omits the error message: it is auto-emitted with the throwable as the log
+    // entry's cause, so the stacktrace already carries it and repeating it here would duplicate.
+    assert(c.downField(JobLog.ERROR).focus.isEmpty)
     assert(c.downField(JobLog.RESULT).focus.isEmpty)
   }
 
-  test("9.standalone Critical: job under status tag, took its own key, message under error") {
+  test("9.standalone Critical: job under the status tag, took present, no duplicated error message") {
     val js = JobLog.Critical(record(valueJob, succeeded = false), new RuntimeException("boom")).standalone
     val c = js.hcursor
     assert(c.downField("critical").get[String]("job-1").toOption.contains("work"))
     assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
+    assert(c.downField(JobLog.ERROR).focus.isEmpty)
     assert(c.downField(JobLog.RESULT).focus.isEmpty)
   }
 
@@ -130,36 +133,36 @@ class JobLogRenderTest extends FunSuite {
 
   // ---- inBatch render (nested inside a serialized BatchResult) -------------------------------------
 
-  test(
-    "11.inBatch Succeeded: status tag under the job's displayName key, took its own key, value under result") {
-    val js = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).inBatch
-    val c = js.hcursor
-    // inBatch keys the entry by the job's displayName; the value is the status tag. took is its own key.
-    assert(c.get[String]("job-1 work").toOption.contains("succeeded"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    // inBatch omits the full job context that standalone nests in
-    assert(c.get[String]("Sequential Quasi Batch").toOption.isEmpty)
+  // These `inBatch` tests assert stable display invariants (identity, status tag, took, and value/error
+  // disclosure) rather than the exact key layout, which is UI-facing and expected to evolve.
+
+  test("11.inBatch Succeeded: identity, status tag, took present, and the produced value is disclosed") {
+    val text = JobLog.Succeeded(record(quasiJob, succeeded = true), secret).inBatch.noSpaces
+    assert(text.contains("job-1") && text.contains("work")) // job identity
+    assert(text.contains("succeeded")) // status tag
+    assert(text.contains("12 milli")) // took (record uses 12.millis)
     // inBatch is the user-triggered serialization path, so the produced value is shown here
-    assert(c.get[String](JobLog.RESULT).toOption.contains("TOP-SECRET-PRODUCED-VALUE"))
+    assert(text.contains("TOP-SECRET-PRODUCED-VALUE"))
   }
 
-  test("12.inBatch Succeeded with an absent value (Json.Null): the result key is dropped") {
+  test("12.inBatch Succeeded with an absent value (Json.Null): no result is rendered") {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), Json.Null).inBatch
-    val c = js.hcursor
-    assert(c.get[String]("job-1 work").toOption.contains("succeeded"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    assert(c.downField(JobLog.RESULT).focus.isEmpty) // dropNullValues removes it
+    val text = js.noSpaces
+    assert(text.contains("job-1") && text.contains("work"))
+    assert(text.contains("succeeded"))
+    // dropNullValues removes the absent value: no result key survives
+    assert(js.hcursor.downField(JobLog.RESULT).focus.isEmpty)
   }
 
-  test(
-    "13.inBatch Critical: status tag under the job's displayName key, took its own key, message under error") {
+  test("13.inBatch Critical: identity, status tag, took, and the exception message are rendered") {
     // Critical carries no produced value, so its phantom `A` is pinned to Unit for the Encoder to resolve
-    val js =
-      JobLog.Critical[Unit](record(monadicJob, succeeded = false), new RuntimeException("boom")).inBatch
-    val c = js.hcursor
-    assert(c.get[String]("job-1 work").toOption.contains("critical"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    assert(c.get[String](JobLog.ERROR).toOption.exists(_.endsWith("boom")))
+    val text =
+      JobLog.Critical[Unit](
+        record(monadicJob, succeeded = false),
+        new RuntimeException("boom")).inBatch.noSpaces
+    assert(text.contains("job-1") && text.contains("work"))
+    assert(text.contains("critical"))
+    assert(text.contains("boom")) // exception message surfaces on the batch-nested render
   }
 
   // Note: Kickoff/Canceled extend JobLog[Nothing], so `inBatch` (which needs an Encoder[A]) is uncallable

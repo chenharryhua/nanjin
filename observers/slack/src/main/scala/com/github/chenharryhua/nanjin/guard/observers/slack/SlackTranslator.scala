@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.slack
 import cats.syntax.order.given
 import cats.syntax.show.{showInterpolator, given}
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
 import com.github.chenharryhua.nanjin.guard.config.{Brief, ServiceIdentity, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Correlation, Event, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{
@@ -90,9 +90,10 @@ private object SlackTranslator extends all {
     TagValueSection(tag, ss.text)
   }
 
-  private def brief(sb: Brief): TagValueSection = {
-    val service_brief = Attribute(sb).textEntry
-    TagValueSection(service_brief.tag, s"```${abbreviate(service_brief.text)}```")
+  private def brief(serviceBrief: Brief, logLink: Option[LogLink]): TagValueSection = {
+    val sb = Attribute(serviceBrief).textEntry
+    val tag = logLink.fold(sb.tag)(link => s"<${link.value}|${sb.tag}>")
+    TagValueSection(tag, s"```${abbreviate(sb.text)}```")
   }
 
   // events
@@ -121,7 +122,7 @@ private object SlackTranslator extends all {
             single_field(service_id)
           )
         ),
-        Attachment(color = color, blocks = List(brief(evt.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief, evt.logLink)))
       )
     )
   }
@@ -130,12 +131,8 @@ private object SlackTranslator extends all {
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val error = Attribute(evt.stackTrace).textEntry.withText(t => s"```${abbreviate(t)}```")
+    val error = Attribute(evt.stackTrace).textEntry.withText(txt => s"```${abbreviate(txt)}```")
     val active = Attribute(Active(evt.tick.active)).textEntry
-    val stack: TextEntry =
-      evt.logLink.fold(error) { link =>
-        error.withTag(tag => s"<${link.value}|$tag>")
-      }
     val color = coloring(evt)
 
     SlackApp(
@@ -152,8 +149,8 @@ private object SlackTranslator extends all {
                                    |*${service_id.tag}:* ${service_id.text}""".stripMargin)
           )
         ),
-        Attachment(color = color, blocks = List(TagValueSection(stack.tag, stack.text))),
-        Attachment(color = color, blocks = List(brief(evt.brief)))
+        Attachment(color = color, blocks = List(TagValueSection(error.tag, error.text))),
+        Attachment(color = color, blocks = List(brief(evt.brief, evt.logLink)))
       )
     )
   }
@@ -175,7 +172,7 @@ private object SlackTranslator extends all {
             mark_down(service_id, stop_cause)
           )
         ),
-        Attachment(color = color, blocks = List(brief(evt.brief)))
+        Attachment(color = color, blocks = List(brief(evt.brief, evt.logLink)))
       )
     )
   }

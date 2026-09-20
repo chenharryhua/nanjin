@@ -6,10 +6,9 @@ import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import org.http4s.Method.POST
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
+import org.http4s.{Request, Response, Status}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -31,43 +30,65 @@ trait Login[F[_]] {
 
 /** Provides token-based authentication for an HTTP client.
   *
-  * Manages fetching, refreshing, and applying tokens to requests. When a request returns `Unauthorized`, the
-  * wrapped client refreshes the token and replays that request once. The request entity must therefore be
-  * safely repeatable; a second `Unauthorized` response is returned without another refresh or retry.
+  * Manages fetching, renewing, and applying tokens to requests. A token is renewed on two paths: proactively
+  * on a schedule (`renewOnSchedule`, driven by `renewalDelay`) before it expires, and reactively when a
+  * request returns `Unauthorized` (`renewOnRejection`), after which that request is replayed once. The
+  * request entity must therefore be safely repeatable; a second `Unauthorized` response is returned without
+  * another renewal or retry.
   *
   * Subclasses need to implement:
-  *   - `getToken`: how to obtain a token without using a current token
-  *   - `refreshToken`: how to replace a token rejected by the protected resource
+  *   - `getTokenFromCredentials`: how to obtain a token without using a current token
+  *   - `renewOnRejection`: how to replace a token rejected by the protected resource
+  *   - `renewOnSchedule`: how to replace a token proactively before it expires
   *   - `renewalDelay`: when to schedule renewal, or `None` to disable it
   *   - `withToken`: how to attach the token to an HTTP request
   *
-  * Scheduled renewal uses `refreshToken` by default. Subclasses may override `renewToken` when scheduled and
-  * rejected-token replacement use different grant strategies.
+  * ===`renewOnRejection` vs `renewOnSchedule`===
+  *
+  * The two token-replacement hooks correspond to the two paths that can replace a live token:
+  *   - `renewOnRejection` runs on the *reactive* path: a request came back `Unauthorized`, so the current
+  *     token is replaced and the request is replayed once.
+  *   - `renewOnSchedule` runs on the *proactive* path: the background loop replaces the token on the
+  *     `renewalDelay` schedule (and retries after `RENEW_FAILURE_BACKOFF` on failure) before it expires.
+  *
+  * Both hooks are abstract, so each flow states its two strategies explicitly. They may be the same function
+  * when both paths use one grant, or differ when proactive renewal uses a different grant than rejected-token
+  * replacement (e.g. renew via a stored `refresh_token` grant, but on a hard rejection fall back to a fresh
+  * `getTokenFromCredentials`).
   */
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
 
+  /** A snapshot of the current token together with the bookkeeping that coordinates its replacement.
+    *
+    * @param token
+    *   the token currently applied to outgoing requests.
+    * @param generation
+    *   a monotonically increasing counter, starting at `0` and incremented by one on every replacement. It is
+    *   the compare key for replacement: `replace_token` swaps the token only when the caller's expected
+    *   generation still matches the live one, so a replacement racing a concurrent one (e.g. a scheduled
+    *   renewal against a `401` renewal) that lost the race becomes a no-op instead of overwriting the winner.
+    * @param changed
+    *   completed exactly once, when this state is superseded by the next one. The scheduled-renewal and
+    *   failure-backoff loops race their sleep against `changed.get`, so a token replaced on another path
+    *   wakes them to abandon a now-obsolete renewal rather than firing redundantly.
+    */
   final private case class TokenState(token: T, generation: Long, changed: Deferred[F, Unit])
 
-  protected def getToken: F[T]
-  protected def refreshToken: T => F[T]
-  protected def renewToken: T => F[T] = refreshToken
-  protected def renewalDelay: T => Option[FiniteDuration]
+  protected def getTokenFromCredentials: F[T]
+  protected def renewOnRejection(token: T): F[T]
+  protected def renewOnSchedule(token: T): F[T]
+  protected def renewalDelay(token: T): Option[FiniteDuration]
   protected def withToken(token: T, req: Request[F]): Request[F]
-
-  final protected def postToken[A: EntityDecoder[F, *]](
-    client: Client[F],
-    auth_endpoint: Uri,
-    form: UrlForm): F[A] =
-    client.expect[A](POST(form, auth_endpoint))
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     Resource.eval(
-      getToken.flatMap(token => Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))
+      getTokenFromCredentials.flatMap(token =>
+        Deferred[F, Unit].flatMap(changed => F.ref(TokenState(token, 0L, changed))))
     ).flatMap { token_state_ref =>
-      Resource.eval(Mutex[F]).flatMap { refresh_lock =>
+      Resource.eval(Mutex[F]).flatMap { renewal_lock =>
         def replace_token(expected_generation: Long, replace: T => F[T]): F[TokenState] =
-          refresh_lock.lock.surround {
+          renewal_lock.lock.surround {
             F.uncancelable { poll =>
               token_state_ref.get.flatMap { current =>
                 if (current.generation === expected_generation)
@@ -92,8 +113,8 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
           }
 
         def renew_until_success(scheduled: TokenState): F[Unit] =
-          replace_token(scheduled.generation, renewToken)
-            .flatMap(_ => F.unit)
+          replace_token(scheduled.generation, renewOnSchedule)
+            .void
             .handleErrorWith(_ => await_retry_or_change(scheduled))
 
         def renew_after_delay: F[Unit] =
@@ -114,15 +135,15 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
               client.run(withToken(token, request)).allocatedCase
 
             // `makeCaseFull` masks the handoff from each allocated response to this outer resource while
-            // `poll` keeps response acquisition and token refresh cancelable. On 401, the first response
+            // `poll` keeps response acquisition and token renewal cancelable. On 401, the first response
             // is finalized before the retry is acquired so a bounded connection pool can supply the retry.
-            Resource.eval(token_state_ref.get).flatMap { requested =>
+            Resource.eval(token_state_ref.get).flatMap { state =>
               Resource
                 .makeCaseFull[F, (Response[F], Resource.ExitCase => F[Unit])] { poll =>
-                  poll(allocate_response(requested.token)).flatMap {
+                  poll(allocate_response(state.token)).flatMap {
                     case (response, release) if response.status === Status.Unauthorized =>
                       release(Resource.ExitCase.Succeeded).flatMap(_ =>
-                        poll(replace_token(requested.generation, refreshToken)
+                        poll(replace_token(state.generation, renewOnRejection)
                           .flatMap(current => allocate_response(current.token))))
                     case allocated_response => F.pure(allocated_response)
                   }

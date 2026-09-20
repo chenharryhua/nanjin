@@ -22,7 +22,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"retry:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -35,7 +35,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"counter:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -48,7 +48,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"meter:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -63,7 +63,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"histogram:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -76,7 +76,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"timer:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -89,7 +89,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"timing:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -106,7 +106,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"circuit breaker:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -119,7 +119,7 @@ class Performance extends CatsEffectSuite {
       .compile
       .drain
       .map { _ =>
-        println(s"cost:  ${timeout.toNanos / i} nano")
+        println(s"batch light:  ${timeout.toNanos / i} nano")
         println(s"speed: ${i / timeout.toMillis} k/s")
       }
   }
@@ -131,7 +131,7 @@ class Performance extends CatsEffectSuite {
       .fold(0)((s, _) => s + 1)
       .timed
       .map { case (fd, i) =>
-        println(s"cost:  ${fd.toNanos / i} nano")
+        println(s"channel:  ${fd.toNanos / i} nano")
         println(s"speed: ${i / fd.toMillis} k/s")
       }
   }
