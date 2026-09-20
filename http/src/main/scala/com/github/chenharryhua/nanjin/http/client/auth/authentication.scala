@@ -44,14 +44,18 @@ def clientCredentials[F[_]: Async](
 
 /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
   *
-  * Automatically exchanges the authorization code for an access token, attaches it to requests, and handles
-  * token renewal. A positive `expires_in` schedules renewal before expiry; zero or a negative value disables
-  * scheduled renewal, leaving `renewOnRejection` to replace a rejected token.
+  * Exchanges the authorization code for an access token and attaches it to requests. A positive `expires_in`
+  * schedules renewal before expiry when the server supplies a `refresh_token`; an omitted or non-positive
+  * `expires_in`, or an omitted `refresh_token`, disables scheduled renewal. A rejected token without a
+  * refresh token requires the user to authorize again.
+  *
+  * The returned `Login` permits one resource acquisition because authorization codes are single-use. Once
+  * acquisition starts, another acquisition fails even if the exchange fails, because the server may already
+  * have consumed the code.
   *
   * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
-  * on `client` when needed. Token exchanges use `POST`, and authorization codes are normally single-use, so a
-  * retry policy must account for the possibility that the server consumed the code before the response was
-  * lost.
+  * on `client` when needed. Token exchanges use `POST`, and authorization codes are single-use, so a retry
+  * policy must account for the possibility that the server consumed the code before the response was lost.
   *
   * Example usage:
   * {{{
@@ -69,11 +73,11 @@ def clientCredentials[F[_]: Async](
   * @param client
   *   the HTTP client resource used to fetch tokens
   * @param credential
-  *   the authorization code credentials including optional scopes
+  *   the authorization code credentials and redirect URI
   * @tparam F
   *   effect type with `Async`
   * @return
-  *   a `Login[F]` instance that can wrap a client to perform authenticated requests
+  *   a single-use `Login[F]` instance that can wrap a client to perform authenticated requests
   */
 def authorizationCode[F[_]: Async](
   client: Resource[F, Client[F]],

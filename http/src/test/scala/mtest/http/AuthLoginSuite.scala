@@ -176,6 +176,258 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
+  test("2b.authorizationCode accepts a minimal token response and sends the exact exchange") {
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "token" =>
+          request.as[UrlForm].flatMap { form =>
+            assertEquals(form.getFirst("grant_type"), Some("authorization_code"))
+            assertEquals(form.getFirst("client_id"), Some("client-id"))
+            assertEquals(form.getFirst("code"), Some("auth-code"))
+            assertEquals(form.getFirst("redirect_uri"), Some("https://example.com/callback"))
+            assertEquals(form.getFirst("scope"), None)
+            assertEquals(
+              request.headers.get[Authorization].map(_.value),
+              Some(Authorization(BasicCredentials("client-id", "secret")).value)
+            )
+            token_calls.update(_ + 1) *>
+              Ok("""{"access_token":"minimal-token","token_type":"Bearer"}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    auth.authorizationCode[IO](auth_client, credential).login(protectedResource).use { authed =>
+      authed.expect[String](uri"/resource")
+    }.flatMap { body =>
+      token_calls.get.map { calls =>
+        assertEquals(body, "ok")
+        assertEquals(calls, 1)
+      }
+    }
+  }
+
+  test("2c.authorizationCode retains a refresh token when a refresh response omits it") {
+    val refresh_tokens = Ref.unsafe[IO, List[String]](Nil)
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "token" =>
+          request.as[UrlForm].flatMap { form =>
+            token_calls.updateAndGet(_ + 1).flatMap {
+              case 1 =>
+                Ok("""{"access_token":"old-token","token_type":"Bearer","refresh_token":"refresh-1"}""")
+              case 2 =>
+                refresh_tokens.update(_ :+ form.getFirst("refresh_token").getOrElse("missing")) *>
+                  Ok("""{"access_token":"middle-token","token_type":"Bearer"}""")
+              case 3 =>
+                refresh_tokens.update(_ :+ form.getFirst("refresh_token").getOrElse("missing")) *>
+                  Ok("""{"access_token":"new-token","token_type":"Bearer"}""")
+              case unexpected =>
+                InternalServerError(s"unexpected token call: $unexpected")
+            }
+          }
+        case _ => InternalServerError()
+      })
+    )
+    val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+      request.headers.get[Authorization].map(_.value) match {
+        case Some("Bearer old-token")    => IO.pure(Response[IO](Status.Unauthorized))
+        case Some("Bearer middle-token") => IO.pure(Response[IO](Status.Unauthorized))
+        case Some("Bearer new-token")    => Ok("ok")
+        case _                           => Forbidden()
+      }
+    })
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    auth.authorizationCode[IO](auth_client, credential).login(resource_client).use { authed =>
+      for {
+        first_status <- authed.status(Request[IO](uri = uri"/resource"))
+        body <- authed.expect[String](uri"/resource")
+        used_refresh_tokens <- refresh_tokens.get
+      } yield {
+        assertEquals(first_status, Status.Unauthorized)
+        assertEquals(body, "ok")
+        assertEquals(used_refresh_tokens, List("refresh-1", "refresh-1"))
+      }
+    }
+  }
+
+  test("2d.authorizationCode requires reauthorization when a rejected token has no refresh token") {
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          Ok("""{"access_token":"token","token_type":"Bearer"}""")
+        case _ => InternalServerError()
+      })
+    )
+    val always_unauthorized = Client.fromHttpApp(HttpApp[IO](_ => IO.pure(Response[IO](Status.Unauthorized))))
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    auth.authorizationCode[IO](auth_client, credential).login(always_unauthorized).use { authed =>
+      authed.status(Request[IO](uri = uri"/resource"))
+    }.attempt.map {
+      case Left(error) =>
+        assertEquals(
+          error.getMessage,
+          "authorization code token has no refresh_token; user reauthorization is required")
+      case Right(status) => fail(s"expected reauthorization failure, received $status")
+    }
+  }
+
+  test("2e.authorizationCode login permits only one resource acquisition") {
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.update(_ + 1) *>
+            Ok("""{"access_token":"token","token_type":"Bearer"}""")
+        case _ => InternalServerError()
+      })
+    )
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+    val login = auth.authorizationCode[IO](auth_client, credential)
+
+    for {
+      body <- login.login(protectedResource).use(_.expect[String](uri"/resource"))
+      second_acquisition <- login.login(protectedResource).use_.attempt
+      calls <- token_calls.get
+    } yield {
+      assertEquals(body, "ok")
+      assertEquals(
+        second_acquisition.left.map(_.getMessage),
+        Left("authorization code login has already been acquired"))
+      assertEquals(calls, 1)
+    }
+  }
+
+  test("2f.authorizationCode keeps the code consumed after a failed exchange") {
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.update(_ + 1) *> InternalServerError("exchange failed")
+        case _ => InternalServerError()
+      })
+    )
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+    val login = auth.authorizationCode[IO](auth_client, credential)
+
+    for {
+      first_acquisition <- login.login(protectedResource).use_.attempt
+      second_acquisition <- login.login(protectedResource).use_.attempt
+      calls <- token_calls.get
+    } yield {
+      assert(first_acquisition.isLeft, "the failed token exchange should fail acquisition")
+      assertEquals(
+        second_acquisition.left.map(_.getMessage),
+        Left("authorization code login has already been acquired"))
+      assertEquals(calls, 1)
+    }
+  }
+
+  test("2g.authorizationCode keeps the code consumed after a canceled exchange") {
+    for {
+      exchange_started <- Deferred[IO, Unit]
+      token_calls <- Ref.of[IO, Int](0)
+      auth_app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.update(_ + 1) *>
+            exchange_started.complete(()).void *>
+            IO.never[Response[IO]]
+        case _ => InternalServerError()
+      }
+      credential = AuthorizationCode(
+        auth_endpoint = uri"/token",
+        client_id = "client-id",
+        client_secret = Secret("secret"),
+        code = Secret("auth-code"),
+        redirect_uri = "https://example.com/callback"
+      )
+      login = auth.authorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+      first_acquisition <- login.login(protectedResource).use_.start
+      _ <- exchange_started.get
+      _ <- first_acquisition.cancel
+      second_acquisition <- login.login(protectedResource).use_.attempt
+      calls <- token_calls.get
+    } yield {
+      assertEquals(
+        second_acquisition.left.map(_.getMessage),
+        Left("authorization code login has already been acquired"))
+      assertEquals(calls, 1)
+    }
+  }
+
+  test("2h.authorizationCode rejects an overlapping acquisition before allocating its auth client") {
+    for {
+      auth_allocations <- Ref.of[IO, Int](0)
+      exchange_started <- Deferred[IO, Unit]
+      allow_exchange <- Deferred[IO, Unit]
+      auth_app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          exchange_started.complete(()).void *>
+            allow_exchange.get *>
+            Ok("""{"access_token":"token","token_type":"Bearer"}""")
+        case _ => InternalServerError()
+      }
+      auth_client = Resource.make(
+        auth_allocations.update(_ + 1).as(Client.fromHttpApp(auth_app))
+      )(_ => IO.unit)
+      credential = AuthorizationCode(
+        auth_endpoint = uri"/token",
+        client_id = "client-id",
+        client_secret = Secret("secret"),
+        code = Secret("auth-code"),
+        redirect_uri = "https://example.com/callback"
+      )
+      login = auth.authorizationCode[IO](auth_client, credential)
+      first_acquisition <- login.login(protectedResource).use_.start
+      _ <- exchange_started.get
+      second_acquisition <- login.login(protectedResource).use_.attempt
+      _ <- allow_exchange.complete(())
+      _ <- first_acquisition.joinWithNever
+      allocations <- auth_allocations.get
+    } yield {
+      assertEquals(
+        second_acquisition.left.map(_.getMessage),
+        Left("authorization code login has already been acquired"))
+      assertEquals(allocations, 1)
+    }
+  }
+
   /* -------------------------------------------------------------------------- */
   /* Sanity: token is reused within lifetime                                     */
   /* -------------------------------------------------------------------------- */
