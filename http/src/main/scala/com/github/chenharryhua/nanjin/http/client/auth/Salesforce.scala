@@ -11,7 +11,7 @@ import org.http4s.client.Client
 import org.http4s.headers.{Authorization, Host}
 import org.typelevel.ci.CIString
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 
 /** Salesforce-specific OAuth authentication helpers.
   *
@@ -20,8 +20,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   * semantics, including automatic request routing via the returned `instance_url`.
   *
   * @note
-  *   Salesforce does not return an `expires_in` value. Token renewal is therefore scheduled using a
-  *   caller-provided duration.
+  *   Salesforce does not return an `expires_in` value, so scheduled renewal relies on a caller-provided token
+  *   lifetime. A positive lifetime schedules renewal early (skewed before expiry); a non-positive or omitted
+  *   lifetime disables scheduled renewal, leaving a rejected token to be replaced reactively.
   */
 object Salesforce {
 
@@ -32,7 +33,7 @@ object Salesforce {
     */
   final private class PasswordGrantAuth[F[_]: Async](
     credential: PasswordGrant,
-    expiresIn: FiniteDuration,
+    expiresIn: Option[FiniteDuration],
     authClient: Resource[F, Client[F]]
   ) extends Login[F] {
 
@@ -64,7 +65,8 @@ object Salesforce {
           override protected def renewOnRejection(token: Token): F[Token] = getTokenFromCredentials
           override protected def renewOnSchedule(token: Token): F[Token] = getTokenFromCredentials
 
-          override protected def renewalDelay(token: Token): Option[FiniteDuration] = Some(expiresIn)
+          override protected def renewalDelay(token: Token): Option[FiniteDuration] =
+            expiresIn.map(fd => skewed(fd.toSeconds))
 
           override protected def withToken(token: Token, req: Request[F]): Request[F] =
             req
@@ -87,27 +89,37 @@ object Salesforce {
     username: String,
     password: Secret)
 
-  /** Create a Salesforce `Login` using the Password Grant flow.
+  /** Create a Salesforce `Login` using the Password Grant flow with scheduled token renewal.
     *
     * The resulting authenticated client automatically:
     *   - Fetches an access token using the password grant
     *   - Routes requests to the Salesforce `instance_url`
-    *   - Periodically re-authenticates using the supplied credentials
+    *   - Re-authenticates with the supplied credentials before the token lifetime elapses
     *
     * @param authClient
     *   the HTTP client resource used for Salesforce token requests
     * @param credential
     *   password-grant credentials
     * @param expiresIn
-    *   positive duration between scheduled token renewals
-    * @throws IllegalArgumentException
-    *   when `expiresIn` is zero or negative
+    *   the assumed token lifetime. A positive value schedules renewal early (skewed before expiry); a
+    *   non-positive value disables scheduled renewal, falling back to reactive replacement on rejection.
     */
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
-    expiresIn: FiniteDuration): Login[F] = {
-    require(expiresIn > Duration.Zero, s"expiresIn must be positive, but was $expiresIn")
-    new PasswordGrantAuth[F](credential, expiresIn, authClient)
-  }
+    expiresIn: FiniteDuration): Login[F] =
+    new PasswordGrantAuth[F](credential, Some(expiresIn).filter(_.toSeconds > 0), authClient)
+
+  /** Create a Salesforce `Login` using the Password Grant flow without scheduled renewal.
+    *
+    * Behaves like the three-argument overload but with no token lifetime, so no proactive renewal is
+    * scheduled: a token is replaced only reactively, after the resource server rejects it.
+    *
+    * @param authClient
+    *   the HTTP client resource used for Salesforce token requests
+    * @param credential
+    *   password-grant credentials
+    */
+  def apply[F[_]: Async](authClient: Resource[F, Client[F]], credential: PasswordGrant): Login[F] =
+    new PasswordGrantAuth[F](credential, None, authClient)
 }

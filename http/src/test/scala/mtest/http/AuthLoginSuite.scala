@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.http.client.auth
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
   ClientCredentials,
+  Login,
   Salesforce,
   UriJsonCodec
 }
@@ -571,19 +572,81 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("8a.Salesforce password grant requires a positive renewal duration") {
-    val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp.notFound[IO]))
+  test("8a.Salesforce password grant: non-positive or absent expiresIn disables scheduled renewal") {
     val credential = Salesforce.PasswordGrant(
-      auth_endpoint = uri"/token",
+      auth_endpoint = uri"http://sf.test/token",
       client_id = "client-id",
       client_secret = Secret("secret"),
       username = "user",
       password = Secret("pass")
     )
 
-    List(Duration.Zero, (-1).second).foreach { expires_in =>
-      val error = intercept[IllegalArgumentException](Salesforce[IO](auth_client, credential, expires_in))
-      assertEquals(error.getMessage, s"requirement failed: expiresIn must be positive, but was $expires_in")
+    val token =
+      """{"access_token":"sf-token","instance_url":"http://sf.test","id":"id","token_type":"bearer","issued_at":"0","signature":"sig"}"""
+
+    // a Salesforce login whose token endpoint records how many times it is called; the business call is
+    // routed to instance_url and simply succeeds.
+    def loginWith(makeLogin: Resource[IO, Client[IO]] => Login[IO]): IO[Int] =
+      cats.effect.testkit.TestControl.executeEmbed {
+        Ref.of[IO, Int](0).flatMap { token_calls =>
+          val auth_app = HttpApp[IO] {
+            case POST -> Root / "token" => token_calls.update(_ + 1) *> Ok(token)
+            case _                      => Ok("ok")
+          }
+          val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(auth_app))
+          makeLogin(auth_client)
+            .login(Client.fromHttpApp(auth_app))
+            .use(client => client.expect[String](uri"http://sf.test/resource") *> IO.sleep(10.hours))
+            .flatMap(_ => token_calls.get)
+        }
+      }
+
+    for {
+      zero <- loginWith(Salesforce[IO](_, credential, Duration.Zero))
+      negative <- loginWith(Salesforce[IO](_, credential, (-1).second))
+      absent <- loginWith(Salesforce[IO](_, credential))
+    } yield {
+      // token is fetched once at startup; no scheduled renewal fires over 10 virtual hours
+      assertEquals(zero, 1)
+      assertEquals(negative, 1)
+      assertEquals(absent, 1)
+    }
+  }
+
+  test("8b.Salesforce password grant: positive expiresIn schedules a renewal before expiry") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val credential = Salesforce.PasswordGrant(
+        auth_endpoint = uri"http://sf.test/token",
+        client_id = "client-id",
+        client_secret = Secret("secret"),
+        username = "user",
+        password = Secret("pass")
+      )
+      val token =
+        """{"access_token":"sf-token","instance_url":"http://sf.test","id":"id","token_type":"bearer","issued_at":"0","signature":"sig"}"""
+
+      Ref.of[IO, Int](0).flatMap { token_calls =>
+        val auth_app = HttpApp[IO] {
+          case POST -> Root / "token" => token_calls.update(_ + 1) *> Ok(token)
+          case _                      => Ok("ok")
+        }
+        val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(auth_app))
+
+        Salesforce[IO](auth_client, credential, 100.seconds)
+          .login(Client.fromHttpApp(auth_app))
+          .use { _ =>
+            // renewal is scheduled skewed early: 100s - min(30s, 50s) = 70s
+            for {
+              _ <- IO.sleep(69.seconds)
+              before <- token_calls.get
+              _ <- IO.sleep(2.seconds)
+              after <- token_calls.get
+            } yield {
+              assertEquals(before, 1) // only the startup fetch so far
+              assertEquals(after, 2) // scheduled renewal fired at ~70s
+            }
+          }
+      }
     }
   }
 
