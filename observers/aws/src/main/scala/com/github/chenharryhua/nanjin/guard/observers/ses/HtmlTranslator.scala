@@ -1,0 +1,137 @@
+package com.github.chenharryhua.nanjin.guard.observers.ses
+
+import cats.Applicative
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventTitle,
+  htmlColoring,
+  panicText,
+  Attribute,
+  SnapshotPolyglot,
+  Translator
+}
+import io.circe.Json
+import org.typelevel.cats.time.instances.all
+import scalatags.Text.all.*
+import scalatags.text.Builder
+import scalatags.{generic, Text}
+
+/** https://com-lihaoyi.github.io/scalatags/
+  */
+private object HtmlTranslator extends all {
+  import Event.*
+  private case class Index(value: Long)
+
+  private def service_table(evt: Event): generic.Frag[Builder, String] = {
+    val si = evt.serviceIdentity
+    val task_name = Attribute(si.task).textEntry
+    val host = Attribute(si.host).textEntry
+    val (service_tag, service) =
+      Attribute(si.service).entry(s => si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
+    val service_id = Attribute(si.serviceId).textEntry
+    val uptime = Attribute(evt.upTime).textEntry
+    val timestamp = Attribute(evt.timestamp).textEntry
+
+    frag(
+      tr(th(task_name.tag), th(host.tag), th(timestamp.tag)),
+      tr(td(task_name.text), td(host.text), td(timestamp.text)),
+      tr(th(service_tag), th(service_id.tag), th(uptime.tag)),
+      tr(service, td(service_id.text), td(uptime.text))
+    )
+  }
+
+  private def json_text(js: Json): Text.TypedTag[String] =
+    pre(small(js.spaces2))
+
+  private def stack_trace_text(c: StackTrace): Text.TypedTag[String] = {
+    val err = Attribute(c).textEntry
+    p(b(s"${err.tag}: "), pre(small(err.text)))
+  }
+
+  // events
+
+  private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
+    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
+
+    val fg = frag(
+      tr(th(index.tag), th(active.tag), th(snooze.tag)),
+      tr(td(index.text), td(active.text), td(snooze.text))
+    )
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), fg),
+      json_text(evt.brief.value)
+    )
+  }
+
+  private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
+
+    val fg = frag(
+      tr(th(index.tag), th(active.tag)),
+      tr(td(index.text), td(active.text))
+    )
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), fg),
+      p(b(panicText(evt))),
+      stack_trace_text(evt.stackTrace)
+    )
+  }
+
+  private def service_stop(evt: ServiceStop): Text.TypedTag[String] = {
+    val stop_cause = Attribute(evt.cause).textEntry
+
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt)),
+      p(b(s"${stop_cause.tag}: "), stop_cause.text),
+      json_text(evt.brief.value)
+    )
+  }
+
+  private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
+    val idx = Attribute(evt.index).textEntry
+    val took = Attribute(evt.took).textEntry
+    val fg = frag(
+      tr(th(idx.tag), th(took.tag)),
+      tr(td(idx.text), td(took.text))
+    )
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), fg),
+      pre(small(new SnapshotPolyglot(evt.snapshot).toYaml))
+    )
+  }
+
+  private def reported_event(evt: ReportedEvent): Text.TypedTag[String] = {
+    val domain = Attribute(evt.domain).textEntry
+    val correlation = Attribute(evt.correlation).textEntry
+    val logLevel = Attribute(evt.level).textEntry
+
+    val fg = frag(
+      tr(th(domain.tag), th(correlation.tag), th(logLevel.tag)),
+      tr(td(domain.text), td(correlation.text), td(logLevel.text))
+    )
+
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), fg),
+      json_text(evt.message.value),
+      evt.stackTrace.map(stack_trace_text)
+    )
+  }
+
+  def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
+    Translator
+      .empty[F, Text.TypedTag[String]]
+      .withServiceStart(service_start)
+      .withServicePanic(service_panic)
+      .withServiceStop(service_stop)
+      .withMetricsSnapshot(metrics_snapshot)
+      .withReportedEvent(reported_event)
+}

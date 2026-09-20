@@ -1,0 +1,283 @@
+package mtest.kafka
+
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.kafka.*
+import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.sksamuel.avro4s.SchemaFor
+import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
+import io.circe.generic.auto.*
+import io.circe.syntax.EncoderOps
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
+import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
+import munit.CatsEffectSuite
+
+import scala.concurrent.duration.*
+
+object Fs2ChannelTestData {
+  final case class Fs2Kafka(a: Int, b: String, c: Double)
+  val avroTopic: TopicDef[Integer, Fs2Kafka] =
+    TopicDef[Integer, Fs2Kafka](
+      "fs2.kafka.test",
+      Primitive[Integer].emap(identity)(identity),
+      Structured[GenericRecord].become[Fs2Kafka])
+
+  val jackson =
+    """
+      {
+      "partition" : 0,
+      "offset" : 0,
+      "timestamp" : 1696207641300,
+      "key" : {
+        "int" : 1
+      },
+      "value" : {
+        "mtest.kafka.Fs2ChannelTestData.Fs2Kafka" : {
+          "a" : 1,
+          "b" : "a",
+          "c" : 1.0
+        }
+      },
+      "topic" : "whatever",
+      "timestampType" : 0,
+      "headers" : [
+      ]
+    }
+     """
+
+  val json =
+    """
+      {
+      "partition" : 0,
+      "offset" : 0,
+      "timestamp" : 1696207641300,
+      "key" : 1,
+      "value" : {
+        "a" : 1,
+        "b" : "a",
+        "c" : 1.0
+      },
+      "topic" : "don't care",
+      "timestampType" : 0,
+      "headers" : [
+      ]
+    } """
+}
+
+class Fs2ChannelTest extends CatsEffectSuite {
+  import Fs2ChannelTestData.*
+
+  test("1.register") {
+    val v = Some(AvroSchema(SchemaFor[Fs2Kafka].schema))
+    ctx.schemaRegistry(avroTopic.topicName.value).register(value = v).void
+  }
+
+  test("2.should be able to consume avro topic") {
+    val ret =
+      ctx
+        .produce(avroTopic)
+        .produceOne(
+          ProducerRecord(avroTopic.topicName.value, Integer.valueOf(1), Fs2Kafka(1, "a", 1.0))
+            .withHeaders(Headers(Header("k", "abc")))) >>
+        ctx
+          .consume(avroTopic)
+          .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
+          .subscribe
+          .take(1)
+          .evalTap(_.offset.commit)
+          .map(ccr => NJConsumerRecord(ccr.record).asJson)
+          .timeout(3.seconds)
+          .compile
+          .toList
+    for {
+      xs <- ret
+      grouped <- ctx.ungroup("g1")
+    } yield {
+      assert(xs.size == 1)
+      assert(grouped == List(avroTopic.topicName))
+    }
+  }
+
+  test("3.record format") {
+    ctx.consume(avroTopic).subscribe.take(1).map(_.record).timeout(3.seconds).compile.toList.map { ret =>
+      assert(ret.size == 1)
+    }
+  }
+
+  test("4.serde") {
+    val serde = ctx.serde(avroTopic)
+    ctx
+      .consumeBytes(avroTopic.topicName.value)
+      .assign
+      .take(1)
+      .map { ccr =>
+        serde.deserialize(ccr)
+        serde.deserializeKey(ccr)
+        serde.deserializeValue(ccr.record)
+        serde.tryDeserialize(ccr.record)
+        serde.tryDeserializeKey(ccr.record)
+        serde.tryDeserializeValue(ccr.record)
+        serde.tryDeserializeKeyValue(ccr.record)
+        serde.optionalDeserialize(ccr.record)
+        val nj = NJConsumerRecord(serde.deserialize(ccr.record)).toNJProducerRecord.toProducerRecord
+        serde.serializeKey(nj.key)
+        serde.serializeValue(nj.value)
+        serde.serialize(nj)
+      }
+      .timeout(3.seconds)
+      .compile
+      .toList
+  }
+
+  test("5.consumer config") {
+    val consumer = ctx
+      .consume(avroTopic)
+      .updateConfig(
+        _.withGroupId("nanjin")
+          .withEnableAutoCommit(true)
+          .withBootstrapServers("http://abc.com")
+          .withProperty("abc", "efg"))
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .properties
+    assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
+    assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
+    assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(consumer.get("abc").contains("efg"))
+    assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
+  }
+
+  test("6.byte consumer config") {
+    val consumer = ctx
+      .consumeGenericRecord("bytes")
+      .updateConfig(
+        _.withGroupId("nanjin")
+          .withEnableAutoCommit(true)
+          .withBootstrapServers("http://abc.com")
+          .withProperty("abc", "efg"))
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .properties
+    assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
+    assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
+    assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(consumer.get("abc").contains("efg"))
+    assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
+  }
+
+  test("7.producer setting") {
+    val producer =
+      ctx
+        .produce(avroTopic)
+        .updateConfig(
+          _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
+        )
+        .updateConfig(_.withAcks(Acks.Zero))
+        .properties
+    assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
+    assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(producer.get("abc").contains("efg"))
+    assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
+  }
+
+  test("8.transactional producer setting") {
+    val producer = ctx
+      .produce(avroTopic)
+      .updateConfig(
+        _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
+      )
+      .updateConfig(_.withAcks(Acks.Zero))
+      .properties
+    assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
+    assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(producer.get("abc").contains("efg"))
+    assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
+  }
+
+  test("9.generic record range - offset") {
+    ctx
+      .consumeGenericRecord("telecom_italia_data")
+      .updateConfig(_.withMaxPollRecords(10))
+      .circumscribedStream(Map(0 -> (0L, 5L)))
+      .flatMap(_.stream.map(_.record.value))
+      .compile
+      .drain
+      .as(true)
+      .map(res => assert(res))
+  }
+
+  test("10.generic record range - date time") {
+    ctx
+      .consumeGenericRecord("telecom_italia_data")
+      .updateConfig(_.withMaxPollRecords(10))
+      .circumscribedStream(DateTimeRange(sydneyTime).withToday)
+      .flatMap(_.stream.map(_.record).take(5))
+      .compile
+      .drain
+      .as(true)
+      .map(res => assert(res))
+  }
+
+  test("11.generic record manualCommitStream") {
+    ctx
+      .consumeGenericRecord("telecom_italia_data")
+      .updateConfig(_.withMaxPollRecords(10))
+      .manualCommitStream
+      .flatMap(_.stream.map(_.record.value))
+      .take(5)
+      .compile
+      .drain
+      .as(true)
+      .map(res => assert(res))
+  }
+
+  test("12.range - should stop") {
+    ctx
+      .consume(avroTopic)
+      .updateConfig(_.withMaxPollRecords(10))
+      .circumscribedStream(Map(0 -> (0L, 1L)))
+      .flatMap(_.stream.map(_.record.value))
+      .compile
+      .drain
+      .as(true)
+      .map(res => assert(res))
+  }
+
+  test("13.manualCommitStream") {
+    ctx
+      .consume(avroTopic)
+      .updateConfig(_.withMaxPollRecords(10))
+      .manualCommitStream
+      .flatMap(_.stream.map(_.record.value))
+      .take(1)
+      .compile
+      .drain
+      .as(true)
+      .map(res => assert(res))
+  }
+
+  test("14.generic record without schema registry") {
+    ctx
+      .consumeGenericRecord(avroTopic.topicName.value, Some(SchemaFor[Int].schema))
+      .subscribe
+      .take(1)
+      .map(_.record)
+      .timeout(3.seconds)
+      .compile
+      .toList
+      .map { ret =>
+        assert(ret.size == 1)
+        assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
+      }
+  }
+
+  test("15.attempt consume") {
+    ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record)
+      .timeout(3.seconds).compile.toList.map { ret =>
+        assert(ret.size == 1)
+        assert(ret.head.value.isRight)
+      }
+  }
+}

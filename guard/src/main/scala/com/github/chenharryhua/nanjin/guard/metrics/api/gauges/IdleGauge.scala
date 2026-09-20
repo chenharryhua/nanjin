@@ -1,0 +1,51 @@
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
+
+import cats.Applicative
+import cats.effect.kernel.{Async, Resource}
+import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.EnableConfig
+
+/** Gauge reporting elapsed time since the last wake-up. */
+trait IdleGauge[F[_]]:
+  /** Reset the idle timer to the current monotonic time. */
+  def wakeUp: F[Unit]
+end IdleGauge
+
+object IdleGauge:
+
+  def noop[F[_]: Applicative]: IdleGauge[F] = new IdleGauge[F] {
+    override def wakeUp: F[Unit] = ().pure
+  }
+
+  final class Builder private[IdleGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
+
+    /** Enable or disable idle-gauge registration. */
+    override def enable(isEnabled: Boolean): Builder = new Builder(isEnabled)
+
+    def build[F[_]](gp: GaugeParams[F], name: String)(using F: Async[F]): Resource[F, IdleGauge[F]] =
+      if isEnabled then
+        for {
+          lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
+          _ <- Gauge(
+            gp,
+            name,
+            _.withKind(_.Default)
+              .enable(isEnabled)
+              .register(
+                for {
+                  pre <- lastUpdate.get
+                  now <- F.monotonic
+                } yield defaultFormatter.format(now - pre)
+              ))
+        } yield new IdleGauge[F] {
+          override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
+        }
+      else Resource.pure(noop)
+  }
+
+  def apply[F[_]: Async](gp: GaugeParams[F], name: String, f: Builder => Builder): Resource[F, IdleGauge[F]] =
+    f(Builder(true)).build(gp, name)
+end IdleGauge

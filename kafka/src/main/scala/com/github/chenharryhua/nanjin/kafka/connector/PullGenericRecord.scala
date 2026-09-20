@@ -1,0 +1,144 @@
+package com.github.chenharryhua.nanjin.kafka.connector
+import cats.implicits.catsSyntaxEither
+import cats.syntax.eq.given
+import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
+import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
+import com.sksamuel.avro4s.SchemaFor
+import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.circe.Json
+import io.circe.syntax.given
+import io.scalaland.chimney.dsl.transformInto
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericData.Record
+import org.apache.avro.generic.GenericDatumReader
+import org.apache.avro.io.DecoderFactory
+import org.apache.kafka.common.serialization.Serdes
+
+import java.nio.ByteBuffer
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
+import scala.jdk.OptionConverters.RichOptional
+import scala.util.Try
+
+/** A per-record decode failure from `PullGenericRecord`.
+  *
+  * @param isKey
+  *   `true` if the key failed to decode, `false` if the value did.
+  * @param metaInfo
+  *   topic/partition/offset metadata of the offending record, for diagnostics.
+  * @param cause
+  *   the underlying decode failure, as thrown (wire-format validation, Avro decode, or `Serdes`). Its
+  *   `getMessage` may be `null`, e.g. for some Avro/EOF exceptions.
+  */
+final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable) {
+
+  /** Render this error as a single-field JSON object keyed `key.error` or `value.error`. */
+  def toJson: Json =
+    Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
+}
+
+/** Decodes raw Kafka byte records into Avro `GenericRecord`s, given the key/value schema `pair`.
+  *
+  * The inverse of `PushGenericRecord`. Key and value bytes are decoded according to their Avro schema type:
+  * primitives via the matching Kafka `Serdes`, and `RECORD` types via the Confluent wire format (a 1-byte
+  * `0x00` magic byte plus a 4-byte schema id, then the Avro payload), which is validated before decoding. The
+  * result wraps the decoded key/value plus the record metadata (topic, partition, offset, timestamp, headers,
+  * etc.) into a single `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side
+  * yields a `Left(PullError)` rather than throwing.
+  */
+final private class PullGenericRecord(pair: AvroSchemaPair) {
+  private val schema: Schema = pair.consumerSchema
+  private val topic: String = ""
+
+  private def unsupportedSchema(skm: Schema): Nothing =
+    throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
+
+  /** Build a byte-to-value decoder for one Avro schema type. `null` bytes decode to `null`. For `RECORD` the
+    * Confluent wire format is validated (length >= 5 and magic byte `0x00`) before the payload after the
+    * 5-byte prefix is Avro-decoded; primitives use the matching Kafka `Serdes`. Unsupported types throw.
+    */
+  private def getDecoder(skm: Schema): Array[Byte] => Any =
+    skm.getType match {
+      case Schema.Type.RECORD =>
+        val reader = new GenericDatumReader[Record](skm)
+        (data: Array[Byte]) =>
+          if data eq null then null
+          else if data.length < 5 then
+            throw new IllegalArgumentException( // scalafix:ok
+              s"Record payload too short: expected at least 5 bytes (Confluent wire format) but got ${data.length}")
+          else if data(0) =!= 0.toByte then
+            throw new IllegalArgumentException( // scalafix:ok
+              s"Invalid Confluent wire format: expected magic byte 0x00 but got 0x${String.format("%02X", data(0))}")
+          else
+            // Confluent wire format: 1-byte magic (0x00) + 4-byte schema ID prefix, then payload
+            val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+            reader.read(null, decoder)
+
+      case Schema.Type.STRING =>
+        val deSer = Serdes.String().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.BYTES =>
+        val deSer = Serdes.ByteArray().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.INT =>
+        val deSer = Serdes.Integer().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.LONG =>
+        val deSer = Serdes.Long().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.FLOAT =>
+        val deSer = Serdes.Float().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.DOUBLE =>
+        val deSer = Serdes.Double().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.BOOLEAN =>
+        val deSer = Serdes.Boolean().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case Schema.Type.NULL =>
+        val deSer = Serdes.Void().deserializer()
+        (data: Array[Byte]) => deSer.deserialize(topic, data)
+      case _ => unsupportedSchema(skm)
+    }
+
+  private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())
+  private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
+
+  private val headerSchema = SchemaFor[NJHeader].schema
+
+  /** Decode a raw byte consumer record into a `GenericRecord`, or a `Left(PullError)` if the key or value
+    * fails to decode. The result carries the decoded key/value alongside the record's metadata and headers.
+    */
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): Either[PullError, Record] =
+    for {
+      key <- Try(key_decode(ccr.key())).toEither.
+        leftMap(ex => PullError(true, MetaInfo(ccr), ex))
+      value <- Try(val_decode(ccr.value())).toEither
+        .leftMap(ex => PullError(false, MetaInfo(ccr), ex))
+    } yield {
+      val headers: Iterator[Record] = ccr.headers().iterator().asScala.map { h =>
+        val header = new Record(headerSchema)
+        header.put("key", h.key())
+        header.put("value", ByteBuffer.wrap(h.value()))
+        header
+      }
+      val record: Record = new Record(schema)
+      record.put("topic", ccr.topic)
+      record.put("partition", ccr.partition)
+      record.put("offset", ccr.offset)
+      record.put("timestamp", ccr.timestamp())
+      record.put("timestampType", ccr.timestampType().id)
+      record.put("serializedKeySize", ccr.serializedKeySize())
+      record.put("serializedValueSize", ccr.serializedValueSize())
+      record.put("key", key)
+      record.put("value", value)
+      record.put("leaderEpoch", ccr.leaderEpoch().toScala.map(_.intValue()).orNull)
+      record.put("headers", headers.toSeq.asJava)
+      record
+    }
+
+  /** Convenience overload accepting an fs2-kafka `ConsumerRecord`; converts it to the raw byte record and
+    * decodes as above.
+    */
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullError, Record] =
+    toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
+}

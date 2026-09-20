@@ -1,0 +1,177 @@
+package mtest.guard
+
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.resilience.Retry.*
+import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
+import com.github.chenharryhua.nanjin.guard.service.Agent
+import munit.CatsEffectSuite
+
+import scala.concurrent.duration.DurationInt
+
+class RetryTest extends CatsEffectSuite {
+  private val service = TaskGuard[IO]("retry").service("retry")
+
+  test("1.retry - simplest") {
+    service.eventStream(_.retry(identity).use(_(IO(())))).compile.drain
+  }
+
+  test("2.retry - give up") {
+    service.eventStream { agent =>
+      agent.retry(_.withPolicy(_.empty)).use(_(IO(()) *> agent.adhoc.report))
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.map { mr =>
+      assert(mr.head.snapshot.isEmpty)
+    }
+  }
+
+  test("3.retry - always fail") {
+    var j = 0 // total calls of action
+    val action = IO(j += 1) >> IO.raiseError[Unit](new Exception())
+    var i = 0 // retry count
+    service.eventStream { agent =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat.limited(3)).withDecision { tv =>
+        i += 1
+        IO.println(tv).as(tv.followPolicy)
+      })
+
+      retry.use(_(action))
+    }.map(checkJson).compile.toList.map { _ =>
+      assert(i == 3)
+      assert(j == 4)
+    }
+  }
+
+  test("4.retry - success after retry") {
+    var i = 0
+    val action = IO(i += 1) >> { if (i < 2) throw new Exception(i.toString) else IO(0) }
+
+    service.eventStream { agent =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second, 100.seconds).repeat.limited(20)))
+
+      retry.use(_(action)).map(x => assert(x == 0)).void
+    }.map(checkJson).mapFilter(Event.serviceStop.getOption).compile.lastOrError.map { ss =>
+      assert(ss.cause == Successfully)
+      assert(i == 2)
+    }
+  }
+
+  test("5.retry - unworthy") {
+    var i = 0
+    val action = IO(i += 1) >> IO.raiseError[Int](new Exception("unworthy retry"))
+    service.eventStream { agent =>
+      val retry =
+        agent.retry(_.withPolicy(_.fixedDelay(100.seconds).repeat).withDecision(tv => IO(tv.giveUp)))
+      retry.use(_(action)).void
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.map { res =>
+      assert(res.cause.exitCode == 3)
+      assert(i == 1)
+    }
+  }
+
+  test("6.retry - simple cancellation") {
+    service
+      .eventStream(agent =>
+        agent.retry(_.withPolicy(_.empty)).use { retry =>
+          (retry(IO.println(1)) >>
+            retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
+            retry(IO.println(4))).guarantee(agent.adhoc.report)
+        })
+      .mapFilter(Event.serviceStop.getOption)
+      .compile
+      .lastOrError
+      .map { res =>
+        assert(res.cause == ByCancellation)
+      }
+  }
+
+  test("7.retry - cancellation internal") {
+    def action(agent: Agent[IO]) = for {
+      counter <- agent.facilitate("retry")(_.counter("total.calls"))
+      retry <- agent.retry(_.withPolicy(_.empty))
+    } yield (in: IO[Unit]) =>
+      IO.uncancelable(poll =>
+        in *>
+          IO.println("before retry") *>
+          counter.inc(1) *>
+          retry(poll(in)) *>
+          IO.println("after retry"))
+
+    service
+      .eventStream(agent =>
+        agent.facilitate("retry.internal.cancellation")(_ => action(agent)).use { retry =>
+          (retry(IO.println("first")) >>
+            IO.println("----") >>
+            retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
+            retry(IO.println("third"))).guarantee(agent.adhoc.report)
+        })
+      .mapFilter(Event.serviceStop.getOption)
+      .compile
+      .lastOrError
+      .map { ss =>
+        assert(ss.cause == ByCancellation)
+      }
+  }
+
+  test("8.retry - cancellation external") {
+    def action(agent: Agent[IO]) = for {
+      counter <- agent.facilitate("retry")(_.counter("total.calls"))
+      retry <- agent.retry(_.withPolicy(_.fixedDelay(10.hours).repeat))
+    } yield (in: IO[Unit]) =>
+      IO.uncancelable(poll =>
+        IO.println("before retry") *>
+          counter.inc(1) *>
+          poll(retry(in)) *> // retry(poll(in)) will wait 10 hours
+          IO.println("after retry"))
+
+    service
+      .eventStream(agent =>
+        agent.facilitate("retry.external.cancellation")(_ => action(agent)).use { retry =>
+          IO.race(retry(IO.println("before exception") >> IO.raiseError(new Exception)), IO.sleep(3.seconds))
+            .void
+            .guarantee(agent.adhoc.report)
+        })
+      .mapFilter(Event.metricsSnapshot.getOption)
+      .compile
+      .lastOrError
+      .map { ss =>
+        assert(retrieve.counter(ss.snapshot.counters).head._2.value == 1)
+      }
+  }
+
+  test("9.conditional retry") {
+    var i = 0
+    val action = IO(i += 1) <* IO.raiseError(new Exception)
+    service.eventStream { agent =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat).withDecision { tv =>
+        IO(if (tv.ordinal < 2) tv.followPolicy else tv.giveUp)
+      })
+      retry.use(_(action))
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.map { ss =>
+      assert(i == 2)
+      assert(ss.cause.exitCode == 3)
+    }
+  }
+
+  test("10.conditional retry") {
+    var i = 0
+    val action = IO(i += 1) <* IO.raiseError(new Exception)
+    service.eventStream { agent =>
+      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat).withDecision { tv =>
+        val decision = (tv.cause, tv.ordinal) match {
+          case (_: Exception, 1) => true
+          case (_: Exception, 2) => true
+          case (_: Exception, 3) => true
+          case (_, _)            => false
+        }
+        IO(if (decision) tv.followPolicy else tv.giveUp)
+      })
+      retry.use(_(action))
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.map { ss =>
+      assert(i == 4)
+      assert(ss.cause.exitCode == 3)
+    }
+  }
+}

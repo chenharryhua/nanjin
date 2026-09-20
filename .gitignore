@@ -12,9 +12,19 @@ lib_managed/
 src_managed/
 project/boot/
 project/plugins/project/
+project/project/*
 
 # Intelli-J
 .idea
 .metals
 .bloop
-docker-compose.yml
+test-data/
+data/*
+project/metals.sbt
+out/*
+.vscode/*
+.bsp/*
+/http/src/test/scala/mtest/http/auth/LoginTest.scala
+storage/*
+/project/tmp-*.scala
+.dccache

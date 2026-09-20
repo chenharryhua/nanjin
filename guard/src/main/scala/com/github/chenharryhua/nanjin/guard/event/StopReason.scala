@@ -1,0 +1,47 @@
+package com.github.chenharryhua.nanjin.guard.event
+
+import cats.Show
+import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.guard.config.StackTrace
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+
+enum StopReason(val exitCode: Int):
+  case Successfully extends StopReason(0)
+  case Maintenance extends StopReason(1)
+  case ByCancellation extends StopReason(2)
+  case ByException(stackTrace: StackTrace) extends StopReason(3)
+
+object StopReason {
+  private val SUCCESSFULLY: String = "Successfully"
+  private val BY_CANCELLATION: String = "ByCancellation"
+  private val MAINTENANCE: String = "Maintenance"
+  private val BY_EXCEPTION: String = "ByException"
+
+  given Show[StopReason] = {
+    case Successfully   => SUCCESSFULLY
+    case Maintenance    => MAINTENANCE
+    case ByCancellation => BY_CANCELLATION
+    case ByException(_) => BY_EXCEPTION
+  }
+
+  given Encoder[StopReason] =
+    Encoder.instance {
+      case Successfully   => Json.fromString(SUCCESSFULLY)
+      case ByCancellation => Json.fromString(BY_CANCELLATION)
+      case Maintenance    => Json.fromString(MAINTENANCE)
+
+      case ByException(stackTrace) => stackTrace.asJson
+    }
+
+  given Decoder[StopReason] =
+    List[Decoder[StopReason]](
+      _.as[String].flatMap {
+        case SUCCESSFULLY    => Right(Successfully)
+        case BY_CANCELLATION => Right(ByCancellation)
+        case MAINTENANCE     => Right(Maintenance)
+        case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
+      }.widen,
+      _.as[StackTrace].map(err => ByException(err)).widen
+    ).reduceLeft(_ or _)
+}

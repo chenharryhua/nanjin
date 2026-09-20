@@ -1,0 +1,113 @@
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
+
+import cats.{Applicative, Endo}
+import cats.data.{Ior, Reader}
+import cats.effect.kernel.{Async, Ref, Resource}
+import cats.syntax.applicative.given
+import cats.syntax.eq.given
+import cats.syntax.functor.given
+import cats.syntax.group.given
+import com.github.chenharryhua.nanjin.common.EnableConfig
+import io.circe.Json
+
+/** Effectful ratio gauge built from numerator and denominator counts. */
+trait Ratio[F[_]] {
+
+  /** Add to the numerator count.
+    *
+    * @param numerator
+    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
+    *   3/4, 3 is the numerator.
+    */
+  def incNumerator(numerator: Long): F[Unit]
+
+  /** Add to the denominator count.
+    *
+    * @param denominator
+    *   The number below the fraction line, representing the total number of equal parts. For example, in the
+    *   fraction 3/4, 4 is the denominator.
+    */
+  def incDenominator(denominator: Long): F[Unit]
+
+  /** Add to numerator and denominator together.
+    *
+    * @param numerator
+    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
+    *   3/4, 3 is the numerator.
+    * @param denominator
+    *   The number below the fraction line, representing the total number of equal parts. For example, in the
+    *   fraction 3/4, 4 is the denominator.
+    */
+  def incBoth(numerator: Long, denominator: Long): F[Unit]
+
+  final def run(ior: Ior[Long, Long]): F[Unit] = ior match {
+    case Ior.Left(a)    => incNumerator(a)
+    case Ior.Right(b)   => incDenominator(b)
+    case Ior.Both(a, b) => incBoth(a, b)
+  }
+}
+
+object Ratio {
+
+  def noop[F[_]: Applicative]: Ratio[F] = new Ratio[F] {
+    override def incNumerator(numerator: Long): F[Unit] = ().pure
+    override def incDenominator(denominator: Long): F[Unit] = ().pure
+    override def incBoth(numerator: Long, denominator: Long): F[Unit] = ().pure
+  }
+
+  private class Impl[F[_]] private[Ratio] (ref: Ref[F, Ior[Long, Long]]) extends Ratio[F] {
+
+    private def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
+
+    override def incNumerator(numerator: Long): F[Unit] = update(Ior.Left(numerator))
+    override def incDenominator(denominator: Long): F[Unit] = update(Ior.Right(denominator))
+
+    override def incBoth(numerator: Long, denominator: Long): F[Unit] =
+      update(Ior.Both(numerator, denominator))
+
+  }
+
+  /** Default translator that renders the accumulated ratio as a percentage. */
+  val translator: Reader[Ior[Long, Long], Json] = Reader {
+    case Ior.Left(_)    => Json.fromString("n/a")
+    case Ior.Right(_)   => Json.fromString("0.0%")
+    case Ior.Both(a, b) =>
+      if (b === 0) { Json.fromString("n/a") }
+      else {
+        val rounded: Float =
+          BigDecimal(a * 100.0 / b).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
+        Json.fromString(s"$rounded%")
+      }
+  }
+
+  final class Builder private[Ratio] (
+    isEnabled: Boolean,
+    translator: Reader[Ior[Long, Long], Json]
+  ) extends EnableConfig[Builder] {
+
+    /** Customize the JSON value derived from accumulated numerator and denominator counts. */
+    def withTranslator(translator: Reader[Ior[Long, Long], Json]): Builder =
+      new Builder(isEnabled, translator)
+
+    /** Enable or disable ratio registration; disabled gauges become no-ops. */
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, translator)
+
+    private[Ratio] def build[F[_]](gp: GaugeParams[F], name: String)(using
+      F: Async[F]): Resource[F, Ratio[F]] = {
+
+      def impl: Resource[F, Ratio[F]] = for {
+        ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
+        _ <- Gauge(gp, name, _.enable(isEnabled).withKind(_.Default).register(ref.get.map(translator.run)))
+      } yield new Impl[F](ref)
+
+      if (isEnabled) impl else noop.pure
+    }
+  }
+
+  private[metrics] def apply[F[_]: Async](
+    gp: GaugeParams[F],
+    name: String,
+    f: Endo[Builder]): Resource[F, Ratio[F]] =
+    f(new Builder(true, translator)).build[F](gp, name)
+}

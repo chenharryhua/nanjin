@@ -1,9 +1,21 @@
-addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.9")
+resolvers += Resolver.sonatypeCentralRepo("releases")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
+addDependencyTreePlugin
 
-addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.9")
+addSbtPlugin("com.github.sbt" % "sbt-header" % "5.11.0")
+addSbtPlugin("com.github.sbt" % "sbt-git"    % "2.2.0")
 
-addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.9")
+addSbtPlugin("org.scoverage"    % "sbt-scoverage" % "2.4.4")
+addSbtPlugin("org.typelevel"    % "sbt-tpolecat"  % "0.5.7")
+addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.7.0")
+addSbtPlugin("com.orrsella"     % "sbt-stats"     % "1.0.7")
+addSbtPlugin("com.eed3si9n"     % "sbt-buildinfo" % "0.13.1")
 
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.8")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.2")
+
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.22.0")
+
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.8")
+
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.20"

@@ -1,0 +1,284 @@
+package mtest.common
+
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.chrono.{*, given}
+import cron4s.CronExpr
+import io.circe.jawn.decode
+import io.circe.syntax.EncoderOps
+import munit.CatsEffectSuite
+
+import scala.concurrent.duration.DurationInt
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+
+class PolicyCombinatorTest extends CatsEffectSuite {
+
+  test("1.simple followed by") {
+    val policy = Policy.empty.followedBy(_.fixedDelay(1.second))
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
+
+  test("2.accordance") {
+    val policy = Policy.fixedDelay(1.second)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
+
+  test("3.follow by") {
+    val policy =
+      Policy.fixedDelay(1.second).repeat.limited(3).followedBy(Policy.fixedDelay(2.seconds).repeat.limited(2))
+
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    tickStream.testPolicy[IO](_.fresh(policy)).take(16).compile.toList.map { ticks =>
+      val List(a1, a2, a3, a4, a5) = ticks.take(5): @unchecked
+      assert(a1.index == 1)
+      assert(a2.index == 2)
+      assert(a3.index == 3)
+      assert(a4.index == 4)
+      assert(a5.index == 5)
+      assert(a1.snooze == 1.second.toJava)
+      assert(a2.snooze == 1.second.toJava)
+      assert(a3.snooze == 1.second.toJava)
+      assert(a4.snooze == 2.seconds.toJava)
+      assert(a5.snooze == 2.seconds.toJava)
+    }
+  }
+
+  test("4.repeat") {
+    val policy =
+      Policy
+        .fixedDelay(1.second)
+        .repeat
+        .limited(3)
+        .followedBy(_.fixedDelay(2.seconds).repeat.limited(2))
+        .repeat
+
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    tickStream.testPolicy[IO](_.fresh(policy)).take(6).compile.toList.map { ticks =>
+      val List(a1, a2, a3, a4, a5, a6) = ticks: @unchecked
+
+      assert(a1.index == 1)
+      assert(a2.index == 2)
+      assert(a3.index == 3)
+      assert(a4.index == 4)
+      assert(a5.index == 5)
+      assert(a6.index == 6)
+
+      assert(a1.snooze == 1.second.toJava)
+      assert(a2.snooze == 1.second.toJava)
+      assert(a3.snooze == 1.second.toJava)
+      assert(a4.snooze == 2.seconds.toJava)
+      assert(a5.snooze == 2.seconds.toJava)
+      assert(a6.snooze == 1.second.toJava)
+      assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquires.plus(t.snooze) == t.conclude))
+    }
+  }
+
+  test("5.meet") {
+    val policy =
+      Policy.fixedRate(1.second).repeat.meet(_.fixedDelay(1.seconds).repeat)
+
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    tickStream.testPolicy[IO](_ => policy).take(6).compile.toList.map { ticks =>
+      val List(a1, a2, a3, a4, a5, a6) = ticks: @unchecked
+
+      assert(a1.index == 1)
+      assert(a2.index == 2)
+      assert(a3.index == 3)
+      assert(a4.index == 4)
+      assert(a5.index == 5)
+      assert(a6.index == 6)
+
+      assert(a1.snooze.toScala <= 1.second)
+      assert(a2.snooze.toScala <= 1.second)
+      assert(a3.snooze.toScala <= 1.second)
+      assert(a4.snooze.toScala <= 1.second)
+      assert(a5.snooze.toScala <= 1.second)
+      assert(a6.snooze.toScala <= 1.second)
+      assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquires.plus(t.snooze) == t.conclude))
+    }
+  }
+
+  test("6.meet - 2") {
+    val policy = Policy.fixedDelay(1.seconds).repeat.meet(_.fresh(Policy.fixedRate(1.second).repeat))
+
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    tickStream.testPolicy[IO](_.fresh(policy)).take(6).compile.toList.map { ticks =>
+      val List(a1, a2, a3, a4, a5, a6) = ticks: @unchecked
+
+      assert(a1.index == 1)
+      assert(a2.index == 2)
+      assert(a3.index == 3)
+      assert(a4.index == 4)
+      assert(a5.index == 5)
+      assert(a6.index == 6)
+
+      assert(a1.snooze.toScala <= 1.second)
+      assert(a2.snooze.toScala <= 1.second)
+      assert(a3.snooze.toScala <= 1.second)
+      assert(a4.snooze.toScala <= 1.second)
+      assert(a5.snooze.toScala <= 1.second)
+      assert(a6.snooze.toScala <= 1.second)
+
+      assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquires.plus(t.snooze) == t.conclude))
+    }
+  }
+
+  test("7.complex policy") {
+    val policy = Policy
+      .crontab(_.monthly)
+      .meet(_.crontab(_.daily.oneAM))
+      .followedBy(Policy.crontab(crontabs.daily.twoAM))
+      .followedBy(Policy.crontab(crontabs.daily.threeAM))
+      .followedBy(Policy.crontab(_.daily.fourAM).jitter(2.seconds))
+      .followedBy(_.crontab(crontabs.daily.fiveAM))
+      .followedBy(_.crontab(_.daily.sixAM))
+      .followedBy(_.crontab(_.daily.sevenAM))
+      .followedBy(_.crontab(_.daily.eightAM))
+      .meet(_.crontab(_.daily.nineAM))
+      .followedBy(_.crontab(_.daily.tenAM))
+      .followedBy(_.crontab(_.daily.elevenAM))
+      .followedBy(_.empty)
+      .followedBy(_.crontab(_.daily.noon))
+      .followedBy(_.crontab(_.daily.onePM))
+      .followedBy(_.crontab(_.daily.twoPM))
+      .followedBy(_.crontab(_.daily.threePM).limited(1))
+      .followedBy(_.crontab(_.daily.fourPM))
+      .meet(_.crontab(_.daily.fivePM))
+      .followedBy(_.crontab(_.daily.sixPM).limited(1).repeat)
+      .followedBy(_.crontab(_.daily.sevenPM))
+      .followedBy(_.crontab(_.daily.eightPM))
+      .followedBy(_.crontab(_.daily.ninePM))
+      .followedBy(_.crontab(_.daily.tenPM))
+      .followedBy(_.crontab(_.daily.elevenPM))
+      .followedBy(_.crontab(_.daily.midnight))
+      .repeat
+      .except(_.midnight)
+      .followedBy(_.fixedDelay(1.second))
+      .followedBy(_.fixedRate(3.second))
+      .followedBy(_.fixedDelay(1.second, 2.seconds))
+      .followedBy(_.fixedRate(2.seconds))
+      .except(_.twoPM)
+      .repeat
+      .followedBy(_.crontab(_.weekly.monday))
+      .followedBy(_.crontab(_.weekly.tuesday))
+      .followedBy(_.crontab(_.weekly.wednesday))
+      .followedBy(_.crontab(_.weekly.thursday))
+      .followedBy(_.crontab(_.weekly.friday))
+      .followedBy(_.crontab(_.weekly.saturday))
+      .followedBy(_.crontab(_.weekly.sunday))
+      .repeat
+
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
+
+  test("8.decode error") {
+    import com.github.chenharryhua.nanjin.common.chrono.*
+    assert(decode[Policy](""" {"crontab":"*/4 * * ? *"} """).toOption.isEmpty)
+    assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
+  }
+
+  test("8.1.decode error on ambiguous policy payload") {
+    val conflict = """
+      {
+        "empty": true,
+        "fixedRate": "PT1S"
+      }
+      """
+    assert(decode[Policy](conflict).toOption.isEmpty)
+  }
+
+  test("8.2.decode error when no top-level policy variant exists") {
+    val noVariant = """
+      {
+        "policy": {
+          "empty": true
+        }
+      }
+      """
+    assert(decode[Policy](noVariant).toOption.isEmpty)
+  }
+
+  test("8.3.decode error when empty policy payload is not strict true") {
+    assert(decode[Policy]("""{ "empty": false }""").toOption.isEmpty)
+  }
+
+  test("8.4.decode rejects the removed expire policy variant") {
+    val legacy = """
+      {
+        "expire": "PT5S",
+        "policy": {
+          "fixedDelay": ["PT1S"]
+        }
+      }
+      """
+    val result = decode[Policy](legacy)
+    assert(result.isLeft)
+    assert(result.swap.toOption.exists(_.getMessage.contains("No policy variant key found")))
+  }
+
+  test("9.except") {
+    val policy = Policy.crontab(_.hourly).repeat.except(_.midnight).except(_.elevenPM).except(_.midnight)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    tickStream
+      .testPolicy[IO]((_: Policy.type) => policy)
+      .take(32)
+      .compile
+      .toList
+      .map { ticks =>
+        val wakeup = ticks.map(_.local(_.conclude).toLocalTime).distinct.sorted
+        assert(wakeup.size == 22)
+        assert(wakeup.contains(localTimes.oneAM))
+        assert(wakeup.contains(localTimes.twoAM))
+        assert(wakeup.contains(localTimes.threeAM))
+        assert(wakeup.contains(localTimes.fourAM))
+        assert(wakeup.contains(localTimes.fiveAM))
+        assert(wakeup.contains(localTimes.sixAM))
+        assert(wakeup.contains(localTimes.sevenAM))
+        assert(wakeup.contains(localTimes.eightAM))
+        assert(!wakeup.contains(localTimes.midnight))
+        assert(!wakeup.contains(localTimes.elevenPM))
+      }
+  }
+
+  test("10.offset") {
+    val policy = Policy.crontab(_.hourly).repeat.offset(3.seconds)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(32).compile.toList.map { ticks =>
+      assert(ticks.forall(t => t.acquires.plus(t.snooze) == t.conclude))
+      val wakeup = ticks.map(_.local(_.conclude).toLocalTime.getSecond)
+      assert(wakeup.forall(_ == 3))
+    }
+  }
+
+  test("11.jitter") {
+    val policy = Policy.crontab(_.hourly).repeat.jitter(3.seconds)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+  }
+
+  test("12.limited") {
+    val policy = Policy.crontab(_.hourly).repeat.limited(3)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(60).compile.toList.map { ticks =>
+      assert(ticks.size == 3)
+    }
+  }
+
+  test("13.limited 0") {
+    val policy = Policy.crontab(_.hourly).repeat.limited(0)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.map { ticks =>
+      assert(ticks.isEmpty)
+    }
+  }
+
+  test("14.limited neg") {
+    val policy = Policy.crontab(_.hourly).repeat.limited(-1)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.map { ticks =>
+      assert(ticks.isEmpty)
+    }
+  }
+
+}

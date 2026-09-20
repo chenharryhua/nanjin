@@ -1,0 +1,115 @@
+package com.github.chenharryhua.nanjin.kafka.serdes
+
+import fs2.kafka.{Key, KeyOrValue, Value}
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import org.apache.kafka.common.header.Headers
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+
+import scala.jdk.CollectionConverters.given
+
+/** A Kafka serde that is not yet registered with a Schema Registry.
+  *
+  * Implementations provide a `registerWith` method that creates a fully configured `Serde[A]` once a
+  * `SchemaRegistryClient` is available. Before registering, the payload type can be reshaped with the
+  * transformation combinators (`emap`, `become`, `option`, `orNull`). Registration then produces a
+  * `Registered[Key, A]` or `Registered[Value, A]` via `asKey`/`asValue`.
+  */
+trait Unregistered[A] { outer =>
+  protected def registerWith(srClient: SchemaRegistryClient): Serde[A]
+
+  /*
+   *  Transformation
+   */
+
+  /** Reshape the payload type from `A` to `B` by mapping in both directions: `f` on deserialize, `g` on
+    * serialize. The resulting serde delegates to this one's serde with the conversion wrapped around it.
+    */
+  final def emap[B](f: A => B)(g: B => A): Unregistered[B] =
+    new Unregistered[B] {
+      protected def registerWith(srClient: SchemaRegistryClient): Serde[B] =
+        new Serde[B] {
+          private val serdeA: Serde[A] = outer.registerWith(srClient)
+
+          override val serializer: Serializer[B] = new Serializer[B] {
+            private val ser = serdeA.serializer
+            override def serialize(topic: String, data: B): Array[Byte] =
+              ser.serialize(topic, g(data))
+            override def serialize(topic: String, headers: Headers, data: B): Array[Byte] =
+              ser.serialize(topic, headers, g(data))
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              ser.configure(configs, isKey)
+            override def close(): Unit = ser.close()
+          }
+
+          override val deserializer: Deserializer[B] = new Deserializer[B] {
+            private val deSer = serdeA.deserializer
+            override def deserialize(topic: String, data: Array[Byte]): B =
+              f(deSer.deserialize(topic, data))
+            override def deserialize(topic: String, headers: Headers, data: Array[Byte]): B =
+              f(deSer.deserialize(topic, headers, data))
+            override def configure(configs: java.util.Map[String, ?], isKey: Boolean): Unit =
+              deSer.configure(configs, isKey)
+            override def close(): Unit = deSer.close()
+          }
+        }
+    }
+
+  /** Reshape from `A` to `B` using a `BiTransform[A, B]` (see `emap`). */
+  final def become[B](using b: BiTransform[A, B]): Unregistered[B] =
+    emap(b.to)(b.from)
+
+  /** Make the payload optional: deserialize maps `null` to `None`, serialize maps `None` back to `null` (the
+    * `Null <:< A` evidence witnesses that `A` admits null).
+    */
+  final def option(using ev: Null <:< A): Unregistered[Option[A]] =
+    emap(Option(_))(_.getOrElse(ev(null)))
+
+  /** Unwrap an `Option[A1]` payload to `A1`, mapping `null` to `None` on serialize and `None` to `null` on
+    * deserialize. The inverse of `option`.
+    */
+  final def orNull[A1](using ev: A =:= Option[A1], ev2: Null <:< A1): Unregistered[A1] =
+    emap[A1](_.getOrElse(ev2(null)))(a1 => ev.flip(Option(a1)))
+
+  /*
+   * Transition
+   */
+
+  private trait IsKey[K]:
+    def value: Boolean
+  private given IsKey[Key] with
+    override val value = true
+  private given IsKey[Value] with
+    override val value: Boolean = false
+
+  /** Materialize and configure the serde for the `KV` side (key vs value chosen by the `IsKey` evidence),
+    * shared by `asKey`/`asValue`.
+    */
+  private def register[KV <: KeyOrValue](
+    srClient: SchemaRegistryClient,
+    props: Map[String, String]
+  )(using isKey: IsKey[KV]): Registered[KV, A] =
+    Registered[KV, A](new Serde[A] {
+      private val serde: Serde[A] = outer.registerWith(srClient)
+      override lazy val serializer: Serializer[A] =
+        val ser: Serializer[A] = serde.serializer
+        ser.configure(props.asJava, isKey.value)
+        ser
+
+      override lazy val deserializer: Deserializer[A] =
+        val deSer: Deserializer[A] = serde.deserializer
+        deSer.configure(props.asJava, isKey.value)
+        deSer
+    })
+
+  /** Register this serde as a record '''key''': materialize the `Serde[A]` against `srClient`, configure it
+    * with `props` in key mode, and tag it `Registered[Key, A]`.
+    */
+  final def asKey(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Key, A] =
+    register[Key](srClient, props)
+
+  /** Register this serde as a record '''value''': as `asKey`, but configured in value mode and tagged
+    * `Registered[Value, A]`.
+    */
+  final def asValue(srClient: SchemaRegistryClient, props: Map[String, String]): Registered[Value, A] =
+    register[Value](srClient, props)
+}

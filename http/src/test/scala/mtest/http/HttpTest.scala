@@ -1,0 +1,100 @@
+package mtest.http
+
+import cats.effect.{IO, Resource}
+import com.comcast.ip4s.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, httpRetry}
+import io.circe.Json
+import munit.CatsEffectSuite
+import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
+import org.http4s.client.Client
+import org.http4s.client.middleware.Logger as MLogger
+import org.http4s.dsl.io.*
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits.*
+import org.http4s.server.middleware.GZip
+import org.http4s.server.{Router, Server}
+import org.http4s.{HttpRoutes, Method, Request}
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+import java.net.CookieManager
+import scala.concurrent.duration.DurationInt
+import scala.util.Random
+
+class HttpTest extends CatsEffectSuite {
+  implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("logger")
+
+  private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
+    case GET -> Root / "trace" / name     => Ok(s"Hello, $name.")
+    case GET -> Root / "cookie"           => Ok("cookie")
+    case POST -> Root / "post"            => Ok("posted")
+    case GET -> Root / "timeout" / reason =>
+      if (Random.nextInt(5) == 0) Ok(reason) else RequestTimeout(reason)
+    case GET -> Root / "failure" => InternalServerError()
+  }
+
+  val server: Resource[IO, Server] = EmberServerBuilder
+    .default[IO]
+    .withHost(ipv4"0.0.0.0")
+    .withPort(port"8080")
+    .withHttpApp(Router("/" -> GZip(service)).orNotFound)
+    .build
+
+  val ember: Resource[IO, Client[IO]] =
+    EmberClientBuilder.default[IO].build.map(MLogger[IO](logHeaders = true, logBody = true)(_))
+
+  test("1.timeout") {
+    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(2)))
+    server
+      .surround(
+        client.use(c =>
+          c.expect[String]("http://127.0.0.1:8080/timeout/one").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/two").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/three").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/four").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/five").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/six").attempt.flatMap(IO.println)))
+  }
+
+  test("2.failure") {
+    val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(3)))
+    val run =
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
+    interceptIO[Exception](run)
+  }
+
+  test("3.give up") {
+    val client = ember.map(httpRetry(sydneyTime, _.empty))
+    val run =
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
+    interceptIO[Exception](run)
+  }
+
+  test("4.post") {
+    val postRequest = Request[IO](
+      method = Method.POST,
+      uri = uri"http://127.0.0.1:8080/post"
+    ).withEntity(
+      Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
+    )
+    val client = ember.map(httpRetry(sydneyTime, _.empty))
+    server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println)))
+  }
+
+  test("5.cookie box") {
+    val client = ember.map(cookieBox(new CookieManager()))
+    server
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie").flatMap(IO.println)))
+      .delayBy(2.seconds)
+  }
+
+  test("6.trace") {
+    val client = ember
+    server
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
+      .delayBy(2.seconds)
+  }
+
+}

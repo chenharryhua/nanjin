@@ -1,0 +1,125 @@
+package com.github.chenharryhua.nanjin.guard.service
+
+import cats.effect.kernel.Async
+import cats.effect.syntax.clock.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.logging.LogLocator
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
+import fs2.Stream
+import fs2.concurrent.Channel
+
+final private class MetricsEventHandler[F[_]] private (
+  val serviceParams: ServiceParams,
+  scrapeMetrics: ScrapeMetrics,
+  history: History[F, MetricsSnapshot],
+  channel: Channel[F, Event],
+  logSink: LogSink[F],
+  logLocator: Option[LogLocator]
+)(using F: Async[F])
+    extends AdhocReport[F] {
+  val metricRegistry: MetricRegistry = scrapeMetrics.metricRegistry
+
+  private def buildFullSnapshot(index: Index): F[MetricsSnapshot] =
+    scrapeMetrics.snapshot(ScrapeMode.Full).timed.map { case (took, snapshot) =>
+      MetricsSnapshot(
+        serviceIdentity = serviceParams.serviceIdentity,
+        logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
+        index = index,
+        snapshot = snapshot,
+        took = Took(took)
+      )
+    }
+
+  private def publish(index: Index): F[MetricsSnapshot] =
+    for {
+      ms <- buildFullSnapshot(index)
+      _ <- channel.send(ms)
+      _ <- logSink.write(ms)
+      _ <- history.add(ms)
+    } yield ms
+
+  /*
+   * Report
+   */
+  def httpReport: F[MetricsSnapshot] =
+    serviceParams.serviceIdentity.timestamp[F].flatMap { ts =>
+      buildFullSnapshot(Adhoc(ts))
+    }
+
+  def reportPeriodically: Stream[F, Nothing] =
+    tickStream.tickScheduled[F](
+      serviceParams.serviceIdentity.timeZone.value,
+      _.fresh(serviceParams.policies.report))
+      .evalMap(tick => publish(Periodic(tick)))
+      .drain
+
+  /*
+   * History
+   */
+
+  def snapshotHistory: F[Vector[MetricsSnapshot]] = history.value
+
+  /*
+   * API
+   */
+
+  override def report: F[Unit] =
+    for {
+      ts <- serviceParams.serviceIdentity.timestamp[F]
+      _ <- publish(Adhoc(ts))
+    } yield ()
+
+  override def snapshots(
+    f: Policy.type => Policy,
+    g: ScrapeMode.type => ScrapeMode): Stream[F, MetricsSnapshot] =
+    tickStream.tickScheduled(serviceParams.serviceIdentity.timeZone.value, f).evalMap(tick =>
+      scrapeMetrics.snapshot(g(ScrapeMode)).timed.map { case (took, snapshot) =>
+        val index = Periodic(tick)
+        MetricsSnapshot(
+          serviceIdentity = serviceParams.serviceIdentity,
+          logLink = logLocator.map(_.locate(index.scrapeTime.value.toInstant)),
+          index = index,
+          snapshot = snapshot,
+          took = Took(took)
+        )
+      })
+
+  override def meteredCounts(f: Policy.type => Policy): Stream[F, MeteredCounts] =
+    tickStream.tickScheduled(serviceParams.serviceIdentity.timeZone.value, f)
+      .map(tick => MeteredCounts(tick, scrapeMetrics.meteredCounts))
+      .zipWithPrevious.map {
+        case (Some(prev), curr) => curr.delta(prev)
+        case (None, curr)       => curr
+      }
+}
+
+private object MetricsEventHandler {
+  def apply[F[_]: Async](
+    serviceParams: ServiceParams,
+    channel: Channel[F, Event],
+    logSink: LogSink[F],
+    logLocator: Option[LogLocator]
+  ): Stream[F, MetricsEventHandler[F]] = {
+    val history: F[History[F, MetricsSnapshot]] =
+      History[F, MetricsSnapshot](serviceParams.history.map(_.metrics))
+
+    Stream.eval(history).map { metricsHistory =>
+      new MetricsEventHandler[F](
+        serviceParams = serviceParams,
+        scrapeMetrics = new ScrapeMetrics(new MetricRegistry()),
+        history = metricsHistory,
+        channel = channel,
+        logSink = logSink,
+        logLocator = logLocator
+      )
+    }
+  }
+}

@@ -1,0 +1,22 @@
+package mtest.kafka
+
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.observers.kafka.KafkaObserver
+import com.github.chenharryhua.nanjin.kafka.KafkaContext
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
+import munit.CatsEffectSuite
+
+class KafkaObserverTest extends CatsEffectSuite {
+  private val topic = "observer"
+  private val ctx = KafkaContext[IO](KafkaSettings.local)
+  test("1.observer") {
+    TaskGuard[IO]("observer")
+      .service("observer")
+      .eventStream(_ => IO(()))
+      .through(KafkaObserver(ctx).withTranslator(_.skipMetricsSnapshot).observe(topic))
+      .debug()
+      .compile
+      .drain
+  }
+}

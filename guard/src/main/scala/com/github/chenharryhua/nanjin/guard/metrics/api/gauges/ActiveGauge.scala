@@ -1,0 +1,56 @@
+package com.github.chenharryhua.nanjin.guard.metrics.api.gauges
+
+import cats.Applicative
+import cats.effect.kernel.{Async, Resource}
+import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.option.{none, given}
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.EnableConfig
+
+/** Gauge reporting how long the tracked activity has been active. */
+trait ActiveGauge[F[_]]:
+  /** Stop reporting active elapsed time. */
+  def deactivate: F[Unit]
+end ActiveGauge
+
+object ActiveGauge:
+
+  def noop[F[_]: Applicative]: ActiveGauge[F] = new ActiveGauge[F] {
+    override def deactivate: F[Unit] = ().pure
+  }
+
+  final class Builder private[ActiveGauge] (isEnabled: Boolean) extends EnableConfig[Builder] {
+
+    /** Enable or disable active-gauge registration. */
+    override def enable(isEnabled: Boolean): Builder = new Builder(isEnabled)
+
+    def build[F[_]](gp: GaugeParams[F], name: String)(using F: Async[F]): Resource[F, ActiveGauge[F]] =
+      if isEnabled then
+        for {
+          active <- Resource.eval(F.ref(true))
+          kickoff <- Resource.eval(F.monotonic)
+          _ <- Gauge(
+            gp,
+            name,
+            _.withKind(_.Default)
+              .enable(isEnabled)
+              .register(
+                active.get
+                  .ifM(
+                    F.monotonic.map(now => defaultFormatter.format(now - kickoff).some),
+                    F.pure(none[String])))
+          )
+        } yield new ActiveGauge[F] {
+          override val deactivate: F[Unit] = active.set(false)
+        }
+      else Resource.pure(noop)
+  }
+
+  def apply[F[_]: Async](
+    gp: GaugeParams[F],
+    name: String,
+    f: Builder => Builder): Resource[F, ActiveGauge[F]] =
+    f(Builder(true)).build(gp, name)
+end ActiveGauge

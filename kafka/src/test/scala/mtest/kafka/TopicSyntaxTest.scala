@@ -1,0 +1,59 @@
+package mtest.kafka
+
+import cats.effect.IO
+import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.serdes.{KafkaCodec, Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec.KafkaJsonCodec
+import com.google.protobuf.DynamicMessage
+import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import io.circe.Json
+import org.apache.avro.generic.GenericRecord
+import munit.FunSuite
+
+class TopicSyntaxTest extends FunSuite {
+  test("1.topic name") {
+    val _ = TopicName("abc.checked")
+  }
+
+  test("2.consume") {
+    val _ = ctx.asKey(Primitive[Integer]).deserializer[IO].map(_.attempt)
+    val _ = ctx.asValue(Primitive[Integer]).deserializer[IO].map(_.option)
+  }
+
+  test("3.producer") {
+    val _ = ctx.asKey(Primitive[Integer].emap(identity)(identity)).serializer[IO]
+    val _ = ctx.asValue(Primitive[Integer]).serializer[IO].map(_.option)
+  }
+
+  test("4.scala primitive") {
+    Primitive[java.lang.Integer].become[Option[Int]]
+    Primitive[java.lang.Long].become[Option[Long]]
+    Primitive[java.lang.Short].become[Option[Short]]
+    Primitive[java.lang.Double].become[Option[Double]]
+    Primitive[java.lang.Float].become[Option[Float]]
+    Primitive[java.lang.Boolean].become[Option[Boolean]]
+  }
+
+  test("5.schema-based") {
+    given KafkaJsonCodec[Foo] = KafkaCodec.json[Foo](objectMapper)
+
+    Structured[JsonNode].option.become[Option[Foo]].orNull
+    Structured[GenericRecord].become[Foo]
+    Structured[DynamicMessage]
+    Structured[Json].become[Foo]
+  }
+
+  test("6.nj consumer record basic") {
+    summon[SchemaFor[NJConsumerRecord[Int, Int]]]
+    summon[Decoder[NJConsumerRecord[Int, Int]]]
+    summon[Encoder[NJConsumerRecord[Int, Int]]]
+  }
+
+  test("7.nj consumer record foo") {
+    val _ = summon[SchemaFor[NJConsumerRecord[Int, Foo]]]
+    summon[Decoder[NJConsumerRecord[Int, Foo]]]
+    summon[Encoder[NJConsumerRecord[Int, Foo]]]
+  }
+}

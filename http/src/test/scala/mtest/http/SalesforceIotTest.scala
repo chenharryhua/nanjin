@@ -1,0 +1,81 @@
+package mtest.http
+
+import cats.effect.{IO, Resource}
+import cats.implicits.catsSyntaxApplyOps
+import com.comcast.ip4s.*
+import com.github.chenharryhua.nanjin.common.Secret
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
+import com.github.chenharryhua.nanjin.http.client.middleware.{httpRetry, recklessHttpRetry}
+import io.circe.Json
+import io.circe.syntax.EncoderOps
+import munit.CatsEffectSuite
+import org.http4s.HttpRoutes
+import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
+import org.http4s.client.Client
+import org.http4s.client.middleware.Logger
+import org.http4s.dsl.io.*
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits.*
+import org.http4s.server.{Router, Server}
+
+import scala.concurrent.duration.DurationInt
+
+class SalesforceIotTest extends CatsEffectSuite {
+  private val token = Json.obj(
+    "access_token" -> "access".asJson,
+    "instance_url" -> "http://127.0.0.1:8080".asJson,
+    "id" -> "id-abc".asJson,
+    "token_type" -> "bearer".asJson,
+    "issued_at" -> "2012/1/1".asJson,
+    "signature" -> "signature".asJson
+  )
+
+  private val bools = BooleanList(LazyList(false, false, true))
+  private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
+    case POST -> Root / "services" / "oauth2" / "token" =>
+      if (bools.get) Ok(token) else GatewayTimeout()
+    case GET -> Root / "data" => Ok("salesforce.iot.data")
+  }
+
+  val server: Resource[IO, Server] = EmberServerBuilder
+    .default[IO]
+    .withHost(ipv4"0.0.0.0")
+    .withPort(port"8080")
+    .withHttpApp(Router("/" -> service).orNotFound)
+    .build
+
+  private val authClient: Resource[IO, Client[IO]] = EmberClientBuilder
+    .default[IO]
+    .build
+    .map(Logger(logHeaders = true, logBody = false, _ => false))
+    // token endpoint is a POST, so retry regardless of method to survive transient 5xx
+    .map(recklessHttpRetry(sydneyTime, _.fixedDelay(1.second).repeat))
+
+  val login: Login[IO] = Salesforce(
+    authClient,
+    Salesforce.PasswordGrant(
+      auth_endpoint = uri"http://127.0.0.1:8080/services/oauth2/token",
+      client_id = "a",
+      client_secret = Secret("b"),
+      username = "c",
+      password = Secret("d")),
+    expiresIn = 2.hours
+  )
+
+  val client: Resource[IO, Client[IO]] =
+    EmberClientBuilder
+      .default[IO]
+      .build
+      .flatMap(login.login)
+      .map(Logger(logHeaders = true, logBody = false, _ => false))
+      .map(httpRetry(sydneyTime, _.fixedDelay(2.second).repeat))
+
+  test("1.salesforce.iot") {
+    // body is JSON-encoded by circeEntityEncoder, so it comes back quoted
+    (server *> client).use(_.expect[String]("data")).map { data =>
+      assertEquals(data, "\"salesforce.iot.data\"")
+    }
+  }
+}

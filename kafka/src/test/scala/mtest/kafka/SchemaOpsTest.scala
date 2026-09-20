@@ -1,0 +1,227 @@
+package mtest.kafka
+
+import com.github.chenharryhua.nanjin.kafka.utils.*
+import org.apache.avro.{Schema, SchemaFormatter}
+import munit.FunSuite
+
+class SchemaOpsTest extends FunSuite {
+
+  private def pretty(schema: Schema): String =
+    SchemaFormatter.format("json/pretty", schema)
+
+  private def compact(schema: Schema): String =
+    SchemaFormatter.format("json", schema)
+
+  private def parseable(schema: Schema): Unit = {
+    val _ = new Schema.Parser().parse(compact(schema))
+  }
+
+  private val schemaJson =
+    """
+      |{
+      |  "type": "record",
+      |  "name": "Person",
+      |  "namespace": "old.ns",
+      |  "doc": "top level doc",
+      |  "fields": [
+      |    {
+      |      "name": "id",
+      |      "type": "string",
+      |      "default": ""
+      |    },
+      |    {
+      |      "name": "address",
+      |      "type": {
+      |        "type": "record",
+      |        "name": "Address",
+      |        "namespace": "child.ns",
+      |        "doc": "address doc",
+      |        "fields": [
+      |          {
+      |            "name": "street",
+      |            "type": "string",
+      |            "default": "unknown"
+      |          }
+      |        ]
+      |      }
+      |    },
+      |    {
+      |      "name": "tags",
+      |      "type": {
+      |        "type": "array",
+      |        "items": {
+      |          "type": "record",
+      |          "name": "Tag",
+      |          "namespace": "tag.ns",
+      |          "doc": "tag doc",
+      |          "fields": [
+      |            {
+      |              "name": "value",
+      |              "type": "string",
+      |              "default": ""
+      |            }
+      |          ]
+      |        }
+      |      }
+      |    },
+      |    {
+      |      "name": "status",
+      |      "type": [
+      |        "null",
+      |        {
+      |          "type": "record",
+      |          "name": "Status",
+      |          "namespace": "status.ns",
+      |          "doc": "status doc",
+      |          "fields": [
+      |            {
+      |              "name": "code",
+      |              "type": "int",
+      |              "default": 0
+      |            }
+      |          ]
+      |        }
+      |      ],
+      |      "default": null
+      |    }
+      |  ]
+      |}
+      |""".stripMargin
+
+  private val schema =
+    new Schema.Parser().parse(schemaJson)
+
+  test("1.removeDefaultField removes all default attributes recursively") {
+    val updated = removeDefaultField(schema)
+
+    val text = pretty(updated)
+
+    assert(!text.contains("\"default\""))
+
+    parseable(updated)
+  }
+
+  test("2.removeNamespace removes all namespace attributes recursively") {
+    val updated = removeNamespace(schema)
+
+    val text = pretty(updated)
+
+    assert(!text.contains("\"namespace\""))
+
+    parseable(updated)
+  }
+
+  test("3.removeDocField removes all doc attributes recursively") {
+    val updated = removeDocField(schema)
+
+    val text = pretty(updated)
+
+    assert(!text.contains("\"doc\""))
+
+    parseable(updated)
+  }
+
+  test("4.replaceNamespace replaces all namespaces recursively") {
+    val updated = replaceNamespace(schema, "new.ns")
+
+    assertEquals(updated.getNamespace, "new.ns")
+
+    assertEquals(updated.getField("address").schema().getNamespace, "new.ns")
+
+    assertEquals(
+      updated
+        .getField("tags")
+        .schema()
+        .getElementType
+        .getNamespace,
+      "new.ns")
+
+    assertEquals(
+      updated
+        .getField("status")
+        .schema()
+        .getTypes
+        .get(1)
+        .getNamespace,
+      "new.ns")
+
+    parseable(updated)
+  }
+
+  test("5.replaceNamespace is idempotent") {
+    val once = replaceNamespace(schema, "new.ns")
+    val twice = replaceNamespace(once, "new.ns")
+
+    assertEquals(pretty(twice), pretty(once))
+  }
+
+  test("6.combined transformations produce a valid schema") {
+    val transformed =
+      replaceNamespace(
+        removeDocField(
+          removeDefaultField(schema)
+        ),
+        "new.ns"
+      )
+
+    parseable(transformed)
+
+    val text = pretty(transformed)
+
+    assert(!text.contains("\"default\""))
+    assert(!text.contains("\"doc\""))
+    assert(text.contains("\"namespace\" : \"new.ns\""))
+  }
+
+  test("7.removeDefaultField on schema without defaults is a no-op") {
+    val simple =
+      new Schema.Parser().parse(
+        """
+          |{
+          |  "type": "record",
+          |  "name": "Simple",
+          |  "fields": [
+          |    {
+          |      "name": "id",
+          |      "type": "string"
+          |    }
+          |  ]
+          |}
+          |""".stripMargin
+      )
+
+    assertEquals(pretty(removeDefaultField(simple)), pretty(simple))
+  }
+
+  test("8.removeNamespace on primitive schema is a no-op") {
+    val primitive = Schema.create(Schema.Type.STRING)
+
+    assertEquals(removeNamespace(primitive), primitive)
+  }
+
+  test("9.removeDocField on primitive schema is a no-op") {
+    val primitive = Schema.create(Schema.Type.INT)
+
+    assertEquals(removeDocField(primitive), primitive)
+  }
+
+  test("10.replaceNamespace on schema without namespace does not fail") {
+    val simple =
+      new Schema.Parser().parse(
+        """
+          |{
+          |  "type": "record",
+          |  "name": "Simple",
+          |  "fields": [
+          |    {
+          |      "name": "id",
+          |      "type": "string"
+          |    }
+          |  ]
+          |}
+          |""".stripMargin
+      )
+
+    val _ = replaceNamespace(simple, "new.ns")
+  }
+}

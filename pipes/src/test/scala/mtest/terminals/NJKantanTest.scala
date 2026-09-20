@@ -1,0 +1,276 @@
+package mtest.terminals
+import cats.effect.IO
+import cats.implicits.toTraverseOps
+import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, FileKind, KantanFile}
+import fs2.Stream
+import io.circe.jawn
+import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
+import kantan.csv.CsvConfiguration
+import munit.CatsEffectSuite
+import mtest.terminals.HadoopTestData.hdp
+import mtest.terminals.TestData.*
+
+import java.time.ZoneId
+import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.util.Try
+
+class NJKantanTest extends CatsEffectSuite {
+  val zoneId: ZoneId = ZoneId.systemDefault()
+
+  val tigerHeader: CsvHeaderOf[Tiger] = summon
+
+  def decode(it: Seq[String]): Option[Tiger] =
+    it match {
+      case a :: b :: Nil =>
+        Try(a.toInt).toOption.map(Tiger(_, if (b.isEmpty) None else Some(b)))
+      case _ => None
+    }
+
+  def encode(t: Tiger): List[String] =
+    List(t.id.toString, t.zooName.getOrElse(""))
+
+  def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): IO[Unit] = {
+    val tgt = path / file.fileName
+    val ts = Stream.emits(data.toList).covary[IO].map(encode)
+    val sink = hdp.sink(tgt).kantan(csvConfiguration)
+    val src = hdp.source(tgt).kantan(100, csvConfiguration).map(decode).unNone
+    val action = ts.through(sink).compile.drain >> src.compile.toList
+    val fileName = (file: FileKind).asJson.noSpaces
+    for {
+      _ <- hdp.delete(tgt)
+      actionResult <- action
+      _ = assert(actionResult.toSet == data)
+      _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
+      size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
+      _ = assert(size == data.size)
+      roundTrip <-
+        hdp
+          .source(tgt)
+          .kantan(100, csvConfiguration)
+          .map(decode)
+          .unNone
+          .compile
+          .toList
+    } yield assert(roundTrip.toSet == data)
+  }
+
+  val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")
+
+  test("1.uncompressed - with-header-modify") {
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(_ + "_tiger"))
+    fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
+  test("2.uncompressed - with-header") {
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.header).withCellSeparator('&')
+    fs2(fs2Root / "header-explicit", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
+  test("3.uncompressed - with-implicit-header") {
+    val cfg = CsvConfiguration.rfc.withHeader.quoteAll
+    fs2(fs2Root / "header-implicit", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
+  test("4.uncompressed - without-header") {
+    val cfg = CsvConfiguration.rfc.withHeader(false)
+    fs2(fs2Root / "no-header", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
+  test("5.gzip") {
+    val cfg = CsvConfiguration.rfc
+    fs2(fs2Root, KantanFile(_.Gzip), cfg, tigerSet)
+  }
+  test("6.snappy") {
+    val cfg = CsvConfiguration.rfc
+    fs2(fs2Root, KantanFile(_.Snappy), cfg, tigerSet)
+  }
+  test("7.bzip2") {
+    val cfg = CsvConfiguration.rfc.withCellSeparator('?')
+    fs2(fs2Root, KantanFile(_.Bzip2), cfg, tigerSet)
+  }
+  test("8.lz4") {
+    val cfg = CsvConfiguration.rfc.withQuotePolicy(CsvConfiguration.QuotePolicy.WhenNeeded)
+    fs2(fs2Root, KantanFile(_.Lz4), cfg, tigerSet)
+  }
+
+  test("9.deflate") {
+    val cfg = CsvConfiguration.rfc.withQuote('*')
+    fs2(fs2Root, KantanFile(_.Deflate(_.Six)), cfg, tigerSet)
+  }
+
+  test("10.laziness") {
+    hdp.source("./does/not/exist").kantan(100, CsvConfiguration.rfc)
+    hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
+  }
+
+  val policy: Policy = Policy.fixedDelay(1.second).repeat
+  test("11.rotation - with-header - tick") {
+    val path = fs2Root / "rotation" / "header" / "tick"
+    val file = KantanFile(_.Uncompressed)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(
+          hdp
+            .rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t => path / file.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(
+            _.traverse(
+              hdp
+                .source(_)
+                .kantan(1000, _.withHeader)
+                .map(decode)
+                .unNone
+                .compile
+                .toList
+                .map(_.size)))
+          .map(_.sum)
+    } yield assert(size == herd_number)
+  }
+
+  test("12.rotation - with-header - size") {
+    val path = fs2Root / "rotation" / "header" / "index"
+    val file = KantanFile(_.Uncompressed)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(
+          hdp
+            .rotateSink(sydneyTime, 1000)(t => path / file.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(
+            _.traverse(
+              hdp
+                .source(_)
+                .kantan(1000, _.withHeader)
+                .map(decode)
+                .unNone
+                .compile
+                .toList
+                .map(_.size)))
+          .map(_.sum)
+    } yield assert(size == herd_number)
+  }
+
+  test("13.rotation - empty(with header)") {
+    val path = fs2Root / "rotation" / "header" / "empty"
+    val fk = KantanFile(_.Uncompressed)
+    import better.files.*
+    for {
+      _ <- hdp.delete(path)
+      _ <- (Stream.sleep[IO](10.hours) >>
+        Stream.empty.covaryAll[IO, Seq[String]])
+        .through(
+          hdp
+            .rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t => path / fk.fileName(t))
+            .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        .compile
+        .drain
+      files <- hdp.filesIn(path)
+    } yield files.foreach(np => assert(File(np.toJavaURI).lines.size == 1))
+  }
+
+  test("14.rotation - no header - policy") {
+    val path = fs2Root / "rotation" / "no-header" / "tick"
+    val number = 10000L
+    val file = KantanFile(_.Uncompressed)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(hdp.rotateSink(zoneId, _.fixedDelay(0.1.second).repeat)(t =>
+          path / file.fileName(t)).kantan.andThen(_.drain))
+        .map(decode)
+        .unNone
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield assert(size == number)
+  }
+
+  test("15.rotation - no header - size") {
+    val path = fs2Root / "rotation" / "no-header" / "index"
+    val number = 10000L
+    val file = KantanFile(_.Uncompressed)
+    for {
+      _ <- hdp.delete(path)
+      _ <- herd
+        .map(encode)
+        .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).kantan.andThen(_.drain))
+        .map(decode)
+        .unNone
+        .compile
+        .drain
+      size <-
+        hdp
+          .filesIn(path)
+          .flatMap(_.traverse(hdp.source(_).kantan(1000).map(decode).unNone.compile.toList.map(_.size)))
+          .map(_.sum)
+    } yield assert(size == number)
+  }
+
+  test("16.rotation - empty(no header)") {
+    val path = fs2Root / "rotation" / "no-header" / "empty"
+    val fk = KantanFile(_.Uncompressed)
+    import better.files.*
+    for {
+      _ <- hdp.delete(path)
+      _ <- (Stream.sleep[IO](10.hours) >>
+        Stream.empty.covaryAll[IO, Seq[String]])
+        .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).repeat.limited(3))(t =>
+          path / fk.fileName(t)).kantan)
+        .compile
+        .drain
+      files <- hdp.filesIn(path)
+    } yield files.foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
+  }
+
+  test("17.stream concat") {
+    val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(encode)
+    val path: Url = fs2Root / "concat" / "kantan.csv"
+
+    for {
+      _ <- hdp.delete(path) >>
+        (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain
+      size <- hdp.source(path).kantan(100).compile.fold(0) { case (s, _) =>
+        s + 1
+      }
+    } yield assert(size == 15000)
+  }
+
+  test("large number (10000) of files - passed but too cost to run it".ignore) {
+    val path = fs2Root / "rotation" / "many"
+    val number = 1000L
+    val file = KantanFile(_.Uncompressed)
+    hdp.delete(path) >> Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(encode)
+      .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).kantan)
+      .fold(0L)((sum, v) => sum + v.recordCount)
+      .compile
+      .lastOrError
+      .void
+  }
+}

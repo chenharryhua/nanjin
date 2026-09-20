@@ -1,0 +1,86 @@
+package com.github.chenharryhua.nanjin.guard.config
+
+import cats.effect.kernel.Clock
+import cats.syntax.functor.given
+import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
+import io.circe.jawn.parse
+import io.circe.{Codec, Encoder, Json}
+
+import java.time.*
+
+final case class ServiceIdentity(
+  task: Task,
+  service: Service,
+  host: Host,
+  serviceId: ServiceId,
+  launchTime: LaunchTime,
+  homepage: Option[Homepage]
+) derives Codec.AsObject {
+  val timeZone: TimeZone = TimeZone(launchTime.zoneId)
+
+  def timestamp[F[_]: {Clock, Functor}]: F[Timestamp] =
+    Clock[F].realTimeInstant.map(ts => Timestamp(ts.atZone(launchTime.zoneId)))
+
+  def toTimestamp(ts: Instant): Timestamp = Timestamp(ts.atZone(launchTime.zoneId))
+}
+
+final case class RestartPolicy(policy: Policy, threshold: Option[Duration]) derives Codec.AsObject
+final case class DashboardPolicy(policy: Policy, maxPoints: Capacity) derives Codec.AsObject
+final case class HistoryCapacity(panics: Capacity, errors: Capacity, metrics: Capacity) derives Codec.AsObject
+
+final case class ServicePolicies(
+  restart: RestartPolicy,
+  dashboard: Option[DashboardPolicy],
+  report: Policy
+) derives Codec.AsObject
+
+final case class Host(name: HostName, port: Option[Port]) derives Codec.AsObject {
+  override def toString: String =
+    port match {
+      case Some(p) => s"${name.value}:${p.value}"
+      case None    => name.value
+    }
+}
+object Host {
+  given Show[Host] = Show.fromToString[Host]
+}
+
+final case class ServiceParams(
+  serviceIdentity: ServiceIdentity,
+  policies: ServicePolicies,
+  history: Option[HistoryCapacity],
+  logFormat: Option[LogFormat],
+  nanjin: Option[Json],
+  brief: Brief
+) derives Codec.AsObject
+
+object ServiceParams {
+  def apply(
+    taskName: Task,
+    serviceName: Service,
+    serviceId: ServiceId,
+    launchTime: LaunchTime,
+    brief: Brief,
+    host: Host
+  ): ServiceParams =
+    ServiceParams(
+      serviceIdentity = ServiceIdentity(
+        task = taskName,
+        service = serviceName,
+        serviceId = serviceId,
+        homepage = None,
+        host = host,
+        launchTime = launchTime
+      ),
+      policies = ServicePolicies(
+        restart = RestartPolicy(Policy.empty, None),
+        dashboard = None,
+        report = Policy.empty
+      ),
+      history = None,
+      logFormat = None,
+      nanjin = parse(BuildInfo.toJson).toOption,
+      brief = brief
+    )
+}

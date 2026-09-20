@@ -1,0 +1,78 @@
+package mtest.guard
+
+import cats.data.Kleisli
+import cats.effect.IO
+import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import io.circe.Json
+import munit.CatsEffectSuite
+import squants.information.Bytes
+
+import scala.concurrent.duration.*
+
+// sbt "guard/testOnly mtest.guard.ConsoleLogTest"
+class ConsoleLogTest extends CatsEffectSuite {
+  private def action(agent: Agent[IO]): IO[Unit] = {
+    val mtx = agent.facilitate("job") { mtx =>
+      for {
+        _ <- mtx.gauge("7", _.register(IO(1000000000)))
+        _ <- mtx.gauge("6", _.register(IO(true)))
+        _ <- mtx.timer("5").evalMap(_.elapsed(10.second).replicateA(100))
+        _ <- mtx.meter("4", _.enable(true)).evalMap(_.mark(10000).replicateA(100))
+        _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
+        _ <- mtx.histogram("2", _.withUnit(Bytes)).evalMap(_.update(10000L).replicateA(100))
+        _ <- mtx
+          .ratio("1")
+          .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
+      } yield Kleisli((_: Int) => agent.logger.warn("wow", new Exception))
+    }
+    mtx.use(
+      _.run(1) >>
+        agent.adhoc.report) >>
+      IO.raiseError(new Exception("oops"))
+  }
+
+  val service: ServiceGuard[IO] =
+    TaskGuard[IO]("nanjin")
+      .service("observing")
+      .updateConfig(
+        _.addBrief(Json.fromString("brief")).withRestartPolicy(
+          10.hour,
+          _.fixedRate(2.second).repeat.limited(1)))
+
+  test("1.console - verbose json") {
+    service
+      .updateConfig(_.withLogFormat(_.ConsoleJsonVerbose))
+      .eventStream(action)
+      .map(checkJson)
+      .mapFilter(Event.metricsSnapshot.getOption)
+      .compile
+      .lastOrError
+      .map(mr => assert(!mr.snapshot.hasDuplication))
+  }
+
+  test("2.console - pretty json") {
+    service
+      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
+      .eventStream(action)
+      .map(checkJson)
+      .compile
+      .drain
+  }
+
+  test("3.console - simple text") {
+    service
+      .updateConfig(_.withLogFormat(_.ConsolePlainText).withHomepage("homepage.com"))
+      .eventStream(action)
+      .map(checkJson)
+      .mapFilter(Event.metricsSnapshot.getOption)
+      .compile
+      .lastOrError
+      .map { mr =>
+        val tags = mr.snapshot.metricIds.sortBy(_.token.age).map(_.token.metricName.toInt)
+        assert(tags == List(7, 6, 5, 4, 3, 2, 1))
+      }
+  }
+}

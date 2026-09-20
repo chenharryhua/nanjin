@@ -1,0 +1,59 @@
+package com.github.chenharryhua.nanjin.guard.translator
+
+import io.circe.Json
+import io.circe.syntax.EncoderOps
+import munit.FunSuite
+
+class JsonFTest extends FunSuite {
+  private val space: Char = ' '
+
+  test("1.json obj") {
+    val json =
+      Json.obj(
+        "str" -> Json.fromString("str"),
+        "bool" -> Json.fromBoolean(true),
+        "num" -> Json.fromLong(10),
+        "obj" -> Json.obj("a" -> 1.asJson, "b" -> 2.asJson, "c" -> 3.asJson),
+        "arrInt" -> List(1, 2, 3).asJson,
+        "arrStr" -> List("a", "b", "c").asJson,
+        "nullType" -> Json.Null
+      )
+    JsonView.yml("name", json, space).foreach(_ => ())
+  }
+
+  test("2.string") {
+    val json = "string".asJson
+    assert(JsonView.yml("name", json, space).head == "name: string")
+  }
+
+  test("3.number") {
+    val json = Json.fromLong(1)
+    assert(JsonView.yml("name", json, space).head == "name: 1")
+  }
+
+  test("4.boolean") {
+    val json = Json.fromBoolean(true)
+    assert(JsonView.yml("name", json, space).head == "name: true")
+  }
+
+  test("5.array") {
+    val json = List(true, true, false).asJson
+    assert(JsonView.yml("name", json, space).head == "name: [true, true, false]")
+  }
+
+  test("6.array - json") {
+    val json = List(true.asJson, Json.Null, false.asJson).asJson
+    assert(JsonView.yml("name", json, space).head == "name: [true, null, false]")
+  }
+
+  test("7.two layers") {
+    val json = Json.obj(
+      "top" ->
+        Json.obj(
+          "str" -> Json.fromString("str"),
+          "arrStr" -> List("a", "b", "c").asJson,
+          "nullType" -> Json.Null
+        ))
+    assert(JsonView.yml("name", json, space).nonEmpty)
+  }
+}

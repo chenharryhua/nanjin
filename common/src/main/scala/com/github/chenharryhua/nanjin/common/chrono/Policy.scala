@@ -1,0 +1,193 @@
+package com.github.chenharryhua.nanjin.common.chrono
+
+import cats.data.NonEmptyList
+import cats.derived.derived
+import cats.kernel.Eq
+import cats.syntax.show.showInterpolator
+import cats.{Functor, Show}
+import cron4s.CronExpr
+import higherkindness.droste.data.Fix
+import io.circe.{Decoder, Encoder, HCursor}
+
+import java.time.{Duration, LocalTime}
+import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
+import scala.jdk.DurationConverters.ScalaDurationOps
+
+sealed trait PolicyF[K] extends Product derives Functor
+
+private object PolicyF {
+
+  final case class Empty[K]() extends PolicyF[K]
+  final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
+  final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
+  final case class FixedRate[K](delay: Duration) extends PolicyF[K]
+
+  final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
+  final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
+  final case class Repeat[K](policy: K) extends PolicyF[K]
+  final case class Meet[K](first: K, second: K) extends PolicyF[K]
+  final case class Except[K](policy: K, except: LocalTime) extends PolicyF[K]
+  final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
+  final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
+
+  inline val EMPTY = "empty"
+  inline val CRONTAB = "crontab"
+  inline val JITTER = "jitter"
+  inline val JITTER_MIN = "min"
+  inline val JITTER_MAX = "max"
+  inline val FIXED_DELAY = "fixedDelay"
+  inline val FIXED_RATE = "fixedRate"
+  inline val LIMITED = "limited"
+  inline val POLICY = "policy"
+  inline val FOLLOWED_BY = "followedBy"
+  inline val FOLLOWED_BY_LEADER = "leader"
+  inline val FOLLOWED_BY_FOLLOWER = "follower"
+  inline val MEET = "meet"
+  inline val MEET_FIRST = "first"
+  inline val MEET_SECOND = "second"
+  inline val REPEAT = "repeat"
+  inline val EXCEPT = "except"
+  inline val OFFSET = "offset"
+}
+
+// don't extend AnyVal as monocle doesn't like it
+// use case class for free equal method
+final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
+  import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
+  override def toString: String = ShowPolicy(policy)
+
+  /** Limit the policy to at most `num` ticks. Non-positive values produce an empty policy.
+    */
+  def limited(num: Int): Policy =
+    Policy(Fix(Limited(policy, num)))
+
+  /** Append another policy after this one is exhausted.
+    *
+    * Once this policy produces no more ticks, the follower takes over.
+    */
+  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
+  def followedBy(f: Policy.type => Policy): Policy = followedBy(f(Policy))
+
+  /** Repeat this policy indefinitely. When the policy is exhausted, it restarts from the beginning.
+    */
+  def repeat: Policy = Policy(Fix(Repeat(policy)))
+
+  /** Combine with another policy, taking the shorter snooze at each step.
+    *
+    * Terminates when either policy is exhausted.
+    */
+  def meet(other: Policy): Policy = Policy(Fix(Meet(policy, other.policy)))
+  def meet(f: Policy.type => Policy): Policy = meet(f(Policy))
+
+  /** Skip the tick whose conclude time matches the given local time, stretching the snooze to reach the next
+    * tick instead.
+    */
+  def except(localTime: LocalTime): Policy = Policy(Fix(Except(policy, localTime)))
+  def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
+
+  /** Add a fixed non-negative duration to each tick's snooze.
+    */
+  def offset(fd: FiniteDuration): Policy = {
+    require(fd >= ScalaDuration.Zero, show"$fd must be non-negative")
+    Policy(Fix(Offset(policy, fd.toJava)))
+  }
+
+  /** Add a random duration between `min` and `max` to each tick's snooze.
+    *
+    * @param min
+    *   non-negative
+    * @param max
+    *   strictly bigger than min
+    */
+  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
+    require(min >= ScalaDuration.Zero, show"$min must be non-negative")
+    require(max > min, show"$max must be strictly bigger than $min")
+    Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
+  }
+
+  /** Add a random duration between zero and `max` to each tick's snooze.
+    *
+    * @param max
+    *   strictly bigger than zero
+    */
+  def jitter(max: FiniteDuration): Policy =
+    jitter(ScalaDuration.Zero, max)
+
+}
+
+object Policy {
+  import PolicyF.{Crontab, Empty, FixedDelay, FixedRate}
+
+  given Show[Policy] = Show.fromToString
+  given Encoder[Policy] = (a: Policy) => CodecPolicy.encoder(a.policy)
+  given Decoder[Policy] = (c: HCursor) => CodecPolicy.decoder(c).map(Policy(_))
+  given Eq[Policy] = Eq.fromUniversalEquals[Policy]
+
+  /** Schedule based on a cron expression. Produces a single tick at the next matching time. Use `.repeat` for
+    * continuous scheduling.
+    */
+  def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
+  def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
+
+  /** Fixed-delay scheduling. Produces one tick per delay in the list, then exhausts. Use `.repeat` to cycle
+    * through the delays indefinitely.
+    *
+    * An empty list is just another way to say `empty` — a policy that never ticks — mirroring `limited(0)`.
+    * For a non-empty list, all delays must be non-negative and at least one must be strictly positive.
+    *
+    * This `List` overload is the '''runtime''' entry point: use it for a computed, possibly-empty sequence
+    * (e.g. `fixedDelay(fibonacci.take(8).map(_.seconds).toList)`), where empty naturally means `empty`. When
+    * you have literal delays and know there is at least one, prefer the varargs overload below, which encodes
+    * that "at least one" at '''compile time'''. The two overloads are intentional siblings covering the two
+    * honest contracts (may-be-empty list vs. guaranteed-non-empty literals); they coexist unambiguously
+    * because the varargs form has a mandatory head parameter.
+    */
+  def fixedDelay(delays: List[FiniteDuration]): Policy =
+    NonEmptyList.fromList(delays) match {
+      case None      => empty
+      case Some(nel) =>
+        require(nel.forall(_ >= ScalaDuration.Zero), "every delay must be non-negative")
+        require(nel.exists(_ > ScalaDuration.Zero), "at least one delay must be positive")
+        Policy(Fix(FixedDelay(nel.map(_.toJava))))
+    }
+
+  /** Varargs convenience for `fixedDelay`, the '''compile-time''' entry point for literal delays. The
+    * mandatory head parameter guarantees at least one delay at the call site (so this form can never produce
+    * `empty`) and also keeps it unambiguous with the `List` overload above. For a computed or possibly-empty
+    * sequence, use that `List` overload instead.
+    */
+  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
+    fixedDelay(head :: tail.toList)
+
+  /** Fixed-rate scheduling. At sequence index 0, the tick concludes one `delay` after its acquisition.
+    * Subsequent sequence ticks maintain cadence from the previous conclude time and recursively skip elapsed
+    * periods. A fixed-rate policy reached later through composition therefore continues the existing sequence
+    * cadence. Use `.repeat` for continuous fixed-rate scheduling.
+    *
+    * @param delay
+    *   must be positive
+    */
+  def fixedRate(delay: FiniteDuration): Policy = {
+    require(delay > ScalaDuration.Zero, show"delay must be positive, but was $delay")
+    Policy(Fix(FixedRate(delay.toJava)))
+  }
+
+  /** Adapter that lets an already-built `Policy` be supplied where a builder function
+    * `f: Policy.type => Policy` is expected.
+    *
+    * Most APIs take the builder shape so callers can write `_.fixedDelay(1.second).repeat`, where the
+    * argument is this `Policy` companion. When you instead hold a `Policy` value prepared elsewhere, there is
+    * no companion to build from, so pass it through `fresh`:
+    *
+    * {{{
+    *   val prepared: Policy = Policy.fixedDelay(1.second).repeat
+    *   agent.circuitBreaker(3, _.fresh(prepared))
+    * }}}
+    *
+    * The body is intentionally the identity function: `fresh` exists only to occupy the
+    * `Policy.type => Policy` slot, returning the supplied policy unchanged.
+    */
+  def fresh(policy: Policy): Policy = policy
+
+  val empty: Policy = Policy(Fix(Empty()))
+}

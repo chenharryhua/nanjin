@@ -1,0 +1,105 @@
+package com.github.chenharryhua.nanjin.frontend
+
+import com.raquo.laminar.api.L.Var
+
+import scala.collection.mutable
+import scala.scalajs.js
+import scala.scalajs.js.JSConverters.JSRichIterableOnce
+
+/*
+ * Mutable world
+ */
+final class ChartManager(maxSizePerSeries: Int) {
+
+  // Deterministic color from label name — stable across page refreshes
+  private val colorMap: mutable.Map[String, String] = mutable.Map.empty
+  private def colorFor(name: String): String =
+    colorMap.getOrElseUpdate(
+      name, {
+        // FNV-1a 32-bit hash for better distribution than hashCode
+        var hash: Long = 2166136261L
+        name.foreach { c =>
+          hash ^= c.toLong
+          hash = (hash * 16777619L) & 0xffffffffL
+        }
+        val hue = (hash % 360).toDouble
+        val saturation = 55 + (hash / 360 % 20) // 55-74%
+        val lightness = 40 + (hash / 7200 % 20) // 40-59%
+        s"hsl($hue, $saturation%, $lightness%)"
+      }
+    )
+
+  private val data: mutable.Map[String, mutable.Queue[Point]] = mutable.Map.empty
+  private val baseline: mutable.Queue[Point] = mutable.Queue.empty
+
+  def reset(chartVar: Var[Option[js.Dynamic]]): Unit = {
+    data.clear()
+    baseline.clear()
+    chartVar.now().foreach { chart =>
+      chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]].length = 0
+      chart.update()
+    }
+  }
+
+  def enqueue(msg: WsMessage): ChartManager = {
+    // All series we need to update: existing + new
+    val allNames = data.keys.toSet ++ msg.points.keys.toSet
+
+    allNames.foreach { name =>
+      val queue = data.getOrElseUpdate(name, baseline.clone())
+
+      if (queue.size >= maxSizePerSeries) queue.dequeue(): Unit
+
+      // Enqueue new point if available, else a placeholder for fading
+      val newPoint = msg.points.getOrElse(name, Point(msg.ts, None))
+      queue.enqueue(newPoint)
+    }
+
+    // manage baseline. size of baseline should be maxSizePerSeries - 1
+    if (baseline.size >= maxSizePerSeries - 1) baseline.dequeue(): Unit
+    baseline.enqueue(Point(msg.ts, None))
+
+    this
+  }
+
+  def updateChart(chartVar: Var[Option[js.Dynamic]]): Unit =
+    chartVar.now().foreach { chart =>
+      val datasets = chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]]
+
+      // remove fade out series
+      val toRemove = data.collect { case (k, q) if q.forall(_.y.isEmpty) => k }
+      toRemove
+        .foreach { label =>
+          val i = datasets.indexWhere(_.label.asInstanceOf[String] == label)
+          if (i >= 0) datasets.splice(i, 1): Unit
+        }
+      toRemove.foreach(data.remove)
+
+      // build up datasets
+      datasets.foreach { dataset =>
+        val name = dataset.label.asInstanceOf[String]
+        data.get(name).foreach { queue =>
+          dataset.data = queue.iterator.map(_.dataPoint).toJSArray
+        }
+      }
+
+      // Add new series if they don’t exist yet
+      data.keys.foreach { name =>
+        if (!datasets.exists(_.label.asInstanceOf[String] == name)) {
+          val queue = data(name)
+          val newDataset = js.Dynamic.literal(
+            label = name,
+            data = queue.iterator.map(_.dataPoint).toJSArray,
+            borderColor = colorFor(name),
+            backgroundColor = colorFor(name),
+            fill = false,
+            tension = 0.3,
+            pointRadius = 0
+          )
+          datasets.push(newDataset): Unit
+        }
+      }
+
+      chart.update()
+    }
+}

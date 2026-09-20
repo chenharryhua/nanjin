@@ -1,0 +1,101 @@
+package mtest.aws
+
+import cats.data.NonEmptyList
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.aws.Email
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
+import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
+import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
+import munit.CatsEffectSuite
+import squants.information.Bytes
+import squants.mass.Micrograms
+
+import scala.concurrent.duration.DurationInt
+
+class AwsObserverTest extends CatsEffectSuite {
+  private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
+    .service("test")
+    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).repeat.limited(1)))
+    .eventStream { agent =>
+      agent
+        .facilitate("metrics")(_.meter("meter", _.withUnit(Bytes)))
+        .use(
+          _.mark(10) >>
+            agent.logger.good("good") >>
+            agent.logger.error("my bad", new Exception("oops oops oops oops oops oops oops oops")) >>
+            agent.adhoc.report) >> IO.raiseError(new Exception)
+    }
+
+  test("1.sqs") {
+    //  val sqs =
+    SqsObserver(sqs_client(1.seconds, ""))
+    //  service.through(sqs.observe("https://google.com/abc.fifo", "group.id")).compile.drain.unsafeRunSync()
+  }
+
+  test("2.ses mail") {
+    val mail =
+      EmailObserver(ses_client)
+        .withPolicy(_.fixedDelay(5.seconds).repeat)
+        .withZoneId(sydneyTime)
+        .withCapacity(200)
+        .withOldestFirst
+
+    service
+      .through(mail.observe(Email("abc@google.com"), NonEmptyList.one(Email("efg@tek.com")), "title"))
+      .compile
+      .drain
+  }
+
+  test("3.syntax") {
+    EmailObserver(ses_client).withTranslator {
+      _.skipMetricsSnapshot.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+    }
+  }
+
+  test("4.slack") {
+    //   val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
+    //   service.through(SlackObserver(sns_client).at("@chenh").observe(snsArn)).compile.drain.unsafeRunSync()
+  }
+
+  test("5.cloudwatch") {
+    val cloudwatch = CloudWatchObserver(cloudwatch_client)
+
+    TaskGuard[IO]("aws")
+      .service("cloudwatch")
+      .updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat))
+      .eventStreamS { agent =>
+        val work = agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
+          m.mark(1) >> IO.sleep(1.second) >>
+            m.mark(2) >> IO.sleep(1.second) >>
+            m.mark(2) >> IO.sleep(1.second) >>
+            m.mark(10)
+        }
+        fs2.Stream.eval(work).concurrently(
+          agent.adhoc.meteredCounts(_.crontab(_.secondly)).through(
+            cloudwatch.scrape("cloudwatch", storageResolution = 1))
+        )
+      }
+      .compile
+      .drain
+  }
+
+  test("6.email observer terminates with the event stream, not the policy") {
+    // A never-ending (repeat) policy would run forever; the observer must still terminate because the event
+    // stream is finite. This exercises the mergeHaltL semantics: lifetime tracks events, not ticks.
+    val mail =
+      EmailObserver(ses_client)
+        .withPolicy(_.fixedDelay(2.seconds).repeat)
+        .withZoneId(sydneyTime)
+        .observe(Email("a@b.c"), NonEmptyList.one(Email("b@c.d")), "email")
+
+    TaskGuard[IO]("email")
+      .service("email")
+      .eventStream(_.logger.info("done"))
+      .through(mail)
+      .compile
+      .drain
+  }
+}

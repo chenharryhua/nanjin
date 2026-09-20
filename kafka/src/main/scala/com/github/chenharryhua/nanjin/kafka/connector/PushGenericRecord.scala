@@ -1,0 +1,123 @@
+package com.github.chenharryhua.nanjin.kafka.connector
+
+import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
+import com.github.chenharryhua.nanjin.kafka.utils.immigrate
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
+import fs2.kafka.ProducerRecord
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
+import io.confluent.kafka.serializers.KafkaAvroSerializer
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.common.serialization.Serdes
+
+import scala.jdk.CollectionConverters.given
+import scala.util.{Failure, Success}
+
+/** Encodes the key and value of an Avro `GenericRecord` into raw Kafka bytes for producing.
+  *
+  * The inverse of `PullGenericRecord`. Each side is serialized according to its Avro schema type: `RECORD`
+  * types via a Confluent `KafkaAvroSerializer` (which registers/looks up the schema in `srClient` and emits
+  * the Confluent wire format), and primitives via the matching Kafka `Serdes`. `null` values serialize to
+  * `null`. A value whose runtime type does not match its schema raises `IllegalArgumentException`;
+  * unsupported schema types raise `UnsupportedOperationException`.
+  */
+final private class PushGenericRecord(
+  srClient: SchemaRegistryClient,
+  serdeSettings: SerdeSettings,
+  topicName: TopicName,
+  pair: AvroSchemaPair) {
+
+  private def typeError(expected: String, actual: AnyRef): Nothing =
+    throw new IllegalArgumentException(s"${actual.getClass.getName} is not $expected") // scalafix:ok
+
+  private def unsupportedSchema(skm: Schema): Nothing =
+    throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
+
+  private val topic: String = topicName.value
+
+  /** Build a value-to-byte encoder for one Avro schema type. `isKey` selects key vs value serializer
+    * configuration for the Confluent serializer. `null` encodes to `null`; a runtime type mismatch throws
+    * `IllegalArgumentException`; unsupported schema types throw `UnsupportedOperationException`.
+    */
+  private def getEncoder(skm: Schema, isKey: Boolean): AnyRef => Array[Byte] = {
+    skm.getType match
+      case Schema.Type.RECORD =>
+        val ser = new KafkaAvroSerializer(srClient)
+        ser.configure(serdeSettings.properties.asJava, isKey)
+        // java world
+        (_: AnyRef) match {
+          case null              => null
+          case gr: GenericRecord =>
+            immigrate(skm, gr).map(ser.serialize(topic, _)) match {
+              case Success(value) => value
+              case Failure(ex)    => throw ex // scalafix:ok
+            }
+          case unknown =>
+            typeError("a Generic Record", unknown)
+        }
+
+      case Schema.Type.STRING =>
+        val ser = Serdes.String().serializer()
+        (_: AnyRef) match
+          case null         => null
+          case data: String => ser.serialize(topic, data)
+          case unknown      => typeError("a String", unknown)
+
+      case Schema.Type.BYTES =>
+        val ser = Serdes.ByteArray().serializer()
+        (_: AnyRef) match
+          case null              => null
+          case data: Array[Byte] => ser.serialize(topic, data)
+          case unknown           => typeError("an Array[Byte]", unknown)
+
+      case Schema.Type.INT =>
+        val ser = Serdes.Integer().serializer()
+        (_: AnyRef) match
+          case null                    => null
+          case data: java.lang.Integer => ser.serialize(topic, data)
+          case unknown                 => typeError("a java.lang.Integer", unknown)
+
+      case Schema.Type.LONG =>
+        val ser = Serdes.Long().serializer()
+        (_: AnyRef) match
+          case null                 => null
+          case data: java.lang.Long => ser.serialize(topic, data)
+          case unknown              => typeError("a java.lang.Long", unknown)
+
+      case Schema.Type.FLOAT =>
+        val ser = Serdes.Float().serializer()
+        (_: AnyRef) match
+          case null                  => null
+          case data: java.lang.Float => ser.serialize(topic, data)
+          case unknown               => typeError("a java.lang.Float", unknown)
+
+      case Schema.Type.DOUBLE =>
+        val ser = Serdes.Double().serializer()
+        (_: AnyRef) match
+          case null                   => null
+          case data: java.lang.Double => ser.serialize(topic, data)
+          case unknown                => typeError("a java.lang.Double", unknown)
+
+      case Schema.Type.BOOLEAN =>
+        val ser = Serdes.Boolean().serializer()
+        (_: AnyRef) match
+          case null                    => null
+          case data: java.lang.Boolean => ser.serialize(topic, data)
+          case unknown                 => typeError("a java.lang.Boolean", unknown)
+
+      case _ => unsupportedSchema(skm)
+    end match
+  }
+
+  private val key_serialize: AnyRef => Array[Byte] = getEncoder(pair.key.rawSchema(), true)
+  private val val_serialize: AnyRef => Array[Byte] = getEncoder(pair.value.rawSchema(), false)
+
+  /** Extract the `key` and `value` fields from `gr`, serialize each to bytes, and build a byte
+    * `ProducerRecord` targeting the configured topic.
+    *
+    * @param gr
+    *   a `GenericRecord` shaped like `NJConsumerRecord` (its `key`/`value` fields are encoded).
+    */
+  def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
+    ProducerRecord(topic, key_serialize(gr.get("key")), val_serialize(gr.get("value")))
+}

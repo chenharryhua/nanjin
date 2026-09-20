@@ -1,0 +1,40 @@
+package com.github.chenharryhua.nanjin.aws
+import cats.effect.kernel.{Async, Sync}
+import cats.effect.std.Env
+import cats.syntax.applicativeError.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
+import cats.syntax.traverse.given
+import fs2.io.net.Network
+import io.circe.Json
+import org.http4s.Uri
+import org.http4s.circe.*
+import org.http4s.ember.client.EmberClientBuilder
+
+object ecs {
+
+  private def metaUri[F[_]: Sync]: F[Option[Uri]] = {
+    val env: Env[F] = Env.make[F]
+    for {
+      v4 <- env.get("ECS_CONTAINER_METADATA_URI_V4")
+      v3 <- env.get("ECS_CONTAINER_METADATA_URI")
+    } yield v4.orElse(v3).flatMap(Uri.fromString(_).toOption)
+  }
+
+  // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
+  def containerMetadata[F[_]: {Async, Network}]: F[Option[Json]] =
+    EmberClientBuilder.default[F].build.use { client =>
+      for {
+        uri <- metaUri[F]
+        json <- uri.flatTraverse(addr => client.expect[Json](addr).attempt.map(_.toOption))
+      } yield json
+    }
+
+  def containerMetadataTask[F[_]: {Async, Network}]: F[Option[Json]] =
+    EmberClientBuilder.default[F].build.use { client =>
+      for {
+        uri <- metaUri[F]
+        json <- uri.flatTraverse(addr => client.expect[Json](addr / "task").attempt.map(_.toOption))
+      } yield json
+    }
+}

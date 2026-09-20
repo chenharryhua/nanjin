@@ -1,0 +1,47 @@
+package mtest.kafka
+
+import cats.effect.IO
+import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.config.KafkaSettings
+import com.github.chenharryhua.nanjin.kafka.serdes.{Primitive, Structured}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef, TopicName}
+import munit.CatsEffectSuite
+
+import scala.concurrent.duration.DurationInt
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec.KafkaJsonCodec
+import com.github.chenharryhua.nanjin.kafka.serdes.KafkaCodec
+
+class UpAndDownJsonTest extends CatsEffectSuite {
+  private val ctx: KafkaContext[IO] =
+    KafkaContext[IO](
+      KafkaSettings.local
+        .withConsumerProperty(_.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        .withConsumerProperty(_.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
+        .withJsonDeserializerConfig(_.JSON_VALUE_TYPE, classOf[JsonNode].getName)
+    )
+  given KafkaJsonCodec[UpAndDown] = KafkaCodec.json[UpAndDown](objectMapper)
+
+  private val topic = TopicName("up.and.down.json2")
+  private val json: TopicDef[Integer, UpAndDown] =
+    TopicDef(topic.value, Primitive[Integer], Structured[JsonNode].become[UpAndDown])
+
+  test("1.json - schema register") {
+    val schema = summon[KafkaJsonCodec[UpAndDown]].schema
+    ctx.schemaRegistry(topic.value)
+      .register(value = Some(schema))
+  }
+
+  test("2.json - produce") {
+    ctx.produce(json).produceOne(1, UpAndDown(3, "abc")).void
+  }
+
+  test("3.json - consume") {
+    ctx.consume(json).subscribe.take(1).timeout(3.seconds).compile.drain
+  }
+
+  test("4.get schema") {
+    ctx.schemaRegistry(json.topicName.value).fetchOptionalJsonSchema.void
+    // ctx.schemaRegistry.delete(json.topicName).unsafeRunSync()
+    // ctx.admin(json.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence).unsafeRunSync()
+  }
+}

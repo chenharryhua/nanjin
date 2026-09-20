@@ -1,114 +1,498 @@
-scalaVersion in ThisBuild     := "2.12.8"
-scapegoatVersion in ThisBuild := "1.3.9"
+ThisBuild / version      := "0.21.16-SNAPSHOT"
+ThisBuild / scalaVersion := "3.9.0" // LTS
 
-val confluent    = "5.3.0"
-val kafkaVersion = "2.3.0"
-val catsCore     = "2.0.0-RC1"
-val catsEffect   = "2.0.0-M5"
-val catsMtl      = "0.6.0"
-val kittens      = "1.2.1"
-val circeVersion = "0.12.0-M4"
-val fs2Version   = "1.1.0-M1"
-val shapeless    = "2.3.3"
-val avro         = "2.0.4"
-val akkaStream   = "1.0.5"
-val fs2Stream    = "0.20.0-M2"
-val silencer     = "1.4.2"
-val monocle      = "1.5.1-cats" // "1.6.0+50-f7b237d7-SNAPSHOT" // 
-val contextual   = "1.2.1"
-val sparkVersion = "2.4.3"
-val avrohugger   = "1.0.0-RC18"
-val scalatest    = "3.0.8"
-val refined      = "0.9.9"
-val zioCats      = "2.0.0.0-RC2"
+ThisBuild / versionScheme := Some("early-semver")
 
-lazy val commonSettings = Seq(
-  version      := "0.0.1-SNAPSHOT",
-  organization := "com.github.chenharryhua",
-  scalaVersion := scalaVersion.value,
-  resolvers ++= Seq(
-    Resolver.sonatypeRepo("public"),
-    Resolver.sonatypeRepo("releases"),
-    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
+ThisBuild / Test / parallelExecution := false
+ThisBuild / Test / logBuffered       := false
+
+Global / parallelExecution := false
+
+// ==========================
+// Versions
+// ==========================
+val avroV = "1.12.2"
+val avro4sV = "5.0.15"
+val awsV = "2.55.1"
+val catsCoreV = "2.13.0"
+val chimneyV = "1.11.0"
+val circeV = "0.14.16"
+val circeOpticsV = "0.15.1"
+val confluentV = "8.3.2"
+val kafkaV = "8.3.2-ce"
+val cron4sV = "0.8.2"
+val docV = "0.1.5"
+val doobieV = "1.0.0-RC13"
+val drosteV = "0.10.0"
+val fs2KafkaV = "4.1.0"
+val fs2V = "3.14.0"
+val hadoopV = "3.5.0"
+val jacksonV = "2.22.2"
+val jettyV = "12.1.13"
+val http4sV = "0.23.37"
+val log4catsV = "2.8.0"
+val logbackV = "1.6.3"
+val lz4V = "1.11.3"
+val metricsV = "4.2.40"
+val monocleV = "3.3.0"
+val otel4sV = "1.1.0"
+val parquetV = "1.18.1"
+val postgresV = "42.7.13"
+val scalapbV = "0.11.20"
+val skunkV = "1.0.0"
+val slf4jV = "2.0.19"
+
+lazy val commonSettings = List(
+  organization       := "com.github.chenharryhua",
+  evictionErrorLevel := Level.Info,
+  resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
+  dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
+  scalacOptions ++= List(
+    "-Wconf:src=src_managed/.*:silent"
   ),
-  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin(
-    "org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full
-  ),
-  scalacOptions ++= Seq(
-    "-Ypartial-unification",
-    "-deprecation",
-    "-encoding",
-    "UTF-8",
-    "-feature",
-    "-language:existentials",
-    "-language:higherKinds",
-    "-unchecked",
-    "-Xfatal-warnings",
-    //  "-Xlint",
-    "-Yno-adapted-args",
-    "-Ywarn-dead-code",
-    "-Ywarn-numeric-widen",
-    "-Xfuture"
-  )
+
+  Test / tpolecatExcludeOptions ++=
+    org.typelevel.scalacoptions.ScalacOptions.lintOptions +
+      org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
+
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / fork                        := true,
+  Test / javaOptions += "-Dorg.apache.avro.SERIALIZABLE_PACKAGES=mtest",
+  Test / baseDirectory := (ThisBuild / baseDirectory).value,
+
+  // scalafix
+  semanticdbEnabled           := true,
+  semanticdbVersion           := scalafixSemanticdb.revision,
+  Compile / scalafixOnCompile := true,
+  Test / scalafixOnCompile    := false,
+  Compile / scalafixConfig    := Option((ThisBuild / baseDirectory).value / ".scalafix.conf"),
+  Test / scalafixConfig       := Option((ThisBuild / baseDirectory).value / ".scalafix-test.conf")
 )
 
-lazy val kafka = (project in file("kafka"))
-  .settings(commonSettings: _*)
-  .settings(name := "kafka")
+val otel4s_override = List(
+  "org.typelevel" %% "otel4s-core",
+  "org.typelevel" %% "otel4s-core-common",
+  "org.typelevel" %% "otel4s-core-trace",
+  "org.typelevel" %% "otel4s-core-logs",
+  "org.typelevel" %% "otel4s-semconv",
+  "org.typelevel" %% "otel4s-semconv-metrics"
+).map(_ % otel4sV)
+
+val jackson_override = List(
+  "com.fasterxml.jackson.core"       % "jackson-core",
+  "com.fasterxml.jackson.core"       % "jackson-databind",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jsr310",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-joda",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.datatype"   % "jackson-datatype-guava",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-csv",
+  "com.fasterxml.jackson.module"     % "jackson-module-parameter-names",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"      % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module"     % "jackson-module-jaxb-annotations"
+).map(_ % jacksonV)
+
+val testLib = List(
+  "org.typelevel" %% "cats-effect-testing-scalatest" % "1.8.0",
+  "org.typelevel" %% "cats-effect-testkit"           % "3.7.1",
+  "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
+  "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
+  "org.typelevel" %% "discipline-munit"              % "2.0.0",
+  "org.typelevel" %% "cats-laws"                     % catsCoreV,
+  "org.typelevel" %% "algebra-laws"                  % catsCoreV,
+  "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
+  "org.scalatest" %% "scalatest"                     % "3.2.20",
+  "dev.optics" %% "monocle-law"                      % monocleV,
+  "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
+  "com.github.pathikrit" %% "better-files"           % "3.9.2",
+  "io.circe" %% "circe-jawn"                         % circeV
+).map(_ % Test)
+
+// ==========================
+// Common
+// ==========================
+lazy val common = (project in file("common"))
+  .settings(commonSettings *)
+  .settings(name := "nj-common")
   .settings(
-    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-    libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib"         % silencer % Provided,
-      "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % Provided,
-      "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
-      "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,
-      "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
-      "com.typesafe.akka" %% "akka-stream-kafka"  % akkaStream,
-      "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
-      "com.sksamuel.avro4s" %% "avro4s-core"      % avro,
-      "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
-      "com.julianpeeters" %% "avrohugger-core"    % avrohugger,
-//json
-      "io.circe" %% "circe-core"    % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser"  % circeVersion,
-//base
-      "eu.timepit" %% "refined"                         % refined,
-      "org.typelevel" %% "cats-core"                    % catsCore,
-      "org.typelevel" %% "cats-mtl-core"                % catsMtl,
-      "org.typelevel" %% "kittens"                      % kittens,
-      "com.chuusai" %% "shapeless"                      % shapeless,
-      "co.fs2" %% "fs2-core"                            % fs2Version,
-      "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
-      "org.typelevel" %% "cats-effect"                  % catsEffect,
-      "com.github.julien-truffaut" %% "monocle-core"    % monocle,
-      "com.github.julien-truffaut" %% "monocle-generic" % monocle,
-      "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-state"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
-      "com.propensive" %% "contextual"                  % contextual,
-      "dev.zio" %% "zio-interop-cats"                   % zioCats,
-      "org.scalatest" %% "scalatest"                    % scalatest % Test
-    ),
-    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
+    libraryDependencies ++= List(
+      "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
+      "org.typelevel" %% "cats-time"                   % "0.6.0",
+      "org.typelevel" %% "squants"                     % "1.8.3",
+      "org.typelevel" %% "cats-kernel"                 % catsCoreV,
+      "org.typelevel" %% "cats-core"                   % catsCoreV,
+      "org.typelevel" %% "kittens"                     % "3.5.0",
+      "io.scalaland" %% "chimney"                      % chimneyV,
+      "io.higherkindness" %% "droste-core"             % drosteV,
+      "co.fs2" %% "fs2-core"                           % fs2V,
+      "io.circe" %% "circe-core"                       % circeV,
+      "io.circe" %% "circe-optics"                     % circeOpticsV,
+      "dev.optics" %% "monocle-macro"                  % monocleV,
+      "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
+      "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
+      // java
+      "org.apache.commons" % "commons-lang3" % "3.20.0"
+    ) ++ testLib
   )
 
-lazy val sparkafka = (project in file("sparkafka"))
-  .dependsOn(kafka)
-  .settings(commonSettings: _*)
-  .settings(name := "sparkafka")
+// ==========================
+// Http
+// ==========================
+lazy val http = (project in file("http"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-http")
+  .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-circe"  % http4sV,
+    "org.http4s" %% "http4s-client" % http4sV,
+    // test
+    "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
+    "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
+    "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
+    "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
+  ) ++ testLib)
+  .settings(dependencyOverrides ++= otel4s_override)
+
+// ==========================
+// Aws
+// ==========================
+val awsLib = List(
+  "software.amazon.awssdk" % "cloudwatch",
+  "software.amazon.awssdk" % "secretsmanager",
+  "software.amazon.awssdk" % "sqs",
+  "software.amazon.awssdk" % "ssm",
+  "software.amazon.awssdk" % "sns",
+  "software.amazon.awssdk" % "ses",
+  "software.amazon.awssdk" % "s3",
+  "software.amazon.awssdk" % "appconfigdata"
+).map(_ % awsV)
+
+lazy val aws = (project in file("aws"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-aws")
   .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-core"                 % sparkVersion,
-      "org.apache.spark" %% "spark-sql"                  % sparkVersion,
-      "org.apache.spark" %% "spark-streaming"            % sparkVersion,
-      "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
-      "org.apache.spark" %% "spark-sql-kafka-0-10"       % sparkVersion,
-      "org.apache.spark" %% "spark-avro"                 % sparkVersion
-    ),
-    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
+    libraryDependencies ++= List(
+      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV
+    ) ++ awsLib ++ testLib
   )
-lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)
+
+// ==========================
+// Date-time
+// ==========================
+lazy val datetime = (project in file("datetime"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-datetime")
+  .settings(
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.1.0") ++
+      testLib
+  )
+
+// ==========================
+// Guard
+// ==========================
+
+lazy val frontend = project.in(file("frontend"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(name := "nj-frontend")
+  .settings(coverageEnabled := false)
+  .settings(
+    // Scala.js interop legitimately needs var / asInstanceOf / == that the shared .scalafix.conf
+    // DisableSyntax rule forbids, so scalafix is skipped for this module (keeps `scalafixAll` green).
+    scalafix / skip                 := true,
+    scalaJSUseMainModuleInitializer := true,
+    libraryDependencies ++= List(
+      "io.circe" %%% "circe-core"      % circeV,
+      "io.circe" %%% "circe-jawn"      % circeV,
+      "org.scala-js" %%% "scalajs-dom" % "2.8.1",
+      "com.raquo" %%% "laminar"        % "17.2.1",
+      // test
+      "org.scalameta" %%% "munit" % "1.3.6" % Test
+    )
+  )
+
+lazy val guard = (project in file("guard"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-guard")
+  .settings(
+    libraryDependencies ++= List(
+      "io.github.timwspence" %% "cats-stm"     % "0.13.5",
+      "org.typelevel" %% "log4cats-slf4j"      % log4catsV,
+      "org.http4s" %% "http4s-core"            % http4sV,
+      "org.http4s" %% "http4s-dsl"             % http4sV,
+      "org.http4s" %% "http4s-ember-server"    % http4sV,
+      "org.http4s" %% "http4s-circe"           % http4sV,
+      "org.http4s" %% "http4s-scalatags"       % "0.25.3",
+      "org.typelevel" %% "otel4s-core-metrics" % otel4sV,
+      // java
+      "io.dropwizard.metrics" % "metrics-core" % metricsV,
+      // test
+      "org.http4s" %% "http4s-ember-client"        % http4sV           % Test,
+      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV           % Test,
+      "ch.qos.logback"                             % "logback-classic" % logbackV % Test
+    ) ++ testLib
+  ).settings(dependencyOverrides ++= otel4s_override)
+  .settings {
+    Compile / resourceGenerators += Def.task {
+      val js = (frontend / Compile / fullOptJS).value
+      val map = (frontend / Compile / fullOptJS).value.data.getParentFile / (js.data.getName + ".map")
+      val targetDir = (Compile / resourceManaged).value / "dashboard"
+      val jsOut = targetDir / "nj-frontend.js"
+      val mapOut = targetDir / "nj-frontend-opt.js.map"
+      IO.createDirectory(targetDir)
+      IO.copyFile(js.data, jsOut)
+      if (map.exists()) IO.copyFile(map, mapOut)
+      List(jsOut, mapOut).filter(_.exists())
+    }.taskValue
+  }
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](
+      ThisBuild / version,
+      scalaVersion,
+      git.gitHeadCommit,
+      git.gitCurrentBranch
+    ),
+    buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
+    buildInfoOptions += BuildInfoOption.ToJson
+  )
+
+// ==========================
+// Observers
+// ==========================
+lazy val observer_aws = (project in file("observers/aws"))
+  .dependsOn(guard)
+  .dependsOn(aws)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-aws")
+  .settings(
+    libraryDependencies ++=
+      List(
+        "org.typelevel" %% "scalac-compat-annotation" % docV // doc
+      ) ++ testLib
+  )
+
+lazy val observer_kafka = (project in file("observers/kafka"))
+  .dependsOn(guard)
+  .dependsOn(kafka)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-kafka")
+  .settings(libraryDependencies ++= testLib)
+
+lazy val observer_database = (project in file("observers/database"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-database")
+  .settings(
+    libraryDependencies ++= List(
+      "org.tpolecat" %% "skunk-core"                % skunkV,
+      "org.tpolecat" %% "skunk-circe"               % skunkV,
+      "org.typelevel" %% "scalac-compat-annotation" % docV // doc
+    ) ++ testLib
+  ).settings(dependencyOverrides ++= otel4s_override)
+
+lazy val observer_teams = (project in file("observers/teams"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-teams")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
+lazy val observer_slack = (project in file("observers/slack"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-slack")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
+lazy val observer_otel4s = (project in file("observers/otel4s"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-otel4s")
+  .settings(
+    libraryDependencies ++= List(
+      "org.typelevel" %% "otel4s-core-logs"        % otel4sV,
+      "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV % Test
+    ) ++ testLib
+  ).settings(dependencyOverrides ++= otel4s_override)
+
+lazy val observer_splunk = (project in file("observers/splunk"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-splunk")
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"  % http4sV,
+      "org.http4s" %% "http4s-client" % http4sV
+    ) ++ testLib
+  )
+
+// ==========================
+// Database
+// ==========================
+lazy val database = (project in file("database"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-database")
+  .settings(
+    libraryDependencies ++= List(
+      "org.typelevel" %% "doobie-core"   % doobieV,
+      "org.typelevel" %% "doobie-hikari" % doobieV,
+      "org.typelevel" %% "doobie-free"   % doobieV,
+      // java
+      "com.zaxxer" % "HikariCP" % "7.1.0",
+      // test
+      "org.postgresql" % "postgresql"      % postgresV % Test,
+      "ch.qos.logback" % "logback-classic" % logbackV  % Test
+    ) ++ testLib
+  )
+
+// ==========================
+// Kafka
+// ==========================
+
+lazy val kafka = (project in file("kafka"))
+  .dependsOn(datetime)
+  .settings(commonSettings *)
+  .settings(name := "nj-kafka")
+  .settings(
+    libraryDependencies ++= List(
+      ("org.typelevel" %% "fs2-kafka"             % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+      "io.circe" %% "circe-jawn"                  % circeV,
+      "io.circe" %% "circe-optics"                % circeOpticsV,
+      "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      // java
+      "org.apache.avro"  % "avro"                         % avroV,
+      "io.confluent"     % "kafka-protobuf-serializer"    % confluentV,
+      "io.confluent"     % "kafka-json-schema-serializer" % confluentV,
+      "io.confluent"     % "kafka-avro-serializer"        % confluentV,
+      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+      "org.apache.kafka" % "kafka-streams"                % kafkaV,
+      // test
+      "ch.qos.logback"              % "logback-classic" % logbackV % Test,
+      "io.circe" %% "circe-generic" % circeV            % Test,
+      // snyk
+      "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
+      "com.github.luben" % "zstd-jni"          % "1.5.7-17" // snyk by kafka-schema-registry-client
+    ) ++ testLib)
+  .settings(dependencyOverrides ++= jackson_override)
+  .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
+  .settings(coverageExcludedPackages := "com\\.github\\.chenharryhua\\.nanjin\\.kafka\\.record\\..*")
+  .settings {
+    Compile / sourceGenerators += Def.task {
+      val out = (Compile / sourceManaged).value / "kafka-config"
+      val cp = (Compile / dependencyClasspath).value.files
+      KafkaConfigKeysGenerator.generate(out, cp)
+    }.taskValue
+  }
+
+// ==========================
+// Pipes
+// ==========================
+
+lazy val pipes = (project in file("pipes"))
+  .dependsOn(common)
+  .settings(commonSettings *)
+  .settings(name := "nj-pipes")
+  .settings(
+    libraryDependencies ++= List(
+      "co.fs2" %% "fs2-io"                                     % fs2V,
+      "io.github.kantan-scala" %% "kantan.csv"                 % "0.12.0",
+      "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
+      "com.thesamet.scalapb" %% "scalapb-runtime"              % scalapbV,
+      "io.circe" %% "circe-jawn"                               % circeV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      // java
+      "org.apache.hadoop"  % "hadoop-client" % hadoopV,
+      "org.apache.parquet" % "parquet-avro"  % parquetV,
+      "org.apache.avro"    % "avro"          % avroV,
+      "org.tukaani"        % "xz"            % "1.12",
+      "at.yawk.lz4"        % "lz4-java"      % lz4V, // drop-in replacement of org.lz4:lz4-java
+      // test
+      "io.circe" %% "circe-generic"          % circeV  % Test,
+      "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
+      "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
+      // snyk
+      "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
+      "io.netty"           % "netty-all"              % "4.2.18.Final", // snyk by hadoop-client
+      "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
+      "org.apache.commons" % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.86" // snyk by hadoop-client
+    ) ++ testLib
+  )
+  .settings(dependencyOverrides ++= jackson_override)
+  .settings(Test / PB.targets := List(
+    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+  ))
+
+// ==========================
+// Example
+// ==========================
+lazy val example = (project in file("example"))
+  .dependsOn(common)
+  .dependsOn(datetime)
+  .dependsOn(http)
+  .dependsOn(aws)
+  .dependsOn(pipes)
+  .dependsOn(kafka)
+  .dependsOn(database)
+  .dependsOn(guard)
+  .dependsOn(observer_aws)
+  .dependsOn(observer_database)
+  .dependsOn(observer_kafka)
+  .dependsOn(observer_teams)
+  .dependsOn(observer_slack)
+  .dependsOn(observer_otel4s)
+  .dependsOn(observer_splunk)
+  .settings(commonSettings *)
+  .settings(name := "nj-example")
+  .settings(libraryDependencies ++= List(
+    "ch.qos.logback" % "logback-classic" % logbackV % Test
+  ) ++ testLib)
+  .settings(dependencyOverrides ++= otel4s_override)
+  .settings(Test / PB.targets := List(
+    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+  ))
+
+// ==========================
+// Nanjin
+// ==========================
+lazy val nanjin =
+  (project in file("."))
+    .settings(commonSettings *)
+    .aggregate(
+      common,
+      datetime,
+      http,
+      aws,
+      pipes,
+      kafka,
+      database,
+      guard,
+      frontend,
+      observer_aws,
+      observer_database,
+      observer_kafka,
+      observer_teams,
+      observer_slack,
+      observer_otel4s,
+      observer_splunk
+    )

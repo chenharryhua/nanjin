@@ -1,0 +1,102 @@
+package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
+import cats.effect.Temporal
+import cats.effect.kernel.Resource
+import cats.syntax.applicativeError.given
+import cats.syntax.functor.given
+import com.github.chenharryhua.nanjin.aws.CloudWatch
+import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
+import com.github.chenharryhua.nanjin.guard.translator.Attribute
+import fs2.{Chunk, Pipe, Stream}
+import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum}
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.jdk.CollectionConverters.*
+
+/** Publishes metered counts (meter and timer deltas) to AWS CloudWatch as custom metrics.
+  *
+  * Each `MeteredCounts` emission is expanded into individual `MetricDatum` entries, batched up to the
+  * CloudWatch limit of 1000 per request, and published via `PutMetricData`.
+  *
+  * ===Usage===
+  * {{{
+  * import cats.effect.IO
+  * import com.github.chenharryhua.nanjin.aws.CloudWatch
+  * import com.github.chenharryhua.nanjin.guard.TaskGuard
+  * import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
+  * import software.amazon.awssdk.regions.Region
+  *
+  * val observer = CloudWatchObserver(CloudWatch[IO](_.region(Region.AP_SOUTHEAST_2)))
+  *
+  * TaskGuard[IO]("my-task")
+  *   .service("my-service")
+  *   .eventStreamS { agent =>
+  *     agent.adhoc.meteredCounts(_.crontab(_.minutely))
+  *       .through(observer.scrape("MyApp/Metrics"))
+  *   }
+  *   .compile.drain
+  * }}}
+  */
+sealed trait CloudWatchObserver[F[_]] {
+
+  /** Pipe that converts a stream of `MeteredCounts` into CloudWatch `PutMetricData` calls.
+    *
+    * @param namespace
+    *   CloudWatch namespace for the published metrics
+    * @param storageResolution
+    *   storage resolution in seconds (60 for standard, 1 for high-resolution)
+    * @param interval
+    *   maximum time to buffer metric data before flushing to CloudWatch
+    */
+  def scrape(
+    namespace: String,
+    storageResolution: Int = 60,
+    interval: FiniteDuration = 15.seconds): Pipe[F, MeteredCounts, Unit]
+}
+
+object CloudWatchObserver {
+  def apply[F[_]: Temporal](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
+    new CloudWatchObserverImpl[F](client)
+}
+
+final private class CloudWatchObserverImpl[F[_]: Temporal](client: Resource[F, CloudWatch[F]])
+    extends CloudWatchObserver[F] {
+
+  override def scrape(
+    namespace: String,
+    storageResolution: Int = 60,
+    interval: FiniteDuration = 15.seconds): Pipe[F, MeteredCounts, Unit] = {
+    (mcs: Stream[F, MeteredCounts]) =>
+      Stream.resource(client).flatMap { cwc =>
+        mcs.mapChunks(_.flatMap(mc => Chunk.from(mc.counts.map((_, _, mc.timestamp))))).map {
+          case (mid, count, timestamp) =>
+            val label = Attribute(mid.scope.label).textEntry
+            val domain = Attribute(mid.scope.domain).textEntry
+            val service = Attribute(mid.scope.service).textEntry
+
+            val dimensions = java.util.List.of(
+              Dimension.builder().name(service.tag).value(service.text).build(),
+              Dimension.builder().name(domain.tag).value(domain.text).build(),
+              Dimension.builder().name(label.tag).value(label.text).build()
+            )
+
+            val (unit, value) =
+              CloudWatchTimeUnit.toStandardUnit(
+                mid.squants.unitSymbol,
+                mid.squants.dimensionName,
+                count.toDouble)
+
+            MetricDatum
+              .builder()
+              .dimensions(dimensions)
+              .metricName(mid.token.metricName)
+              .unit(unit)
+              .timestamp(timestamp)
+              .value(value)
+              .storageResolution(storageResolution)
+              .build()
+        }.groupWithin(1000, interval).evalMap { mds =>
+          cwc.putMetricData(_.namespace(namespace).metricData(mds.toList.asJava)).attempt.void
+        }
+      }
+  }
+}
