@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.slack
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.logging.LogLink
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.*
@@ -122,6 +123,39 @@ class SlackTranslatorTest extends CatsEffectSuite {
       assert(text.contains("error-msg"))
       assert(text.contains(":x:"))
       assert(text.contains("#935252")) // Error color
+    }
+  }
+
+  // The log deep-link decorates the brief section's tag on every lifecycle event when present, and is absent
+  // when the event carries no `logLink`. It is rendered as Slack's `<url|label>` hyperlink markup.
+  private val logUrl = "http://logs.example/find"
+
+  private def withLink(pf: PartialFunction[Event, Boolean]): Event =
+    eventsFixture().find(pf.isDefinedAt).get match {
+      case e: ServiceStart => e.copy(logLink = Some(LogLink(logUrl)))
+      case e: ServicePanic => e.copy(logLink = Some(LogLink(logUrl)))
+      case e: ServiceStop  => e.copy(logLink = Some(LogLink(logUrl)))
+      case other           => other
+    }
+
+  test("9.ServiceStart with a logLink renders the brief tag as a hyperlink") {
+    SlackTranslator[IO].translate(withLink { case _: ServiceStart => true }).map { json =>
+      assert(json.get.asJson.noSpaces.contains(s"<$logUrl|"))
+    }
+  }
+
+  test("10.ServicePanic with a logLink hyperlinks the brief tag exactly once") {
+    SlackTranslator[IO].translate(withLink { case _: ServicePanic => true }).map { json =>
+      val text = json.get.asJson.noSpaces
+      val marker = s"<$logUrl|"
+      // the panic renders one hyperlink, on the brief section (not the stacktrace/error section)
+      assertEquals(text.split(java.util.regex.Pattern.quote(marker), -1).length - 1, 1)
+    }
+  }
+
+  test("11.a ServiceStart without a logLink emits no hyperlink to the log") {
+    translate { case _: ServiceStart => true }.map { json =>
+      assert(!json.noSpaces.contains(s"<$logUrl|"))
     }
   }
 }
