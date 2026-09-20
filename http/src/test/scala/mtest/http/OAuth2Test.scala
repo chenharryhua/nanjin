@@ -15,6 +15,7 @@ import org.http4s.client.Client
 import org.http4s.dsl.io.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.headers.Authorization
 import org.http4s.implicits.*
 import org.http4s.server.Router
 import org.http4s.{HttpRoutes, Uri}
@@ -36,7 +37,7 @@ class OAuth2Test extends CatsEffectSuite {
     "expires_in" -> 3600L.asJson
   )
 
-  // Authorization Code token payload: all fields required, expires_in is a plain Long.
+  // Authorization Code token payload: required token fields plus optional refresh and expiry fields.
   private val authorizationCodeToken = Json.obj(
     "access_token" -> "ac-access".asJson,
     "refresh_token" -> "ac-refresh".asJson,
@@ -45,20 +46,29 @@ class OAuth2Test extends CatsEffectSuite {
     "expires_in" -> 3600L.asJson
   )
 
-  private def service(token: Json, flaky: BooleanList): HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case POST -> Root / "oauth2" / "token" =>
-      if (flaky.get) Ok(token) else GatewayTimeout()
-    case GET -> Root / "data" => Ok("protected.data")
-  }
+  private def service(token: Json, expected_authorization: String, flaky: BooleanList): HttpRoutes[IO] =
+    HttpRoutes.of[IO] {
+      case POST -> Root / "oauth2" / "token" =>
+        if (flaky.get) Ok(token) else GatewayTimeout()
+      case request @ GET -> Root / "data" =>
+        request.headers.get[Authorization].map(_.value) match {
+          case Some(value) if value == expected_authorization => Ok("protected.data")
+          case _                                              => Forbidden()
+        }
+    }
 
   /** Starts the fake auth+resource server on an ephemeral port and yields its base URI (`http://host:port`).
     */
-  private def baseUri(token: Json, flaky: BooleanList): Resource[IO, Uri] =
+  private def baseUri(
+    token: Json,
+    expected_authorization: String,
+    flaky: BooleanList
+  ): Resource[IO, Uri] =
     EmberServerBuilder
       .default[IO]
       .withHost(ipv4"127.0.0.1")
       .withPort(port"0")
-      .withHttpApp(Router("/" -> service(token, flaky)).orNotFound)
+      .withHttpApp(Router("/" -> service(token, expected_authorization, flaky)).orNotFound)
       .build
       .map(server => Uri.unsafeFromString(s"http://${server.address.getHostName}:${server.address.getPort}"))
 
@@ -72,7 +82,7 @@ class OAuth2Test extends CatsEffectSuite {
   test("1.client credentials flow attaches the token and reaches the protected resource") {
     val flaky = BooleanList(LazyList(false, false, true))
     val program = for {
-      base <- baseUri(clientCredentialsToken, flaky)
+      base <- baseUri(clientCredentialsToken, "bearer cc-access", flaky)
       credential = ClientCredentials(
         auth_endpoint = base / "oauth2" / "token",
         client_id = "id",
@@ -89,7 +99,7 @@ class OAuth2Test extends CatsEffectSuite {
   test("2.authorization code flow attaches the token and reaches the protected resource") {
     val flaky = BooleanList(LazyList(false, false, true))
     val program = for {
-      base <- baseUri(authorizationCodeToken, flaky)
+      base <- baseUri(authorizationCodeToken, "bearer ac-access", flaky)
       credential = AuthorizationCode(
         auth_endpoint = base / "oauth2" / "token",
         client_id = "id",

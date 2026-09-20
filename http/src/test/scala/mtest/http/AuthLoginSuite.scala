@@ -73,26 +73,125 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Client Credentials                                                          */
   /* -------------------------------------------------------------------------- */
 
-  test("1.clientCredentials login injects Authorization header") {
-    val authClient = Resource
-      .pure[IO, Client[IO]](
-        tokenServer(expectedGrantType = "client_credentials")
-      )
-      .map(Logger(logHeaders = true, logBody = true))
+  test("1.clientCredentials defaults to client_secret_post and injects the access token") {
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "token" =>
+          request.as[UrlForm].flatMap { form =>
+            assertEquals(form.getFirst("grant_type"), Some("client_credentials"))
+            assertEquals(form.getFirst("client_id"), Some("client-id"))
+            assertEquals(form.getFirst("client_secret"), Some("secret"))
+            assertEquals(form.getFirst("scope"), None)
+            assertEquals(request.headers.get[Authorization], None)
+            Ok("""{"access_token":"cc-token","token_type":"Bearer"}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+    val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+      request.headers.get[Authorization].map(_.value) match {
+        case Some("Bearer cc-token") => Ok("ok")
+        case _                       => Forbidden("missing or incorrect auth")
+      }
+    })
+    val credential = ClientCredentials(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret")
+    )
 
-    val credential =
-      ClientCredentials(
+    auth.clientCredentials[IO](auth_client, credential).login(resource_client).use { authed =>
+      authed.expect[String](uri"/hello").map(body => assertEquals(body, "ok"))
+    }
+  }
+
+  test("1a.clientCredentials supports client_secret_basic for acquisition and refresh") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case request @ POST -> Root / "token" =>
+            request.as[UrlForm].flatMap { form =>
+              assertEquals(
+                request.headers.get[Authorization].map(_.value),
+                Some(Authorization(BasicCredentials("client-id", "secret")).value))
+              assertEquals(form.getFirst("client_id"), None)
+              assertEquals(form.getFirst("client_secret"), None)
+              token_calls.updateAndGet(_ + 1).flatMap {
+                case 1 =>
+                  assertEquals(form.getFirst("grant_type"), Some("client_credentials"))
+                  assertEquals(form.getFirst("scope"), Some("read write"))
+                  Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":1,"refresh_token":"refresh-1"}""")
+                case 2 =>
+                  assertEquals(form.getFirst("grant_type"), Some("refresh_token"))
+                  assertEquals(form.getFirst("refresh_token"), Some("refresh-1"))
+                  assertEquals(form.getFirst("scope"), None)
+                  Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":0}""")
+                case unexpected =>
+                  InternalServerError(s"unexpected token call: $unexpected")
+              }
+            }
+          case _ => InternalServerError()
+        })
+      )
+      val credential = ClientCredentials(
+        auth_endpoint = uri"/token",
+        client_id = "client-id",
+        client_secret = Secret("secret"),
+        scope = Some(NonEmptyList.of("read", "write"))
+      )
+
+      auth
+        .clientCredentials[IO](auth_client, credential, auth.ClientAuthentication.ClientSecretBasic)
+        .login(protectedResource)
+        .use(_ => IO.sleep(501.millis) *> token_calls.get.map(calls => assertEquals(calls, 2)))
+    }
+  }
+
+  test("1b.clientCredentials retains and rotates refresh tokens") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val used_refresh_tokens = Ref.unsafe[IO, List[String]](Nil)
+      val auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case request @ POST -> Root / "token" =>
+            request.as[UrlForm].flatMap { form =>
+              assertEquals(request.headers.get[Authorization], None)
+              assertEquals(form.getFirst("client_id"), Some("client-id"))
+              assertEquals(form.getFirst("client_secret"), Some("secret"))
+              token_calls.updateAndGet(_ + 1).flatMap {
+                case 1 =>
+                  assertEquals(form.getFirst("grant_type"), Some("client_credentials"))
+                  Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":1,"refresh_token":"refresh-1"}""")
+                case 2 =>
+                  assertEquals(form.getFirst("grant_type"), Some("refresh_token"))
+                  used_refresh_tokens.update(_ :+ form.getFirst("refresh_token").getOrElse("missing")) *>
+                    Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":1}""")
+                case 3 =>
+                  assertEquals(form.getFirst("grant_type"), Some("refresh_token"))
+                  used_refresh_tokens.update(_ :+ form.getFirst("refresh_token").getOrElse("missing")) *>
+                    Ok("""{"access_token":"token-3","token_type":"Bearer","expires_in":1,"refresh_token":"refresh-2"}""")
+                case 4 =>
+                  assertEquals(form.getFirst("grant_type"), Some("refresh_token"))
+                  used_refresh_tokens.update(_ :+ form.getFirst("refresh_token").getOrElse("missing")) *>
+                    Ok("""{"access_token":"token-4","token_type":"Bearer","expires_in":0}""")
+                case unexpected =>
+                  InternalServerError(s"unexpected token call: $unexpected")
+              }
+            }
+          case _ => InternalServerError()
+        })
+      )
+      val credential = ClientCredentials(
         auth_endpoint = uri"/token",
         client_id = "client-id",
         client_secret = Secret("secret")
       )
 
-    val login =
-      auth.clientCredentials[IO](authClient, credential)
-
-    login.login(protectedResource).use { authed =>
-      authed.expect[String](uri"/hello").map { body =>
-        assertEquals(body, "ok")
+      auth.clientCredentials[IO](auth_client, credential).login(protectedResource).use { _ =>
+        IO.sleep(1501.millis) *> used_refresh_tokens.get.map { refresh_tokens =>
+          assertEquals(refresh_tokens, List("refresh-1", "refresh-1", "refresh-2"))
+        }
       }
     }
   }
@@ -471,7 +570,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4.unauthorized response triggers a token refresh") {
+  test("4.unauthorized response triggers client-credentials reacquisition") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
     val currentToken = Ref.unsafe[IO, String]("old-token")
 

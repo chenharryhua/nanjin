@@ -4,11 +4,18 @@ import cats.effect.Resource
 import cats.effect.kernel.Async
 import org.http4s.client.Client
 
-/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow.
+/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow and `ClientSecretPost` token-endpoint
+  * authentication.
   *
   * Automatically handles token acquisition, attaching the access token to requests, and optional token
   * renewal. A positive `expires_in` schedules renewal before expiry; omission, zero, or a negative value
-  * disables scheduled renewal, leaving `renewOnRejection` to replace a rejected token.
+  * disables scheduled renewal, leaving `renewOnRejection` to replace a rejected token through a fresh
+  * client-credentials exchange. Scheduled renewal uses a returned `refresh_token` when available and retains
+  * it when a refresh response omits a replacement.
+  *
+  * `ClientSecretPost` places the client secret in the request body. Body-logging middleware can therefore
+  * expose it. The token endpoint should use TLS outside local test environments. Use the overload accepting
+  * `ClientAuthentication` when the server supports the recommended `ClientSecretBasic` method.
   *
   * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
   * on `client` when needed. Token exchanges use `POST`, so use `recklessHttpRetry` or a custom `httpRetry`
@@ -16,7 +23,7 @@ import org.http4s.client.Client
   *
   * Example usage:
   * {{{
-  *   import cats.effect.IO
+  *   import cats.effect.{IO, Resource}
   *   import org.http4s.client.Client
   *   import com.github.chenharryhua.nanjin.http.client.auth
   *
@@ -40,7 +47,32 @@ def clientCredentials[F[_]: Async](
   client: Resource[F, Client[F]],
   credential: ClientCredentials
 ): Login[F] =
-  new ClientCredentialsAuth[F](credential, client)
+  clientCredentials(client, credential, ClientAuthentication.ClientSecretPost)
+
+/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow and the selected token-endpoint client
+  * authentication method.
+  *
+  * `ClientSecretPost` sends `client_id` and `client_secret` as form fields. `ClientSecretBasic` sends them in
+  * an HTTP Basic `Authorization` header and omits both fields from the form. Header- or body-logging
+  * middleware must redact credentials as appropriate.
+  *
+  * @param client
+  *   the HTTP client resource used to fetch tokens
+  * @param credential
+  *   the client credentials including optional scopes
+  * @param authentication
+  *   token-endpoint client authentication method
+  * @tparam F
+  *   effect type with `Async`
+  * @return
+  *   a `Login[F]` instance that can wrap a client to perform authenticated requests
+  */
+def clientCredentials[F[_]: Async](
+  client: Resource[F, Client[F]],
+  credential: ClientCredentials,
+  authentication: ClientAuthentication
+): Login[F] =
+  new ClientCredentialsAuth[F](credential, client, authentication)
 
 /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
   *
