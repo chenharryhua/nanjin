@@ -76,7 +76,7 @@ final private class AuthorizationCodeAuth[F[_]: Async](
       val tac = new TokenAuthClient[F] {
         override protected type T = Token
 
-        override protected def getTokenFromCredentials: F[Token] =
+        override protected val getTokenFromCredentials: F[Token] =
           authenticationClient.expect[Token](
             POST(
               urlForm,
@@ -95,11 +95,11 @@ final private class AuthorizationCodeAuth[F[_]: Async](
               Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
             ))
 
-        override protected def renewOnRejection: Token => F[Token] = refreshAccessToken
-        override protected def renewOnSchedule: Token => F[Token] = refreshAccessToken
+        override protected def renewOnRejection(token: Token): F[Token] = refreshAccessToken(token)
+        override protected def renewOnSchedule(token: Token): F[Token] = refreshAccessToken(token)
 
-        override protected def renewalDelay: Token => Option[FiniteDuration] =
-          token => Option.when(token.expires_in > 0L)(skewed(token.expires_in))
+        override protected def renewalDelay(token: Token): Option[FiniteDuration] =
+          Option.when(token.expires_in > 0L)(skewed(token.expires_in))
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))

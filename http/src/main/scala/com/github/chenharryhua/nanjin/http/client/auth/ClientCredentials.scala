@@ -70,7 +70,7 @@ final private class ClientCredentialsAuth[F[_]: Async](
       val tac: TokenAuthClient[F] = new TokenAuthClient[F]() {
         override protected type T = Token
 
-        override protected def getTokenFromCredentials: F[Token] =
+        override protected val getTokenFromCredentials: F[Token] =
           authenticationClient.expect[Token](POST(urlForm, credential.auth_endpoint))
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
@@ -84,12 +84,12 @@ final private class ClientCredentialsAuth[F[_]: Async](
               credential.auth_endpoint
             ))
 
-        override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
-        override protected def renewOnSchedule: Token => F[Token] =
-          token => token.refresh_token.fold(getTokenFromCredentials)(refreshAccessToken)
+        override protected def renewOnRejection(token: Token): F[Token] = getTokenFromCredentials
+        override protected def renewOnSchedule(token: Token): F[Token] =
+          token.refresh_token.fold(getTokenFromCredentials)(refreshAccessToken)
 
-        override protected def renewalDelay: Token => Option[FiniteDuration] =
-          token => token.expires_in.filter(_ > 0L).map(skewed)
+        override protected def renewalDelay(token: Token): Option[FiniteDuration] =
+          token.expires_in.filter(_ > 0L).map(skewed)
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))

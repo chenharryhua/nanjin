@@ -76,9 +76,9 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
   final private case class TokenState(token: T, generation: Long, changed: Deferred[F, Unit])
 
   protected def getTokenFromCredentials: F[T]
-  protected def renewOnRejection: T => F[T]
-  protected def renewOnSchedule: T => F[T]
-  protected def renewalDelay: T => Option[FiniteDuration]
+  protected def renewOnRejection(token: T): F[T]
+  protected def renewOnSchedule(token: T): F[T]
+  protected def renewalDelay(token: T): Option[FiniteDuration]
   protected def withToken(token: T, req: Request[F]): Request[F]
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =

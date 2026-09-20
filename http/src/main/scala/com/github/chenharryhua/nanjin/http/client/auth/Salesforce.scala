@@ -58,14 +58,13 @@ object Salesforce {
         val tac = new TokenAuthClient[F] {
           override protected type T = Token
 
-          override protected def getTokenFromCredentials: F[Token] =
+          override protected val getTokenFromCredentials: F[Token] =
             authenticationClient.expect[Token](POST(urlForm, credential.auth_endpoint))
 
-          override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
-          override protected def renewOnSchedule: Token => F[Token] = _ => getTokenFromCredentials
+          override protected def renewOnRejection(token: Token): F[Token] = getTokenFromCredentials
+          override protected def renewOnSchedule(token: Token): F[Token] = getTokenFromCredentials
 
-          override protected def renewalDelay: Token => Option[FiniteDuration] =
-            _ => Some(expiresIn)
+          override protected def renewalDelay(token: Token): Option[FiniteDuration] = Some(expiresIn)
 
           override protected def withToken(token: Token, req: Request[F]): Request[F] =
             req
