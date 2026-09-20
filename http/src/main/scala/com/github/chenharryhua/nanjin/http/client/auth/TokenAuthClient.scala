@@ -137,13 +137,13 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
             // `makeCaseFull` masks the handoff from each allocated response to this outer resource while
             // `poll` keeps response acquisition and token renewal cancelable. On 401, the first response
             // is finalized before the retry is acquired so a bounded connection pool can supply the retry.
-            Resource.eval(token_state_ref.get).flatMap { requested =>
+            Resource.eval(token_state_ref.get).flatMap { state =>
               Resource
                 .makeCaseFull[F, (Response[F], Resource.ExitCase => F[Unit])] { poll =>
-                  poll(allocate_response(requested.token)).flatMap {
+                  poll(allocate_response(state.token)).flatMap {
                     case (response, release) if response.status === Status.Unauthorized =>
                       release(Resource.ExitCase.Succeeded).flatMap(_ =>
-                        poll(replace_token(requested.generation, renewOnRejection)
+                        poll(replace_token(state.generation, renewOnRejection)
                           .flatMap(current => allocate_response(current.token))))
                     case allocated_response => F.pure(allocated_response)
                   }
