@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter 
 import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
+import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 /** Renders a completed job as JSON for the batch report.
@@ -12,11 +13,13 @@ import org.apache.commons.lang3.exception.ExceptionUtils
   * that value (as the type parameter `A`), but the two renders treat it differently:
   *
   *   - `standalone` — the render the framework emits '''automatically''' (see `lifecycle.logCompleted`) —
-  *     discards the value and shows only lifecycle facts (identity, took, outcome tag, and, on failure, the
-  *     exception message). It takes no `Encoder[A]`, so a produced value can never reach the auto-emitted
-  *     log.
+  *     discards the value and shows only lifecycle facts (identity, took, outcome tag). On failure it does
+  *     not repeat the exception message: `standalone` is emitted with the throwable as the log entry's cause,
+  *     so the stacktrace already carries it. It takes no `Encoder[A]`, so a produced value can never reach
+  *     the auto-emitted log.
   *   - `inBatch` — reached only when the user explicitly serializes a returned `BatchResult` — shows the
-  *     value under `result`, and correspondingly requires an `Encoder[A]`.
+  *     value under `result` and, on failure, an abbreviated exception message under `error`; it
+  *     correspondingly requires an `Encoder[A]`.
   *
   * So the `Encoder[A]` requirement lives solely on `inBatch`, never on the execution path: showing the value
   * is opt-in via serialization, never automatic. It surfaces on the `QuasiBatch`/`ValueBatch` encoders, whose
@@ -46,18 +49,16 @@ sealed private trait JobLog[A] extends Product {
         JobLog.TOOK -> Json.fromString(fmt.format(record.took))
       )
 
-    case JobLog.Nonfatal(record, error) =>
+    case JobLog.Nonfatal(record, _) =>
       Json.obj(
         tag -> record.job.asJson,
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
-        JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took))
       )
 
-    case JobLog.Critical(record, error) =>
+    case JobLog.Critical(record, _) =>
       Json.obj(
         tag -> record.job.asJson,
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
-        JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        JobLog.TOOK -> Json.fromString(fmt.format(record.took))
       )
   }
 
@@ -67,30 +68,32 @@ sealed private trait JobLog[A] extends Product {
 
     case JobLog.Succeeded(record, result) =>
       Json.obj(
-        record.job.displayName -> Json.fromString(tag),
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
+        record.job.nameEntry,
+        tag -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Unsatisfied(record, result) =>
       Json.obj(
-        record.job.displayName -> Json.fromString(tag),
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
+        record.job.nameEntry,
+        tag -> Json.fromString(fmt.format(record.took)),
         JobLog.RESULT -> result.asJson
       ).dropEmptyValues.dropNullValues
 
     case JobLog.Nonfatal(record, error) =>
       Json.obj(
-        record.job.displayName -> Json.fromString(tag),
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
-        JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        record.job.nameEntry,
+        tag -> Json.fromString(fmt.format(record.took)),
+        JobLog.ERROR ->
+          Json.fromString(StringUtils.abbreviate(ExceptionUtils.getMessage(error), JobLog.ERROR_MAX))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
-        record.job.displayName -> Json.fromString(tag),
-        JobLog.TOOK -> Json.fromString(fmt.format(record.took)),
-        JobLog.ERROR -> Json.fromString(ExceptionUtils.getMessage(error))
+        record.job.nameEntry,
+        tag -> Json.fromString(fmt.format(record.took)),
+        JobLog.ERROR ->
+          Json.fromString(StringUtils.abbreviate(ExceptionUtils.getMessage(error), JobLog.ERROR_MAX))
       )
   }
 }
@@ -100,6 +103,10 @@ private object JobLog {
   inline val TOOK = "took"
   inline val ERROR = "error"
   inline val RESULT = "result"
+
+  // `inBatch` abbreviates a failed job's exception message to this many characters so a batch report stays
+  // compact for UI display; the full throwable is still available via the log entry's cause/stacktrace.
+  inline val ERROR_MAX = 60
 
   // Batch-level report keys: used only by the QuasiBatch/ValueBatch/MonadicBatch encoders in `data.scala`.
   // `PASSED`/`FAILED` are integer tallies, deliberately named distinctly from the per-job "succeeded" status
