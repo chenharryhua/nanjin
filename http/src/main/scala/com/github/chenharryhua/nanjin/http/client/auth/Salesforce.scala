@@ -96,6 +96,10 @@ object Salesforce {
     *   - Routes requests to the Salesforce `instance_url`
     *   - Re-authenticates with the supplied credentials before the token lifetime elapses
     *
+    * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
+    * on `authClient` when needed. The password grant uses `POST`, so use `recklessHttpRetry` or a custom
+    * `httpRetry` predicate only when repeating the exchange is acceptable.
+    *
     * @param authClient
     *   the HTTP client resource used for Salesforce token requests
     * @param credential
@@ -113,7 +117,9 @@ object Salesforce {
   /** Create a Salesforce `Login` using the Password Grant flow without scheduled renewal.
     *
     * Behaves like the three-argument overload but with no token lifetime, so no proactive renewal is
-    * scheduled: a token is replaced only reactively, after the resource server rejects it.
+    * scheduled: a token is replaced only reactively, after the resource server rejects it. Token-endpoint
+    * requests retain the same single-attempt behavior; configure retries and failure observability on
+    * `authClient`.
     *
     * @param authClient
     *   the HTTP client resource used for Salesforce token requests

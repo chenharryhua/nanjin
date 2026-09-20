@@ -10,6 +10,10 @@ import org.http4s.client.Client
   * renewal. A positive `expires_in` schedules renewal before expiry; omission, zero, or a negative value
   * disables scheduled renewal, leaving `renewOnRejection` to replace a rejected token.
   *
+  * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
+  * on `client` when needed. Token exchanges use `POST`, so use `recklessHttpRetry` or a custom `httpRetry`
+  * predicate only when repeating the exchange is acceptable.
+  *
   * Example usage:
   * {{{
   *   import cats.effect.IO
@@ -43,6 +47,11 @@ def clientCredentials[F[_]: Async](
   * Automatically exchanges the authorization code for an access token, attaches it to requests, and handles
   * token renewal. A positive `expires_in` schedules renewal before expiry; zero or a negative value disables
   * scheduled renewal, leaving `renewOnRejection` to replace a rejected token.
+  *
+  * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
+  * on `client` when needed. Token exchanges use `POST`, and authorization codes are normally single-use, so a
+  * retry policy must account for the possibility that the server consumed the code before the response was
+  * lost.
   *
   * Example usage:
   * {{{
