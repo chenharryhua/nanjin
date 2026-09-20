@@ -1,6 +1,5 @@
 package mtest.http
 
-import cats.data.NonEmptyList
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.http.client.auth.{
   AuthorizationCode,
@@ -95,8 +94,7 @@ class HttpCodecTest extends FunSuite {
       client_id = "id",
       client_secret = Secret(secret),
       code = Secret("auth-code-secret"),
-      redirect_uri = "https://example.com/callback",
-      scope = Some(NonEmptyList.one("openid"))
+      redirect_uri = "https://example.com/callback"
     )
     val rendered = ac.toString
     assert(!rendered.contains(secret))
