@@ -107,7 +107,7 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
 
         def renew_until_success(scheduled: TokenState): F[Unit] =
           replace_token(scheduled.generation, renewOnSchedule)
-            .flatMap(_ => F.unit)
+            .void
             .handleErrorWith(_ => await_retry_or_change(scheduled))
 
         def renew_after_delay: F[Unit] =

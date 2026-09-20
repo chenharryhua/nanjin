@@ -94,7 +94,7 @@ object SingleFlight {
       clear_flight(flight).flatMap(_ => flight.result.complete(result).void)
 
     private def run_worker(fa: F[A], flight: Flight[F, A]): F[Unit] =
-      Async[F].race(fa.attempt, flight.cancel.get).attempt.flatMap {
+      F.race(fa.attempt, flight.cancel.get).attempt.flatMap {
         case Right(Left(result)) => publish(flight, FlightResult.Completed(result))
         case Right(Right(_))     => publish(flight, FlightResult.Retry())
         case Left(error)         => publish(flight, FlightResult.Completed(Left(error)))
