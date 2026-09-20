@@ -40,22 +40,57 @@ trait SingleFlight[F[_], A] {
 }
 
 object SingleFlight {
+
+  /** The outcome a worker publishes into `Flight.result` for its waiters to observe. */
   sealed private trait FlightResult[A]
   private object FlightResult {
+
+    /** The flight ran to completion; `value` is the effect's success or failure, delivered to every waiter.
+      */
     final case class Completed[A](value: Either[Throwable, A]) extends FlightResult[A]
+
+    /** The flight was canceled (its last waiter left, so the worker was canceled) before producing a value.
+      * Waiters that observe this resubmit their effect to a fresh flight rather than fail.
+      */
     final case class Retry[A]() extends FlightResult[A]
   }
 
+  /** One in-flight computation shared by its callers, held in the `in_flight` slot while it runs.
+    *
+    * @param id
+    *   a unique, monotonically assigned identifier. It is the compare key: state changes (`clear_flight`,
+    *   `remove_waiter`) act only when the slot still holds this same flight, so a later flight that reused
+    *   the slot is never mutated by a stale caller.
+    * @param result
+    *   completed once by the worker with the flight's `FlightResult`; every waiter reads its outcome here.
+    * @param cancel
+    *   completed once to signal the worker to stop. The worker races the effect against `cancel`, and the
+    *   last waiter to leave completes it to tear the flight down.
+    * @param waiters
+    *   the number of callers currently awaiting this flight, incremented as callers join and decremented as
+    *   they cancel. When it reaches zero the worker is canceled.
+    */
   final private case class Flight[F[_], A](
     id: Long,
     result: Deferred[F, FlightResult[A]],
     cancel: Deferred[F, Unit],
     waiters: Long)
 
+  /** The result of a caller trying to enter the single flight, deciding what that caller does next. */
   sealed private trait Admission[F[_], A]
   private object Admission {
+
+    /** No flight existed, so this caller created `flight` and is responsible for starting its worker. */
     final case class Leader[F[_], A](flight: Flight[F, A]) extends Admission[F, A]
+
+    /** A flight was already in progress; this caller joined it (as a counted waiter) and only awaits its
+      * result.
+      */
     final case class Follower[F[_], A](flight: Flight[F, A]) extends Admission[F, A]
+
+    /** A flight was in progress but the caller opted not to wait (`tryApply`); it returns `None` without
+      * running its effect.
+      */
     final case class Busy[F[_], A]() extends Admission[F, A]
   }
 
