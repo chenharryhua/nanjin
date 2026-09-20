@@ -60,6 +60,20 @@ trait Login[F[_]] {
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
 
+  /** A snapshot of the current token together with the bookkeeping that coordinates its replacement.
+    *
+    * @param token
+    *   the token currently applied to outgoing requests.
+    * @param generation
+    *   a monotonically increasing counter, starting at `0` and incremented by one on every replacement. It is
+    *   the compare key for replacement: `replace_token` swaps the token only when the caller's expected
+    *   generation still matches the live one, so a replacement racing a concurrent one (e.g. a scheduled
+    *   renewal against a `401` renewal) that lost the race becomes a no-op instead of overwriting the winner.
+    * @param changed
+    *   completed exactly once, when this state is superseded by the next one. The scheduled-renewal and
+    *   failure-backoff loops race their sleep against `changed.get`, so a token replaced on another path
+    *   wakes them to abandon a now-obsolete renewal rather than firing redundantly.
+    */
   final private case class TokenState(token: T, generation: Long, changed: Deferred[F, Unit])
 
   protected def getTokenFromCredentials: F[T]
