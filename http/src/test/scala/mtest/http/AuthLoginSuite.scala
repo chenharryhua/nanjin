@@ -912,34 +912,53 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10a.failed scheduled renewal retries after backoff without rescheduling lifetime") {
+  test("10a.failed scheduled renewal waits for reactive replacement, then schedules the new token") {
     cats.effect.testkit.TestControl.executeEmbed {
-      val token_calls = Ref.unsafe[IO, Int](0)
-
-      val app = HttpApp[IO] {
-        case POST -> Root / "token" =>
-          token_calls.updateAndGet(_ + 1).flatMap { n =>
-            if (n == 1)
-              Ok("""{"access_token":"t1","token_type":"Bearer","expires_in":130}""")
-            else
-              InternalServerError("renewal boom")
-          }
-        case _ => InternalServerError()
-      }
-
-      val auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(app))
-      val credential = ClientCredentials(
-        auth_endpoint = uri"/token",
-        client_id = "id",
-        client_secret = Secret("secret")
-      )
-
-      auth.clientCredentials[IO](auth_client, credential).login(protectedResource).use { _ =>
-        IO.sleep(106.seconds) *> token_calls.get.map { calls =>
-          // Initial acquisition at t=0, scheduled failure at t=100, and direct backoff retry at t=105.
-          assertEquals(calls, 3)
+      for {
+        token_calls <- Ref.of[IO, Int](0)
+        business_tokens <- Ref.of[IO, List[String]](Nil)
+        auth_app = HttpApp[IO] {
+          case POST -> Root / "token" =>
+            token_calls.updateAndGet(_ + 1).flatMap {
+              case 1 => Ok("""{"access_token":"t1","token_type":"Bearer","expires_in":130}""")
+              case 2 => InternalServerError("scheduled renewal failed")
+              case 3 => Ok("""{"access_token":"t2","token_type":"Bearer","expires_in":20}""")
+              case 4 => Ok("""{"access_token":"t3","token_type":"Bearer","expires_in":0}""")
+              case n => InternalServerError(s"unexpected token call $n")
+            }
+          case _ => InternalServerError()
         }
-      }
+        business_app = HttpApp[IO] { request =>
+          val token = request.headers.get[Authorization].fold("missing")(_.value.stripPrefix("Bearer "))
+          business_tokens.update(_ :+ token) *>
+            IO.pure(Response[IO](if (token == "t1") Status.Unauthorized else Status.Ok))
+        }
+        auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(auth_app))
+        credential = ClientCredentials(uri"/token", "id", Secret("secret"))
+        _ <- auth.clientCredentials[IO](auth_client, credential).login(Client.fromHttpApp(business_app)).use {
+          authed =>
+            for {
+              // t1 renews at t=100. That scheduled attempt fails; no internal retry occurs before t=106.
+              _ <- IO.sleep(106.seconds)
+              after_failure <- token_calls.get
+              status <- authed.status(Request[IO](uri = uri"/resource"))
+              after_rejection <- token_calls.get
+              // Reactive renewal installed t2 (20s lifetime), whose skewed delay is 10s from t=106.
+              _ <- IO.sleep(9.seconds)
+              before_resumed_schedule <- token_calls.get
+              _ <- IO.sleep(2.seconds)
+              after_resumed_schedule <- token_calls.get
+              used_tokens <- business_tokens.get
+            } yield {
+              assertEquals(after_failure, 2) // startup + one failed scheduled attempt, no retry
+              assertEquals(status, Status.Ok) // 401 on t1, then one successful replay with t2
+              assertEquals(after_rejection, 3) // reactive replacement fetched t2
+              assertEquals(before_resumed_schedule, 3)
+              assertEquals(after_resumed_schedule, 4) // scheduling resumed and fetched t3
+              assertEquals(used_tokens, List("t1", "t2"))
+            }
+        }
+      } yield ()
     }
   }
 

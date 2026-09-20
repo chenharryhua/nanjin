@@ -48,13 +48,20 @@ trait Login[F[_]] {
   * The two token-replacement hooks correspond to the two paths that can replace a live token:
   *   - `renewOnRejection` runs on the *reactive* path: a request came back `Unauthorized`, so the current
   *     token is replaced and the request is replayed once.
-  *   - `renewOnSchedule` runs on the *proactive* path: the background loop replaces the token on the
-  *     `renewalDelay` schedule (and retries after `RENEW_FAILURE_BACKOFF` on failure) before it expires.
+  *   - `renewOnSchedule` runs on the *proactive* path: the background loop replaces the token once after the
+  *     `renewalDelay` elapses. A failure does not retry the token request; the loop waits until another path
+  *     successfully replaces the token, then schedules that new token. Callers that want token-endpoint retry
+  *     behavior configure it on the supplied authentication client.
   *
   * Both hooks are abstract, so each flow states its two strategies explicitly. They may be the same function
   * when both paths use one grant, or differ when proactive renewal uses a different grant than rejected-token
   * replacement (e.g. renew via a stored `refresh_token` grant, but on a hard rejection fall back to a fresh
   * `getTokenFromCredentials`).
+  *
+  * This coordinator does not retry token-endpoint requests. Initial-acquisition and reactive-renewal failures
+  * propagate to the operation waiting for them; a scheduled-renewal failure waits silently for another path
+  * to replace the token. Callers that need retries or failure observability configure those concerns on the
+  * supplied authentication client.
   */
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
@@ -69,9 +76,10 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
     *   generation still matches the live one, so a replacement racing a concurrent one (e.g. a scheduled
     *   renewal against a `401` renewal) that lost the race becomes a no-op instead of overwriting the winner.
     * @param changed
-    *   completed exactly once, when this state is superseded by the next one. The scheduled-renewal and
-    *   failure-backoff loops race their sleep against `changed.get`, so a token replaced on another path
-    *   wakes them to abandon a now-obsolete renewal rather than firing redundantly.
+    *   completed exactly once, when this state is superseded by the next one. The scheduled-renewal loop
+    *   races its sleep against `changed.get` and waits on it after a failed scheduled attempt, so a
+    *   successful replacement on another path abandons the obsolete schedule and starts scheduling the new
+    *   token.
     */
   final private case class TokenState(token: T, generation: Long, changed: Deferred[F, Unit])
 
@@ -106,30 +114,32 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
             }
           }
 
-        def await_retry_or_change(scheduled: TokenState): F[Unit] =
-          F.race(F.sleep(RENEW_FAILURE_BACKOFF), scheduled.changed.get).flatMap {
-            case Left(_)  => renew_until_success(scheduled)
-            case Right(_) => F.unit
-          }
-
-        def renew_until_success(scheduled: TokenState): F[Unit] =
-          replace_token(scheduled.generation, renewOnSchedule)
-            .void
-            .handleErrorWith(_ => await_retry_or_change(scheduled))
-
-        def renew_after_delay: F[Unit] =
+        /** Runs one iteration of the proactive-renewal scheduler against a snapshot of the current token
+          * state.
+          *
+          * If `renewalDelay` returns `Some`, the delay races the snapshot's `changed` signal. A replacement
+          * on another path wins that race and ends this iteration without renewal; if the delay wins,
+          * `renewOnSchedule` is attempted once through `replace_token`. A failed attempt is not retried here:
+          * it waits for another successful replacement to complete `changed`, after which the surrounding
+          * `foreverM` starts a new iteration and schedules that token. If `renewalDelay` returns `None`, this
+          * iteration likewise waits for the next successful replacement before continuing.
+          */
+        def schedule_renewal: F[Unit] =
           token_state_ref.get.flatMap { scheduled =>
             renewalDelay(scheduled.token) match {
               case Some(delay) =>
                 F.race(F.sleep(delay), scheduled.changed.get).flatMap {
-                  case Left(_)  => renew_until_success(scheduled)
+                  case Left(_) =>
+                    replace_token(scheduled.generation, renewOnSchedule)
+                      .void
+                      .handleErrorWith(_ => scheduled.changed.get)
                   case Right(_) => F.unit
                 }
               case None => scheduled.changed.get
             }
           }
 
-        F.background[Nothing](renew_after_delay.foreverM).map { _ =>
+        F.background[Nothing](schedule_renewal.foreverM).map { _ =>
           Client[F] { request =>
             def allocate_response(token: T): F[(Response[F], Resource.ExitCase => F[Unit])] =
               client.run(withToken(token, request)).allocatedCase
