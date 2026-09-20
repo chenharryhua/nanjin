@@ -77,35 +77,29 @@ final private class AuthorizationCodeAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getTokenFromCredentials: F[Token] =
-          validate_expires_in(
-            authenticationClient.expect[Token](
-              POST(
-                urlForm,
-                credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              )),
-            token => Some(token.expires_in)
-          )
+          authenticationClient.expect[Token](
+            POST(
+              urlForm,
+              credential.auth_endpoint,
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+            ))
 
         private def refreshAccessToken(pre: Token): F[Token] =
-          validate_expires_in(
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "refresh_token",
-                  "client_id" -> credential.client_id,
-                  "refresh_token" -> pre.refresh_token),
-                credential.auth_endpoint,
-                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              )),
-            token => Some(token.expires_in)
-          )
+          authenticationClient.expect[Token](
+            POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "client_id" -> credential.client_id,
+                "refresh_token" -> pre.refresh_token),
+              credential.auth_endpoint,
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+            ))
 
         override protected def renewOnRejection: Token => F[Token] = refreshAccessToken
         override protected def renewOnSchedule: Token => F[Token] = refreshAccessToken
 
         override protected def renewalDelay: Token => Option[FiniteDuration] =
-          token => Some(skewed(token.expires_in))
+          token => Option.when(token.expires_in > 0L)(skewed(token.expires_in))
 
         override protected def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))

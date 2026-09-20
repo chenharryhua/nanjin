@@ -736,38 +736,46 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } *> assert_extreme_lifetime_does_not_overflow
   }
 
-  test("10.2.oauth token acquisition rejects non-positive expires_in") {
-    val client_credential = ClientCredentials(
-      auth_endpoint = uri"/token",
-      client_id = "id",
-      client_secret = Secret("secret")
-    )
-    val authorization_code = AuthorizationCode(
-      auth_endpoint = uri"/token",
-      client_id = "id",
-      client_secret = Secret("secret"),
-      code = Secret("code"),
-      redirect_uri = "https://example.com/callback"
-    )
+  test("10.2.non-positive expires_in accepts the token and disables scheduled renewal") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val client_credential = ClientCredentials(uri"/token", "id", Secret("secret"))
+      val authorization_code = AuthorizationCode(
+        auth_endpoint = uri"/token",
+        client_id = "id",
+        client_secret = Secret("secret"),
+        code = Secret("code"),
+        redirect_uri = "https://example.com/callback"
+      )
 
-    val zero_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
-      Ok("""{"access_token":"token","token_type":"Bearer","expires_in":0}""")
-    }))
-    val negative_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
-      Ok("""{"access_token":"token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":-1}""")
-    }))
-
-    for {
-      zero <- auth.clientCredentials[IO](zero_client, client_credential).login(protectedResource).use_.attempt
-      negative <- auth.authorizationCode[IO](negative_client, authorization_code).login(
-        protectedResource).use_.attempt
-    } yield {
-      assertEquals(zero.swap.toOption.map(_.getMessage), Some("expires_in must be positive, but was 0"))
-      assertEquals(negative.swap.toOption.map(_.getMessage), Some("expires_in must be positive, but was -1"))
+      for {
+        client_calls <- Ref.of[IO, Int](0)
+        authorization_calls <- Ref.of[IO, Int](0)
+        zero_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
+          client_calls.update(_ + 1) *>
+            Ok("""{"access_token":"zero-token","token_type":"Bearer","expires_in":0}""")
+        }))
+        negative_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(HttpApp[IO] { _ =>
+          authorization_calls.update(_ + 1) *>
+            Ok("""{"access_token":"negative-token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":-1}""")
+        }))
+        client_result <- auth.clientCredentials[IO](zero_client, client_credential)
+          .login(protectedResource)
+          .use(client => client.expect[String](uri"/resource") <* IO.sleep(1.hour))
+        authorization_result <- auth.authorizationCode[IO](negative_client, authorization_code)
+          .login(protectedResource)
+          .use(client => client.expect[String](uri"/resource") <* IO.sleep(1.hour))
+        final_client_calls <- client_calls.get
+        final_authorization_calls <- authorization_calls.get
+      } yield {
+        assertEquals(client_result, "ok")
+        assertEquals(authorization_result, "ok")
+        assertEquals(final_client_calls, 1)
+        assertEquals(final_authorization_calls, 1)
+      }
     }
   }
 
-  test("10.3.oauth token refresh rejects non-positive expires_in before publication") {
+  test("10.3.non-positive expires_in replacements are published without another scheduled renewal") {
     val client_credential = ClientCredentials(uri"/token", "id", Secret("secret"))
     val authorization_code = AuthorizationCode(
       auth_endpoint = uri"/token",
@@ -786,7 +794,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
             case 1 =>
               Ok("""{"access_token":"old-token","token_type":"Bearer","expires_in":1,"refresh_token":"refresh"}""")
             case _ =>
-              Ok("""{"access_token":"invalid-token","token_type":"Bearer","expires_in":0}""")
+              Ok("""{"access_token":"unscheduled-token","token_type":"Bearer","expires_in":0}""")
           }
         }
         val business_app = HttpApp[IO] { request =>
@@ -797,20 +805,21 @@ final class AuthLoginSuite extends CatsEffectSuite {
         auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), client_credential)
           .login(Client.fromHttpApp(business_app))
           .use { authed =>
-            IO.sleep(501.millis) *> authed.expect[String](uri"/resource")
+            IO.sleep(501.millis) *> authed.expect[String](uri"/resource") *> IO.sleep(1.hour)
           }
       }
       client_calls <- client_token_calls.get
       published_client_tokens <- client_business_tokens.get
+      authorization_token_calls <- Ref.of[IO, Int](0)
       authorization_business_tokens <- Ref.of[IO, List[String]](Nil)
-      authorization_result <- {
+      authorization_status <- cats.effect.testkit.TestControl.executeEmbed {
         val auth_app = HttpApp[IO] { request =>
-          request.as[UrlForm].flatMap { form =>
+          authorization_token_calls.update(_ + 1) *> request.as[UrlForm].flatMap { form =>
             form.getFirst("grant_type") match {
               case Some("authorization_code") =>
                 Ok("""{"access_token":"old-token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":3600}""")
               case Some("refresh_token") =>
-                Ok("""{"access_token":"invalid-token","refresh_token":"refresh-2","id_token":"id-2","token_type":"Bearer","expires_in":-1}""")
+                Ok("""{"access_token":"unscheduled-token","refresh_token":"refresh-2","id_token":"id-2","token_type":"Bearer","expires_in":-1}""")
               case _ =>
                 InternalServerError()
             }
@@ -824,17 +833,19 @@ final class AuthLoginSuite extends CatsEffectSuite {
 
         auth.authorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), authorization_code)
           .login(Client.fromHttpApp(business_app))
-          .use(_.run(Request[IO](uri = uri"/resource")).use_)
-          .attempt
+          .use { authed =>
+            authed.run(Request[IO](uri = uri"/resource")).use(response =>
+              IO.sleep(1.hour).as(response.status))
+          }
       }
+      authorization_calls <- authorization_token_calls.get
       published_authorization_tokens <- authorization_business_tokens.get
     } yield {
       assertEquals(client_calls, 2)
-      assertEquals(published_client_tokens, List("old-token"))
-      assertEquals(
-        authorization_result.swap.toOption.map(_.getMessage),
-        Some("expires_in must be positive, but was -1"))
-      assertEquals(published_authorization_tokens, List("old-token"))
+      assertEquals(published_client_tokens, List("unscheduled-token"))
+      assertEquals(authorization_calls, 2)
+      assertEquals(authorization_status, Status.Unauthorized)
+      assertEquals(published_authorization_tokens, List("old-token", "unscheduled-token"))
     }
   }
 
