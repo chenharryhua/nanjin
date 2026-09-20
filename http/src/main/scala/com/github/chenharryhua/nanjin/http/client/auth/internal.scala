@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.Async
+import cats.syntax.flatMap.given
 
 import scala.concurrent.duration.{DurationInt, DurationLong, FiniteDuration}
 
@@ -24,8 +25,8 @@ private def skewed(lifetime_seconds: Long): FiniteDuration = {
   lifetime - SKEW.min(lifetime / 2L)
 }
 
-private def validate_expires_in[F[_]: Async, A](fa: F[A])(expires_in: A => Option[Long]): F[A] =
-  Async[F].flatMap(fa) { value =>
+private def validate_expires_in[F[_]: Async, A](fa: F[A], expires_in: A => Option[Long]): F[A] =
+  fa.flatMap { value =>
     expires_in(value) match {
       case Some(seconds) if seconds <= 0L =>
         Async[F].raiseError(new IllegalArgumentException(s"expires_in must be positive, but was $seconds"))

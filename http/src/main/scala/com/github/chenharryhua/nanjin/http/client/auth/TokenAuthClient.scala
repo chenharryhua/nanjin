@@ -6,10 +6,9 @@ import cats.syntax.applicativeError.given
 import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import org.http4s.Method.POST
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
+import org.http4s.{Request, Response, Status}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -81,12 +80,6 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
   protected def renewOnSchedule: T => F[T]
   protected def renewalDelay: T => Option[FiniteDuration]
   protected def withToken(token: T, req: Request[F]): Request[F]
-
-  final protected def postToken[A: EntityDecoder[F, *]](
-    client: Client[F],
-    auth_endpoint: Uri,
-    form: UrlForm): F[A] =
-    client.expect[A](POST(form, auth_endpoint))
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     Resource.eval(

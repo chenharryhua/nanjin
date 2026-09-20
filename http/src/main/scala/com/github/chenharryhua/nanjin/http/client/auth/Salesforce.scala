@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.http.client.auth.UriJsonCodec.given
 import io.circe.Codec
 import org.http4s.*
+import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.headers.{Authorization, Host}
@@ -58,7 +59,7 @@ object Salesforce {
           override protected type T = Token
 
           override protected def getTokenFromCredentials: F[Token] =
-            postToken[Token](authenticationClient, credential.auth_endpoint, urlForm)
+            authenticationClient.expect[Token](POST(urlForm, credential.auth_endpoint))
 
           override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
           override protected def renewOnSchedule: Token => F[Token] = _ => getTokenFromCredentials

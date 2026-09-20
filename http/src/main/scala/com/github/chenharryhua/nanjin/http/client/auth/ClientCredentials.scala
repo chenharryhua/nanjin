@@ -71,19 +71,23 @@ final private class ClientCredentialsAuth[F[_]: Async](
         override protected type T = Token
 
         override protected def getTokenFromCredentials: F[Token] =
-          validate_expires_in(postToken[Token](authenticationClient, credential.auth_endpoint, urlForm))(
+          validate_expires_in(
+            authenticationClient.expect[Token](POST(urlForm, credential.auth_endpoint)),
             _.expires_in)
 
         private def refreshAccessToken(refresh_token: String): F[Token] =
           validate_expires_in(
-            authenticationClient.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "refresh_token",
-                "refresh_token" -> refresh_token,
-                "client_id" -> credential.client_id,
-                "client_secret" -> credential.client_secret.value),
-              credential.auth_endpoint
-            )))(_.expires_in)
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "refresh_token",
+                  "refresh_token" -> refresh_token,
+                  "client_id" -> credential.client_id,
+                  "client_secret" -> credential.client_secret.value),
+                credential.auth_endpoint
+              )),
+            _.expires_in
+          )
 
         override protected def renewOnRejection: Token => F[Token] = _ => getTokenFromCredentials
         override protected def renewOnSchedule: Token => F[Token] =

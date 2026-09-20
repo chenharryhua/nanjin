@@ -83,18 +83,23 @@ final private class AuthorizationCodeAuth[F[_]: Async](
                 urlForm,
                 credential.auth_endpoint,
                 Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              )))(token => Some(token.expires_in))
+              )),
+            token => Some(token.expires_in)
+          )
 
         private def refreshAccessToken(pre: Token): F[Token] =
           validate_expires_in(
-            authenticationClient.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "refresh_token",
-                "client_id" -> credential.client_id,
-                "refresh_token" -> pre.refresh_token),
-              credential.auth_endpoint,
-              Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-            )))(token => Some(token.expires_in))
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "refresh_token",
+                  "client_id" -> credential.client_id,
+                  "refresh_token" -> pre.refresh_token),
+                credential.auth_endpoint,
+                Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
+              )),
+            token => Some(token.expires_in)
+          )
 
         override protected def renewOnRejection: Token => F[Token] = refreshAccessToken
         override protected def renewOnSchedule: Token => F[Token] = refreshAccessToken
