@@ -87,7 +87,7 @@ class OAuth2Test extends CatsEffectSuite {
         auth_endpoint = base / "oauth2" / "token",
         client_id = "id",
         client_secret = Secret("secret"))
-      login: Login[IO] = auth.clientCredentials(authClient, credential)
+      login: Login[IO] = auth.postClientCredentials(authClient, credential)
       client <- EmberClientBuilder.default[IO].build.flatMap(login.login)
     } yield (client, base)
 

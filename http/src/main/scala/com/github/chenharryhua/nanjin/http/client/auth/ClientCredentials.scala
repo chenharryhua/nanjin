@@ -16,15 +16,6 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration.FiniteDuration
 
-/** Token-endpoint authentication method for a confidential OAuth 2.0 client.
-  *
-  * `ClientSecretPost` sends `client_id` and `client_secret` as form fields. `ClientSecretBasic` sends them in
-  * an HTTP Basic `Authorization` header instead.
-  */
-enum ClientAuthentication:
-  case ClientSecretPost
-  case ClientSecretBasic
-
 /** Credentials for OAuth 2.0 Client Credentials flow.
   *
   * Used to obtain an access token directly from the authorization server without user interaction. See [OAuth
@@ -45,23 +36,8 @@ final case class ClientCredentials(
   client_secret: Secret,
   scope: Option[NonEmptyList[String]] = None)
 
-/** OAuth 2.0 Client Credentials flow authenticator.
-  *
-  * Obtains an access token from the authorization server and attaches it to requests. Proactive renewal uses
-  * a refresh token when the server supplies one and otherwise performs another client-credentials exchange. A
-  * rejected access token is always replaced through a fresh client-credentials exchange.
-  *
-  * @param credential
-  *   client credentials and optional scopes
-  * @param auth_client
-  *   an HTTP client used to fetch and refresh tokens
-  * @param authentication
-  *   token-endpoint client authentication method
-  */
-final private class ClientCredentialsAuth[F[_]: Async](
-  credential: ClientCredentials,
-  auth_client: Resource[F, Client[F]],
-  authentication: ClientAuthentication
+sealed abstract private class ClientCredentialsAuth[F[_]: Async](
+  authClient: Resource[F, Client[F]]
 ) extends Login[F] {
   private case class Token(
     token_type: String,
@@ -70,58 +46,21 @@ final private class ClientCredentialsAuth[F[_]: Async](
     refresh_token: Option[String])
       derives Codec.AsObject
 
-  private val token_request_form: UrlForm = {
-    val form = authentication match {
-      case ClientAuthentication.ClientSecretPost =>
-        UrlForm(
-          "grant_type" -> "client_credentials",
-          "client_id" -> credential.client_id,
-          "client_secret" -> credential.client_secret.value)
-      case ClientAuthentication.ClientSecretBasic =>
-        UrlForm("grant_type" -> "client_credentials")
-    }
-    credential.scope.fold(form)(scopes => form + ("scope" -> scopes.toList.mkString(" ")))
-  }
+  protected def tokenRequestForm: UrlForm
+  protected def tokenRefreshForm(refresh_token: String): UrlForm
+  protected def authenticatedRequest(form: UrlForm): Request[F]
 
-  private def basic_credentials: BasicCredentials = {
-    // RFC 6749 §2.3.1: encode each value using application/x-www-form-urlencoded
-    // before using the client id/password as HTTP Basic credentials.
-    def encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
-    BasicCredentials(encode(credential.client_id), encode(credential.client_secret.value))
-  }
-
-  private def authenticated_request(form: UrlForm): Request[F] = {
-    val request = Request[F](method = POST, uri = credential.auth_endpoint).withEntity(form)
-    authentication match {
-      case ClientAuthentication.ClientSecretPost  => request
-      case ClientAuthentication.ClientSecretBasic =>
-        request.putHeaders(Authorization(basic_credentials))
-    }
-  }
-
-  private def refresh_token_form(refresh_token: String): UrlForm =
-    authentication match {
-      case ClientAuthentication.ClientSecretPost =>
-        UrlForm(
-          "grant_type" -> "refresh_token",
-          "refresh_token" -> refresh_token,
-          "client_id" -> credential.client_id,
-          "client_secret" -> credential.client_secret.value)
-      case ClientAuthentication.ClientSecretBasic =>
-        UrlForm("grant_type" -> "refresh_token", "refresh_token" -> refresh_token)
-    }
-
-  override def login(businessClient: Client[F]): Resource[F, Client[F]] =
-    auth_client.flatMap { authentication_client =>
+  final override def login(businessClient: Client[F]): Resource[F, Client[F]] =
+    authClient.flatMap { authentication_client =>
       val token_auth_client: TokenAuthClient[F] = new TokenAuthClient[F] {
         override protected type T = Token
 
         override protected val getTokenFromCredentials: F[Token] =
-          authentication_client.expect[Token](authenticated_request(token_request_form))
+          authentication_client.expect[Token](authenticatedRequest(tokenRequestForm))
 
         private def refresh_access_token(current_token: Token): F[Token] =
           current_token.refresh_token.fold(getTokenFromCredentials) { refresh_token =>
-            authentication_client.expect[Token](authenticated_request(refresh_token_form(refresh_token)))
+            authentication_client.expect[Token](authenticatedRequest(tokenRefreshForm(refresh_token)))
               .map { refreshed =>
                 refreshed.copy(refresh_token = refreshed.refresh_token.orElse(current_token.refresh_token))
               }
@@ -139,4 +78,55 @@ final private class ClientCredentialsAuth[F[_]: Async](
 
       token_auth_client.wrap(businessClient)
     }
+}
+
+final private class PostClientCredentials[F[_]: Async](
+  authClient: Resource[F, Client[F]],
+  credential: ClientCredentials
+) extends ClientCredentialsAuth[F](authClient) {
+  override protected val tokenRequestForm: UrlForm = {
+    val form = UrlForm(
+      "grant_type" -> "client_credentials",
+      "client_id" -> credential.client_id,
+      "client_secret" -> credential.client_secret.value)
+    credential.scope.fold(form)(scopes => form + ("scope" -> scopes.toList.mkString(" ")))
+  }
+
+  override protected def tokenRefreshForm(refresh_token: String): UrlForm =
+    UrlForm(
+      "grant_type" -> "refresh_token",
+      "refresh_token" -> refresh_token,
+      "client_id" -> credential.client_id,
+      "client_secret" -> credential.client_secret.value)
+
+  override protected def authenticatedRequest(form: UrlForm): Request[F] =
+    Request[F](method = POST, uri = credential.auth_endpoint).withEntity(form)
+
+}
+
+final private class BasicClientCredentials[F[_]: Async](
+  authClient: Resource[F, Client[F]],
+  credential: ClientCredentials
+) extends ClientCredentialsAuth[F](authClient) {
+
+  override protected val tokenRequestForm: UrlForm = {
+    val form = UrlForm("grant_type" -> "client_credentials")
+    credential.scope.fold(form)(scopes => form + ("scope" -> scopes.toList.mkString(" ")))
+  }
+
+  override protected def tokenRefreshForm(refresh_token: String): UrlForm =
+    UrlForm("grant_type" -> "refresh_token", "refresh_token" -> refresh_token)
+
+  private val basic_credentials: BasicCredentials = {
+    // RFC 6749 §2.3.1: encode each value using application/x-www-form-urlencoded
+    // before using the client id/password as HTTP Basic credentials.
+    def encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    BasicCredentials(encode(credential.client_id), encode(credential.client_secret.value))
+  }
+
+  override protected def authenticatedRequest(form: UrlForm): Request[F] =
+    Request[F](method = POST, uri = credential.auth_endpoint)
+      .withEntity(form)
+      .putHeaders(Authorization(basic_credentials))
+
 }

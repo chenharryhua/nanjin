@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Resource}
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.Secret
 import io.circe.Codec
 import org.http4s.*
@@ -44,12 +46,12 @@ final case class AuthorizationCode(
   *
   * @param credential
   *   authorization code, client credentials, and redirect URI
-  * @param auth_client
+  * @param authClient
   *   an HTTP client used to fetch and refresh tokens
   */
-final private class AuthorizationCodeAuth[F[_]: Async](
+final private class AuthorizationCodeAuth[F[_]](
   credential: AuthorizationCode,
-  auth_client: Resource[F, Client[F]])
+  authClient: Resource[F, Client[F]])(using F: Async[F])
     extends Login[F] {
   private case class Token(
     access_token: String,
@@ -68,17 +70,15 @@ final private class AuthorizationCodeAuth[F[_]: Async](
   )
 
   private def claim_authorization_code: F[Unit] =
-    Async[F].flatMap(Async[F].delay(code_available.compareAndSet(true, false))) { claimed =>
-      if (claimed) Async[F].unit
+    F.delay(code_available.compareAndSet(true, false)).flatMap { claimed =>
+      if (claimed) F.unit
       else
-        Async[F].raiseError(
-          new IllegalStateException("authorization code login has already been acquired")
-        )
+        F.raiseError(new IllegalStateException("authorization code login has already been acquired"))
     }
 
   override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     Resource.eval(claim_authorization_code).flatMap { _ =>
-      auth_client.flatMap { authentication_client =>
+      authClient.flatMap { authentication_client =>
         val token_auth_client = new TokenAuthClient[F] {
           override protected type T = Token
 
@@ -92,19 +92,19 @@ final private class AuthorizationCodeAuth[F[_]: Async](
 
           private def refresh_access_token(current_token: Token): F[Token] =
             current_token.refresh_token.fold(
-              Async[F].raiseError[Token](
+              F.raiseError[Token](
                 new IllegalStateException(
                   "authorization code token has no refresh_token; user reauthorization is required")
               )
             ) { refresh_token =>
-              Async[F].map(authentication_client.expect[Token](POST(
+              authentication_client.expect[Token](POST(
                 UrlForm(
                   "grant_type" -> "refresh_token",
                   "client_id" -> credential.client_id,
                   "refresh_token" -> refresh_token),
                 credential.auth_endpoint,
                 Authorization(BasicCredentials(credential.client_id, credential.client_secret.value))
-              ))) { refreshed =>
+              )).map { refreshed =>
                 refreshed.copy(refresh_token = refreshed.refresh_token.orElse(current_token.refresh_token))
               }
             }
