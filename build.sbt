@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.16-SNAPSHOT"
+ThisBuild / version      := "0.21.17-SNAPSHOT"
 ThisBuild / scalaVersion := "3.9.0" // LTS
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -100,7 +100,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"              % "2.0.0",
   "org.typelevel" %% "cats-laws"                     % catsCoreV,
   "org.typelevel" %% "algebra-laws"                  % catsCoreV,
-  "org.typelevel" %% "munit-cats-effect"             % "2.2.0",
+  "org.typelevel" %% "munit-cats-effect"             % "2.2.1",
   "org.scalatest" %% "scalatest"                     % "3.2.20",
   "dev.optics" %% "monocle-law"                      % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
@@ -388,7 +388,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
-      "com.github.luben" % "zstd-jni"          % "1.5.7-17" // snyk by kafka-schema-registry-client
+      "com.github.luben" % "zstd-jni"          % "1.5.7-18" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
@@ -396,8 +396,8 @@ lazy val kafka = (project in file("kafka"))
   .settings {
     Compile / sourceGenerators += Def.task {
       val out = (Compile / sourceManaged).value / "kafka-config"
-      val cp = (Compile / dependencyClasspath).value.files
-      KafkaConfigKeysGenerator.generate(out, cp)
+      val dcp = (Compile / dependencyClasspath).value.files
+      KafkaConfigKeysGenerator.generate(out, dcp)
     }.taskValue
   }
 

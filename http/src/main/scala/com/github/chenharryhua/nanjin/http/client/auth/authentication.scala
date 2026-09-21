@@ -73,11 +73,6 @@ def postClientCredentials[F[_]: Async](
   credential: ClientCredentials
 ): Login[F] = new PostClientCredentials[F](client, credential)
 
-/** Backwards-compatible alias for [[postClientCredentials]]. */
-def clientCredentials[F[_]: Async](
-  client: Resource[F, Client[F]],
-  credential: ClientCredentials
-): Login[F] = postClientCredentials(client, credential)
 
 /** Creates a `Login` instance using OAuth 2.0 Client Credentials flow with client-secret-basic authentication.
   *
