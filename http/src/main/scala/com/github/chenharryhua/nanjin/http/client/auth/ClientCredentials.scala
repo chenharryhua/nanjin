@@ -12,6 +12,8 @@ import org.http4s.headers.Authorization
 import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import scala.concurrent.duration.FiniteDuration
 
 /** Token-endpoint authentication method for a confidential OAuth 2.0 client.
@@ -81,13 +83,19 @@ final private class ClientCredentialsAuth[F[_]: Async](
     credential.scope.fold(form)(scopes => form + ("scope" -> scopes.toList.mkString(" ")))
   }
 
+  private def basic_credentials: BasicCredentials = {
+    // RFC 6749 §2.3.1: encode each value using application/x-www-form-urlencoded
+    // before using the client id/password as HTTP Basic credentials.
+    def encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    BasicCredentials(encode(credential.client_id), encode(credential.client_secret.value))
+  }
+
   private def authenticated_request(form: UrlForm): Request[F] = {
     val request = Request[F](method = POST, uri = credential.auth_endpoint).withEntity(form)
     authentication match {
       case ClientAuthentication.ClientSecretPost  => request
       case ClientAuthentication.ClientSecretBasic =>
-        request.putHeaders(
-          Authorization(BasicCredentials(credential.client_id, credential.client_secret.value)))
+        request.putHeaders(Authorization(basic_credentials))
     }
   }
 

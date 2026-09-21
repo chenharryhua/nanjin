@@ -19,6 +19,11 @@ import scala.concurrent.duration.FiniteDuration
   * directly for an access token. This object provides a `Login` implementation tailored to Salesforce
   * semantics, including automatic request routing via the returned `instance_url`.
   *
+  * The password grant sends both `client_secret` and `password` in the token request's form body. `Secret`
+  * masks those values when configuration objects are rendered, but does not redact the wire request. The
+  * token endpoint must use TLS outside local tests, and authentication-client middleware must not log request
+  * bodies.
+  *
   * @note
   *   Salesforce does not return an `expires_in` value, so scheduled renewal relies on a caller-provided token
   *   lifetime. A positive lifetime schedules renewal early (skewed before expiry); a non-positive or omitted
@@ -26,11 +31,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 object Salesforce {
 
-  /** Credentials for Salesforce OAuth 2.0 Password Grant flow.
-    *
-    * This flow exchanges a username and password directly for an access token. It should only be used in
-    * trusted server-side environments.
-    */
+  /** Implements the Salesforce password-grant token exchange and authenticated-client wrapping. */
   final private class PasswordGrantAuth[F[_]: Async](
     credential: PasswordGrant,
     expiresIn: Option[FiniteDuration],
@@ -48,10 +49,10 @@ object Salesforce {
     private case class Token(
       access_token: String,
       instance_url: Uri,
-      id: String,
+      id: Option[String],
       token_type: String,
-      issued_at: String,
-      signature: String)
+      issued_at: Option[String],
+      signature: Option[String])
         derives Codec.AsObject
 
     override def login(businessClient: Client[F]): Resource[F, Client[F]] =
@@ -82,6 +83,25 @@ object Salesforce {
       }
   }
 
+  /** Credentials for Salesforce OAuth 2.0 Password Grant flow.
+    *
+    * This flow exchanges a username and password directly for an access token and should only be used by a
+    * trusted server-side application. `client_secret` and `password` are transmitted in the token request's
+    * form body. Their `Secret` wrappers mask normal object rendering only: use TLS and keep request-body
+    * logging disabled on the authentication client.
+    *
+    * @param auth_endpoint
+    *   Salesforce token endpoint, normally `https://login.salesforce.com/services/oauth2/token` or the
+    *   sandbox equivalent at `https://test.salesforce.com/services/oauth2/token`
+    * @param client_id
+    *   connected-app consumer key
+    * @param client_secret
+    *   connected-app consumer secret
+    * @param username
+    *   Salesforce username
+    * @param password
+    *   Salesforce password accepted by the token endpoint
+    */
   final case class PasswordGrant(
     auth_endpoint: Uri,
     client_id: String,
@@ -97,8 +117,9 @@ object Salesforce {
     *   - Re-authenticates with the supplied credentials before the token lifetime elapses
     *
     * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
-    * on `authClient` when needed. The password grant uses `POST`, so use `recklessHttpRetry` or a custom
-    * `httpRetry` predicate only when repeating the exchange is acceptable.
+    * on `authClient` when needed, while keeping request-body logging disabled because the form contains both
+    * secrets. The password grant uses `POST`, so use `recklessHttpRetry` or a custom `httpRetry` predicate
+    * only when repeating the exchange is acceptable.
     *
     * @param authClient
     *   the HTTP client resource used for Salesforce token requests

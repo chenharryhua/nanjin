@@ -148,6 +148,83 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
+  test("1a1.client_secret_basic form-encodes reserved and UTF-8 credentials") {
+    val client_id = "client:id +/?"
+    val client_secret = "sëcret: +/%"
+    val expected_authorization =
+      Authorization(BasicCredentials("client%3Aid+%2B%2F%3F", "s%C3%ABcret%3A+%2B%2F%25"))
+
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "token" =>
+          request.as[UrlForm].flatMap { form =>
+            assertEquals(request.headers.get[Authorization], Some(expected_authorization))
+            assertEquals(form.getFirst("client_id"), None)
+            assertEquals(form.getFirst("client_secret"), None)
+            Ok("""{"access_token":"token","token_type":"Bearer"}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+    val credential = ClientCredentials(uri"/token", client_id, Secret(client_secret))
+
+    auth
+      .clientCredentials[IO](auth_client, credential, auth.ClientAuthentication.ClientSecretBasic)
+      .login(protectedResource)
+      .use(_.expect[String](uri"/resource"))
+      .map(result => assertEquals(result, "ok"))
+  }
+
+  test("1a2.clientCredentials replays POST once and the server applies its side effect once") {
+    for {
+      token_calls <- Ref.of[IO, Int](0)
+      business_attempts <- Ref.of[IO, Int](0)
+      side_effects <- Ref.of[IO, Int](0)
+      received_bodies <- Ref.of[IO, List[String]](Nil)
+      auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case POST -> Root / "token" =>
+            token_calls.updateAndGet(_ + 1).flatMap { call =>
+              val token = if (call == 1) "expired-token" else "current-token"
+              Ok(s"""{"access_token":"$token","token_type":"Bearer","expires_in":3600}""")
+            }
+          case _ => InternalServerError()
+        })
+      )
+      business_client = Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "orders" =>
+          business_attempts.update(_ + 1) *>
+            (request.headers.get[Authorization].map(_.value) match {
+              // Authentication rejects before reading the entity or executing business logic.
+              case Some("Bearer expired-token") => IO.pure(Response[IO](Status.Unauthorized))
+              case Some("Bearer current-token") =>
+                request.as[String].flatMap { body =>
+                  received_bodies.update(_ :+ body) *>
+                    side_effects.update(_ + 1) *>
+                    Ok("created")
+                }
+              case _ => Forbidden("missing auth")
+            })
+        case _ => NotFound()
+      })
+      credential = ClientCredentials(uri"/token", "client-id", Secret("secret"))
+      request = Request[IO](Method.POST, uri"/orders").withEntity("order-payload")
+      result <- auth.clientCredentials[IO](auth_client, credential)
+        .login(business_client)
+        .use(_.expect[String](request))
+      tokens <- token_calls.get
+      attempts <- business_attempts.get
+      effects <- side_effects.get
+      bodies <- received_bodies.get
+    } yield {
+      assertEquals(result, "created")
+      assertEquals(tokens, 2)
+      assertEquals(attempts, 2)
+      assertEquals(effects, 1)
+      assertEquals(bodies, List("order-payload"))
+    }
+  }
+
   test("1b.clientCredentials retains and rotates refresh tokens") {
     cats.effect.testkit.TestControl.executeEmbed {
       val token_calls = Ref.unsafe[IO, Int](0)
@@ -873,6 +950,44 @@ final class AuthLoginSuite extends CatsEffectSuite {
     Salesforce[IO](authClient, credential, 2.hours).login(Client.fromHttpApp(resourceApp)).use { authed =>
       val request = Request[IO](uri = uri"/resource").putHeaders(Host("original.example", None))
       authed.expect[String](request)
+    }
+  }
+
+  test("7a.Salesforce accepts minimal and complete token responses") {
+    val credential = Salesforce.PasswordGrant(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      username = "user",
+      password = Secret("pass")
+    )
+
+    def authenticate(token_response: String): IO[String] = {
+      val auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case POST -> Root / "token" => Ok(token_response)
+          case _                      => InternalServerError()
+        })
+      )
+      val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+        assertEquals(request.uri.host.map(_.value), Some("example.my.salesforce.com"))
+        request.headers.get[Authorization].fold(Forbidden("missing auth"))(header => Ok(header.value))
+      })
+
+      Salesforce[IO](auth_client, credential).login(resource_client).use(_.expect[String](uri"/resource"))
+    }
+
+    val minimal =
+      """{"access_token":"minimal-token","instance_url":"https://example.my.salesforce.com","token_type":"Bearer"}"""
+    val complete =
+      """{"access_token":"complete-token","instance_url":"https://example.my.salesforce.com","id":"id","token_type":"Bearer","issued_at":"0","signature":"sig"}"""
+
+    for {
+      minimal_authorization <- authenticate(minimal)
+      complete_authorization <- authenticate(complete)
+    } yield {
+      assertEquals(minimal_authorization, "Bearer minimal-token")
+      assertEquals(complete_authorization, "Bearer complete-token")
     }
   }
 

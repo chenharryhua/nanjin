@@ -17,21 +17,47 @@ import org.http4s.client.Client
   * expose it. The token endpoint should use TLS outside local test environments. Use the overload accepting
   * `ClientAuthentication` when the server supports the recommended `ClientSecretBasic` method.
   *
-  * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
-  * on `client` when needed. Token exchanges use `POST`, so use `recklessHttpRetry` or a custom `httpRetry`
-  * predicate only when repeating the exchange is acceptable.
+  * Each token-endpoint request is attempted once by this layer. Configure retries, logging, metrics, and
+  * tracing on `client` when needed; every acquisition and renewal is performed through that supplied client.
+  * Token exchanges use `POST`, so use `recklessHttpRetry` or a custom `httpRetry` predicate only when
+  * repeating the exchange is acceptable. Avoid logging request bodies because `ClientSecretPost` places the
+  * secret there, and redact the `Authorization` header when using `ClientSecretBasic`.
+  *
+  * Acquiring `login.login(businessClient)` eagerly obtains the initial token and creates one token cache and
+  * renewal fiber. Acquire that resource once at application startup and share the resulting authenticated
+  * client. Reacquiring it creates an independent cache and performs another initial token exchange.
+  *
+  * If a business request receives `Unauthorized`, it is replayed once with a replacement token. This applies
+  * to every HTTP method, including `POST`: request entities must be repeatable, and the resource server must
+  * reject unauthorized requests before executing application side effects.
   *
   * Example usage:
   * {{{
   *   import cats.effect.{IO, Resource}
-  *   import org.http4s.client.Client
   *   import com.github.chenharryhua.nanjin.http.client.auth
+  *   import com.github.chenharryhua.nanjin.http.client.middleware.recklessHttpRetry
+  *   import org.http4s.client.Client
+  *   import org.http4s.client.middleware.Logger
+  *   import java.time.ZoneId
+  *   import scala.concurrent.duration.*
   *
-  *   val clientResource: Resource[IO, Client[IO]] = ???
+  *   val baseAuthenticationClient: Resource[IO, Client[IO]] = ???
+  *   val businessClient: Resource[IO, Client[IO]] = ???
   *   val credentials: ClientCredentials =
   *     ClientCredentials(auth_endpoint, client_id, client_secret)
   *
-  *   val login: Login[IO] = auth.clientCredentials(clientResource, credentials)
+  *   // Token-endpoint policy belongs to the authentication client. POST retries must be explicit.
+  *   val authenticationClient = baseAuthenticationClient
+  *     .map(Logger(logHeaders = false, logBody = false))
+  *     .map(recklessHttpRetry(ZoneId.systemDefault(), _.fixedDelay(1.second).repeat.limited(3)))
+  *
+  *   val authenticatedClient: Resource[IO, Client[IO]] =
+  *     auth.clientCredentials(authenticationClient, credentials).login(businessClient)
+  *
+  *   // In an application, allocate this resource once and share `client` for its lifetime.
+  *   authenticatedClient.use { client =>
+  *     client.expect[String]("https://service.example/resource")
+  *   }
   * }}}
   *
   * @param client
@@ -55,6 +81,12 @@ def clientCredentials[F[_]: Async](
   * `ClientSecretPost` sends `client_id` and `client_secret` as form fields. `ClientSecretBasic` sends them in
   * an HTTP Basic `Authorization` header and omits both fields from the form. Header- or body-logging
   * middleware must redact credentials as appropriate.
+  *
+  * Retry, logging, metrics, and tracing belong on the supplied `client`; this authenticator attempts each
+  * token exchange once. Each acquisition of the returned login resource owns an independent token cache and
+  * renewal fiber, so applications should normally acquire it once and share the authenticated client. A
+  * business request rejected with `Unauthorized` is replayed once, including non-idempotent methods; request
+  * entities must be repeatable and the server must authenticate before application side effects occur.
   *
   * @param client
   *   the HTTP client resource used to fetch tokens
