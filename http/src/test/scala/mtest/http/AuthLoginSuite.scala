@@ -953,6 +953,44 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
+  test("7a.Salesforce accepts minimal and complete token responses") {
+    val credential = Salesforce.PasswordGrant(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      username = "user",
+      password = Secret("pass")
+    )
+
+    def authenticate(token_response: String): IO[String] = {
+      val auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case POST -> Root / "token" => Ok(token_response)
+          case _                      => InternalServerError()
+        })
+      )
+      val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+        assertEquals(request.uri.host.map(_.value), Some("example.my.salesforce.com"))
+        request.headers.get[Authorization].fold(Forbidden("missing auth"))(header => Ok(header.value))
+      })
+
+      Salesforce[IO](auth_client, credential).login(resource_client).use(_.expect[String](uri"/resource"))
+    }
+
+    val minimal =
+      """{"access_token":"minimal-token","instance_url":"https://example.my.salesforce.com","token_type":"Bearer"}"""
+    val complete =
+      """{"access_token":"complete-token","instance_url":"https://example.my.salesforce.com","id":"id","token_type":"Bearer","issued_at":"0","signature":"sig"}"""
+
+    for {
+      minimal_authorization <- authenticate(minimal)
+      complete_authorization <- authenticate(complete)
+    } yield {
+      assertEquals(minimal_authorization, "Bearer minimal-token")
+      assertEquals(complete_authorization, "Bearer complete-token")
+    }
+  }
+
   test("8.Salesforce password grant preserves full path, query, and fragment after path-info translation") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
