@@ -4,8 +4,7 @@ import cats.effect.Resource
 import cats.effect.kernel.Async
 import org.http4s.client.Client
 
-/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow and `ClientSecretPost` token-endpoint
-  * authentication.
+/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow with client-secret-post authentication.
   *
   * Automatically handles token acquisition, attaching the access token to requests, and optional token
   * renewal. A positive `expires_in` schedules renewal before expiry; omission, zero, or a negative value
@@ -13,9 +12,9 @@ import org.http4s.client.Client
   * client-credentials exchange. Scheduled renewal uses a returned `refresh_token` when available and retains
   * it when a refresh response omits a replacement.
   *
-  * `ClientSecretPost` places the client secret in the request body. Body-logging middleware can therefore
-  * expose it. The token endpoint should use TLS outside local test environments. Use the overload accepting
-  * `ClientAuthentication` when the server supports the recommended `ClientSecretBasic` method.
+  * The client secret is placed in the request body, so body-logging middleware can expose it. The token endpoint
+  * should use TLS outside local test environments. Use [[basicClientCredentials]] when the server supports
+  * client-secret-basic authentication.
   *
   * Each token-endpoint request is attempted once by this layer. Configure retries, logging, metrics, and
   * tracing on `client` when needed; every acquisition and renewal is performed through that supplied client.
@@ -52,7 +51,7 @@ import org.http4s.client.Client
   *     .map(recklessHttpRetry(ZoneId.systemDefault(), _.fixedDelay(1.second).repeat.limited(3)))
   *
   *   val authenticatedClient: Resource[IO, Client[IO]] =
-  *     auth.clientCredentials(authenticationClient, credentials).login(businessClient)
+  *     auth.postClientCredentials(authenticationClient, credentials).login(businessClient)
   *
   *   // In an application, allocate this resource once and share `client` for its lifetime.
   *   authenticatedClient.use { client =>
@@ -69,18 +68,16 @@ import org.http4s.client.Client
   * @return
   *   a `Login[F]` instance that can wrap a client to perform authenticated requests
   */
-def clientCredentials[F[_]: Async](
+def postClientCredentials[F[_]: Async](
   client: Resource[F, Client[F]],
   credential: ClientCredentials
-): Login[F] =
-  clientCredentials(client, credential, ClientAuthentication.ClientSecretPost)
+): Login[F] = new PostClientCredentials[F](client, credential)
 
-/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow and the selected token-endpoint client
-  * authentication method.
+
+/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow with client-secret-basic authentication.
   *
-  * `ClientSecretPost` sends `client_id` and `client_secret` as form fields. `ClientSecretBasic` sends them in
-  * an HTTP Basic `Authorization` header and omits both fields from the form. Header- or body-logging
-  * middleware must redact credentials as appropriate.
+  * Client credentials are sent in an HTTP Basic `Authorization` header and omitted from the form. Header- or
+  * body-logging middleware must redact credentials as appropriate.
   *
   * Retry, logging, metrics, and tracing belong on the supplied `client`; this authenticator attempts each
   * token exchange once. Each acquisition of the returned login resource owns an independent token cache and
@@ -92,19 +89,15 @@ def clientCredentials[F[_]: Async](
   *   the HTTP client resource used to fetch tokens
   * @param credential
   *   the client credentials including optional scopes
-  * @param authentication
-  *   token-endpoint client authentication method
   * @tparam F
   *   effect type with `Async`
   * @return
   *   a `Login[F]` instance that can wrap a client to perform authenticated requests
   */
-def clientCredentials[F[_]: Async](
+def basicClientCredentials[F[_]: Async](
   client: Resource[F, Client[F]],
-  credential: ClientCredentials,
-  authentication: ClientAuthentication
-): Login[F] =
-  new ClientCredentialsAuth[F](credential, client, authentication)
+  credential: ClientCredentials
+): Login[F] = new BasicClientCredentials[F](client, credential)
 
 /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
   *
@@ -146,5 +139,4 @@ def clientCredentials[F[_]: Async](
 def authorizationCode[F[_]: Async](
   client: Resource[F, Client[F]],
   credential: AuthorizationCode
-): Login[F] =
-  new AuthorizationCodeAuth[F](credential, client)
+): Login[F] = new AuthorizationCodeAuth[F](credential, client)

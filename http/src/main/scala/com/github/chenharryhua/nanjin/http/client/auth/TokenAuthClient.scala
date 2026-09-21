@@ -126,16 +126,17 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
           */
         def schedule_renewal: F[Unit] =
           token_state_ref.get.flatMap { scheduled =>
+            val wait = scheduled.changed.get
             renewalDelay(scheduled.token) match {
               case Some(delay) =>
-                F.race(F.sleep(delay), scheduled.changed.get).flatMap {
+                F.race(F.sleep(delay), wait).flatMap {
                   case Left(_) =>
                     replace_token(scheduled.generation, renewOnSchedule)
                       .void
-                      .handleErrorWith(_ => scheduled.changed.get)
+                      .handleErrorWith(_ => wait)
                   case Right(_) => F.unit
                 }
-              case None => scheduled.changed.get
+              case None => wait
             }
           }
 

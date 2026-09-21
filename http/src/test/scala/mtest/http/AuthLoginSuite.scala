@@ -100,7 +100,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](auth_client, credential).login(resource_client).use { authed =>
+    auth.postClientCredentials[IO](auth_client, credential).login(resource_client).use { authed =>
       authed.expect[String](uri"/hello").map(body => assertEquals(body, "ok"))
     }
   }
@@ -142,7 +142,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       )
 
       auth
-        .clientCredentials[IO](auth_client, credential, auth.ClientAuthentication.ClientSecretBasic)
+        .basicClientCredentials[IO](auth_client, credential)
         .login(protectedResource)
         .use(_ => IO.sleep(501.millis) *> token_calls.get.map(calls => assertEquals(calls, 2)))
     }
@@ -169,7 +169,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val credential = ClientCredentials(uri"/token", client_id, Secret(client_secret))
 
     auth
-      .clientCredentials[IO](auth_client, credential, auth.ClientAuthentication.ClientSecretBasic)
+      .basicClientCredentials[IO](auth_client, credential)
       .login(protectedResource)
       .use(_.expect[String](uri"/resource"))
       .map(result => assertEquals(result, "ok"))
@@ -209,7 +209,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       })
       credential = ClientCredentials(uri"/token", "client-id", Secret("secret"))
       request = Request[IO](Method.POST, uri"/orders").withEntity("order-payload")
-      result <- auth.clientCredentials[IO](auth_client, credential)
+      result <- auth.postClientCredentials[IO](auth_client, credential)
         .login(business_client)
         .use(_.expect[String](request))
       tokens <- token_calls.get
@@ -265,7 +265,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         client_secret = Secret("secret")
       )
 
-      auth.clientCredentials[IO](auth_client, credential).login(protectedResource).use { _ =>
+      auth.postClientCredentials[IO](auth_client, credential).login(protectedResource).use { _ =>
         IO.sleep(1501.millis) *> used_refresh_tokens.get.map { refresh_tokens =>
           assertEquals(refresh_tokens, List("refresh-1", "refresh-1", "refresh-2"))
         }
@@ -636,7 +636,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       )
 
     val login =
-      auth.clientCredentials[IO](authClient, credential)
+      auth.postClientCredentials[IO](authClient, credential)
 
     login.login(protectedResource).use { authed =>
       for {
@@ -687,7 +687,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         client_secret = Secret("secret")
       )
 
-    auth.clientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
       authed.expect[String](uri"/resource").flatMap { body =>
         for {
           n <- tokenCalls.get
@@ -740,7 +740,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
       authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
         IO(assertEquals(response.status, Status.Ok))
       }
@@ -780,7 +780,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         client_secret = Secret("secret")
       )
 
-      auth.clientCredentials[IO](auth_client, credential).login(resource_client).use { authed =>
+      auth.postClientCredentials[IO](auth_client, credential).login(resource_client).use { authed =>
         authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
           IO(assertEquals(response.status, Status.Ok))
         }
@@ -810,7 +810,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(slowClient).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(slowClient).use { authed =>
       for {
         fiber <- authed.run(Request[IO](Method.GET, uri"/resource")).surround(IO.never[Unit]).start
         _ <- IO.sleep(50.millis)
@@ -844,7 +844,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(alwaysUnauthorized).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(alwaysUnauthorized).use { authed =>
       authed.run(Request[IO](Method.GET, uri"/resource")).use { response =>
         tokenCalls.get.map { n =>
           // Should see initial token fetch + one refresh on 401, then the second 401 is returned
@@ -879,7 +879,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       client_secret = Secret("secret")
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(resourceClient).use { authed =>
       authed.run(Request[IO](Method.GET, uri"/resource")).use_.attempt.map { result =>
         assert(result.isLeft, "should propagate the token fetch error")
       }
@@ -1143,7 +1143,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       scope = Some(NonEmptyList.of("read", "write"))
     )
 
-    auth.clientCredentials[IO](authClient, credential).login(protectedResource).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(protectedResource).use { authed =>
       for {
         _ <- authed.expect[String](uri"/data")
         s <- scopeReceived.get
@@ -1197,7 +1197,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     )
 
     cats.effect.testkit.TestControl.executeEmbed {
-      auth.clientCredentials[IO](authClient, credential).login(protectedResource).use { _ =>
+      auth.postClientCredentials[IO](authClient, credential).login(protectedResource).use { _ =>
         for {
           _ <- IO.sleep(499.millis)
           before_half_life <- tokenCalls.get
@@ -1225,7 +1225,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         }
         val credential = ClientCredentials(uri"/token", "id", Secret("secret"))
 
-        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        auth.postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
           .login(protectedResource)
           .use { _ =>
             for {
@@ -1250,7 +1250,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         }
         val credential = ClientCredentials(uri"/token", "id", Secret("secret"))
 
-        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        auth.postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
           .login(protectedResource)
           .use(_ => IO.sleep(1.second) *> token_calls.get.map(calls => assertEquals(calls, 1)))
       }
@@ -1287,7 +1287,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           authorization_calls.update(_ + 1) *>
             Ok("""{"access_token":"negative-token","refresh_token":"refresh","id_token":"id","token_type":"Bearer","expires_in":-1}""")
         }))
-        client_result <- auth.clientCredentials[IO](zero_client, client_credential)
+        client_result <- auth.postClientCredentials[IO](zero_client, client_credential)
           .login(protectedResource)
           .use(client => client.expect[String](uri"/resource") <* IO.sleep(1.hour))
         authorization_result <- auth.authorizationCode[IO](negative_client, authorization_code)
@@ -1331,7 +1331,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           client_business_tokens.update(_ :+ token) *> Ok("ok")
         }
 
-        auth.clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), client_credential)
+        auth.postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), client_credential)
           .login(Client.fromHttpApp(business_app))
           .use { authed =>
             IO.sleep(501.millis) *> authed.expect[String](uri"/resource") *> IO.sleep(1.hour)
@@ -1401,28 +1401,28 @@ final class AuthLoginSuite extends CatsEffectSuite {
         }
         auth_client = Resource.pure[IO, Client[IO]](Client.fromHttpApp(auth_app))
         credential = ClientCredentials(uri"/token", "id", Secret("secret"))
-        _ <- auth.clientCredentials[IO](auth_client, credential).login(Client.fromHttpApp(business_app)).use {
-          authed =>
-            for {
-              // t1 renews at t=100. That scheduled attempt fails; no internal retry occurs before t=106.
-              _ <- IO.sleep(106.seconds)
-              after_failure <- token_calls.get
-              status <- authed.status(Request[IO](uri = uri"/resource"))
-              after_rejection <- token_calls.get
-              // Reactive renewal installed t2 (20s lifetime), whose skewed delay is 10s from t=106.
-              _ <- IO.sleep(9.seconds)
-              before_resumed_schedule <- token_calls.get
-              _ <- IO.sleep(2.seconds)
-              after_resumed_schedule <- token_calls.get
-              used_tokens <- business_tokens.get
-            } yield {
-              assertEquals(after_failure, 2) // startup + one failed scheduled attempt, no retry
-              assertEquals(status, Status.Ok) // 401 on t1, then one successful replay with t2
-              assertEquals(after_rejection, 3) // reactive replacement fetched t2
-              assertEquals(before_resumed_schedule, 3)
-              assertEquals(after_resumed_schedule, 4) // scheduling resumed and fetched t3
-              assertEquals(used_tokens, List("t1", "t2"))
-            }
+        _ <- auth.postClientCredentials[IO](auth_client, credential).login(
+          Client.fromHttpApp(business_app)).use { authed =>
+          for {
+            // t1 renews at t=100. That scheduled attempt fails; no internal retry occurs before t=106.
+            _ <- IO.sleep(106.seconds)
+            after_failure <- token_calls.get
+            status <- authed.status(Request[IO](uri = uri"/resource"))
+            after_rejection <- token_calls.get
+            // Reactive renewal installed t2 (20s lifetime), whose skewed delay is 10s from t=106.
+            _ <- IO.sleep(9.seconds)
+            before_resumed_schedule <- token_calls.get
+            _ <- IO.sleep(2.seconds)
+            after_resumed_schedule <- token_calls.get
+            used_tokens <- business_tokens.get
+          } yield {
+            assertEquals(after_failure, 2) // startup + one failed scheduled attempt, no retry
+            assertEquals(status, Status.Ok) // 401 on t1, then one successful replay with t2
+            assertEquals(after_rejection, 3) // reactive replacement fetched t2
+            assertEquals(before_resumed_schedule, 3)
+            assertEquals(after_resumed_schedule, 4) // scheduling resumed and fetched t3
+            assertEquals(used_tokens, List("t1", "t2"))
+          }
         }
       } yield ()
     }
@@ -1471,7 +1471,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           )
 
           auth
-            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
             .login(Client.fromHttpApp(resource_app))
             .use { authed =>
               for {
@@ -1536,7 +1536,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           )
 
           auth
-            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
             .login(Client.fromHttpApp(resource_app))
             .use { authed =>
               for {
@@ -1591,7 +1591,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       )
 
       auth
-        .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
         .login(Client.fromHttpApp(resource_app))
         .use { authed =>
           for {
@@ -1642,7 +1642,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       )
 
       auth
-        .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
         .login(Client.fromHttpApp(resource_app))
         .use { authed =>
           for {
@@ -1686,7 +1686,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
           )
 
           auth
-            .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+            .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
             .login(protectedResource)
             .use(_ => IO.sleep(5.seconds) *> renewal_started.get)
         }
@@ -1731,7 +1731,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         )
 
         auth
-          .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
           .login(Client.fromHttpApp(resource_app))
           .use { authed =>
             for {
@@ -1787,7 +1787,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         )
 
         auth
-          .clientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+          .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
           .login(Client.fromHttpApp(resource_app))
           .use { authed =>
             for {
@@ -1818,7 +1818,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
 
     val clientResource = Resource.pure[IO, Client[IO]](protectedResource)
 
-    auth.clientCredentials[IO](authClient, credential).login(clientResource).use { authed =>
+    auth.postClientCredentials[IO](authClient, credential).login(clientResource).use { authed =>
       authed.expect[String](uri"/hello").map(body => assertEquals(body, "ok"))
     }
   }

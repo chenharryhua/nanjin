@@ -57,7 +57,7 @@ object Salesforce {
 
     override def login(businessClient: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
-        val tac = new TokenAuthClient[F] {
+        val token_auth_client = new TokenAuthClient[F] {
           override protected type T = Token
 
           override protected val getTokenFromCredentials: F[Token] =
@@ -79,7 +79,7 @@ object Salesforce {
               .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
         }
 
-        tac.wrap(businessClient)
+        token_auth_client.wrap(businessClient)
       }
   }
 
