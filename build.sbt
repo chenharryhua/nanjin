@@ -228,6 +228,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-circe"           % http4sV,
       "org.http4s" %% "http4s-scalatags"       % "0.25.3",
       "org.typelevel" %% "otel4s-core-metrics" % otel4sV,
+      "org.typelevel" %% "otel4s-core-trace"   % otel4sV,
       // java
       "io.dropwizard.metrics" % "metrics-core" % metricsV,
       // test

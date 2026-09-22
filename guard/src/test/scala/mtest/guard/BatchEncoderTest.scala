@@ -180,8 +180,7 @@ class BatchEncoderTest extends FunSuite {
     assert(jobJson.contains("unsatisfied"))
     assert(jobJson.contains("5 milli")) // took (record uses 5.millis)
     assert(jobEntry.downField("result").focus.isEmpty)
-    // the MonadicBatch encoder emits no top-level "result": unlike QuasiBatch/ValueBatch it does not render
-    // the batch's aggregate output, so even a completed batch carries only framing and per-job outcomes
-    assert(json.hcursor.downField("result").focus.isEmpty)
+    // successful monadic batches render the aggregate value, while their Unit-valued job entries do not
+    assert(json.hcursor.get[Int]("result").toOption.contains(0))
   }
 }

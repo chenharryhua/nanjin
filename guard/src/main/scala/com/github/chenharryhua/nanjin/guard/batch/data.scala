@@ -273,19 +273,14 @@ final case class MonadicBatch[A](
 }
 
 object MonadicBatch:
-  // Unlike `QuasiBatch`/`ValueBatch`, this encoder does not render the batch's aggregate output. A monadic
-  // batch's `result` is an `Either[Throwable, A]`: on success the final `A` is the user's own value, but on
-  // failure it is a throwable whose place is the log entry's dedicated exception section (via
-  // `LogEntry.cause`), not the serialized body. Rather than render one side and not the other, the report
-  // carries only the framing and per-job `outcomes`, consistent with the other two batch encoders. Because
-  // `A` is never serialized here, no `Encoder[A]` is required (the per-job jobs are `JobState[Unit]`).
-  given [A] => Encoder[MonadicBatch[A]] =
+  given [A: Encoder] => Encoder[MonadicBatch[A]] =
     Encoder.instance { mb =>
-      Json.obj(
+      val base: Json = Json.obj(
         batchEntry(mb.mode, None, mb.scope),
         mb.batchId.entry,
         JobLog.SPENT -> Json.fromString(fmt.format(mb.spent)),
         JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
+      mb.result.fold(_ => base, r => Json.obj(JobLog.RESULT -> r.asJson).deepMerge(base))
     }
 end MonadicBatch

@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, Me
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.trace.Tracer
 
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
@@ -135,7 +136,8 @@ final private class GeneralAgent[F[_]: Async](
   batchIdGenerator: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meterProvider: MeterProvider[F])
+  meterProvider: MeterProvider[F],
+  tracer: Tracer[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
@@ -148,7 +150,8 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meterProvider = meterProvider
+      meterProvider = meterProvider,
+      tracer = tracer
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -176,7 +179,7 @@ final private class GeneralAgent[F[_]: Async](
     f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
-    new Batch[F](logger, metricsHub(label), batchIdGenerator)
+    new Batch[F](logger, metricsHub(label), batchIdGenerator, tracer, tracer.spanBuilder(label).build)
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

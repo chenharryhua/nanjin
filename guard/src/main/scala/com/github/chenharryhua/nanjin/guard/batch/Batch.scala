@@ -10,10 +10,11 @@ import cats.syntax.applicative.given
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.either.catsSyntaxEither
 import cats.syntax.functor.given
-import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
+import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import org.typelevel.otel4s.trace.{SpanOps, Tracer}
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
@@ -44,6 +45,7 @@ object Batch:
     protected def jobs: List[JobNameIndex[F, A]]
     protected def batchIdGenerator: AtomicLong
     protected def executor: JobExecutor[F, A]
+    protected def parentSpan: SpanOps[F]
 
     /** Run `f` over every job, in the subclass's traversal order (parallel vs sequential). */
     protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
@@ -64,7 +66,7 @@ object Batch:
     final def quasiBatch: Resource[F, QuasiBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobState[A]])] =
-        traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel)).timed
+        parentSpan.surround(traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel))).timed
           .guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
@@ -79,11 +81,11 @@ object Batch:
     final def valueBatch: Resource[F, ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
-        traverseJobs { jni =>
+        parentSpan.surround(traverseJobs { jni =>
           runJob(executor.valueJob(jni, batchId), panel)
             .map(js => js.result.map(JobValue(js.record, _)))
             .rethrow
-        }.timed.guarantee(panel.activeGauge.deactivate)
+        }).timed.guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
@@ -107,7 +109,8 @@ object Batch:
     protected val metrics: MetricsHub[F],
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)
+    protected val batchIdGenerator: AtomicLong,
+    protected val parentSpan: SpanOps[F])
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
@@ -118,7 +121,7 @@ object Batch:
       jobs.parTraverseN(parallelism)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator)
+      new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator, parentSpan)
   }
 
   /*
@@ -130,7 +133,8 @@ object Batch:
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)
+    protected val batchIdGenerator: AtomicLong,
+    protected val parentSpan: SpanOps[F])
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
@@ -142,7 +146,7 @@ object Batch:
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator)
+      new Batch.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator, parentSpan)
   }
 
   /*
@@ -376,20 +380,23 @@ end Batch
 final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
-  batchIdGenerator: AtomicLong):
+  batchIdGenerator: AtomicLong,
+  tracer: Tracer[F],
+  parentSpan: SpanOps[F]):
 
   /** Create a sequential batch from named effects; jobs run in input order.
     */
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa)
+      JobNameIndex[F, A](name, idx + 1, tracer.span(name).surround(fa))
     }
     new Batch.Sequential[F, A](
       predicate = _ => true,
       log = log,
       metrics = metrics,
       jobs = jobs,
-      batchIdGenerator = batchIdGenerator)
+      batchIdGenerator = batchIdGenerator,
+      parentSpan = parentSpan)
   }
 
   /** Create a parallel batch from named effects using the given parallelism.
@@ -399,7 +406,7 @@ final class Batch[F[_]: Async] private[guard] (
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa)
+        JobNameIndex[F, A](name, idx + 1, tracer.span(name).surround(fa))
     }
     new Batch.Parallel[F, A](
       predicate = _ => true,
@@ -407,7 +414,8 @@ final class Batch[F[_]: Async] private[guard] (
       metrics = metrics,
       parallelism = parallelism,
       jobs = jobs,
-      batchIdGenerator = batchIdGenerator)
+      batchIdGenerator = batchIdGenerator,
+      parentSpan = parentSpan)
   }
 
   /** Create a parallel batch with parallelism inferred from the job count. */

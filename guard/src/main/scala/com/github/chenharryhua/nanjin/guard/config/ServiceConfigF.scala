@@ -13,6 +13,7 @@ import io.circe.{Encoder, Json}
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.trace.TracerProvider
 
 import java.time.*
 import scala.concurrent.duration.FiniteDuration
@@ -140,6 +141,9 @@ sealed trait ServiceConfig[F[_]] {
     *   a resource yielding the otel4s meter provider used to create meters and instruments
     */
   def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F]
+
+  def withTracerProvider(tracerProvider: Resource[F, TracerProvider[F]]): ServiceConfig[F]
+
 }
 
 sealed private trait ServiceConfigF[X] extends Product derives Functor
@@ -196,7 +200,8 @@ private[guard] object ServiceConfig {
       briefs = List.empty[Json].pure[F],
       logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
       logLocator = None.pure[F],
-      meterProvider = Resource.pure(MeterProvider.noop[F])
+      meterProvider = Resource.pure(MeterProvider.noop[F]),
+      tracerProvider = Resource.pure(TracerProvider.noop[F])
     )
 
   final private[guard] case class Impl[F[_]: Applicative] private[ServiceConfig] (
@@ -206,7 +211,8 @@ private[guard] object ServiceConfig {
     briefs: F[List[Json]],
     logThreshold: LogThreshold,
     logLocator: F[Option[LogLocator]],
-    meterProvider: Resource[F, MeterProvider[F]])
+    meterProvider: Resource[F, MeterProvider[F]],
+    tracerProvider: Resource[F, TracerProvider[F]])
       extends ServiceConfig[F] {
 
     import ServiceConfigF.*
@@ -253,6 +259,9 @@ private[guard] object ServiceConfig {
 
     override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
       copy(meterProvider = meterProvider)
+
+    override def withTracerProvider(tracerProvider: Resource[F, TracerProvider[F]]): ServiceConfig[F] =
+      copy(tracerProvider = tracerProvider)
 
     def evalConfig(
       serviceName: Service,
