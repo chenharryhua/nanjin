@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight, BatchTracer}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
@@ -181,11 +181,19 @@ final private class GeneralAgent[F[_]: Async](
 
   override def batch(label: String): Batch[F] = {
     val noop = Tracer.noop[F]
-    new Batch[F](logger, metricsHub(label), batchIdGenerator, noop, noop.spanBuilder(label).build)
+    new Batch[F](
+      log = logger,
+      metrics = metricsHub(label),
+      batchIdGenerator = batchIdGenerator,
+      batchTracer = BatchTracer(noop, noop.spanBuilder(label).build))
   }
 
   override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
-    new Batch[F](logger, metricsHub(label), batchIdGenerator, tracer, f(tracer.spanBuilder(label)))
+    new Batch[F](
+      log = logger,
+      metrics = metricsHub(label),
+      batchIdGenerator = batchIdGenerator,
+      batchTracer = BatchTracer(tracer, f(tracer.spanBuilder(label))))
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

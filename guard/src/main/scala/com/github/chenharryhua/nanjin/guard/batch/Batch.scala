@@ -14,7 +14,6 @@ import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
-import org.typelevel.otel4s.trace.{SpanOps, Tracer}
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
@@ -45,7 +44,7 @@ object Batch:
     protected def jobs: List[JobNameIndex[F, A]]
     protected def batchIdGenerator: AtomicLong
     protected def executor: JobExecutor[F, A]
-    protected def parentSpan: SpanOps[F]
+    protected def batchTracer: BatchTracer[F]
 
     /** Run `f` over every job, in the subclass's traversal order (parallel vs sequential). */
     protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
@@ -66,7 +65,12 @@ object Batch:
     final def quasiBatch: Resource[F, QuasiBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobState[A]])] =
-        parentSpan.surround(traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel))).timed
+        batchTracer.parent.use(span =>
+          traverseJobs(jni =>
+            batchTracer.tracer
+              .childScope(span.context) {
+                batchTracer.tracer.span(jni.name).surround(runJob(executor.quasiJob(jni, batchId), panel))
+              })).timed
           .guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
@@ -81,11 +85,16 @@ object Batch:
     final def valueBatch: Resource[F, ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
-        parentSpan.surround(traverseJobs { jni =>
-          runJob(executor.valueJob(jni, batchId), panel)
-            .map(js => js.result.map(JobValue(js.record, _)))
-            .rethrow
-        }).timed.guarantee(panel.activeGauge.deactivate)
+        batchTracer.parent.use(span =>
+          traverseJobs { jni =>
+            batchTracer.tracer.childScope(span.context) {
+              batchTracer.tracer.span(jni.name).surround(
+                runJob(executor.valueJob(jni, batchId), panel)
+                  .map(js => js.result.map(JobValue(js.record, _)))
+                  .rethrow
+              )
+            }
+          }).timed.guarantee(panel.activeGauge.deactivate)
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
@@ -110,7 +119,7 @@ object Batch:
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
     protected val batchIdGenerator: AtomicLong,
-    protected val parentSpan: SpanOps[F])
+    protected val batchTracer: BatchTracer[F])
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
@@ -121,7 +130,7 @@ object Batch:
       jobs.parTraverseN(parallelism)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
-      new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator, parentSpan)
+      new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator, batchTracer)
   }
 
   /*
@@ -134,7 +143,7 @@ object Batch:
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
     protected val batchIdGenerator: AtomicLong,
-    protected val parentSpan: SpanOps[F])
+    protected val batchTracer: BatchTracer[F])
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
@@ -146,7 +155,7 @@ object Batch:
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new Batch.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator, parentSpan)
+      new Batch.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator, batchTracer)
   }
 
   /*
@@ -160,8 +169,8 @@ object Batch:
     log: Log[F],
     metrics: MetricsHub[F],
     batchIdGenerator: AtomicLong,
-    tracer: Tracer[F],
-    parentSpan: SpanOps[F])(using F: Async[F]):
+    batchTracer: BatchTracer[F]
+  )(using F: Async[F]):
 
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
@@ -226,7 +235,7 @@ object Batch:
           outcomes = history.reverse,
           result = eoa
         )
-        parentSpan.resource.flatMap(res => batch.mapK(res.trace))
+        batchTracer.parent.resource.flatMap(res => batch.mapK(res.trace))
       }
     end Monadic
     object Monadic:
@@ -275,6 +284,13 @@ object Batch:
             .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
+    private def tracedResource[A](name: String, rfa: Resource[F, A], precede: F[Unit]): Resource[F, A] =
+      Resource.eval(
+        batchTracer.tracer.span(name).surround(rfa.preAllocate(precede).allocated)
+      ).flatMap { case (value, release) =>
+        Resource.make(F.pure(value))(_ => release)
+      }
+
     /** Add a named resource-backed value job.
       *
       * Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
@@ -298,10 +314,10 @@ object Batch:
                 kind = None,
                 batchId = batchId)
 
-            val traced = tracer.span(name).resource.flatMap(res => rfa.mapK(res.trace))
+            val traced = tracedResource(name, rfa, lifecycle.logKickoff(log, job))
             val compute = for {
-              eoa <- traced.preAllocate(lifecycle.logKickoff(log, job)).attempt
-              end <- Resource.eval(Async[F].monotonic)
+              eoa <- traced.attempt
+              end <- Resource.eval(F.monotonic)
             } yield {
               val succeeded = eoa.fold(_ => false, predicate)
               JobState(JobRecord(job, start, end, succeeded), eoa)
@@ -385,14 +401,12 @@ final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
   batchIdGenerator: AtomicLong,
-  tracer: Tracer[F],
-  parentSpan: SpanOps[F]):
-
+  batchTracer: BatchTracer[F]):
   /** Create a sequential batch from named effects; jobs run in input order.
     */
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, tracer.span(name).surround(fa))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Sequential[F, A](
       predicate = _ => true,
@@ -400,7 +414,7 @@ final class Batch[F[_]: Async] private[guard] (
       metrics = metrics,
       jobs = jobs,
       batchIdGenerator = batchIdGenerator,
-      parentSpan = parentSpan)
+      batchTracer = batchTracer)
   }
 
   /** Create a parallel batch from named effects using the given parallelism.
@@ -410,7 +424,7 @@ final class Batch[F[_]: Async] private[guard] (
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-        JobNameIndex[F, A](name, idx + 1, tracer.span(name).surround(fa))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Parallel[F, A](
       predicate = _ => true,
@@ -419,7 +433,7 @@ final class Batch[F[_]: Async] private[guard] (
       parallelism = parallelism,
       jobs = jobs,
       batchIdGenerator = batchIdGenerator,
-      parentSpan = parentSpan)
+      batchTracer = batchTracer)
   }
 
   /** Create a parallel batch with parallelism inferred from the job count. */
@@ -428,7 +442,11 @@ final class Batch[F[_]: Async] private[guard] (
 
   /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
-    val builder = new Batch.JobBuilder[F](log, metrics, batchIdGenerator, tracer, parentSpan)
+    val builder = new Batch.JobBuilder[F](
+      log = log,
+      metrics = metrics,
+      batchIdGenerator = batchIdGenerator,
+      batchTracer = batchTracer)
     f(builder)
   }
 end Batch
