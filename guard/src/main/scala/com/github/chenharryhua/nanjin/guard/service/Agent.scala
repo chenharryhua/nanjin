@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, Me
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
-import org.typelevel.otel4s.trace.Tracer
+import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer}
 
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
@@ -48,6 +48,7 @@ sealed trait Agent[F[_]] {
 
   /** Create a metrics-backed batch for a named operation. */
   def batch(label: String): Batch[F]
+  def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F]
 
   /** Create a lightweight batch for a named operation without a metrics hub. */
   def batchLight(label: String): BatchLight[F]
@@ -178,8 +179,13 @@ final private class GeneralAgent[F[_]: Async](
   override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
     f(metricsHubS(label))
 
-  override def batch(label: String): Batch[F] =
-    new Batch[F](logger, metricsHub(label), batchIdGenerator, tracer, tracer.spanBuilder(label).build)
+  override def batch(label: String): Batch[F] = {
+    val noop = Tracer.noop[F]
+    new Batch[F](logger, metricsHub(label), batchIdGenerator, noop, noop.spanBuilder(label).build)
+  }
+
+  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
+    new Batch[F](logger, metricsHub(label), batchIdGenerator, tracer, f(tracer.spanBuilder(label)))
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

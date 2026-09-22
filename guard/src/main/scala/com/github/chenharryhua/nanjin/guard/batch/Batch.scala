@@ -159,7 +159,9 @@ object Batch:
   final class JobBuilder[F[_]] private[Batch] (
     log: Log[F],
     metrics: MetricsHub[F],
-    batchIdGenerator: AtomicLong)(using F: Async[F]):
+    batchIdGenerator: AtomicLong,
+    tracer: Tracer[F],
+    parentSpan: SpanOps[F])(using F: Async[F]):
 
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
@@ -209,7 +211,7 @@ object Batch:
         */
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
-        for {
+        val batch: Resource[F, MonadicBatch[A]] = for {
           BatchPanel(update, activeGauge) <- BatchPanel.monadic[F](metrics)
           start <- Resource.eval(F.monotonic)
           (_, ExecutionState(eoa, history)) <- kleisli
@@ -224,6 +226,7 @@ object Batch:
           outcomes = history.reverse,
           result = eoa
         )
+        parentSpan.resource.flatMap(res => batch.mapK(res.trace))
       }
     end Monadic
     object Monadic:
@@ -295,8 +298,9 @@ object Batch:
                 kind = None,
                 batchId = batchId)
 
+            val traced = tracer.span(name).resource.flatMap(res => rfa.mapK(res.trace))
             val compute = for {
-              eoa <- rfa.preAllocate(lifecycle.logKickoff(log, job)).attempt
+              eoa <- traced.preAllocate(lifecycle.logKickoff(log, job)).attempt
               end <- Resource.eval(Async[F].monotonic)
             } yield {
               val succeeded = eoa.fold(_ => false, predicate)
@@ -424,7 +428,7 @@ final class Batch[F[_]: Async] private[guard] (
 
   /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
-    val builder = new Batch.JobBuilder[F](log, metrics, batchIdGenerator)
+    val builder = new Batch.JobBuilder[F](log, metrics, batchIdGenerator, tracer, parentSpan)
     f(builder)
   }
 end Batch
