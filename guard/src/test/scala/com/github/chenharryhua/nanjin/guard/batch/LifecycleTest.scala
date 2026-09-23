@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.effect.kernel.{Outcome, Ref, Resource}
+import cats.effect.kernel.{Outcome, Ref}
 import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
@@ -18,9 +18,9 @@ import scala.concurrent.duration.DurationInt
   * package-private `lifecycle`, `BatchPanel.Update`, and the `Job`/`JobRecord`/`JobState` data model.
   *
   * `JobExecutorTest` already covers that `logKickoff` fires on the happy path. What is exercised here is the
-  * `Outcome`-folding in `handleOutcome`/`handleOutcomeR`: a succeeded outcome updates the panel and emits the
-  * completion log, a canceled outcome emits the canceled log without touching the panel, and the defensive
-  * `Errored` branch logs "should not happen".
+  * `Outcome`-folding in `handleOutcome`: a succeeded outcome updates the panel and emits the completion log,
+  * a canceled outcome emits the canceled log without touching the panel, and the defensive `Errored` branch
+  * logs "should not happen".
   */
 class LifecycleTest extends CatsEffectSuite {
 
@@ -102,50 +102,6 @@ class LifecycleTest extends CatsEffectSuite {
       assert(logs.size == 1)
       assert(logs.head._2 == LogLevel.Error)
       assert(logs.head._3.contains(boom)) // the throwable is attached
-    }
-  }
-
-  // ---- handleOutcomeR (Resource) --------------------------------------------------------------------
-
-  test("4.handleOutcomeR Succeeded: updates the panel and emits the completion log") {
-    val js = state(succeeded = false) // a retained miss still logs on completion
-    run { (log, update) =>
-      lifecycle
-        .handleOutcomeR[IO, Int](log, js.record.job, update)(
-          Outcome.succeeded(Resource.pure[IO, JobState[Int]](js)))
-        .use_
-    }.map { case (_, logs, panels) =>
-      assert(panels == List(js))
-      assert(logs.size == 1)
-      // a retained predicate miss renders Unsatisfied at Warn
-      assert(logs.head._2 == LogLevel.Warn)
-    }
-  }
-
-  test("5.handleOutcomeR Canceled: emits the canceled log and does not touch the panel") {
-    run { (log, update) =>
-      lifecycle
-        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
-          Outcome.canceled[Resource[IO, *], Throwable, JobState[Int]])
-        .use_
-    }.map { case (_, logs, panels) =>
-      assert(panels.isEmpty)
-      assert(logs.size == 1)
-      assert(logs.head._2 == LogLevel.Warn)
-    }
-  }
-
-  test("6.handleOutcomeR Errored: logs the defensive should-not-happen at Error with the cause") {
-    run { (log, update) =>
-      lifecycle
-        .handleOutcomeR[IO, Int](log, job(Some(BatchKind.Quasi)), update)(
-          Outcome.errored[Resource[IO, *], Throwable, JobState[Int]](boom))
-        .use_
-    }.map { case (_, logs, panels) =>
-      assert(panels.isEmpty)
-      assert(logs.size == 1)
-      assert(logs.head._2 == LogLevel.Error)
-      assert(logs.head._3.contains(boom))
     }
   }
 

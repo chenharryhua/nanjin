@@ -179,21 +179,19 @@ final private class GeneralAgent[F[_]: Async](
   override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
     f(metricsHubS(label))
 
-  override def batch(label: String): Batch[F] = {
-    val noop = Tracer.noop[F]
+  override def batch(label: String): Batch[F] =
     new Batch[F](
       log = logger,
       metrics = metricsHub(label),
       batchIdGenerator = batchIdGenerator,
-      batchTracer = BatchTracer(noop, noop.spanBuilder(label).build))
-  }
+      batchTracer = None)
 
   override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
     new Batch[F](
       log = logger,
       metrics = metricsHub(label),
       batchIdGenerator = batchIdGenerator,
-      batchTracer = BatchTracer(tracer, f(tracer.spanBuilder(label))))
+      batchTracer = Some(BatchTracer[F](tracer, tracer.spanBuilder(label).build)))
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(
