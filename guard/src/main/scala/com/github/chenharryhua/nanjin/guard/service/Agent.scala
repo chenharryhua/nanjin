@@ -39,6 +39,8 @@ sealed trait Agent[F[_]] {
   /** Time zone used by ticks, retry policies, and circuit-breaker policies. */
   val zoneId: ZoneId
 
+  def tracer: Tracer[F]
+
   /** Create a view that reports metrics and messages under `name`.
     *
     * The returned agent shares the current agent's service resources; it does not start a new service or
@@ -131,15 +133,15 @@ sealed trait Agent[F[_]] {
 }
 
 final private class GeneralAgent[F[_]: Async](
+  val tracer: Tracer[F],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
   batchIdGenerator: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meterProvider: MeterProvider[F],
-  tracer: Tracer[F])
-    extends Agent[F] {
+  meterProvider: MeterProvider[F]
+) extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
 
