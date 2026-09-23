@@ -154,6 +154,8 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         meterProvider <- Stream.resource(service_config.meterProvider)
+        tracer <- Stream.resource(service_config.tracerProvider)
+          .evalMap(_.get(serviceParams.serviceIdentity.service.value))
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
         logLocator <- Stream.eval(service_config.logLocator)
@@ -173,7 +175,8 @@ private[guard] object ServiceGuard {
             batchIdGenerator = batchIdGenerator,
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
-            meterProvider = meterProvider
+            meterProvider = meterProvider,
+            tracer = tracer
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

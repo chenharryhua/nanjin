@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import org.typelevel.otel4s.trace.{SpanOps, Tracer}
+
 import scala.concurrent.duration.FiniteDuration
 
 /** Threaded state for a monadic batch run: the current result-or-error together with the completed job states
@@ -42,3 +44,5 @@ final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A
   * the resulting per-job timing semantics.
   */
 final private case class JobCursor(index: Int, start: FiniteDuration)
+
+final private[guard] case class BatchTracer[F[_]](tracer: Tracer[F], parent: SpanOps[F])

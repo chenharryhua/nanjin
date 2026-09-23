@@ -6,13 +6,14 @@ import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight, BatchTracer}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer}
 
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
@@ -47,6 +48,7 @@ sealed trait Agent[F[_]] {
 
   /** Create a metrics-backed batch for a named operation. */
   def batch(label: String): Batch[F]
+  def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F]
 
   /** Create a lightweight batch for a named operation without a metrics hub. */
   def batchLight(label: String): BatchLight[F]
@@ -135,7 +137,8 @@ final private class GeneralAgent[F[_]: Async](
   batchIdGenerator: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meterProvider: MeterProvider[F])
+  meterProvider: MeterProvider[F],
+  tracer: Tracer[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
@@ -148,7 +151,8 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meterProvider = meterProvider
+      meterProvider = meterProvider,
+      tracer = tracer
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -175,8 +179,21 @@ final private class GeneralAgent[F[_]: Async](
   override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
     f(metricsHubS(label))
 
-  override def batch(label: String): Batch[F] =
-    new Batch[F](logger, metricsHub(label), batchIdGenerator)
+  override def batch(label: String): Batch[F] = {
+    val noop = Tracer.noop[F]
+    new Batch[F](
+      log = logger,
+      metrics = metricsHub(label),
+      batchIdGenerator = batchIdGenerator,
+      batchTracer = BatchTracer(noop, noop.spanBuilder(label).build))
+  }
+
+  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
+    new Batch[F](
+      log = logger,
+      metrics = metricsHub(label),
+      batchIdGenerator = batchIdGenerator,
+      batchTracer = BatchTracer(tracer, f(tracer.spanBuilder(label))))
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

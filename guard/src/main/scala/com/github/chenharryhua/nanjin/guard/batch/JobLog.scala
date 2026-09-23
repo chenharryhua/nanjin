@@ -21,11 +21,12 @@ import org.apache.commons.lang3.exception.ExceptionUtils
   *     value under `result` and, on failure, an abbreviated exception message under `error`; it
   *     correspondingly requires an `Encoder[A]`.
   *
-  * So the `Encoder[A]` requirement lives solely on `inBatch`, never on the execution path: showing the value
-  * is opt-in via serialization, never automatic. It surfaces on the `QuasiBatch`/`ValueBatch` encoders, whose
-  * per-job entries render the produced `A`. The `MonadicBatch` encoder is `Encoder[A]`-free: its jobs are
-  * `JobState[Unit]`, so `inBatch` is called at `Unit`, and the batch's own final `A` is not serialized (see
-  * `MonadicBatch`).
+  * So the `Encoder[A]` requirement lives solely on `inBatch` and the batch-result encoders, never on the
+  * execution path: showing values is opt-in via serialization, never automatic. It surfaces on the
+  * `QuasiBatch`/`ValueBatch` encoders, whose per-job entries render the produced `A`, and on the
+  * `MonadicBatch` encoder, which renders its successful final `A`. Monadic per-job entries remain
+  * `JobState[Unit]`, so `inBatch` is called at `Unit`; failed final values are not serialized because their
+  * throwable belongs in the log entry's exception data (see `MonadicBatch`).
   */
 sealed private trait JobLog[A] extends Product {
   // The JSON status key is derived from the case's name (`Succeeded` -> "succeeded", etc.). This couples the

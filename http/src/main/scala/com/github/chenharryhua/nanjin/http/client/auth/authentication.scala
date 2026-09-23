@@ -12,9 +12,9 @@ import org.http4s.client.Client
   * client-credentials exchange. Scheduled renewal uses a returned `refresh_token` when available and retains
   * it when a refresh response omits a replacement.
   *
-  * The client secret is placed in the request body, so body-logging middleware can expose it. The token endpoint
-  * should use TLS outside local test environments. Use [[basicClientCredentials]] when the server supports
-  * client-secret-basic authentication.
+  * The client secret is placed in the request body, so body-logging middleware can expose it. The token
+  * endpoint should use TLS outside local test environments. Use [[basicClientCredentials]] when the server
+  * supports client-secret-basic authentication.
   *
   * Each token-endpoint request is attempted once by this layer. Configure retries, logging, metrics, and
   * tracing on `client` when needed; every acquisition and renewal is performed through that supplied client.
@@ -73,8 +73,8 @@ def postClientCredentials[F[_]: Async](
   credential: ClientCredentials
 ): Login[F] = new PostClientCredentials[F](client, credential)
 
-
-/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow with client-secret-basic authentication.
+/** Creates a `Login` instance using OAuth 2.0 Client Credentials flow with client-secret-basic
+  * authentication.
   *
   * Client credentials are sent in an HTTP Basic `Authorization` header and omitted from the form. Header- or
   * body-logging middleware must redact credentials as appropriate.
