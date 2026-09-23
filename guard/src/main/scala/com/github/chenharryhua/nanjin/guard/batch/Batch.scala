@@ -9,11 +9,13 @@ import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.either.catsSyntaxEither
+import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
+import org.typelevel.otel4s.trace.SpanOps
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
@@ -44,7 +46,7 @@ object Batch:
     protected def jobs: List[JobNameIndex[F, A]]
     protected def batchIdGenerator: AtomicLong
     protected def executor: JobExecutor[F, A]
-    protected def batchTracer: BatchTracer[F]
+    protected def batchTracer: Option[BatchTracer[F]]
 
     /** Run `f` over every job, in the subclass's traversal order (parallel vs sequential). */
     protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
@@ -65,13 +67,18 @@ object Batch:
     final def quasiBatch: Resource[F, QuasiBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobState[A]])] =
-        batchTracer.parent.use(span =>
-          traverseJobs(jni =>
-            batchTracer.tracer
-              .childScope(span.context) {
-                batchTracer.tracer.span(jni.name).surround(runJob(executor.quasiJob(jni, batchId), panel))
-              })).timed
-          .guarantee(panel.activeGauge.deactivate)
+        batchTracer match {
+          case Some(BatchTracer(tracer, parent)) =>
+            parent.use { span =>
+              traverseJobs { jni =>
+                val fa: F[A] = tracer.childScope(span.context)(tracer.span(jni.name).surround(jni.fa))
+                runJob(executor.quasiJob(jni.copy(fa = fa), batchId), panel)
+              }.timed.guarantee(panel.activeGauge.deactivate)
+            }
+          case None =>
+            traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel))
+              .timed.guarantee(panel.activeGauge.deactivate)
+        }
 
       BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
         case (fd: FiniteDuration, js: List[JobState[A]]) =>
@@ -85,16 +92,23 @@ object Batch:
     final def valueBatch: Resource[F, ValueBatch[A]] = {
       val batchId: BatchId = nextBatchId
       def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
-        batchTracer.parent.use(span =>
-          traverseJobs { jni =>
-            batchTracer.tracer.childScope(span.context) {
-              batchTracer.tracer.span(jni.name).surround(
-                runJob(executor.valueJob(jni, batchId), panel)
+        batchTracer match {
+          case Some(BatchTracer(tracer, parent)) =>
+            parent.use { span =>
+              traverseJobs { jni =>
+                val fa: F[A] = tracer.childScope(span.context)(tracer.span(jni.name).surround(jni.fa))
+                runJob(executor.valueJob(jni.copy(fa = fa), batchId), panel)
                   .map(js => js.result.map(JobValue(js.record, _)))
                   .rethrow
-              )
+              }.timed.guarantee(panel.activeGauge.deactivate)
             }
-          }).timed.guarantee(panel.activeGauge.deactivate)
+          case None =>
+            traverseJobs { jni =>
+              runJob(executor.valueJob(jni, batchId), panel)
+                .map(js => js.result.map(JobValue(js.record, _)))
+                .rethrow
+            }.timed.guarantee(panel.activeGauge.deactivate)
+        }
 
       BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
@@ -119,7 +133,7 @@ object Batch:
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
     protected val batchIdGenerator: AtomicLong,
-    protected val batchTracer: BatchTracer[F])
+    protected val batchTracer: Option[BatchTracer[F]])
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
@@ -143,7 +157,7 @@ object Batch:
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
     protected val batchIdGenerator: AtomicLong,
-    protected val batchTracer: BatchTracer[F])
+    protected val batchTracer: Option[BatchTracer[F]])
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
@@ -169,15 +183,15 @@ object Batch:
     log: Log[F],
     metrics: MetricsHub[F],
     batchIdGenerator: AtomicLong,
-    batchTracer: BatchTracer[F]
+    batchTracer: Option[BatchTracer[F]]
   )(using F: Async[F]):
 
     final class Monadic[A] private[Batch] (
-      private val kleisli: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[A]]):
+      private val kleisli: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[A]]):
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[Resource[F, *], JobCursor, *], Context[F], ExecutionState[B]] =
+        val runB: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[B]] =
           kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
             execState.eoa match {
               case Left(ex) => StateT((cursor: JobCursor) => (cursor -> execState.update[B](ex)).pure)
@@ -209,33 +223,35 @@ object Batch:
 
       /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON.
         *
-        * Job outcomes never fail this resource: a job that throws, a lifted `untracked`/`pure` step that
+        * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
         * throws, and a `withFilter` rejection are all captured and surface as `Left` in the returned
         * `MonadicBatch.result`, short-circuiting the chain. Read `result` to observe success or failure of
         * the work. Lifecycle logging and metrics-panel updates are treated as non-failing.
         *
         * The only faults that can fail this resource are in the batch machinery itself, not the jobs: setting
-        * up and tearing down the metrics panel and active gauge, and releasing `untracked` resources when the
-        * scope closes.
+        * up and tearing down the metrics panel and active gauge.
         */
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
         val batch: Resource[F, MonadicBatch[A]] = for {
           BatchPanel(update, activeGauge) <- BatchPanel.monadic[F](metrics)
-          start <- Resource.eval(F.monotonic)
-          (_, ExecutionState(eoa, history)) <- kleisli
-            .run(Context[F](update, log, batchId))
-            .run(JobCursor(1, start))
-            .guarantee(Resource.eval(activeGauge.deactivate))
-          end <- Resource.eval(F.monotonic)
-        } yield MonadicBatch(
-          scope = metrics.scope,
-          spent = (end - start).toJava,
-          batchId = batchId,
-          outcomes = history.reverse,
-          result = eoa
-        )
-        batchTracer.parent.resource.flatMap(res => batch.mapK(res.trace))
+          result <- Resource.eval(
+            for {
+              start <- F.monotonic
+              (_, ExecutionState(eoa, history)) <- kleisli
+                .run(Context[F](update, log, batchId))
+                .run(JobCursor(1, start))
+                .guarantee(activeGauge.deactivate)
+              end <- F.monotonic
+            } yield MonadicBatch(
+              scope = metrics.scope,
+              spent = (end - start).toJava,
+              batchId = batchId,
+              outcomes = history.reverse,
+              result = eoa
+            ))
+        } yield result
+        batchTracer.fold(batch)(_.parent.resource.flatMap(res => batch.mapK(res.trace)))
       }
     end Monadic
     object Monadic:
@@ -263,45 +279,20 @@ object Batch:
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor =>
-          Resource.eval(fa.attempt)
-            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
+          fa.attempt.map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
       })
 
-    /** Add a resource to the monadic batch without creating a job.
-      *
-      * The resource is acquired when this step runs and released when the batch's resource scope closes. It
-      * is not tracked, timed, or reported. If acquisition fails, the failure short-circuits the chain: no
-      * further jobs run and the failure surfaces as `Left` in the batch `result`, wrapped in
-      * `UntrackedStepException` so it is distinguishable there from a tracked job's failure. Release errors
-      * are not captured here; they surface through the resource scope as usual. This split is deliberate: a
-      * release fault is an uncontrollable cleanup failure (a failed flush/commit, or a broken resource) that
-      * should escape and trip a service-level alert, not be demoted to a handled `Left` job result.
-      */
-    def untracked[A](rfa: Resource[F, A]): Monadic[A] =
-      new Monadic[A](Kleisli { _ =>
-        StateT(cursor =>
-          rfa.attempt
-            .map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
-      })
-
-    private def tracedResource[A](name: String, rfa: Resource[F, A], precede: F[Unit]): Resource[F, A] =
-      Resource.eval(
-        batchTracer.tracer.span(name).surround(rfa.preAllocate(precede).allocated)
-      ).flatMap { case (value, release) =>
-        Resource.make(F.pure(value))(_ => release)
-      }
-
-    /** Add a named resource-backed value job.
+    /** Add a named effect-backed value job.
       *
       * Exceptions from individual jobs are propagated through the monadic result, causing the remainder of
       * the monadic chain to stop at the first failure.
       *
       * @param name
       *   name of the job
-      * @param rfa
-      *   the resource-backed job
+      * @param fa
+      *   the effect to run
       */
-    private def create[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
+    private def create[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(update, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -314,17 +305,17 @@ object Batch:
                 kind = None,
                 batchId = batchId)
 
-            val traced = tracedResource(name, rfa, lifecycle.logKickoff(log, job))
             val compute = for {
-              eoa <- traced.attempt
-              end <- Resource.eval(F.monotonic)
+              _ <- lifecycle.logKickoff(log, job)
+              eoa <- batchTracer.fold(fa.attempt)(_.tracer.span(name).surround(fa).attempt)
+              end <- F.monotonic
             } yield {
               val succeeded = eoa.fold(_ => false, predicate)
               JobState(JobRecord(job, start, end, succeeded), eoa)
             }
 
             compute
-              .guaranteeCase(lifecycle.handleOutcomeR(log, job, update))
+              .guaranteeCase(lifecycle.handleOutcome(log, job, update))
               .map { js =>
                 JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
               }
@@ -332,44 +323,15 @@ object Batch:
         }
       )
 
-    /** Add a named resource-backed job. The job succeeds unless its resource acquisition or effect throws, in
-      * which case the exception is captured as the job's failure and stops the chain. Only acquisition is
-      * captured this way: a failure while *releasing* the resource happens when the batch's resource scope
-      * closes, after `result` is produced, so it surfaces through the resource scope rather than as the job's
-      * `result`. This split is deliberate: a release fault is an uncontrollable cleanup failure that should
-      * escape and trip a service-level alert, not be demoted to a handled `Left` job result.
-      *
-      * @param name
-      *   name of the job
-      * @param rfa
-      *   the resource-backed job
-      */
-    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] = create[A](name, rfa, _ => true)
-
     /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
       * stops the chain.
-      */
-    def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, Resource.eval(fa), _ => true)
-
-    /** Add a named resource-backed job whose success is decided by `predicate`.
-      *
-      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
-      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
-      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
-      * `predicate`. As with the non-predicate overload, only resource *acquisition* is captured this way; a
-      * failure while releasing the resource surfaces through the resource scope, not the job's `result`, so
-      * cleanup fault escapes to a service-level alert rather than being demoted to a `Left`.
       *
       * @param name
       *   name of the job
-      * @param rfa
-      *   the resource-backed job
-      * @param predicate
-      *   applied to a successful value to decide whether the job counts as succeeded
+      * @param fa
+      *   the effect to run
       */
-    def apply[A](name: String, rfa: Resource[F, A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, rfa, predicate)
+    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, fa, _ => true)
 
     /** Add a named effect-backed job whose success is decided by `predicate`.
       *
@@ -386,7 +348,7 @@ object Batch:
       *   applied to a successful value to decide whether the job counts as succeeded
       */
     def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, Resource.eval(fa), predicate)
+      create[A](name, fa, predicate)
 
   end JobBuilder
 end Batch
@@ -401,9 +363,8 @@ final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
   batchIdGenerator: AtomicLong,
-  batchTracer: BatchTracer[F]):
-  /** Create a sequential batch from named effects; jobs run in input order.
-    */
+  batchTracer: Option[BatchTracer[F]]):
+
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -414,7 +375,8 @@ final class Batch[F[_]: Async] private[guard] (
       metrics = metrics,
       jobs = jobs,
       batchIdGenerator = batchIdGenerator,
-      batchTracer = batchTracer)
+      batchTracer = batchTracer
+    )
   }
 
   /** Create a parallel batch from named effects using the given parallelism.
@@ -433,7 +395,8 @@ final class Batch[F[_]: Async] private[guard] (
       parallelism = parallelism,
       jobs = jobs,
       batchIdGenerator = batchIdGenerator,
-      batchTracer = batchTracer)
+      batchTracer = batchTracer
+    )
   }
 
   /** Create a parallel batch with parallelism inferred from the job count. */

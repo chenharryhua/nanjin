@@ -505,45 +505,6 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("22.monadic lift(Resource) - resource acquired and used") {
-    service.eventStreamR { agent =>
-      agent.batch("lift-resource").monadic { job =>
-        val result = for {
-          ref <- job.untracked(cats.effect.Resource.eval(cats.effect.Ref[IO].of(0)))
-          _ <- job("increment", ref.update(_ + 1))
-          _ <- job("increment2", ref.update(_ + 10))
-          v <- job("read", ref.get)
-        } yield v
-        result.monadicBatch.map { mb =>
-          assert(mb.result.isRight)
-          assert(mb.result == Right(11))
-          assert(mb.outcomes.size == 3)
-          assert(mb.outcomes.map(_.record.job.name) == List("increment", "increment2", "read"))
-        }
-      }
-    }.compile.lastOrError.map { se =>
-      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    }
-  }
-
-  test("23.monadic lift(Resource) - acquisition failure short-circuits the chain") {
-    service.eventStreamR { agent =>
-      agent.batch("lift-resource-error").monadic { job =>
-        val result = for {
-          _ <- job.untracked(
-            cats.effect.Resource.raiseError[IO, Int, Throwable](new Exception("acquire fail")))
-          _ <- job("unreachable", IO(1))
-        } yield ()
-        result.monadicBatch.map { mb =>
-          assert(mb.result.isLeft)
-          assert(mb.outcomes.isEmpty)
-        }
-      }
-    }.compile.lastOrError.map { se =>
-      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    }
-  }
-
   test("24.monadic spent counts invisible lift steps between jobs") {
     // Regression: the old spent summed per-job took, dropping wall-clock consumed by
     // invisible lift/pure steps. spent is now the full span, so a 200ms lifted sleep
@@ -618,31 +579,6 @@ class BatchTest extends CatsEffectSuite {
       }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-    }
-  }
-
-  test("27.monadic untracked(Resource) release failure surfaces through the scope") {
-    // Guards the documented boundary: acquisition failure is captured into `result`,
-    // but a *release* failure is not — it surfaces through the resource scope. Here the
-    // untracked resource acquires fine and every job succeeds (so mb.result is Right),
-    // yet releasing it on scope close throws, which fails the effect that ran the batch.
-    @volatile var observedResult: Option[Either[Throwable, Int]] = None
-    service.eventStream { agent =>
-      agent.batch("release-fail").monadic { job =>
-        val result = for {
-          _ <- job.untracked(
-            cats.effect.Resource.make(IO.unit)(_ => IO.raiseError(new Exception("release fail"))))
-          v <- job("ok", IO(1))
-        } yield v
-        result.monadicBatch.use { mb =>
-          IO { observedResult = Some(mb.result) }
-        }
-      }
-    }.map(checkJson).compile.lastOrError.map { se =>
-      // inside the scope the batch succeeded ...
-      assert(observedResult == Some(Right(1)))
-      // ... yet the release fault brought the service down (uncaught in F)
-      assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
     }
   }
 }
