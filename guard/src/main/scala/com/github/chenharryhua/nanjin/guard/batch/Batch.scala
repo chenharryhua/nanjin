@@ -233,10 +233,9 @@ object Batch:
         */
       def monadicBatch: Resource[F, MonadicBatch[A]] = {
         val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
-        val batch: Resource[F, MonadicBatch[A]] = for {
-          BatchPanel(update, activeGauge) <- BatchPanel.monadic[F](metrics)
-          result <- Resource.eval(
-            for {
+        BatchPanel.monadic[F](metrics)
+          .evalMap { case BatchPanel(update, activeGauge) =>
+            val m = for {
               start <- F.monotonic
               (_, ExecutionState(eoa, history)) <- kleisli
                 .run(Context[F](update, log, batchId))
@@ -249,9 +248,9 @@ object Batch:
               batchId = batchId,
               outcomes = history.reverse,
               result = eoa
-            ))
-        } yield result
-        batchTracer.fold(batch)(_.parent.resource.flatMap(res => batch.mapK(res.trace)))
+            )
+            batchTracer.fold(m)(_.parent.surround(m))
+          }
       }
     end Monadic
     object Monadic:
