@@ -389,7 +389,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
-      "com.github.luben" % "zstd-jni"          % "1.5.7-18" // snyk by kafka-schema-registry-client
+      "com.github.luben" % "zstd-jni"          % "1.5.7-19" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
