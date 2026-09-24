@@ -72,12 +72,20 @@ private object MetricToken:
 end MetricToken
 
 final case class MetricScope(label: MetricScope.Label, domain: Domain, service: Service, task: Task)
-    derives Codec.AsObject
+    derives Codec.AsObject {
+  val attributes: List[Attribute[String]] =
+    List(
+      Attribute("nj.domain", domain.value),
+      Attribute("nj.service", service.value),
+      Attribute("nj.task", task.value)
+    )
+}
 object MetricScope {
   opaque type Label = String
   object Label:
     def apply(value: String): Label = value
     extension (t: Label) inline def value: String = t
+
     given Show[Label] = OpaqueLift.lift[Label, String, Show]
     given Encoder[Label] = OpaqueLift.lift[Label, String, Encoder]
     given Decoder[Label] = OpaqueLift.lift[Label, String, Decoder]
@@ -115,10 +123,5 @@ object MetricScope {
 final case class MetricId(scope: MetricScope, token: MetricToken, category: MetricCategory)
     derives Codec.AsObject:
   val identifier: String = Encoder[MetricId].apply(this).noSpaces
-  val attributes: List[Attribute[String]] =
-    List(
-      Attribute.from("nj.domain", scope.domain.value),
-      Attribute.from("nj.service", scope.service.value),
-      Attribute.from("nj.task", scope.task.value)
-    )
+
 end MetricId

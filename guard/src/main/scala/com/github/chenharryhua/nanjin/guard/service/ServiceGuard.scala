@@ -169,14 +169,14 @@ private[guard] object ServiceGuard {
         meHandler <- MetricsEventHandler(serviceParams, channel, logSink, logLocator)
         agent: GeneralAgent[F] =
           new GeneralAgent[F](
+            tracer = tracer,
             serviceParams = serviceParams,
             channel = channel,
             dispatcher = dispatcher,
             batchIdGenerator = batchIdGenerator,
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
-            meterProvider = meterProvider,
-            tracer = tracer
+            meterProvider = meterProvider
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

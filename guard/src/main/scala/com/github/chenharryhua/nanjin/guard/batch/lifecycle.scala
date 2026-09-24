@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.effect.kernel.{Outcome, Resource}
+import cats.Monad
+import cats.effect.kernel.Outcome
 import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.logging.Log
 
 /** Job lifecycle logging and outcome handling shared by `Batch` and `JobExecutor`.
@@ -32,14 +32,4 @@ private object lifecycle {
       errored = ex => log.error("should not happen", ex),
       canceled = logCanceled(log, job)
     )
-
-  def handleOutcomeR[F[_]: Applicative, A](log: Log[F], job: Job, update: BatchPanel.Update[F])(
-    outcome: Outcome[Resource[F, *], Throwable, JobState[A]]): Resource[F, Unit] =
-    outcome match {
-      case Outcome.Succeeded(rfa) =>
-        rfa.evalMap(js => update.run(js) *> logCompleted(log, js))
-      // Outcome.Errored should be impossible because the kickoff and job effects are wrapped in attempt
-      case Outcome.Errored(ex) => Resource.eval(log.error("should not happen", ex))
-      case Outcome.Canceled()  => Resource.eval(logCanceled(log, job))
-    }
 }

@@ -83,7 +83,7 @@ object Timer {
     // to `timeunit`, and the otel instrument carries that unit's symbol.
     override def elapsedNano(num: Long): F[Unit] =
       F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >>
-        otel.record(Nanoseconds(num).in(timeunit).value, id.attributes)
+        otel.record(Nanoseconds(num).in(timeunit).value, id.scope.attributes)
 
     // Measure the effect once, then record the same elapsed time to both backends.
     override def timing[A](fa: F[A]): F[A] =

@@ -64,7 +64,7 @@ object Histogram {
     // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
     // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
     override def update(num: Long): F[Unit] =
-      F.delay(histogram.update(num)) >> otel.record(num, id.attributes)
+      F.delay(histogram.update(num)) >> otel.record(num, id.scope.attributes)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 

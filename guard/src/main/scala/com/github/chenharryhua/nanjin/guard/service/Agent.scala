@@ -39,6 +39,8 @@ sealed trait Agent[F[_]] {
   /** Time zone used by ticks, retry policies, and circuit-breaker policies. */
   val zoneId: ZoneId
 
+  def tracer: Tracer[F]
+
   /** Create a view that reports metrics and messages under `name`.
     *
     * The returned agent shares the current agent's service resources; it does not start a new service or
@@ -131,28 +133,28 @@ sealed trait Agent[F[_]] {
 }
 
 final private class GeneralAgent[F[_]: Async](
+  val tracer: Tracer[F],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
   batchIdGenerator: AtomicLong,
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meterProvider: MeterProvider[F],
-  tracer: Tracer[F])
-    extends Agent[F] {
+  meterProvider: MeterProvider[F]
+) extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
 
   override def withDomain(domain: String): Agent[F] =
     new GeneralAgent[F](
+      tracer = tracer,
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meterProvider = meterProvider,
-      tracer = tracer
+      meterProvider = meterProvider
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -179,21 +181,25 @@ final private class GeneralAgent[F[_]: Async](
   override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
     f(metricsHubS(label))
 
-  override def batch(label: String): Batch[F] = {
-    val noop = Tracer.noop[F]
+  override def batch(label: String): Batch[F] =
     new Batch[F](
       log = logger,
       metrics = metricsHub(label),
       batchIdGenerator = batchIdGenerator,
-      batchTracer = BatchTracer(noop, noop.spanBuilder(label).build))
-  }
+      batchTracer = None)
 
-  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
+  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] = {
+    val metrics = metricsHub(label)
     new Batch[F](
       log = logger,
-      metrics = metricsHub(label),
+      metrics = metrics,
       batchIdGenerator = batchIdGenerator,
-      batchTracer = BatchTracer(tracer, f(tracer.spanBuilder(label))))
+      batchTracer = Some(
+        BatchTracer[F](
+          tracer = tracer,
+          parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(metrics.scope.attributes)))))
+    )
+  }
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(
