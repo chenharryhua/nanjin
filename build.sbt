@@ -40,7 +40,7 @@ val parquetV = "1.18.1"
 val postgresV = "42.7.13"
 val scalapbV = "0.11.20"
 val skunkV = "1.0.0"
-val slf4jV = "2.0.19"
+val slf4jV = "2.0.20"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
