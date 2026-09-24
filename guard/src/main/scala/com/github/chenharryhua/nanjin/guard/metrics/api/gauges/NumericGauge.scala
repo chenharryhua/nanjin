@@ -95,7 +95,7 @@ object NumericGauge {
             .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
               m.observableGauge[Long](name).withUnit(squants.unitSymbol))
             .map(b => description.fold(b)(b.withDescription))
-            .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.attributes*))).void)
+            .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
         }
 
       def impl: Resource[F, Unit] =

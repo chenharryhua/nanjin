@@ -147,14 +147,14 @@ final private class GeneralAgent[F[_]: Async](
 
   override def withDomain(domain: String): Agent[F] =
     new GeneralAgent[F](
+      tracer = tracer,
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meterProvider = meterProvider,
-      tracer = tracer
+      meterProvider = meterProvider
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -188,12 +188,18 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       batchTracer = None)
 
-  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] =
+  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] = {
+    val metrics = metricsHub(label)
     new Batch[F](
       log = logger,
-      metrics = metricsHub(label),
+      metrics = metrics,
       batchIdGenerator = batchIdGenerator,
-      batchTracer = Some(BatchTracer[F](tracer, tracer.spanBuilder(label).build)))
+      batchTracer = Some(
+        BatchTracer[F](
+          tracer = tracer,
+          parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(metrics.scope.attributes)))))
+    )
+  }
 
   override def batchLight(label: String): BatchLight[F] = {
     val scope = MetricScope(

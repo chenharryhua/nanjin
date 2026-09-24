@@ -51,7 +51,7 @@ object Meter {
     // Records to Dropwizard and to an otel4s monotonic Counter (no-op when the configured MeterProvider is
     // MeterProvider.noop). nanjin's Meter counts events; the otel SDK derives the rate from the sum.
     override def mark(num: Long): F[Unit] =
-      F.delay(meter.mark(num)) >> otel.add(num, id.attributes)
+      F.delay(meter.mark(num)) >> otel.add(num, id.scope.attributes)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
