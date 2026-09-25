@@ -79,7 +79,7 @@ class DateTimeRangeTest extends DisciplineSuite {
 
     val dtr = DateTimeRange(beijingTime).withStartTime(d1).withEndTime("2012-10-28")
 
-    assert(dtr.days.toList.eqv(List(d1, d2, d3)))
+    assert(dtr.days.toList.eqv(List(d1, d2)))
 
     assert(dtr.withOneDay(d3).days.toList.eqv(List(d3)))
   }
@@ -128,16 +128,16 @@ class DateTimeRangeTest extends DisciplineSuite {
   }
 
   test("8.one day") {
-    val t = DateTimeRange(sydneyTime).withToday
-    val y = DateTimeRange(sydneyTime).withYesterday
-    val e = DateTimeRange(sydneyTime).withEreyesterday
+    val today = LocalDate.now(sydneyTime)
+    val t = DateTimeRange(sydneyTime).withOneDay(today)
+    val y = DateTimeRange(sydneyTime).withOneDay(today.minusDays(1))
+    val e = DateTimeRange(sydneyTime).withOneDay(today.minusDays(2))
     assert(t.days.size == 1)
     assert(y.days.size == 1)
     assert(e.days.size == 1)
-    // fail on day leap
-    assert(t.javaDuration.get.toMillis == 86399999)
-    assert(y.javaDuration.get.toMillis == 86399999)
-    assert(e.javaDuration.get.toMillis == 86399999)
+    assert(t.zonedEndTime.get.toLocalDate == today.plusDays(1))
+    assert(y.zonedEndTime.get.toLocalDate == today)
+    assert(e.zonedEndTime.get.toLocalDate == today.minusDays(1))
     println(t)
     println(y)
     println(e)
@@ -355,9 +355,9 @@ class DateTimeRangeTest extends DisciplineSuite {
   test("26.days and duration when start equals end") {
     val x = Instant.parse("2021-03-14T12:00:00Z")
     val dr = DateTimeRange(utcTime).withStartTime(x).withEndTime(x)
-    assert(dr.days.toList == List(LocalDate.parse("2021-03-14")))
+    assert(dr.days.isEmpty)
     assert(dr.javaDuration.get.isZero)
-    assert(dr.inBetween(x), "single-instant range still includes its start (closed start)")
+    assert(!dr.inBetween(x), "an empty half-open range contains no instants")
   }
 
   test("27.subranges - interval at least as wide as the span yields one bucket") {
@@ -471,6 +471,16 @@ class DateTimeRangeTest extends DisciplineSuite {
     val dr = DateTimeRange(sydneyTime).withOneDay("2021-06-01")
     assert(dr.days.toList == List(LocalDate.parse("2021-06-01")))
     assert(dr.zonedStartTime.get.toLocalTime == LocalTime.MIDNIGHT)
+    assert(dr.zonedEndTime.get.toLocalDate == LocalDate.parse("2021-06-02"))
+    assert(dr.zonedEndTime.get.toLocalTime == LocalTime.MIDNIGHT)
+    assert(dr.inBetween(dr.end.get.minusNanos(1)))
+    assert(!dr.inBetween(dr.end.get))
+  }
+
+  test("39.withOneDay handles LocalDate.MAX") {
+    val dr = DateTimeRange(utcTime).withOneDay(LocalDate.MAX)
+    assert(dr.zonedStartTime.get.toLocalDate == LocalDate.MAX)
+    assert(dr.zonedEndTime.get.toLocalDate == LocalDate.MAX)
     assert(dr.zonedEndTime.get.toLocalTime == LocalTime.MAX)
   }
 }
