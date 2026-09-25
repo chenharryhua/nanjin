@@ -111,7 +111,7 @@ class Performance extends CatsEffectSuite {
       }
   }
 
-  test("8.performance batch") {
+  test("8.performance batch light") {
     var i: Int = 0
     service
       .eventStream(agent => agent.batchLight("batch").monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
@@ -124,7 +124,21 @@ class Performance extends CatsEffectSuite {
       }
   }
 
-  test("9.performance channel") {
+  test("8.performance batch traced") {
+    var i: Int = 0
+    service
+      .eventStream(agent =>
+        agent.batchTraced("batch traced", _.build).monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .map { _ =>
+        println(s"batch traced:  ${timeout.toNanos / i} nano")
+        println(s"speed: ${i / timeout.toMillis} k/s")
+      }
+  }
+
+  test("10.performance channel") {
     service
       .eventStreamS(agent => fs2.Stream.repeatEval(agent.logger.error("hello")).take(3_000_000))
       .compile

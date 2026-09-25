@@ -225,8 +225,10 @@ object BatchTraced:
           }
         }
       )
-    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, _ => fa, _ => true)
-    def apply[A](name: String, f: Span[F] => F[A]): Monadic[A] = create[A](name, f, _ => true)
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
+      create[A](name, _ => fa, _ => true)
+    def apply[A](name: String, f: Span[F] => F[A]): Monadic[A] =
+      create[A](name, f, _ => true)
     def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
       create[A](name, _ => fa, predicate)
     def apply[A](name: String, f: Span[F] => F[A], predicate: A => Boolean): Monadic[A] =
