@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight, BatchTracer}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight, BatchTraced, BatchTracer}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
@@ -50,10 +50,10 @@ sealed trait Agent[F[_]] {
 
   /** Create a metrics-backed batch for a named operation. */
   def batch(label: String): Batch[F]
-  def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F]
 
   /** Create a lightweight batch for a named operation without a metrics hub. */
   def batchLight(label: String): BatchLight[F]
+  def batchTraced(label: String, f: SpanBuilder[F] => SpanOps[F]): BatchTraced[F]
 
   /** Create a stream of scheduled ticks in the agent's time zone.
     *
@@ -182,22 +182,20 @@ final private class GeneralAgent[F[_]: Async](
     f(metricsHubS(label))
 
   override def batch(label: String): Batch[F] =
-    new Batch[F](
-      log = logger,
-      metrics = metricsHub(label),
-      batchIdGenerator = batchIdGenerator,
-      batchTracer = None)
+    new Batch[F](log = logger, metrics = metricsHub(label), batchIdGenerator = batchIdGenerator)
 
-  override def batch(label: String, f: SpanBuilder[F] => SpanOps[F]): Batch[F] = {
-    val metrics = metricsHub(label)
-    new Batch[F](
-      log = logger,
-      metrics = metrics,
+  override def batchTraced(label: String, f: SpanBuilder[F] => SpanOps[F]): BatchTraced[F] = {
+    val scope = MetricScope(
+      MetricScope.Label(label),
+      reportedEventHandler.domain,
+      serviceParams.serviceIdentity.service,
+      serviceParams.serviceIdentity.task)
+    new BatchTraced[F](
+      scope = scope,
       batchIdGenerator = batchIdGenerator,
-      batchTracer = Some(
-        BatchTracer[F](
-          tracer = tracer,
-          parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(metrics.scope.attributes)))))
+      batchTracer = BatchTracer[F](
+        tracer = tracer,
+        parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(scope.attributes))))
     )
   }
 
