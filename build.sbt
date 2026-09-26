@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.55.5"
+val awsV = "2.55.6"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.0.0"
 val circeV = "0.14.16"
@@ -28,11 +28,12 @@ val fs2KafkaV = "4.1.1"
 val fs2V = "3.14.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.3"
+val jacksonScalaV = "2.22.3.1"
 val jettyV = "12.1.13"
 val http4sV = "0.23.37"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.4"
-val lz4V = "1.11.3"
+val lz4V = "1.12.0"
 val metricsV = "4.2.40"
 val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
@@ -375,7 +376,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-optics"                % circeOpticsV,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbV,
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonScalaV,
       // java
       "org.apache.avro"  % "avro"                         % avroV,
       "io.confluent"     % "kafka-protobuf-serializer"    % confluentV,
@@ -417,7 +418,7 @@ lazy val pipes = (project in file("pipes"))
       "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime"              % scalapbV,
       "io.circe" %% "circe-jawn"                               % circeV,
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonScalaV,
       // java
       "org.apache.hadoop"  % "hadoop-client" % hadoopV,
       "org.apache.parquet" % "parquet-avro"  % parquetV,

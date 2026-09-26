@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchLight, BatchTraced, BatchTracer}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchId, BatchLight, BatchTraced, BatchTracer}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
@@ -16,7 +16,6 @@ import org.typelevel.otel4s.metrics.MeterProvider
 import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer}
 
 import java.time.ZoneId
-import java.util.concurrent.atomic.AtomicLong
 
 /** Scoped service façade for metrics, batching, scheduling, logging, and resilience.
   *
@@ -137,7 +136,7 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
-  batchIdGenerator: AtomicLong,
+  batchIdGenerator: F[BatchId],
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
   meterProvider: MeterProvider[F]
