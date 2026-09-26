@@ -82,11 +82,6 @@ abstract class Log[F[_]: MonadThrow]:
   final def info[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Info, None)
 
   final def debug[S: Encoder](msg: => S): F[Unit] = emit[S](msg, LogLevel.Debug, None)
-  final def debug[S: Encoder](msg: F[S]): F[Unit] =
-    msg.attempt.flatMap {
-      case Left(ex)     => emit[String]("Debug Error", LogLevel.Debug, Some(ex))
-      case Right(value) => emit[S](value, LogLevel.Debug, None)
-    }
 end Log
 
 object Log:

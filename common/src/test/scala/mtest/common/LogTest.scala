@@ -45,15 +45,22 @@ class LogTest extends CatsEffectSuite {
     }
   }
 
-  test("debug effect logs the value on success and a fallback message on failure") {
+  test("logs enabled debug messages") {
     val log = new RecordingLog(Set(LogLevel.Debug))
-    val failure = new RuntimeException("broken")
 
-    for {
-      _ <- log.debug(IO.pure("ok"))
-      _ = assertEquals(log.snapshot, Vector((LogLevel.Debug, "\"ok\"", None)))
-      _ <- log.debug(IO.raiseError[String](failure))
-    } yield assertEquals(log.snapshot.last, (LogLevel.Debug, "\"Debug Error\"", Some(failure)))
+    log.debug("ok").map { _ =>
+      assertEquals(log.snapshot, Vector((LogLevel.Debug, "\"ok\"", None)))
+    }
+  }
+
+  test("does not evaluate a debug message when debug is disabled") {
+    val log = new RecordingLog(Set.empty)
+    val boom = new RuntimeException("should not be evaluated")
+    def msg: String = throw boom
+
+    log.debug(msg).map { _ =>
+      assert(log.snapshot.isEmpty)
+    }
   }
 
   test("noop logger ignores messages without throwing") {
@@ -61,7 +68,7 @@ class LogTest extends CatsEffectSuite {
 
     for {
       _ <- log.good("silent")
-      _ <- log.debug(IO.raiseError[String](new RuntimeException("should be ignored")))
+      _ <- log.debug("silent")
     } yield ()
   }
 

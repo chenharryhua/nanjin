@@ -16,7 +16,6 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 
-import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -43,13 +42,11 @@ object Batch:
     protected def log: Log[F]
     protected def metrics: MetricsHub[F]
     protected def jobs: List[JobNameIndex[F, A]]
-    protected def batchIdGenerator: AtomicLong
+    protected def batchIdGenerator: F[BatchId]
     protected def executor: JobExecutor[F, A]
 
     /** Run `f` over every job, in the subclass's traversal order (parallel vs sequential). */
     protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
-
-    private def nextBatchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
 
     /** Run one job under lifecycle handling: log kickoff/completion and update the panel. */
     private def runJob(cj: ComputeJob[F, A], panel: BatchPanel[F]): F[JobState[A]] =
@@ -62,41 +59,44 @@ object Batch:
       *   a batch result where each job is marked as succeeded only when it completes and satisfies the
       *   post-condition; otherwise it is marked as failed.
       */
-    final def quasiBatch: Resource[F, QuasiBatch[A]] = {
-      val batchId: BatchId = nextBatchId
-      def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobState[A]])] =
-        traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel))
-          .timed.guarantee(panel.activeGauge.deactivate)
-
-      BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map {
-        case (fd: FiniteDuration, js: List[JobState[A]]) =>
-          QuasiBatch(scope = metrics.scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
+    final def quasiBatch: Resource[F, QuasiBatch[A]] =
+      BatchPanel(metrics, jobs.size, BatchKind.Quasi, mode).evalMap { panel =>
+        batchIdGenerator.flatMap { batchId =>
+          traverseJobs(jni => runJob(executor.quasiJob(jni, batchId), panel))
+            .timed.guarantee(panel.activeGauge.deactivate)
+            .map { case (fd: FiniteDuration, js: List[JobState[A]]) =>
+              QuasiBatch(
+                scope = metrics.scope,
+                spent = fd.toJava,
+                mode = mode,
+                batchId = batchId,
+                outcomes = js)
+            }
+        }
       }
-    }
 
     /** Exceptions from individual jobs are propagated, causing the batch operation to fail immediately, and a
       * post-condition failure is reported as `PostConditionUnsatisfied`.
       */
-    final def valueBatch: Resource[F, ValueBatch[A]] = {
-      val batchId: BatchId = nextBatchId
-      def exec(panel: BatchPanel[F]): F[(FiniteDuration, List[JobValue[A]])] =
-        traverseJobs { jni =>
-          runJob(executor.valueJob(jni, batchId), panel)
-            .map(js => js.result.map(JobValue(js.record, _)))
-            .rethrow
-        }.timed.guarantee(panel.activeGauge.deactivate)
-
-      BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map {
-        case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
-          ValueBatch(
-            scope = metrics.scope,
-            spent = fd.toJava,
-            mode = mode,
-            batchId = batchId,
-            outcomes = jv.map(v => JobState(v.record, Right(v.result))),
-            result = jv.map(_.result))
+    final def valueBatch: Resource[F, ValueBatch[A]] =
+      BatchPanel(metrics, jobs.size, BatchKind.Value, mode).evalMap { panel =>
+        batchIdGenerator.flatMap { batchId =>
+          traverseJobs { jni =>
+            runJob(executor.valueJob(jni, batchId), panel)
+              .map(js => js.result.map(JobValue(js.record, _)))
+              .rethrow
+          }.timed.guarantee(panel.activeGauge.deactivate).map {
+            case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
+              ValueBatch(
+                scope = metrics.scope,
+                spent = fd.toJava,
+                mode = mode,
+                batchId = batchId,
+                outcomes = jv.map(v => JobState(v.record, Right(v.result))),
+                result = jv.map(_.result))
+          }
+        }
       }
-    }
   }
 
   /*
@@ -108,7 +108,7 @@ object Batch:
     protected val metrics: MetricsHub[F],
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)
+    protected val batchIdGenerator: F[BatchId])
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
@@ -131,7 +131,7 @@ object Batch:
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: AtomicLong)
+    protected val batchIdGenerator: F[BatchId])
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
@@ -156,7 +156,7 @@ object Batch:
   final class JobBuilder[F[_]] private[Batch] (
     log: Log[F],
     metrics: MetricsHub[F],
-    batchIdGenerator: AtomicLong
+    batchIdGenerator: F[BatchId]
   )(using F: Async[F]):
 
     final class Monadic[A] private[Batch] (
@@ -204,11 +204,11 @@ object Batch:
         * The only faults that can fail this resource are in the batch machinery itself, not the jobs: setting
         * up and tearing down the metrics panel and active gauge.
         */
-      def monadicBatch: Resource[F, MonadicBatch[A]] = {
-        val batchId: BatchId = BatchId(batchIdGenerator.getAndIncrement())
+      def monadicBatch: Resource[F, MonadicBatch[A]] =
         BatchPanel.monadic[F](metrics)
           .evalMap { case BatchPanel(update, activeGauge) =>
             for {
+              batchId <- batchIdGenerator
               start <- F.monotonic
               (_, ExecutionState(eoa, history)) <- kleisli
                 .run(Context[F](update, log, batchId))
@@ -223,7 +223,6 @@ object Batch:
               result = eoa
             )
           }
-      }
     end Monadic
     object Monadic:
       given Applicative[Monadic] with
@@ -333,7 +332,7 @@ end Batch
 final class Batch[F[_]: Async] private[guard] (
   log: Log[F],
   metrics: MetricsHub[F],
-  batchIdGenerator: AtomicLong):
+  batchIdGenerator: F[BatchId]):
 
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -344,8 +343,7 @@ final class Batch[F[_]: Async] private[guard] (
       log = log,
       metrics = metrics,
       jobs = jobs,
-      batchIdGenerator = batchIdGenerator
-    )
+      batchIdGenerator = batchIdGenerator)
   }
 
   /** Create a parallel batch from named effects using the given parallelism.

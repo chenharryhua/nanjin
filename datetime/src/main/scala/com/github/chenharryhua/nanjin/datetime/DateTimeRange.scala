@@ -34,14 +34,16 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
   def zonedEndTime: Option[ZonedDateTime] = end.map(_.atZone(zoneId))
 
   /** @return
-    *   lazy sequence of local-dates from start date to end date, both inclusive
+    *   lazy sequence of local dates intersected by this half-open range
     *
     * empty if either bound is unset (infinite)
     */
   def days: LazyList[LocalDate] =
     (zonedStartTime, zonedEndTime) match {
-      case (Some(s), Some(e)) =>
-        LazyList.from(s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay)).map(LocalDate.ofEpochDay)
+      case (Some(s), Some(e)) if s.isBefore(e) =>
+        val firstDay = s.toLocalDate
+        val lastDay = e.minusNanos(1).toLocalDate
+        LazyList.from(firstDay.toEpochDay.to(lastDay.toEpochDay)).map(LocalDate.ofEpochDay)
       case _ => LazyList.empty
     }
 
@@ -143,9 +145,10 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
   def withTimeRange(start: String, end: String): DateTimeRange =
     withStartTime(start).withEndTime(end)
 
-  /** Set the range to cover the whole of `ts`: start at the beginning of the day, end at `LocalTime.MAX`. */
+  /** Set the range to cover the whole of `ts` as a half-open interval, ending at the next day's start. */
   def withOneDay(ts: LocalDate): DateTimeRange =
-    withStartTime(ts).withEndTime(LocalDateTime.of(ts, LocalTime.MAX))
+    if (ts.isEqual(LocalDate.MAX)) withStartTime(ts).withEndTime(LocalDateTime.MAX)
+    else withStartTime(ts).withEndTime(ts.plusDays(1))
 
   /** Set the range to cover the whole day parsed from `ts` (a `LocalDate` string). Throws
     * `DateTimeParseException` if the text is not a valid date.
@@ -171,7 +174,7 @@ final case class DateTimeRange(start: Option[Instant], end: Option[Instant], zon
     */
   def inBetween(ts: Instant): Boolean =
     (start, end) match {
-      case (Some(s), Some(e)) => s.isBefore(ts) && e.isAfter(ts) || s === ts
+      case (Some(s), Some(e)) => (s.isBefore(ts) || s === ts) && ts.isBefore(e)
       case (Some(s), None)    => s.isBefore(ts) || s === ts
       case (None, Some(e))    => e.isAfter(ts)
       case (None, None)       => true

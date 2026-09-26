@@ -54,7 +54,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // Day resolution
   // ------------------------------------------------------------
 
-  test("5.days returns inclusive list") {
+  test("5.days returns dates intersected by the half-open range") {
     val dtr =
       DateTimeRange(utc)
         .withStartTime(LocalDate.parse("2024-01-01"))
@@ -65,9 +65,18 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(
       days.toList == List(
         LocalDate.parse("2024-01-01"),
-        LocalDate.parse("2024-01-02"),
-        LocalDate.parse("2024-01-03")
+        LocalDate.parse("2024-01-02")
       ))
+  }
+
+  test("days excludes an exclusive midnight and is empty for an empty range") {
+    val start = Instant.parse("2024-01-01T00:00:00Z")
+    val midnight = Instant.parse("2024-01-02T00:00:00Z")
+    val throughMidnight = DateTimeRange(utc).withStartTime(start).withEndTime(midnight)
+    val empty = DateTimeRange(utc).withStartTime(midnight).withEndTime(midnight)
+
+    assert(throughMidnight.days.toList == List(LocalDate.parse("2024-01-01")))
+    assert(empty.days.isEmpty)
   }
 
   test("6.days is empty for infinite ranges") {
@@ -111,6 +120,17 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(dtr.inBetween(s))
     assert(dtr.inBetween(s.plusSeconds(1)))
     assert(!dtr.inBetween(e))
+  }
+
+  test("inBetween is false for empty and reversed ranges") {
+    val start = Instant.parse("2024-01-01T00:00:00Z")
+    val end = start.plusSeconds(60)
+    val empty = DateTimeRange(utc).withStartTime(start).withEndTime(start)
+    val reversed = DateTimeRange(utc).withStartTime(end).withEndTime(start)
+
+    assert(!empty.inBetween(start))
+    assert(!reversed.inBetween(start))
+    assert(!reversed.inBetween(end))
   }
 
   // ------------------------------------------------------------
