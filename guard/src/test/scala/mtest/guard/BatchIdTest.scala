@@ -1,13 +1,19 @@
 package mtest.guard
 
+import cats.effect.{IO, Resource}
 import cats.Order
 import cats.syntax.show.toShow
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.BatchId
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import munit.FunSuite
+import munit.CatsEffectSuite
 
-class BatchIdTest extends FunSuite {
+class BatchIdTest extends CatsEffectSuite {
+  private val service: ServiceGuard[IO] = TaskGuard[IO]("batch-id").service("batch-id")
+
 
   test("1.apply then value round-trips the underlying Long") {
     assert(BatchId(1L).value == 1L)
@@ -50,5 +56,57 @@ class BatchIdTest extends FunSuite {
 
   test("7.Decoder reads a plain JSON number") {
     assert(Json.fromLong(99L).as[BatchId] == Right(BatchId(99L)))
+  }
+
+  test("8.batch IDs are allocated for each effect execution") {
+    def repeated(effect: IO[Long]): IO[(Long, Long)] =
+      for {
+        first <- effect
+        second <- effect
+      } yield first -> second
+
+    def repeatedResource[A](resource: Resource[IO, A], id: A => Long): IO[(Long, Long)] =
+      repeated(resource.use(value => IO.pure(id(value))))
+
+    service.eventStream { agent =>
+      val batch = agent.batch("batch-id").sequential("job" -> IO.pure(1))
+      val batchLight = agent.batchLight("batch-light-id").sequential("job" -> IO.pure(1))
+      val batchTraced = agent.batchTraced("batch-traced-id", _.build).sequential("job" -> (_ => IO.pure(1)))
+
+      for {
+        batchQuasi <- repeatedResource(batch.quasiBatch, _.batchId.value)
+        batchValue <- repeatedResource(batch.valueBatch, _.batchId.value)
+        batchMonadic <- repeatedResource(
+          agent.batch("batch-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch,
+          _.batchId.value)
+        lightQuasi <- repeated(batchLight.quasiBatch.map(_.batchId.value))
+        lightValue <- repeated(batchLight.valueBatch.map(_.batchId.value))
+        lightMonadic <- repeated(
+          agent.batchLight("light-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
+        tracedQuasi <- repeated(batchTraced.quasiBatch.map(_.batchId.value))
+        tracedValue <- repeated(batchTraced.valueBatch.map(_.batchId.value))
+        tracedMonadic <- repeated(
+          agent
+            .batchTraced("traced-monadic-id", _.build)
+            .monadic(job => job("job", IO.pure(1)))
+            .monadicBatch
+            .map(_.batchId.value))
+        _ <- IO {
+          List(
+            batchQuasi,
+            batchValue,
+            batchMonadic,
+            lightQuasi,
+            lightValue,
+            lightMonadic,
+            tracedQuasi,
+            tracedValue,
+            tracedMonadic
+          ).foreach { case (first, second) => assert(first != second) }
+        }
+      } yield ()
+    }.compile.lastOrError.map { event =>
+      assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
   }
 }

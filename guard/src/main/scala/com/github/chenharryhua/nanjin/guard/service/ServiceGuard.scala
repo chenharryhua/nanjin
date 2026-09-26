@@ -7,6 +7,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.guard.batch.BatchId
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpServer
@@ -173,7 +174,7 @@ private[guard] object ServiceGuard {
             serviceParams = serviceParams,
             channel = channel,
             dispatcher = dispatcher,
-            batchIdGenerator = batchIdGenerator,
+            batchIdGenerator = F.delay(BatchId(batchIdGenerator.getAndIncrement())),
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
             meterProvider = meterProvider
