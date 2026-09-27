@@ -14,7 +14,6 @@ import munit.CatsEffectSuite
 class BatchIdTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("batch-id").service("batch-id")
 
-
   test("1.apply then value round-trips the underlying Long") {
     assert(BatchId(1L).value == 1L)
     assert(BatchId(0L).value == 0L)
@@ -81,8 +80,8 @@ class BatchIdTest extends CatsEffectSuite {
           _.batchId.value)
         lightQuasi <- repeated(batchLight.quasiBatch.map(_.batchId.value))
         lightValue <- repeated(batchLight.valueBatch.map(_.batchId.value))
-        lightMonadic <- repeated(
-          agent.batchLight("light-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
+        lightMonadic <- repeated(agent.batchLight("light-monadic-id").monadic(job =>
+          job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
         tracedQuasi <- repeated(batchTraced.quasiBatch.map(_.batchId.value))
         tracedValue <- repeated(batchTraced.valueBatch.map(_.batchId.value))
         tracedMonadic <- repeated(

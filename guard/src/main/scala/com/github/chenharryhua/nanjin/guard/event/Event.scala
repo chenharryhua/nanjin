@@ -157,6 +157,7 @@ object Event {
     logRecord: ReportedEvent.LogRecord
   ) extends Event
   object ReportedEvent {
+
     /** The log payload and metadata carried by a reported event.
       *
       * @param message
@@ -192,4 +193,9 @@ object Event {
       .andThen(GenLens[MetricsSnapshot](_.index))
       .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Periodic])
       .andThen(GenLens[MetricsSnapshot.Periodic](_.tick))
+
+  val mdc: Optional[Event, MDC] =
+    reportedEvent
+      .andThen(GenLens[ReportedEvent](_.logRecord))
+      .andThen(GenLens[ReportedEvent.LogRecord](_.mdc))
 }

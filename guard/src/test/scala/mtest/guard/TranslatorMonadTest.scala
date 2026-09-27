@@ -62,11 +62,11 @@ object gendata {
       logLink = None,
       domain = null.asInstanceOf[Domain],
       correlation = null.asInstanceOf[Correlation],
-        logRecord = ReportedEvent.LogRecord(
-          level = LogLevel.Info,
-          stackTrace = None,
-          message = null.asInstanceOf[Message],
-          mdc = MDC.empty)
+      logRecord = ReportedEvent.LogRecord(
+        level = LogLevel.Info,
+        stackTrace = None,
+        message = null.asInstanceOf[Message],
+        mdc = MDC.empty)
     )
 
   val allEvents: List[Event] =

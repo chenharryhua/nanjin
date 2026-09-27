@@ -12,6 +12,7 @@ import io.circe.{Decoder, Encoder}
 /** Mapped Diagnostic Context carried alongside a log record. */
 opaque type MDC = Map[String, String]
 object MDC {
+
   /** Create a context from string key-value pairs. */
   def apply(map: Map[String, String]): MDC = map
 

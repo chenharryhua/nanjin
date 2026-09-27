@@ -298,11 +298,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Sequential[F, A](
-      _ => true,
-      scope,
-      jobs,
-      batchIdGenerator)
+    new BatchLight.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator)
   }
 
   /** Create a parallel batch with an explicit positive parallelism. */
@@ -311,12 +307,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }
-    new BatchLight.Parallel[F, A](
-      _ => true,
-      scope,
-      parallelism,
-      jobs,
-      batchIdGenerator)
+    new BatchLight.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator)
   }
 
   def parallel[A](fas: (String, F[A])*): BatchLight.Parallel[F, A] =

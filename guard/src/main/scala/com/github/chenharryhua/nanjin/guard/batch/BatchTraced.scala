@@ -249,12 +249,7 @@ final class BatchTraced[F[_]: Async] private[guard] (
     val jobs = fas.toList.zipWithIndex.map { case ((name, f), idx) =>
       JobNameIndex[F, A](name, idx + 1, batchTracer.tracer.span(name).use(f))
     }
-    new BatchTraced.Sequential[F, A](
-      _ => true,
-      scope,
-      jobs,
-      batchIdGenerator,
-      batchTracer)
+    new BatchTraced.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator, batchTracer)
   }
 
   def parallel[A](parallelism: Int)(fas: (String, Span[F] => F[A])*): BatchTraced.Parallel[F, A] = {
@@ -262,13 +257,7 @@ final class BatchTraced[F[_]: Async] private[guard] (
     val jobs = fas.toList.zipWithIndex.map { case ((name, f), idx) =>
       JobNameIndex[F, A](name, idx + 1, batchTracer.tracer.span(name).use(f))
     }
-    new BatchTraced.Parallel[F, A](
-      _ => true,
-      scope,
-      parallelism,
-      jobs,
-      batchIdGenerator,
-      batchTracer)
+    new BatchTraced.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator, batchTracer)
   }
 
   def parallel[A](fas: (String, Span[F] => F[A])*): BatchTraced.Parallel[F, A] =
