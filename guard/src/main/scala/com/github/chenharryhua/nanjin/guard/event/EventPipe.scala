@@ -66,8 +66,8 @@ object EventPipe {
       private val threshold: LogLevel = f(LogLevel)
       override def apply(event: Event): Option[Event] =
         event match {
-          case evt @ Event.ReportedEvent(_, _, _, _, _, level, _, _) =>
-            if level >= threshold then Some(evt) else None
+          case evt @ Event.ReportedEvent(_, _, _, _, _, report) =>
+            if report.level >= threshold then Some(evt) else None
           case other => Some(other)
         }
     }

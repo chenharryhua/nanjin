@@ -154,8 +154,8 @@ private object TeamsTranslator {
   private def reported_event(evt: ReportedEvent): AdaptiveCard = {
     val domain = Attribute(evt.domain).textEntry
     val correlation = Attribute(evt.correlation).textEntry
-    val message = Attribute(evt.message).typeName
-    val stackTrace = evt.stackTrace.map { st =>
+    val message = Attribute(evt.logRecord.message).typeName
+    val stackTrace = evt.logRecord.stackTrace.map { st =>
       val attr = Attribute(st).typeName
       List(BolderTextBlock(attr), StackTraceBlock(st))
     }.sequence.flatten
@@ -169,7 +169,7 @@ private object TeamsTranslator {
           Fact(correlation.tag, correlation.text),
           Fact(message, logLink(evt))
         )),
-      JsonBlock(evt.message.value)
+      JsonBlock(evt.logRecord.message.value)
     ) ++ stackTrace
 
     AdaptiveCard(body)

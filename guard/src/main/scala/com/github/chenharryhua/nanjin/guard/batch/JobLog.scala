@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel, MDC}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
@@ -143,14 +143,14 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
     case Left(ex) =>
       js.record.job.kind match {
         case Some(BatchKind.Quasi) =>
-          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
+          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
         // Value jobs and monadic jobs (kind = None) both treat an exception as fatal to the batch.
         case Some(BatchKind.Value) | None =>
-          LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
+          LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
       }
     case Right(a) =>
       if (js.record.succeeded)
-        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
+        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None, MDC.empty)
       else
-        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
+        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None, MDC.empty)
   }

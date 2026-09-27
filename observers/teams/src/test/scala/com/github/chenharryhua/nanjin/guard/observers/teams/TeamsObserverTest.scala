@@ -149,7 +149,7 @@ class TeamsObserverTest extends CatsEffectSuite {
 
   test("8.ReportedEvent Info card contains correlation and message") {
     translateEvent {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("info-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("info-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("info-msg"))
@@ -160,7 +160,7 @@ class TeamsObserverTest extends CatsEffectSuite {
 
   test("9.ReportedEvent Warn card has warning color") {
     translateEvent {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("warn-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("warn-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("warn-msg"))
@@ -170,7 +170,7 @@ class TeamsObserverTest extends CatsEffectSuite {
 
   test("10.ReportedEvent Error card has error color") {
     translateEvent {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("error-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("error-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("error-msg"))

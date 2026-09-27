@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
+import monocle.Focus.focus
 import org.http4s.headers.`Idempotency-Key`
 
 /** A stable idempotency key for `event`, used as the `Idempotency-Key` header when publishing to endpoints
@@ -27,7 +28,7 @@ def idempotencyKey(event: Event): `Idempotency-Key` = event match {
   case Event.MetricsSnapshot(serviceIdentity, _, MetricsSnapshot.Adhoc(ts), _, _) =>
     `Idempotency-Key`(show"${serviceIdentity.serviceId}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}")
 
-  case Event.ReportedEvent(serviceIdentity, _, _, _, correlation, _, _, _) =>
+  case Event.ReportedEvent(serviceIdentity, _, _, _, correlation, _) =>
     `Idempotency-Key`(show"${serviceIdentity.serviceId}-reported-$correlation")
 }
 
@@ -41,6 +42,6 @@ def limitStackTraceFrames(event: Event, max: Option[Int]): Event =
     case p: Event.ServicePanic =>
       p.copy(stackTrace = max.fold(p.stackTrace)(p.stackTrace.topN))
     case r: Event.ReportedEvent =>
-      r.copy(stackTrace = max.fold(r.stackTrace)(n => r.stackTrace.map(_.topN(n))))
+      r.focus(_.logRecord.stackTrace).modify(st => max.fold(st)(n => st.map(_.topN(n))))
     case other => other
   }

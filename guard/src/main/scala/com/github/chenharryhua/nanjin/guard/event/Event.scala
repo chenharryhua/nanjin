@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink, MDC}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
@@ -133,33 +133,18 @@ object Event {
       }
   end MetricsSnapshot
 
-  /** A user-emitted log message published through the service's logging facilities.
-    *
-    * @param serviceIdentity
-    *   stable identity of the running service instance
-    * @param domain
-    *   the domain under which this message was logged (default or via `withDomain`)
-    * @param timestamp
-    *   when the message was created
-    * @param correlation
-    *   unique correlation id for tracing this log entry
-    * @param level
-    *   log severity (Debug, Info, Good, Warn, Error)
-    * @param stackTrace
-    *   optional stack trace if an exception was attached
-    * @param message
-    *   the JSON-encoded message payload
-    */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
     timestamp: Timestamp,
     domain: Domain,
     correlation: Correlation,
-    level: LogLevel,
-    stackTrace: Option[StackTrace],
-    message: Message
+    logRecord: ReportedEvent.LogRecord
   ) extends Event
+  object ReportedEvent {
+    final case class LogRecord(message: Message, level: LogLevel, stackTrace: Option[StackTrace], mdc: MDC)
+        derives Codec.AsObject
+  }
 
   /*
    * Optics

@@ -70,11 +70,11 @@ object AnsiTextTranslator {
   private def reported_event(evt: ReportedEvent): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
-    val message = evt.message.value.spaces2
+    val message = evt.logRecord.message.value.spaces2
 
     s"""|${service_event(evt)}
         |  $domain, $correlation
-        |${evt.stackTrace.fold(message) { st =>
+        |${evt.logRecord.stackTrace.fold(message) { st =>
          s"""|$message
              |${Attribute(st).labelledText}""".stripMargin
        }}
