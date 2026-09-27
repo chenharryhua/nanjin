@@ -38,19 +38,32 @@ private object EventLogSink:
     logger: StructuredLogger[F],
     translator: Translator[F, String]): LogSink[F] =
     LogSink { (event: Event) =>
-      val ctx = Event.mdc.getOption(event).getOrElse(MDC.empty).value
-      translator
-        .translate(event)
-        .flatMap(_.traverse { text =>
-          eventLogLevel[F, Unit](event).run {
-            case LogLevel.Debug => logger.debug(ctx)(text)
-            case LogLevel.Info  => logger.info(ctx)(text)
-            case LogLevel.Good  => logger.info(ctx)(text)
-            case LogLevel.Warn  => logger.warn(ctx)(text)
-            case LogLevel.Error => logger.error(ctx)(text)
-          }
-        })
-        .void
+      Event.mdc.getOption(event).map(_.value).match {
+        case Some(ctx) =>
+          translator
+            .translate(event)
+            .flatMap(_.traverse { text =>
+              eventLogLevel[F, Unit](event).run {
+                case LogLevel.Debug => logger.debug(ctx)(text)
+                case LogLevel.Info  => logger.info(ctx)(text)
+                case LogLevel.Good  => logger.info(ctx)(text)
+                case LogLevel.Warn  => logger.warn(ctx)(text)
+                case LogLevel.Error => logger.error(ctx)(text)
+              }
+            })
+        case None =>
+          translator
+            .translate(event)
+            .flatMap(_.traverse { text =>
+              eventLogLevel[F, Unit](event).run {
+                case LogLevel.Debug => logger.debug(text)
+                case LogLevel.Info  => logger.info(text)
+                case LogLevel.Good  => logger.info(text)
+                case LogLevel.Warn  => logger.warn(text)
+                case LogLevel.Error => logger.error(text)
+              }
+            })
+      }.void
     }
 
   private def consoleLogSink[F[_]: {Monad, Console}](
