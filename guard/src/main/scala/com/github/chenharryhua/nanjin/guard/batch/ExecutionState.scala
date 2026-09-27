@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import monocle.Focus.focus
+import monocle.function.Index.index
 import org.typelevel.otel4s.trace.{SpanOps, Tracer}
 
 import scala.concurrent.duration.FiniteDuration
@@ -34,6 +36,13 @@ final private case class ExecutionState[A](eoa: Either[Throwable, A], history: L
 
   /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
   def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
+
+  def attempt: ExecutionState[Either[Throwable, A]] =
+    ExecutionState[Either[Throwable, A]](
+      Right(eoa),
+      index[List[JobState[Unit]], Int, JobState[Unit]](0)
+        .modify(_.focus(_.record.succeeded).replace(true))(history))
+
 end ExecutionState
 
 /** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */

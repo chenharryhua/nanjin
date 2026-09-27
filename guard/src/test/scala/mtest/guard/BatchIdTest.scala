@@ -108,4 +108,31 @@ class BatchIdTest extends CatsEffectSuite {
       assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
   }
+
+  test("9.traced monadic attempt surfaces a failure and continues") {
+    val errorMessage = "handled-traced"
+
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
+          .batchTraced("traced-attempt", _.build)
+          .monadic { job =>
+            for {
+              captured <- job("failed", IO.raiseError[Int](new Exception(errorMessage))).attempt
+              next <- job("next", IO.pure(2))
+            } yield captured -> next
+          }
+          .monadicBatch
+          .map { batch =>
+            batch.result match {
+              case Right((Left(error), 2)) => assertEquals(error.getMessage, errorMessage)
+              case other                   => fail(s"expected a surfaced failure and continuation, got $other")
+            }
+            assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
+            assert(batch.outcomes.forall(_.record.succeeded))
+          })
+    }.compile.lastOrError.map { event =>
+      assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
 }

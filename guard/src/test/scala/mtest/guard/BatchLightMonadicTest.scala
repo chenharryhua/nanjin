@@ -606,4 +606,31 @@ class BatchLightMonadicTest extends CatsEffectSuite {
       assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
   }
+
+  test("monadic: attempt surfaces a failure and continues") {
+    val errorMessage = "handled-light"
+
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
+          .batchLight("light-attempt")
+          .monadic { job =>
+            for {
+              captured <- job("failed", IO.raiseError[Int](new Exception(errorMessage))).attempt
+              next <- job("next", IO.pure(2))
+            } yield captured -> next
+          }
+          .monadicBatch
+          .map { batch =>
+            batch.result match {
+              case Right((Left(error), 2)) => assertEquals(error.getMessage, errorMessage)
+              case other                   => fail(s"expected a surfaced failure and continuation, got $other")
+            }
+            assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
+            assert(batch.outcomes.forall(_.record.succeeded))
+          })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
 }

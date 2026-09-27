@@ -194,6 +194,14 @@ object Batch:
           }
         )
 
+      /** Capture a job-chain failure as an inner `Left` and continue the chain.
+        *
+        * The returned batch result is `Right(Left(error))` when the chain has failed. The error is therefore
+        * surfaced as data and must be inspected or rethrown by the caller.
+        */
+      def attempt: Monadic[Either[Throwable, A]] =
+        new Monadic[Either[Throwable, A]](kleisli.map(_.attempt))
+
       /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON.
         *
         * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
