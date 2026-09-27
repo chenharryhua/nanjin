@@ -1,6 +1,6 @@
 package mtest.guard
 
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchMode, PostConditionUnsatisfied}
@@ -290,6 +290,31 @@ class BatchMonadicTest extends CatsEffectSuite {
         .void
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    }
+  }
+
+  test("shared MonadicOps compose map, flatMap, attempt, and withFilter") {
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
+          .batch("shared-monadic-ops")
+          .monadic { job =>
+            for {
+              start <- job("start", IO.pure(1)).map(_ + 1)
+              captured <- job("failure", IO.raiseError[Int](new Exception("handled"))).attempt
+              result <- job("finish", IO.pure(start + captured.fold(_ => 2, identity))).withFilter(_ == 4)
+            } yield result
+          }
+          .monadicBatch
+          .use { batch =>
+            IO {
+              assertEquals(batch.result, Right(4))
+              assertEquals(batch.outcomes.map(_.record.job.name), List("start", "failure", "finish"))
+              assert(batch.outcomes.forall(_.record.succeeded))
+            }
+          })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
   }
 }

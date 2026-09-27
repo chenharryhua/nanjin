@@ -131,44 +131,13 @@ object BatchTraced:
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[B]] =
-          Kleisli { (batchId: BatchId) =>
-            StateT { (cursor: JobCursor) =>
-              kleisli(batchId).run(cursor).flatMap {
-                case (nextCursor: JobCursor, execState: ExecutionState[A]) =>
-                  execState.eoa match {
-                    case Left(ex) => (nextCursor -> execState.update[B](ex)).pure[F]
-                    case Right(a) =>
-                      f(a).kleisli(batchId).run(nextCursor).map {
-                        case (finalCursor: JobCursor, nextState: ExecutionState[B]) =>
-                          finalCursor -> execState.prependHistory[B](nextState)
-                      }
-                  }
-              }
-            }
-          }
-        new Monadic[B](runB)
+        new Monadic[B](MonadicOps.flatMap(kleisli, a => f(a).kleisli))
       }
 
-      def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
+      def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
       def withFilter(f: A => Boolean): Monadic[A] =
-        new Monadic[A](
-          Kleisli { (batchId: BatchId) =>
-            kleisli(batchId).map { case unchange @ ExecutionState(eoa, history) =>
-              eoa match {
-                case Left(_)      => unchange
-                case Right(value) =>
-                  if (f(value))
-                    unchange
-                  else {
-                    val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
-                    ExecutionState[A](Left(err), history)
-                  }
-              }
-            }
-          }
-        )
+        new Monadic[A](MonadicOps.withFilter(kleisli, f))
 
       /** Capture a job-chain failure as an inner `Left` and continue the chain.
         *
@@ -176,7 +145,7 @@ object BatchTraced:
         * surfaced as data and must be inspected or rethrown by the caller.
         */
       def attempt: Monadic[Either[Throwable, A]] =
-        new Monadic[Either[Throwable, A]](kleisli.map(_.attempt))
+        new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
       def monadicBatch: F[MonadicBatch[A]] =
         for {

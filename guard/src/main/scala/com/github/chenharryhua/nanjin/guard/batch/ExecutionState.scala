@@ -1,5 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
+import cats.Monad
+import cats.data.{Kleisli, StateT}
+import cats.syntax.applicative.given
+import cats.syntax.flatMap.given
+import cats.syntax.functor.given
 import monocle.Focus.focus
 import monocle.function.Index.index
 import org.typelevel.otel4s.trace.{SpanOps, Tracer}
@@ -44,6 +49,46 @@ final private case class ExecutionState[A](eoa: Either[Throwable, A], history: L
         .modify(_.focus(_.record.succeeded).replace(true))(history))
 
 end ExecutionState
+
+private object MonadicOps:
+  private type State[F[_], R, A] = Kleisli[StateT[F, JobCursor, *], R, ExecutionState[A]]
+
+  def flatMap[F[_]: Monad, R, A, B](first: State[F, R, A], next: A => State[F, R, B]): State[F, R, B] =
+    Kleisli { context =>
+      StateT { cursor =>
+        first(context).run(cursor).flatMap {
+          case (nextCursor, execState) =>
+            execState.eoa match {
+              case Left(ex) => (nextCursor -> execState.update[B](ex)).pure[F]
+              case Right(value) =>
+                next(value)(context).run(nextCursor).map {
+                  case (finalCursor, nextState) =>
+                    finalCursor -> execState.prependHistory[B](nextState)
+                }
+            }
+        }
+      }
+    }
+
+  def map[F[_]: Monad, R, A, B](state: State[F, R, A], f: A => B): State[F, R, B] =
+    state.map(_.map(f))
+
+  def withFilter[F[_]: Monad, R, A](state: State[F, R, A], predicate: A => Boolean): State[F, R, A] =
+    state.map { case unchanged @ ExecutionState(eoa, history) =>
+      eoa match {
+        case Left(_) => unchanged
+        case Right(value) =>
+          if predicate(value) then unchanged
+          else {
+            val error = PostConditionUnsatisfied(history.headOption.map(_.record.job))
+            ExecutionState[A](Left(error), history)
+          }
+      }
+    }
+
+  def attempt[F[_]: Monad, R, A](state: State[F, R, A]): State[F, R, Either[Throwable, A]] =
+    state.map(_.attempt)
+end MonadicOps
 
 /** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
 final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])

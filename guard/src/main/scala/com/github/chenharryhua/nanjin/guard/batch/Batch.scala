@@ -163,36 +163,15 @@ object Batch:
       private val kleisli: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[A]]):
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
-      def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[B]] =
-          kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
-            execState.eoa match {
-              case Left(ex) => StateT((cursor: JobCursor) => (cursor -> execState.update[B](ex)).pure)
-              case Right(a) => f(a).kleisli(ctx).map(execState.prependHistory[B])
-            }
-          }
-        new Monadic[B](runB)
-      }
+      def flatMap[B](f: A => Monadic[B]): Monadic[B] =
+        new Monadic[B](MonadicOps.flatMap(kleisli, a => f(a).kleisli))
 
       /** Transform a successful monadic job value without adding a job. */
-      def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
+      def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
       /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
       def withFilter(f: A => Boolean): Monadic[A] =
-        new Monadic[A](
-          kleisli.map { case unchange @ ExecutionState(eoa, history) =>
-            eoa match {
-              case Left(_)      => unchange
-              case Right(value) =>
-                if (f(value))
-                  unchange
-                else {
-                  val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
-                  ExecutionState[A](Left(err), history)
-                }
-            }
-          }
-        )
+        new Monadic[A](MonadicOps.withFilter(kleisli, f))
 
       /** Capture a job-chain failure as an inner `Left` and continue the chain.
         *
@@ -200,7 +179,7 @@ object Batch:
         * surfaced as data and must be inspected or rethrown by the caller.
         */
       def attempt: Monadic[Either[Throwable, A]] =
-        new Monadic[Either[Throwable, A]](kleisli.map(_.attempt))
+        new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
       /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON.
         *
