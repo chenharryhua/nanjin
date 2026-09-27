@@ -9,11 +9,16 @@ import cats.{Functor, MonadThrow, Show}
 import com.github.chenharryhua.nanjin.common.OpaqueLift
 import io.circe.{Decoder, Encoder}
 
+/** Mapped Diagnostic Context carried alongside a log record. */
 opaque type MDC = Map[String, String]
 object MDC {
+  /** Create a context from string key-value pairs. */
   def apply(map: Map[String, String]): MDC = map
+
+  /** An empty context for log records without diagnostic metadata. */
   val empty: MDC = Map.empty[String, String]
 
+  /** Return the context entries as a regular map. */
   extension (mdc: MDC) def value: Map[String, String] = mdc
 
   given Show[MDC] = _.map((k, v) => s"$k=$v").mkString(",")
@@ -69,6 +74,8 @@ abstract class Log[F[_]: MonadThrow]:
     *   the level to log at; the record is skipped entirely when this level is disabled
     * @param cause
     *   an optional throwable whose stack trace is attached
+    * @param mdc
+    *   mapped diagnostic context carried with the record
     */
   final def emit[S: Encoder](
     message: => S,

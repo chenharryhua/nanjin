@@ -133,6 +133,21 @@ object Event {
       }
   end MetricsSnapshot
 
+  /** A user-emitted log message published through the service's logging facilities.
+    *
+    * @param serviceIdentity
+    *   stable identity of the running service instance
+    * @param logLink
+    *   optional link to the external log record for this event
+    * @param timestamp
+    *   when the message was created
+    * @param domain
+    *   domain under which the message was logged
+    * @param correlation
+    *   unique identifier for tracing this log entry
+    * @param logRecord
+    *   message payload, severity, optional stack trace, and diagnostic context
+    */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
     logLink: Option[LogLink],
@@ -142,6 +157,17 @@ object Event {
     logRecord: ReportedEvent.LogRecord
   ) extends Event
   object ReportedEvent {
+    /** The log payload and metadata carried by a reported event.
+      *
+      * @param message
+      *   JSON-encoded log payload
+      * @param level
+      *   severity of the log record
+      * @param stackTrace
+      *   optional stack trace attached to the record
+      * @param mdc
+      *   mapped diagnostic context associated with the record
+      */
     final case class LogRecord(message: Message, level: LogLevel, stackTrace: Option[StackTrace], mdc: MDC)
         derives Codec.AsObject
   }
