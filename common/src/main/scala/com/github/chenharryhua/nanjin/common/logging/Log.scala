@@ -114,10 +114,11 @@ abstract class Log[F[_]: MonadThrow]:
 
   final def good[S: Encoder](msg: => S): F[Unit] =
     emit[S](msg, LogLevel.Good, None, MDC.empty)
-  final def info[S: Encoder](msg: => S): F[Unit] =
-    emit[S](msg, LogLevel.Info, None, MDC.empty)
   final def good[S: Encoder](mdc: Map[String, String], msg: => S): F[Unit] =
     emit[S](msg, LogLevel.Good, None, MDC(mdc))
+
+  final def info[S: Encoder](msg: => S): F[Unit] =
+    emit[S](msg, LogLevel.Info, None, MDC.empty)
   final def info[S: Encoder](mdc: Map[String, String], msg: => S): F[Unit] =
     emit[S](msg, LogLevel.Info, None, MDC(mdc))
 
