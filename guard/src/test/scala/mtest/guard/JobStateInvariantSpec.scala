@@ -9,9 +9,9 @@ import munit.CatsEffectSuite
 
 /** Checks the invariant a well-formed `JobState` must satisfy:
   *
-  *   - `js.passed` implies `js.result.isRight` — a job is only recorded as succeeded when its
-  *     effect produced a value. The converse does not hold: a quasi job whose effect succeeds but whose
-  *     post-condition rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
+  *   - `js.passed` implies `js.result.isRight` — a job is only recorded as succeeded when its effect produced
+  *     a value. The converse does not hold: a quasi job whose effect succeeds but whose post-condition
+  *     rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
   *
   * Rather than enforcing this with a runtime assertion in the data type, we exercise every path that produces
   * a `JobState` and check the implication holds.

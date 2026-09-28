@@ -126,7 +126,7 @@ class BatchIdTest extends CatsEffectSuite {
           .map { batch =>
             batch.result match {
               case Right((Left(error), 2)) => assertEquals(error.getMessage, errorMessage)
-              case other                   => fail(s"expected a surfaced failure and continuation, got $other")
+              case other => fail(s"expected a surfaced failure and continuation, got $other")
             }
             assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
             assert(!batch.outcomes.forall(_.passed))

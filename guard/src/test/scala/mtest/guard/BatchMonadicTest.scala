@@ -299,17 +299,28 @@ class BatchMonadicTest extends CatsEffectSuite {
             for {
               start <- job("start", IO.pure(1)).map(_ + 1)
               captured <- job("failure", IO.raiseError[Int](new Exception("handled"))).attempt
+              inside <- job("inside", IO.raiseError[Int](new Exception("handled inside")).attempt)
+              double <- job("double", IO.raiseError[Int](new Exception("handled double")).attempt).attempt
               result <- job("finish", IO.pure(start + captured.fold(_ => 2, identity))).withFilter(_ == 4)
-            } yield result
+            } yield {
+              assert(captured.isLeft)
+              assert(inside.isLeft)
+              assert(double.flatten.isLeft)
+              result
+            }
           }
           .monadicBatch
           .use { batch =>
             IO {
               assertEquals(batch.result, Right(4))
-              assertEquals(batch.outcomes.map(_.record.job.name), List("start", "failure", "finish"))
+              assertEquals(
+                batch.outcomes.map(_.record.job.name),
+                List("start", "failure", "inside", "double", "finish"))
               assert(batch.outcomes.head.passed)
               assert(!batch.outcomes(1).passed)
               assert(batch.outcomes(2).passed)
+              assert(batch.outcomes(3).passed)
+              assert(batch.outcomes(4).passed)
             }
           })
     }.compile.lastOrError.map { se =>
