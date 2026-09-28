@@ -21,7 +21,7 @@ private object lifecycle {
   def logCanceled[F[_]](log: Log[F], job: Job): F[Unit] =
     log.warn(JobLog.Canceled(job).standalone)
 
-  private def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
+  def logCompleted[F[_], A](log: Log[F], js: JobState[A]): F[Unit] =
     log.emit(toLogEntry(js).map(_.standalone))
 
   def handleOutcome[F[_]: Monad, A](log: Log[F], job: Job, update: BatchPanel.Update[F])(

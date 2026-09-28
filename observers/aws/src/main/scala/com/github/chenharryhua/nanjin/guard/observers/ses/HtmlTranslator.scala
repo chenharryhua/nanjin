@@ -111,7 +111,7 @@ private object HtmlTranslator extends all {
   private def reported_event(evt: ReportedEvent): Text.TypedTag[String] = {
     val domain = Attribute(evt.domain).textEntry
     val correlation = Attribute(evt.correlation).textEntry
-    val logLevel = Attribute(evt.level).textEntry
+    val logLevel = Attribute(evt.logRecord.level).textEntry
 
     val fg = frag(
       tr(th(domain.tag), th(correlation.tag), th(logLevel.tag)),
@@ -121,8 +121,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(evt.message.value),
-      evt.stackTrace.map(stack_trace_text)
+      json_text(evt.logRecord.message.value),
+      evt.logRecord.stackTrace.map(stack_trace_text)
     )
   }
 

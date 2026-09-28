@@ -75,7 +75,7 @@ class EventPipeEdgeCaseTest extends CatsEffectSuite {
       .map { events =>
         val reported = events.collect { case r: ReportedEvent => r }
         // Only warn and error should pass (debug and info should be filtered)
-        assert(reported.forall(_.level >= LogLevel.Warn))
+        assert(reported.forall(_.logRecord.level >= LogLevel.Warn))
         assert(reported.size == 2)
       }
   }

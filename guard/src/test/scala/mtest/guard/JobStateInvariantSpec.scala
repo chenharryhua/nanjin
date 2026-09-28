@@ -9,9 +9,9 @@ import munit.CatsEffectSuite
 
 /** Checks the invariant a well-formed `JobState` must satisfy:
   *
-  *   - `js.record.succeeded` implies `js.result.isRight` — a job is only recorded as succeeded when its
-  *     effect produced a value. The converse does not hold: a quasi job whose effect succeeds but whose
-  *     post-condition rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
+  *   - `js.passed` implies `js.result.isRight` — a job is only recorded as succeeded when its effect produced
+  *     a value. The converse does not hold: a quasi job whose effect succeeds but whose post-condition
+  *     rejects the value keeps the value (`result.isRight`) yet records `succeeded = false`.
   *
   * Rather than enforcing this with a runtime assertion in the data type, we exercise every path that produces
   * a `JobState` and check the implication holds.
@@ -24,7 +24,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
   private def check_aligned[A](js: JobState[A]): Unit = {
     // a recorded success implies the effect produced a value; a predicate rejection keeps the value but
     // records failure, so the reverse implication need not hold.
-    assert(!js.record.succeeded || js.result.isRight, "recorded success without a result value")
+    assert(!js.passed || js.result.isRight, "recorded success without a result value")
     ()
   }
 

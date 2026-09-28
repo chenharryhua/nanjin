@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink, MDC}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
@@ -137,18 +137,16 @@ object Event {
     *
     * @param serviceIdentity
     *   stable identity of the running service instance
-    * @param domain
-    *   the domain under which this message was logged (default or via `withDomain`)
+    * @param logLink
+    *   optional link to the external log record for this event
     * @param timestamp
     *   when the message was created
+    * @param domain
+    *   domain under which the message was logged
     * @param correlation
-    *   unique correlation id for tracing this log entry
-    * @param level
-    *   log severity (Debug, Info, Good, Warn, Error)
-    * @param stackTrace
-    *   optional stack trace if an exception was attached
-    * @param message
-    *   the JSON-encoded message payload
+    *   unique identifier for tracing this log entry
+    * @param logRecord
+    *   message payload, severity, optional stack trace, and diagnostic context
     */
   final case class ReportedEvent(
     serviceIdentity: ServiceIdentity,
@@ -156,10 +154,24 @@ object Event {
     timestamp: Timestamp,
     domain: Domain,
     correlation: Correlation,
-    level: LogLevel,
-    stackTrace: Option[StackTrace],
-    message: Message
+    logRecord: ReportedEvent.LogRecord
   ) extends Event
+  object ReportedEvent {
+
+    /** The log payload and metadata carried by a reported event.
+      *
+      * @param message
+      *   JSON-encoded log payload
+      * @param level
+      *   severity of the log record
+      * @param stackTrace
+      *   optional stack trace attached to the record
+      * @param mdc
+      *   mapped diagnostic context associated with the record
+      */
+    final case class LogRecord(message: Message, level: LogLevel, stackTrace: Option[StackTrace], mdc: MDC)
+        derives Codec.AsObject
+  }
 
   /*
    * Optics
@@ -181,4 +193,9 @@ object Event {
       .andThen(GenLens[MetricsSnapshot](_.index))
       .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Periodic])
       .andThen(GenLens[MetricsSnapshot.Periodic](_.tick))
+
+  val mdc: Optional[Event, MDC] =
+    reportedEvent
+      .andThen(GenLens[ReportedEvent](_.logRecord))
+      .andThen(GenLens[ReportedEvent.LogRecord](_.mdc))
 }

@@ -1,7 +1,7 @@
 package mtest.common
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, MDC}
 import io.circe.Encoder
 import io.circe.syntax.given
 import munit.CatsEffectSuite
@@ -9,12 +9,12 @@ import munit.CatsEffectSuite
 class LogTest extends CatsEffectSuite {
 
   final private class RecordingLog(enabledLevels: Set[LogLevel]) extends Log[IO] {
-    protected type M = (LogLevel, String, Option[Throwable])
+    protected type M = (LogLevel, String, Option[Throwable], MDC)
 
     private var events: Vector[M] = Vector.empty
 
-    protected def create[A: Encoder](message: A, level: LogLevel, cause: Option[Throwable]): IO[M] =
-      IO.pure((level, message.asJson.noSpaces, cause))
+    protected def create[A: Encoder](message: A, level: LogLevel, cause: Option[Throwable], mdc: MDC): IO[M] =
+      IO.pure((level, message.asJson.noSpaces, cause, mdc))
 
     protected def publish(event: M): IO[Unit] =
       IO { events = events :+ event }
@@ -30,7 +30,7 @@ class LogTest extends CatsEffectSuite {
     val ex = new IllegalStateException("boom")
 
     log.error("failed", ex).map { _ =>
-      assertEquals(log.snapshot, Vector((LogLevel.Error, "\"failed\"", Some(ex))))
+      assertEquals(log.snapshot, Vector((LogLevel.Error, "\"failed\"", Some(ex), MDC.empty)))
     }
   }
 
@@ -49,7 +49,7 @@ class LogTest extends CatsEffectSuite {
     val log = new RecordingLog(Set(LogLevel.Debug))
 
     log.debug("ok").map { _ =>
-      assertEquals(log.snapshot, Vector((LogLevel.Debug, "\"ok\"", None)))
+      assertEquals(log.snapshot, Vector((LogLevel.Debug, "\"ok\"", None, MDC.empty)))
     }
   }
 

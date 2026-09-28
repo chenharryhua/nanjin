@@ -77,8 +77,8 @@ private object documents {
           Attribute(sm.correlation).snakeJsonEntry,
           Attribute(Age(Duration.between(sm.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
           Attribute(sm.timestamp).map(_.value.toLocalDateTime).snakeJsonEntry,
-          Attribute(sm.message).snakeJsonEntry,
-          Attribute(sm.stackTrace).snakeJsonEntry
+          Attribute(sm.logRecord.message).snakeJsonEntry,
+          Attribute(sm.logRecord.stackTrace).snakeJsonEntry
         )
       }.asJson
     )

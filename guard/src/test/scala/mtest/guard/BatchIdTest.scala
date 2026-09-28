@@ -14,7 +14,6 @@ import munit.CatsEffectSuite
 class BatchIdTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("batch-id").service("batch-id")
 
-
   test("1.apply then value round-trips the underlying Long") {
     assert(BatchId(1L).value == 1L)
     assert(BatchId(0L).value == 0L)
@@ -81,8 +80,8 @@ class BatchIdTest extends CatsEffectSuite {
           _.batchId.value)
         lightQuasi <- repeated(batchLight.quasiBatch.map(_.batchId.value))
         lightValue <- repeated(batchLight.valueBatch.map(_.batchId.value))
-        lightMonadic <- repeated(
-          agent.batchLight("light-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
+        lightMonadic <- repeated(agent.batchLight("light-monadic-id").monadic(job =>
+          job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
         tracedQuasi <- repeated(batchTraced.quasiBatch.map(_.batchId.value))
         tracedValue <- repeated(batchTraced.valueBatch.map(_.batchId.value))
         tracedMonadic <- repeated(
@@ -105,6 +104,35 @@ class BatchIdTest extends CatsEffectSuite {
           ).foreach { case (first, second) => assert(first != second) }
         }
       } yield ()
+    }.compile.lastOrError.map { event =>
+      assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("9.traced monadic attempt surfaces a failure and continues") {
+    val errorMessage = "handled-traced"
+
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
+          .batchTraced("traced-attempt", _.build)
+          .monadic { job =>
+            for {
+              captured <- job("failed", IO.raiseError[Int](new Exception(errorMessage))).attempt
+              next <- job("next", IO.pure(2))
+            } yield captured -> next
+          }
+          .monadicBatch
+          .map { batch =>
+            batch.result match {
+              case Right((Left(error), 2)) => assertEquals(error.getMessage, errorMessage)
+              case other => fail(s"expected a surfaced failure and continuation, got $other")
+            }
+            assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
+            assert(!batch.outcomes.forall(_.passed))
+            assert(!batch.outcomes.head.passed)
+            assert(batch.outcomes(1).passed)
+          })
     }.compile.lastOrError.map { event =>
       assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }

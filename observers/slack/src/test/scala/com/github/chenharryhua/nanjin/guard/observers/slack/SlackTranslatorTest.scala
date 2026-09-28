@@ -94,7 +94,7 @@ class SlackTranslatorTest extends CatsEffectSuite {
 
   test("6.ReportedEvent Info carries the message, the info color, and no symbol prefix") {
     translate {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("info-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("info-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("info-msg"))
@@ -106,7 +106,7 @@ class SlackTranslatorTest extends CatsEffectSuite {
 
   test("7.ReportedEvent Warn carries a warning symbol and the warn color") {
     translate {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("warn-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("warn-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("warn-msg"))
@@ -117,7 +117,7 @@ class SlackTranslatorTest extends CatsEffectSuite {
 
   test("8.ReportedEvent Error carries a cross symbol and the error color") {
     translate {
-      case e: ReportedEvent if e.message.value.noSpaces.contains("error-msg") => true
+      case e: ReportedEvent if e.logRecord.message.value.noSpaces.contains("error-msg") => true
     }.map { json =>
       val text = json.noSpaces
       assert(text.contains("error-msg"))

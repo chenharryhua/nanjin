@@ -1,10 +1,10 @@
 package mtest.guard
 
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchMode, PostConditionUnsatisfied}
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
+import com.github.chenharryhua.nanjin.guard.event.Event.{ReportedEvent, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import munit.CatsEffectSuite
 
@@ -61,7 +61,7 @@ class BatchMonadicTest extends CatsEffectSuite {
           assert(monadicValue.result.left.toOption.get.isInstanceOf[Exception])
           // the failing job (index 2) is recorded and marked unsuccessful
           val failed = monadicValue.outcomes.find(_.record.job.index == 2).get
-          assert(!failed.record.succeeded)
+          assert(!failed.passed)
         }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -88,10 +88,10 @@ class BatchMonadicTest extends CatsEffectSuite {
             val sorted = mb.outcomes.sortBy(_.record.job.index)
             assert(sorted.size == 2)
 
-            assert(sorted.head.record.succeeded)
+            assert(sorted.head.passed)
             assert(sorted.head.record.job.index == 1)
 
-            assert(!sorted(1).record.succeeded)
+            assert(!sorted(1).passed)
             assert(sorted(1).record.job.index == 2)
 
             assert(!cExecuted)
@@ -102,14 +102,14 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("4.rejected predicate is recorded unsuccessful but does not abort") {
+  test("4.withFilter rejects and aborts the chain") {
     service.eventStreamR { agent =>
       agent
         .batch("invincible")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job("b", IO(2), _ => false)
+            _ <- job("b", IO(2)).withFilter(_ => false)
             c <- job("c", IO(3))
           } yield a + c
         }
@@ -118,15 +118,12 @@ class BatchMonadicTest extends CatsEffectSuite {
           IO {
             val sorted = mb.outcomes.sortBy(_.record.job.index)
 
-            assert(sorted.head.record.succeeded)
+            assertEquals(mb.result.isLeft, true)
+            assert(sorted.head.passed)
             assert(sorted.head.record.job.index == 1)
-
-            // a rejected predicate is recorded as unsuccessful but does not abort the batch
-            assert(!sorted(1).record.succeeded)
+            assert(sorted.size == 2)
             assert(sorted(1).record.job.index == 2)
-
-            assert(sorted(2).record.succeeded)
-            assert(sorted(2).record.job.index == 3)
+            assert(sorted(1).passed)
           }
         }
     }.compile.lastOrError.map { se =>
@@ -151,15 +148,15 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("4b.predicate records job success reflecting the result, all jobs Value") {
+  test("4b.monadic jobs are successful when their effects succeed") {
     service.eventStreamR { agent =>
       agent
         .batch("invincible-json")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            ok <- job("b", IO(2), _ > 0)
-            ko <- job("c", IO(3), _ => false)
+            ok <- job("b", IO(2))
+            ko <- job("c", IO(3))
             d <- job("d", IO(4))
           } yield a + d + ok + ko
         }
@@ -170,10 +167,10 @@ class BatchMonadicTest extends CatsEffectSuite {
 
             assert(sorted.size == 4)
             assert(sorted.forall(_.record.job.kind.isEmpty))
-            assert(sorted.head.record.succeeded)
-            assert(sorted(1).record.succeeded)
-            assert(!sorted(2).record.succeeded)
-            assert(sorted(3).record.succeeded)
+            assert(sorted.head.passed)
+            assert(sorted(1).passed)
+            assert(sorted(2).passed)
+            assert(sorted(3).passed)
           }
         }
     }.compile.lastOrError.map { se =>
@@ -202,7 +199,7 @@ class BatchMonadicTest extends CatsEffectSuite {
             // c never runs; only a and b are recorded
             assert(sorted.size == 2)
             assert(sorted.forall(_.record.job.kind.isEmpty))
-            assert(!sorted(1).record.succeeded)
+            assert(!sorted(1).passed)
             assert(!cExecuted)
           }
         }
@@ -230,9 +227,9 @@ class BatchMonadicTest extends CatsEffectSuite {
 
           val sorted = monadicValue.outcomes.sortBy(_.record.job.index)
           assert(sorted.size == 2)
-          assert(sorted.head.record.succeeded)
+          assert(sorted.head.passed)
           assert(sorted.head.record.job.index == 1)
-          assert(sorted(1).record.succeeded)
+          assert(sorted(1).passed)
           assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.map { se =>
@@ -261,8 +258,8 @@ class BatchMonadicTest extends CatsEffectSuite {
 
           val sorted = monadicValue.outcomes.sortBy(_.record.job.index)
           assert(sorted.size == 2)
-          assert(sorted.head.record.succeeded)
-          assert(sorted(1).record.succeeded)
+          assert(sorted.head.passed)
+          assert(sorted(1).passed)
           assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.map { se =>
@@ -291,5 +288,77 @@ class BatchMonadicTest extends CatsEffectSuite {
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
+  }
+
+  test("shared MonadicOps compose map, flatMap, attempt, and withFilter") {
+    service.eventStreamR { agent =>
+      Resource.eval(
+        agent
+          .batch("shared-monadic-ops")
+          .monadic { job =>
+            for {
+              start <- job("start", IO.pure(1)).map(_ + 1)
+              captured <- job("failure", IO.raiseError[Int](new Exception("handled"))).attempt
+              inside <- job("inside", IO.raiseError[Int](new Exception("handled inside")).attempt)
+              double <- job("double", IO.raiseError[Int](new Exception("handled double")).attempt).attempt
+              result <- job("finish", IO.pure(start + captured.fold(_ => 2, identity))).withFilter(_ == 4)
+            } yield {
+              assert(captured.isLeft)
+              assert(inside.isLeft)
+              assert(double.flatten.isLeft)
+              result
+            }
+          }
+          .monadicBatch
+          .use { batch =>
+            IO {
+              assertEquals(batch.result, Right(4))
+              assertEquals(
+                batch.outcomes.map(_.record.job.name),
+                List("start", "failure", "inside", "double", "finish"))
+              assert(batch.outcomes.head.passed)
+              assert(!batch.outcomes(1).passed)
+              assert(batch.outcomes(2).passed)
+              assert(batch.outcomes(3).passed)
+              assert(batch.outcomes(4).passed)
+            }
+          })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("attempt logs the finalized handled state on the next transition") {
+    service
+      .eventStream { agent =>
+        agent
+          .batch("attempt-lifecycle")
+          .monadic { job =>
+            for {
+              _ <- job("failed", IO.raiseError[Int](new Exception("handled"))).attempt
+              _ <- job("next", IO.pure(2))
+            } yield ()
+          }
+          .monadicBatch
+          .use { batch =>
+            IO {
+              assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
+              assert(batch.outcomes.forall(_.passed))
+            }
+          }
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val nonfatalJobs = events.flatMap { event =>
+          event.logRecord.message.value.hcursor
+            .downField("nonfatal")
+            .downField("job-1")
+            .as[String]
+            .toOption
+        }
+        assertEquals(nonfatalJobs, List("failed"))
+      }
   }
 }

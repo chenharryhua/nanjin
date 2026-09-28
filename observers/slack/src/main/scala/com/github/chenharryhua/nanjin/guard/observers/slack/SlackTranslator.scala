@@ -84,7 +84,7 @@ private object SlackTranslator extends all {
   }
 
   private def message_section(evt: ReportedEvent): TagValueSection = {
-    val ss = Attribute(evt.message).map(msg => s"```${abbreviate(msg.value.spaces2)}```").textEntry
+    val ss = Attribute(evt.logRecord.message).map(msg => s"```${abbreviate(msg.value.spaces2)}```").textEntry
     val tag = evt.logLink.fold(ss.tag)(link => s"<${link.value}|${ss.tag}>")
 
     TagValueSection(tag, ss.text)
@@ -197,7 +197,7 @@ private object SlackTranslator extends all {
   }
 
   private def reported_event(evt: ReportedEvent): SlackApp = {
-    val symbol: String = evt.level match {
+    val symbol: String = evt.logRecord.level match {
       case LogLevel.Error => ":x:"
       case LogLevel.Warn  => ":warning:"
       case LogLevel.Info  => ""
@@ -221,7 +221,7 @@ private object SlackTranslator extends all {
       )
     )
 
-    val error: Option[Attachment] = Attribute(evt.stackTrace).fold { (tag, ost) =>
+    val error: Option[Attachment] = Attribute(evt.logRecord.stackTrace).fold { (tag, ost) =>
       ost.map { st =>
         Attachment(color = color, blocks = List(TagValueSection(tag, s"```${abbreviate(st.show)}```")))
       }

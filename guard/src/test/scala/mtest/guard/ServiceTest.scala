@@ -170,7 +170,9 @@ class ServiceTest extends CatsEffectSuite {
       .toList
       .map { xs =>
         val List(a, b) = xs: @unchecked
-        assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
+        assert(
+          a.logRecord.message.value.as[String].toOption.get != b.logRecord.message.value.as[
+            String].toOption.get)
       }
   }
 
@@ -189,7 +191,9 @@ class ServiceTest extends CatsEffectSuite {
       .toList
       .map { xs =>
         val List(a, b) = xs: @unchecked
-        assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
+        assert(
+          a.logRecord.message.value.as[String].toOption.get != b.logRecord.message.value.as[
+            String].toOption.get)
       }
   }
 

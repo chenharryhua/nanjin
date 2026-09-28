@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
-import cats.data.{Kleisli, StateT}
+import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
@@ -164,35 +164,42 @@ object Batch:
 
       /** Sequence a dependent monadic job when the previous job succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[B]] =
-          kleisli.tapWithF { (ctx: Context[F], execState: ExecutionState[A]) =>
-            execState.eoa match {
-              case Left(ex) => StateT((cursor: JobCursor) => (cursor -> execState.update[B](ex)).pure)
-              case Right(a) => f(a).kleisli(ctx).map(execState.prependHistory[B])
+        val nextKleisli = Kleisli { (context: Context[F]) =>
+          StateT { (cursor: JobCursor) =>
+            kleisli.run(context).run(cursor).flatMap { case (nextCursor, execState) =>
+              val completePrevious: F[Option[Unit]] = execState.history.head
+                .traverse(js => lifecycle.logCompleted(log, js) >> context.update(js))
+
+              execState.eoa match {
+                case Left(ex) =>
+                  completePrevious.as(nextCursor -> execState.update[B](ex))
+                case Right(value) =>
+                  completePrevious >>
+                    f(value).kleisli.run(context).run(nextCursor)
+                      .map { case (finalCursor, nextState) =>
+                        finalCursor -> execState.prependHistory[B](nextState)
+                      }
+              }
             }
           }
-        new Monadic[B](runB)
+        }
+        new Monadic[B](nextKleisli)
       }
 
       /** Transform a successful monadic job value without adding a job. */
-      def map[B](f: A => B): Monadic[B] = new Monadic[B](kleisli.map(_.map(f)))
+      def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
       /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
       def withFilter(f: A => Boolean): Monadic[A] =
-        new Monadic[A](
-          kleisli.map { case unchange @ ExecutionState(eoa, history) =>
-            eoa match {
-              case Left(_)      => unchange
-              case Right(value) =>
-                if (f(value))
-                  unchange
-                else {
-                  val err = PostConditionUnsatisfied(history.headOption.map(_.record.job))
-                  ExecutionState[A](Left(err), history)
-                }
-            }
-          }
-        )
+        new Monadic[A](MonadicOps.withFilter(kleisli, f))
+
+      /** Capture a job-chain failure as an inner `Left` and continue the chain.
+        *
+        * The returned batch result is `Right(Left(error))` when the chain has failed. The error is therefore
+        * surfaced as data and must be inspected or rethrown by the caller.
+        */
+      def attempt: Monadic[Either[Throwable, A]] =
+        new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
       /** Execute the monadic batch, reporting lifecycle events through the batch logger as JSON.
         *
@@ -219,7 +226,7 @@ object Batch:
               scope = metrics.scope,
               spent = (end - start).toJava,
               batchId = batchId,
-              outcomes = history.reverse,
+              outcomes = history.toList.flatten.reverse,
               result = eoa
             )
           }
@@ -237,7 +244,7 @@ object Batch:
     /** Add a pure value to the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => (cursor -> ExecutionState(Right(a), Nil)).pure)
+        StateT(cursor => (cursor -> ExecutionState(Right(a), NonEmptyList.one(None))).pure)
       })
 
     /** Add an effectful value to the monadic batch without creating a job.
@@ -249,7 +256,8 @@ object Batch:
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor =>
-          fa.attempt.map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
+          fa.attempt.map(a =>
+            cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), NonEmptyList.one(None))))
       })
 
     /** Add a named effect-backed value job.
@@ -262,7 +270,7 @@ object Batch:
       * @param fa
       *   the effect to run
       */
-    private def create[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Context(update, log, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -275,51 +283,18 @@ object Batch:
                 kind = None,
                 batchId = batchId)
 
-            val compute = for {
+            for {
               _ <- lifecycle.logKickoff(log, job)
               eoa <- fa.attempt
               end <- F.monotonic
             } yield {
-              val succeeded = eoa.fold(_ => false, predicate)
-              JobState(JobRecord(job, start, end, succeeded), eoa)
+              val js = JobState(JobRecord(job, start, end, eoa.isRight), eoa)
+              JobCursor(index + 1, js.record.end) ->
+                ExecutionState(js.result, NonEmptyList.one(Some(js.as(()))))
             }
-
-            compute
-              .guaranteeCase(lifecycle.handleOutcome(log, job, update))
-              .map { js =>
-                JobCursor(index + 1, js.record.end) -> ExecutionState(js.result, List(js.as(())))
-              }
           }
         }
       )
-
-    /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
-      * stops the chain.
-      *
-      * @param name
-      *   name of the job
-      * @param fa
-      *   the effect to run
-      */
-    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, fa, _ => true)
-
-    /** Add a named effect-backed job whose success is decided by `predicate`.
-      *
-      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
-      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
-      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
-      * `predicate`.
-      *
-      * @param name
-      *   name of the job
-      * @param fa
-      *   the effect to run
-      * @param predicate
-      *   applied to a successful value to decide whether the job counts as succeeded
-      */
-    def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, fa, predicate)
-
   end JobBuilder
 end Batch
 

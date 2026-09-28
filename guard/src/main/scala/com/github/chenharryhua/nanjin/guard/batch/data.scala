@@ -17,7 +17,7 @@ import scala.util.control.NoStackTrace
 /** Raised when a batch job completes, but the post-condition predicate rejects the value. */
 final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(job match {
       case Some(value) => s"predicate failed after: ${value.displayName}"
-      case None        => "predicate failed before: job-1"
+      case None        => "untracked job predicate failed"
     }) with NoStackTrace
 
 /** Wraps the failure of an `untracked` (lifted, jobless) step so that, once it short-circuits the chain, it
@@ -139,16 +139,25 @@ object Job {
   * @param end
   *   monotonic clock reading at the end of the job
   * @param succeeded
-  *   whether the job completed successfully and satisfied its post-condition
+  *   internal execution flag indicating that the job completed successfully and satisfied its post-condition;
+  *   use [[JobState.passed]] when inspecting a recorded outcome
   */
-final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration, succeeded: Boolean) {
+final case class JobRecord(
+  job: Job,
+  start: FiniteDuration,
+  end: FiniteDuration,
+  private[batch] val succeeded: Boolean) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
 }
 
 /** The recorded outcome of a single batch job, including the completed job summary and its result. */
-final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor
+final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
+
+  /** Whether the job satisfied its post-condition and produced a successful result. */
+  val passed: Boolean = record.succeeded && result.isRight
+}
 
 sealed trait BatchResult {
   protected type S // state type
@@ -188,7 +197,7 @@ sealed trait BatchResult {
 
   /** Whether every job in the batch succeeded (satisfied its post-condition).
     */
-  final def allPassed: Boolean = outcomes.forall(_.record.succeeded)
+  final def allPassed: Boolean = outcomes.forall(_.passed)
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -211,7 +220,7 @@ object QuasiBatch:
   // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.outcomes.partition(_.record.succeeded)
+      val (passed, failed) = qb.outcomes.partition(_.passed)
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,

@@ -8,7 +8,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import cats.{Defer, Monad}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, MDC}
 import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.translator.{
@@ -19,7 +19,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{
 }
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.{LoggerName, MessageLogger}
+import org.typelevel.log4cats.{LoggerName, StructuredLogger}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -35,21 +35,35 @@ private object EventLogSink:
     }
 
   private def slf4JLogSink[F[_]: {Monad, Defer}](
-    logger: MessageLogger[F],
+    logger: StructuredLogger[F],
     translator: Translator[F, String]): LogSink[F] =
     LogSink { (event: Event) =>
-      translator
-        .translate(event)
-        .flatMap(_.traverse { text =>
-          eventLogLevel[F, Unit](event).run {
-            case LogLevel.Debug => logger.debug(text)
-            case LogLevel.Info  => logger.info(text)
-            case LogLevel.Good  => logger.info(text)
-            case LogLevel.Warn  => logger.warn(text)
-            case LogLevel.Error => logger.error(text)
-          }
-        })
-        .void
+      Event.mdc.getOption(event).map(_.value).match {
+        case Some(ctx) =>
+          translator
+            .translate(event)
+            .flatMap(_.traverse { text =>
+              eventLogLevel[F, Unit](event).run {
+                case LogLevel.Debug => logger.debug(ctx)(text)
+                case LogLevel.Info  => logger.info(ctx)(text)
+                case LogLevel.Good  => logger.info(ctx)(text)
+                case LogLevel.Warn  => logger.warn(ctx)(text)
+                case LogLevel.Error => logger.error(ctx)(text)
+              }
+            })
+        case None =>
+          translator
+            .translate(event)
+            .flatMap(_.traverse { text =>
+              eventLogLevel[F, Unit](event).run {
+                case LogLevel.Debug => logger.debug(text)
+                case LogLevel.Info  => logger.info(text)
+                case LogLevel.Good  => logger.info(text)
+                case LogLevel.Warn  => logger.warn(text)
+                case LogLevel.Error => logger.error(text)
+              }
+            })
+      }.void
     }
 
   private def consoleLogSink[F[_]: {Monad, Console}](

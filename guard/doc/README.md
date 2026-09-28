@@ -144,7 +144,7 @@ classDiagram
 
     class QuasiBatch~A~ {
         jobs: List[JobState[A]]
-        allPassed = jobs.forall(_.record.succeeded)
+        allPassed = jobs.forall(_.passed)
     }
     class ValueBatch~A~ {
         jobs: List[JobValue[A]]
@@ -153,7 +153,7 @@ classDiagram
     class MonadicBatch~A~ {
         jobs: List[JobState[Unit]]
         result: Either[Throwable, A]
-        allPassed = jobs.forall(_.record.succeeded)
+        allPassed = jobs.forall(_.passed)
     }
 ```
 

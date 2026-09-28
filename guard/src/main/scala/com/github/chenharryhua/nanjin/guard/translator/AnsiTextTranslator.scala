@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
+import cats.syntax.show.showInterpolator
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, MDC}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
 
 import scala.io.AnsiColor
@@ -70,15 +71,16 @@ object AnsiTextTranslator {
   private def reported_event(evt: ReportedEvent): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
-    val message = evt.message.value.spaces2
+    val message = evt.logRecord.message.value.spaces2
 
-    s"""|${service_event(evt)}
-        |  $domain, $correlation
-        |${evt.stackTrace.fold(message) { st =>
-         s"""|$message
-             |${Attribute(st).labelledText}""".stripMargin
-       }}
-        |""".stripMargin
+    show"""|${service_event(evt)}
+           |  $domain, $correlation
+           |  MDC: ${Event.mdc.getOption(evt).getOrElse(MDC.empty)}
+           |${evt.logRecord.stackTrace.fold(message) { st =>
+            s"""|$message
+                |${Attribute(st).labelledText}""".stripMargin
+          }}
+           |""".stripMargin
   }
 
   def apply[F[_]: Applicative]: Translator[F, String] =
