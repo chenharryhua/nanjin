@@ -1,32 +1,34 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Monad
-import cats.data.{Kleisli, StateT}
+import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import monocle.Focus.focus
 import monocle.function.Index.index
-import org.typelevel.otel4s.trace.{SpanOps, Tracer}
 
 import scala.concurrent.duration.FiniteDuration
 
-/** Threaded state for a monadic batch run: the current result-or-error together with the completed job states
+/** Threaded state for a monadic batch run: the current result-or-error together with the job history
   * accumulated so far.
   *
-  * Each history entry is a `JobState[Unit]`: the per-step produced value is erased to `Unit` because monadic
-  * intermediate values are never rendered, so only the record and outcome are retained. `history` is kept in
-  * reverse order (most recent job first) so that prepending a later segment is a cheap list cons; the batch
-  * runner reverses it once when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
+  * Each history entry is `Some(JobState[Unit])` for a tracked job or `None` for an invisible
+  * `pure`/`untracked` step. The per-step produced value is erased to `Unit` because monadic intermediate
+  * values are never rendered. Invisible entries preserve positional history so `attempt` can mark the most
+  * recent tracked job as handled. `history` is kept in reverse order (most recent step first) and flattened
+  * after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
   * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
   *
   * @param eoa
   *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
   *   short-circuited the chain
   * @param history
-  *   the completed job states (value erased to `Unit`) so far, most recent first
+  *   tracked job states and invisible-step placeholders so far, most recent first
   */
-final private case class ExecutionState[A](eoa: Either[Throwable, A], history: List[JobState[Unit]]):
+final private case class ExecutionState[A](
+  eoa: Either[Throwable, A],
+  history: NonEmptyList[Option[JobState[Unit]]]):
 
   /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
     * reflects that no value of the new type will be produced once the chain has short-circuited.
@@ -42,11 +44,12 @@ final private case class ExecutionState[A](eoa: Either[Throwable, A], history: L
   /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
   def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
 
+  private val mark_history_head_succeeded =
+    index[NonEmptyList[Option[JobState[Unit]]], Int, Option[JobState[Unit]]](0)
+      .modify(_.map(_.focus(_.record.succeeded).replace(true)))
+
   def attempt: ExecutionState[Either[Throwable, A]] =
-    ExecutionState[Either[Throwable, A]](
-      Right(eoa),
-      index[List[JobState[Unit]], Int, JobState[Unit]](0)
-        .modify(_.focus(_.record.succeeded).replace(true))(history))
+    ExecutionState[Either[Throwable, A]](Right(eoa), mark_history_head_succeeded(history))
 
 end ExecutionState
 
@@ -56,16 +59,14 @@ private object MonadicOps:
   def flatMap[F[_]: Monad, R, A, B](first: State[F, R, A], next: A => State[F, R, B]): State[F, R, B] =
     Kleisli { context =>
       StateT { cursor =>
-        first(context).run(cursor).flatMap {
-          case (nextCursor, execState) =>
-            execState.eoa match {
-              case Left(ex) => (nextCursor -> execState.update[B](ex)).pure[F]
-              case Right(value) =>
-                next(value)(context).run(nextCursor).map {
-                  case (finalCursor, nextState) =>
-                    finalCursor -> execState.prependHistory[B](nextState)
-                }
-            }
+        first(context).run(cursor).flatMap { case (nextCursor, execState) =>
+          execState.eoa match {
+            case Left(ex)     => (nextCursor -> execState.update[B](ex)).pure[F]
+            case Right(value) =>
+              next(value)(context).run(nextCursor).map { case (finalCursor, nextState) =>
+                finalCursor -> execState.prependHistory[B](nextState)
+              }
+          }
         }
       }
     }
@@ -76,11 +77,11 @@ private object MonadicOps:
   def withFilter[F[_]: Monad, R, A](state: State[F, R, A], predicate: A => Boolean): State[F, R, A] =
     state.map { case unchanged @ ExecutionState(eoa, history) =>
       eoa match {
-        case Left(_) => unchanged
+        case Left(_)      => unchanged
         case Right(value) =>
           if predicate(value) then unchanged
           else {
-            val error = PostConditionUnsatisfied(history.headOption.map(_.record.job))
+            val error = PostConditionUnsatisfied(history.head.map(_.record.job))
             ExecutionState[A](Left(error), history)
           }
       }
@@ -90,13 +91,8 @@ private object MonadicOps:
     state.map(_.attempt)
 end MonadicOps
 
-/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
-final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
-
 /** Threads the running job index together with the start time carried over from the previous job's `end`, so
   * each monadic job's `start` absorbs the gap left by invisible `untracked`/`pure` steps. See `JobRecord` for
   * the resulting per-job timing semantics.
   */
 final private case class JobCursor(index: Int, start: FiniteDuration)
-
-final private[guard] case class BatchTracer[F[_]](tracer: Tracer[F], parent: SpanOps[F])

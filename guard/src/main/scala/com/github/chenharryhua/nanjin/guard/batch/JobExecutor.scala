@@ -8,6 +8,9 @@ import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 
+/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
+final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
+
 /** A successful value job: the produced value paired with the job's completion record. Used internally by the
   * `valueJob` path to carry results before they are folded into a `ValueBatch`.
   */

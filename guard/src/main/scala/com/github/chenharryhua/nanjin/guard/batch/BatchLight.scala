@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
-import cats.data.{Kleisli, StateT}
-import cats.effect.Temporal
+import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
@@ -171,7 +170,7 @@ object BatchLight:
           scope = scope,
           spent = (end - start).toJava,
           batchId = batchId,
-          outcomes = history.reverse,
+          outcomes = history.toList.flatten.reverse,
           result = eoa)
     end Monadic
     object Monadic:
@@ -187,7 +186,7 @@ object BatchLight:
     /** Add a pure value to the monadic batch without creating a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => (cursor -> ExecutionState(Right(a), Nil)).pure[F])
+        StateT(cursor => (cursor -> ExecutionState(Right(a), NonEmptyList.one(None))).pure[F])
       })
 
     /** Add an effectful value to the monadic batch without creating a job.
@@ -199,15 +198,11 @@ object BatchLight:
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor =>
-          fa.attempt.map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
+          fa.attempt.map(a =>
+            cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), NonEmptyList.one(None))))
       })
 
-    /** Shared constructor for effect-backed jobs. The job runs under `attempt`: a thrown exception is
-      * recorded as an unsuccessful job and propagated as the monadic result, stopping the chain; a successful
-      * effect is judged by `predicate` to set the job's `succeeded` flag, but its value flows on regardless
-      * so the chain continues.
-      */
-    private def create[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -222,43 +217,15 @@ object BatchLight:
 
             for {
               eoa <- fa.attempt
-              end <- Temporal[F].monotonic
+              end <- F.monotonic
             } yield {
-              val succeeded = eoa.fold(_ => false, predicate)
-              val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))
-              JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
+              val completed = JobState(JobRecord(job, start, end, eoa.isRight), eoa.as(()))
+              JobCursor(index + 1, end) ->
+                ExecutionState(eoa = eoa, history = NonEmptyList.one(Some(completed)))
             }
           }
         }
       )
-
-    /** Add a named effect-backed job. The job succeeds unless its effect throws, in which case the exception
-      * stops the chain.
-      *
-      * @param name
-      *   name of the job
-      * @param fa
-      *   the effect to run
-      */
-    def apply[A](name: String, fa: F[A]): Monadic[A] = create[A](name, fa, _ => true)
-
-    /** Add a named effect-backed job whose success is decided by `predicate`.
-      *
-      * A rejected value (`predicate` returns false) marks the job as failed in its `JobRecord` but does not
-      * stop the chain: the value still flows to later jobs. To reject a value and stop the chain instead, use
-      * `withFilter`. A thrown exception is always recorded as failed and stops the chain, regardless of
-      * `predicate`.
-      *
-      * @param name
-      *   name of the job
-      * @param fa
-      *   the effect to run
-      * @param predicate
-      *   applied to a successful value to decide whether the job counts as succeeded
-      */
-    def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, fa, predicate)
-
   end JobBuilder
 end BatchLight
 

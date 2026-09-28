@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
-import cats.data.{Kleisli, StateT}
-import cats.effect.Temporal
+import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
@@ -12,10 +11,12 @@ import cats.syntax.functor.given
 import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
-import org.typelevel.otel4s.trace.Span
+import org.typelevel.otel4s.trace.{Span, SpanOps, Tracer}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
+
+final private[guard] case class BatchTracer[F[_]](tracer: Tracer[F], parent: SpanOps[F])
 
 object BatchTraced:
 
@@ -130,9 +131,8 @@ object BatchTraced:
     final class Monadic[A] private[BatchTraced] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
-      def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
+      def flatMap[B](f: A => Monadic[B]): Monadic[B] =
         new Monadic[B](MonadicOps.flatMap(kleisli, a => f(a).kleisli))
-      }
 
       def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
@@ -159,7 +159,7 @@ object BatchTraced:
               scope = scope,
               spent = (end - start).toJava,
               batchId = batchId,
-              outcomes = history.reverse,
+              outcomes = history.toList.flatten.reverse,
               result = eoa)
           }
         } yield result
@@ -174,14 +174,15 @@ object BatchTraced:
 
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
-        StateT(cursor => (cursor -> ExecutionState(Right(a), Nil)).pure[F])
+        StateT(cursor => (cursor -> ExecutionState(Right(a), NonEmptyList.one(None))).pure[F])
       })
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor =>
-          fa.attempt.map(a => cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), Nil)))
+          fa.attempt.map(a =>
+            cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), NonEmptyList.one(None))))
       })
-    private def create[A](name: String, f: Span[F] => F[A], predicate: A => Boolean): Monadic[A] =
+    private def create[A](name: String, f: Span[F] => F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
@@ -196,23 +197,19 @@ object BatchTraced:
 
             for {
               eoa <- batchTracer.tracer.span(name).use(f).attempt
-              end <- Temporal[F].monotonic
+              end <- F.monotonic
             } yield {
-              val succeeded = eoa.fold(_ => false, predicate)
-              val completed = JobState(JobRecord(job, start, end, succeeded), eoa.as(()))
-              JobCursor(index + 1, end) -> ExecutionState(eoa = eoa, history = List(completed))
+              val completed = JobState(JobRecord(job, start, end, eoa.isRight), eoa.as(()))
+              JobCursor(index + 1, end) ->
+                ExecutionState(eoa = eoa, history = NonEmptyList.one(Some(completed)))
             }
           }
         }
       )
     def apply[A](name: String, fa: F[A]): Monadic[A] =
-      create[A](name, _ => fa, _ => true)
+      create[A](name, _ => fa)
     def apply[A](name: String, f: Span[F] => F[A]): Monadic[A] =
-      create[A](name, f, _ => true)
-    def apply[A](name: String, fa: F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, _ => fa, predicate)
-    def apply[A](name: String, f: Span[F] => F[A], predicate: A => Boolean): Monadic[A] =
-      create[A](name, f, predicate)
+      create[A](name, f)
 
   end JobBuilder
 end BatchTraced

@@ -106,7 +106,7 @@ class BatchSpec extends CatsEffectSuite {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job("b", IO(0), _ => false)
+            _ <- job("b", IO(0)).withFilter(_ => false)
             c <- job("c", IO(2))
           } yield a + c
         }
@@ -114,10 +114,10 @@ class BatchSpec extends CatsEffectSuite {
         .use(qr => agent.adhoc.report.as(qr))
 
       result.map { r =>
-        assertEquals(r.result, Right(3))
-        assert(r.outcomes.head.record.succeeded)
-        assert(!r.outcomes(1).record.succeeded)
-        assert(r.outcomes(2).record.succeeded)
+        assert(r.result.isLeft)
+        assert(r.outcomes.head.passed)
+        assert(r.outcomes(1).passed)
+        assertEquals(r.outcomes.size, 2)
       }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

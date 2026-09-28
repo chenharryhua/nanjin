@@ -154,7 +154,7 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
             LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
       }
     case Right(a) =>
-      if (js.record.succeeded)
+      if (js.passed)
         LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None, MDC.empty)
       else
         LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None, MDC.empty)

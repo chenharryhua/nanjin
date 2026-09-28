@@ -31,12 +31,12 @@ class BatchTest extends CatsEffectSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(!qr.outcomes.head.record.succeeded)
-          assert(qr.outcomes(1).record.succeeded)
-          assert(qr.outcomes(2).record.succeeded)
-          assert(!qr.outcomes(3).record.succeeded)
-          assert(qr.outcomes(4).record.succeeded)
-          assert(!qr.outcomes(5).record.succeeded)
+          assert(!qr.outcomes.head.passed)
+          assert(qr.outcomes(1).passed)
+          assert(qr.outcomes(2).passed)
+          assert(!qr.outcomes(3).passed)
+          assert(qr.outcomes(4).passed)
+          assert(!qr.outcomes(5).passed)
           assert(qr.outcomes.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
@@ -59,12 +59,12 @@ class BatchTest extends CatsEffectSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(qr.outcomes.head.record.succeeded)
-          assert(qr.outcomes(1).record.succeeded)
-          assert(!qr.outcomes(2).record.succeeded)
-          assert(qr.outcomes(3).record.succeeded)
-          assert(!qr.outcomes(4).record.succeeded)
-          assert(qr.outcomes(5).record.succeeded)
+          assert(qr.outcomes.head.passed)
+          assert(qr.outcomes(1).passed)
+          assert(!qr.outcomes(2).passed)
+          assert(qr.outcomes(3).passed)
+          assert(!qr.outcomes(4).passed)
+          assert(qr.outcomes(5).passed)
           assert(qr.outcomes.map(_.record.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
@@ -100,7 +100,7 @@ class BatchTest extends CatsEffectSuite {
         .withPostCondition(_ => true)
         .valueBatch
         .memoizedAcquire
-        .use(_.map(_.outcomes.forall(_.record.succeeded)))
+        .use(_.map(_.outcomes.forall(_.passed)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.map { se =>
@@ -199,7 +199,7 @@ class BatchTest extends CatsEffectSuite {
             a <- job("a", IO(10))
             b <- job("b", IO.sleep(1.seconds).as(20))
             _ <- job("report-1", agent.adhoc.report.void)
-            _ <- job("rejected", IO(0), _ => false)
+            _ <- job("rejected", IO(0)).withFilter(_ => false)
             _ <- job("f", IO.unit)
             _ <- job("report-2", agent.adhoc.report.void)
             c <- job("c", IO(30))
@@ -207,14 +207,11 @@ class BatchTest extends CatsEffectSuite {
         }
         .monadicBatch
         .use { qr =>
-          assert(qr.outcomes.head.record.succeeded)
-          assert(qr.outcomes(1).record.succeeded)
-          assert(qr.outcomes(2).record.succeeded)
-          assert(!qr.outcomes(3).record.succeeded)
-          assert(qr.outcomes(4).record.succeeded)
-          assert(qr.outcomes(5).record.succeeded)
-          assert(qr.outcomes(6).record.succeeded)
-          assert(qr.outcomes.size == 7)
+          assert(qr.outcomes.head.passed)
+          assert(qr.outcomes(1).passed)
+          assert(qr.outcomes(2).passed)
+          assert(qr.outcomes(3).passed)
+          assert(qr.outcomes.size == 4)
           agent.adhoc.report.void
         }
     }.compile.lastOrError.map { se =>
@@ -294,7 +291,7 @@ class BatchTest extends CatsEffectSuite {
             assert(values(2) == 3)
             assert(values(3) == 4)
             assert(values(4) == 5)
-            assert(outcomes.forall(_.record.succeeded))
+            assert(outcomes.forall(_.passed))
             assert(outcomes.head.record.job.name == "1")
             assert(outcomes.head.record.job.index == 1)
             assert(outcomes(1).record.job.name == "2")
@@ -322,7 +319,7 @@ class BatchTest extends CatsEffectSuite {
             assert(values(2) == 3)
             assert(values(3) == 4)
             assert(values(4) == 5)
-            assert(outcomes.forall(_.record.succeeded))
+            assert(outcomes.forall(_.passed))
             assert(outcomes.head.record.job.name == "1")
             assert(outcomes.head.record.job.index == 1)
             assert(outcomes(1).record.job.name == "2")
