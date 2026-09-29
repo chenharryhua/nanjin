@@ -58,7 +58,7 @@ class BatchLightMonadicTest extends CatsEffectSuite {
         .map { monadicValue =>
           assertEquals(monadicValue.outcomes.map(_.record.job.index), List(1, 2, 3))
           assertEquals(monadicValue.outcomes.map(_.record.job.name), List("a", "b", "c"))
-          assertEquals(monadicValue.outcomes.map(_.passed), List(true, true, true))
+          assertEquals(monadicValue.outcomes.map(_.succeeded), List(true, true, true))
           ()
         }
     }.compile.lastOrError.map { se =>
@@ -246,8 +246,8 @@ class BatchLightMonadicTest extends CatsEffectSuite {
         .map { monadicValue =>
           assert(monadicValue.result.isLeft)
           assertEquals(monadicValue.outcomes.size, 2)
-          assert(monadicValue.outcomes.head.passed)
-          assert(monadicValue.outcomes(1).passed)
+          assert(monadicValue.outcomes.head.succeeded)
+          assert(monadicValue.outcomes(1).succeeded)
           assert(aExecuted)
           assert(bExecuted)
           assert(!cExecuted)
@@ -386,7 +386,7 @@ class BatchLightMonadicTest extends CatsEffectSuite {
           // monadic jobs have no kind
           assertEquals(monadicValue.outcomes.map(_.record.job.kind), List.fill(3)(None))
           assertEquals(monadicValue.outcomes.map(_.record.job.mode), List.fill(3)(BatchMode.Monadic))
-          assert(monadicValue.outcomes(1).passed)
+          assert(monadicValue.outcomes(1).succeeded)
           ()
         }
     }.compile.lastOrError.map { se =>
@@ -406,9 +406,9 @@ class BatchLightMonadicTest extends CatsEffectSuite {
           assertEquals(state.outcomes.head.record.job.name, "a")
           assertEquals(state.outcomes.head.record.job.mode, BatchMode.Sequential)
           assertEquals(state.outcomes.head.record.job.kind, Some(BatchKind.Quasi))
-          assertEquals(state.outcomes.head.passed, false)
-          assertEquals(state.outcomes(1).passed, true)
-          assertEquals(state.outcomes(2).passed, true)
+          assertEquals(state.outcomes.head.succeeded, false)
+          assertEquals(state.outcomes(1).succeeded, true)
+          assertEquals(state.outcomes(2).succeeded, true)
           ()
         }
     }.compile.lastOrError.map { se =>
@@ -462,7 +462,7 @@ class BatchLightMonadicTest extends CatsEffectSuite {
           assertEquals(bv.mode, BatchMode.Sequential)
           assertEquals(bv.outcomes.map(_.record.job.kind), List.fill(3)(Some(BatchKind.Value)))
           assertEquals(bv.outcomes.map(_.record.job.mode), List.fill(3)(BatchMode.Sequential))
-          assertEquals(bv.allPassed, true)
+          assertEquals(bv.allSucceeded, true)
           ()
         }
     }.compile.lastOrError.map { se =>
@@ -516,9 +516,9 @@ class BatchLightMonadicTest extends CatsEffectSuite {
           assertEquals(state.outcomes.head.record.job.name, "a")
           assertEquals(state.outcomes.head.record.job.mode, BatchMode.Parallel(3))
           assertEquals(state.outcomes.head.record.job.kind, Some(BatchKind.Quasi))
-          assertEquals(state.outcomes.head.passed, false)
-          assertEquals(state.outcomes(1).passed, true)
-          assertEquals(state.outcomes(2).passed, true)
+          assertEquals(state.outcomes.head.succeeded, false)
+          assertEquals(state.outcomes(1).succeeded, true)
+          assertEquals(state.outcomes(2).succeeded, true)
           ()
         }
     }.compile.lastOrError.map { se =>
@@ -625,8 +625,8 @@ class BatchLightMonadicTest extends CatsEffectSuite {
               case other => fail(s"expected a surfaced failure and continuation, got $other")
             }
             assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
-            assert(!batch.outcomes.head.passed)
-            assert(batch.outcomes(1).passed)
+            assert(!batch.outcomes.head.succeeded)
+            assert(batch.outcomes(1).succeeded)
           })
     }.compile.lastOrError.map { se =>
       assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)

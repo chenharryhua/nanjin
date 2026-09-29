@@ -5,19 +5,22 @@ import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
+import io.circe.Json
+import monocle.Optional
 import monocle.Focus.focus
 import monocle.function.Index.index
+import monocle.std.option.some
 
 import scala.concurrent.duration.FiniteDuration
 
 /** Threaded state for a monadic batch run: the current result-or-error together with the job history
   * accumulated so far.
   *
-  * Each history entry is `Some(JobState[Unit])` for a tracked job or `None` for an invisible
-  * `pure`/`untracked` step. The per-step produced value is erased to `Unit` because monadic intermediate
-  * values are never rendered. Invisible entries preserve positional history so `attempt` can mark the most
-  * recent tracked job as handled. `history` is kept in reverse order (most recent step first) and flattened
-  * after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
+  * Each history entry is `Some(JobState[Json])` for a tracked job or `None` for an invisible
+  * `pure`/`untracked` step. Tracked outcomes default to `Json.Null`; `renderOutcome` can attach a JSON
+  * representation to the current tracked step. Invisible entries preserve positional history so `attempt` can
+  * mark the most recent tracked job as handled. `history` is kept in reverse order (most recent step first)
+  * and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
   * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
   *
   * @param eoa
@@ -28,7 +31,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 final private case class ExecutionState[A](
   eoa: Either[Throwable, A],
-  history: NonEmptyList[Option[JobState[Unit]]]):
+  history: NonEmptyList[Option[JobState[Json]]]):
 
   /** Mark the chain as failed, replacing the result with `Left(ex)` while retaining the history. The `B` type
     * reflects that no value of the new type will be produced once the chain has short-circuited.
@@ -44,12 +47,20 @@ final private case class ExecutionState[A](
   /** Map over a still-succeeding result; a short-circuited (`Left`) state is left unchanged. */
   def map[B](f: A => B): ExecutionState[B] = copy(eoa = eoa.map(f))
 
-  private val mark_history_head_succeeded =
-    index[NonEmptyList[Option[JobState[Unit]]], Int, Option[JobState[Unit]]](0)
-      .modify(_.map(_.focus(_.record.succeeded).replace(true)))
+  private val head: Optional[NonEmptyList[Option[JobState[Json]]], JobState[Json]] =
+    index[NonEmptyList[Option[JobState[Json]]], Int, Option[JobState[Json]]](0)
+      .andThen(some[JobState[Json]])
 
   def attempt: ExecutionState[Either[Throwable, A]] =
-    ExecutionState[Either[Throwable, A]](Right(eoa), mark_history_head_succeeded(history))
+    ExecutionState[Either[Throwable, A]](
+      Right(eoa),
+      head.modify(_.focus(_.record.passed).modify(b => eoa.fold(_ => true, _ => b)))(history))
+
+  def predicate(f: A => Boolean): ExecutionState[A] =
+    copy(history = head.modify(_.focus(_.record.passed).replace(eoa.fold(_ => false, f)))(history))
+
+  def renderOutcome(f: A => Json): ExecutionState[A] =
+    copy(history = head.modify(_.focus(_.result).replace(eoa.map(f)))(history))
 
 end ExecutionState
 
@@ -89,6 +100,13 @@ private object MonadicOps:
 
   def attempt[F[_]: Monad, R, A](state: State[F, R, A]): State[F, R, Either[Throwable, A]] =
     state.map(_.attempt)
+
+  def predicate[F[_]: Monad, R, A](state: State[F, R, A], f: A => Boolean): State[F, R, A] =
+    state.map(_.predicate(f))
+
+  def renderOutcome[F[_]: Monad, R, A](state: State[F, R, A], f: A => Json): State[F, R, A] =
+    state.map(_.renderOutcome(f))
+
 end MonadicOps
 
 /** Threads the running job index together with the start time carried over from the previous job's `end`, so

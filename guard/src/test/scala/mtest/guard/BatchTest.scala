@@ -31,12 +31,12 @@ class BatchTest extends CatsEffectSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(!qr.outcomes.head.passed)
-          assert(qr.outcomes(1).passed)
-          assert(qr.outcomes(2).passed)
-          assert(!qr.outcomes(3).passed)
-          assert(qr.outcomes(4).passed)
-          assert(!qr.outcomes(5).passed)
+          assert(!qr.outcomes.head.succeeded)
+          assert(qr.outcomes(1).succeeded)
+          assert(qr.outcomes(2).succeeded)
+          assert(!qr.outcomes(3).succeeded)
+          assert(qr.outcomes(4).succeeded)
+          assert(!qr.outcomes(5).succeeded)
           assert(qr.outcomes.map(_.record.job.name) == List("a", "bbb", "cccc", "ddd", "ee", "f"))
           qr
         }
@@ -59,12 +59,12 @@ class BatchTest extends CatsEffectSuite {
         )
         .quasiBatch
         .map { qr =>
-          assert(qr.outcomes.head.passed)
-          assert(qr.outcomes(1).passed)
-          assert(!qr.outcomes(2).passed)
-          assert(qr.outcomes(3).passed)
-          assert(!qr.outcomes(4).passed)
-          assert(qr.outcomes(5).passed)
+          assert(qr.outcomes.head.succeeded)
+          assert(qr.outcomes(1).succeeded)
+          assert(!qr.outcomes(2).succeeded)
+          assert(qr.outcomes(3).succeeded)
+          assert(!qr.outcomes(4).succeeded)
+          assert(qr.outcomes(5).succeeded)
           assert(qr.outcomes.map(_.record.job.name) == List("a", "bb", "cccc", "ddd", "ee", "f"))
           qr
         }
@@ -100,7 +100,7 @@ class BatchTest extends CatsEffectSuite {
         .withPostCondition(_ => true)
         .valueBatch
         .memoizedAcquire
-        .use(_.map(_.outcomes.forall(_.passed)))
+        .use(_.map(_.outcomes.forall(_.succeeded)))
         .map(assert(_))
         .void
     }.map(checkJson).compile.lastOrError.map { se =>
@@ -207,10 +207,10 @@ class BatchTest extends CatsEffectSuite {
         }
         .monadicBatch
         .use { qr =>
-          assert(qr.outcomes.head.passed)
-          assert(qr.outcomes(1).passed)
-          assert(qr.outcomes(2).passed)
-          assert(qr.outcomes(3).passed)
+          assert(qr.outcomes.head.succeeded)
+          assert(qr.outcomes(1).succeeded)
+          assert(qr.outcomes(2).succeeded)
+          assert(qr.outcomes(3).succeeded)
           assert(qr.outcomes.size == 4)
           agent.adhoc.report.void
         }
@@ -291,7 +291,7 @@ class BatchTest extends CatsEffectSuite {
             assert(values(2) == 3)
             assert(values(3) == 4)
             assert(values(4) == 5)
-            assert(outcomes.forall(_.passed))
+            assert(outcomes.forall(_.succeeded))
             assert(outcomes.head.record.job.name == "1")
             assert(outcomes.head.record.job.index == 1)
             assert(outcomes(1).record.job.name == "2")
@@ -319,7 +319,7 @@ class BatchTest extends CatsEffectSuite {
             assert(values(2) == 3)
             assert(values(3) == 4)
             assert(values(4) == 5)
-            assert(outcomes.forall(_.passed))
+            assert(outcomes.forall(_.succeeded))
             assert(outcomes.head.record.job.name == "1")
             assert(outcomes.head.record.job.index == 1)
             assert(outcomes(1).record.job.name == "2")

@@ -11,6 +11,7 @@ import cats.syntax.functor.given
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
+import io.circe.{Encoder, Json}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -152,6 +153,23 @@ object BatchLight:
       def attempt: Monadic[Either[Throwable, A]] =
         new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
+      /** Record whether the current tracked step satisfies `f` without short-circuiting the chain.
+        *
+        * If the current step is untracked, there is no job outcome to update and this has no effect.
+        */
+      def predicate(f: A => Boolean): Monadic[A] =
+        new Monadic[A](MonadicOps.predicate(kleisli, f))
+
+      /** Attach a JSON representation of the current tracked step's value to its outcome without changing the
+        * value passed along the chain. An untracked step has no outcome to update, so this has no effect.
+        */
+      def renderOutcome(f: A => Json): Monadic[A] =
+        new Monadic[A](MonadicOps.renderOutcome(kleisli, f))
+
+      /** Encode the current tracked step's value as JSON for its outcome without changing the chain value. */
+      def render(using ev: Encoder[A]): Monadic[A] =
+        renderOutcome(ev.apply)
+
       /** Execute the monadic batch and return its result in `F`.
         *
         * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
@@ -219,7 +237,7 @@ object BatchLight:
               eoa <- fa.attempt
               end <- F.monotonic
             } yield {
-              val completed = JobState(JobRecord(job, start, end, eoa.isRight), eoa.as(()))
+              val completed = JobState(JobRecord(job, start, end, eoa.isRight), eoa.as(Json.Null))
               JobCursor(index + 1, end) ->
                 ExecutionState(eoa = eoa, history = NonEmptyList.one(Some(completed)))
             }

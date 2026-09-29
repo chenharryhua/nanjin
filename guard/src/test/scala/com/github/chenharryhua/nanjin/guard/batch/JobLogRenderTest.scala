@@ -9,15 +9,13 @@ import munit.FunSuite
 import scala.concurrent.duration.DurationInt
 
 /** Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
-  * package-private `JobLog` and `toLogEntry`. This lets the render matrix and the privacy invariant be tested
+  * package-private `JobLog` and `toLogEntry`. This lets the render matrix and privacy invariant be tested
   * directly and purely, without going through the effectful event pipeline.
   *
-  * The central property under test: the auto-emitted per-job log (`JobLog.standalone`) and the batch-nested
-  * per-job entry (`JobLog.inBatch`) render only lifecycle facts — identity, took, outcome tag, and (on
-  * failure) the exception message — never the job's produced value. The produced value is added only by the
-  * `QuasiBatch`/`ValueBatch` encoders, which run solely when the user chooses to serialize a returned result.
-  * The `MonadicBatch` encoder renders no produced value at all (its jobs are `JobState[Unit]` and its final
-  * `A` is not serialized).
+  * The auto-emitted per-job log (`JobLog.standalone`) never exposes produced values. Batch-nested entries
+  * (`JobLog.inBatch`) are included only when a returned result is explicitly serialized; they include
+  * produced values under the outcome tag. `MonadicBatch` can carry explicitly rendered per-job JSON and
+  * serializes its successful final `A` as well.
   */
 class JobLogRenderTest extends FunSuite {
 
@@ -29,7 +27,7 @@ class JobLogRenderTest extends FunSuite {
     Job(name, index, scope, mode, kind, batchId)
 
   private def record(j: Job, succeeded: Boolean): JobRecord =
-    JobRecord(j, 0.millis, 12.millis, succeeded = succeeded)
+    JobRecord(j, 0.millis, 12.millis, passed = succeeded)
 
   private val quasiJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Quasi))
   private val valueJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Value))
@@ -89,8 +87,8 @@ class JobLogRenderTest extends FunSuite {
     val tag = c.downField("succeeded")
     assert(tag.get[String]("job-1").toOption.contains("work")) // identity
     assert(tag.get[String]("Sequential Quasi Batch").toOption.contains("batch")) // full job context
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty)) // took, its own key
-    assert(c.downField(JobLog.RESULT).focus.isEmpty) // privacy: value dropped
+    assert(c.get[String]("took").toOption.exists(_.nonEmpty)) // took, its own key
+    assert(c.downField("result").focus.isEmpty) // privacy: value dropped
     assert(!js.noSpaces.contains("TOP-SECRET")) // the produced value never reaches the auto-emitted log
   }
 
@@ -98,8 +96,8 @@ class JobLogRenderTest extends FunSuite {
     val js = JobLog.Unsatisfied(record(quasiJob, succeeded = false), secret).standalone
     val c = js.hcursor
     assert(c.downField("unsatisfied").get[String]("job-1").toOption.contains("work"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    assert(c.downField(JobLog.RESULT).focus.isEmpty)
+    assert(c.get[String]("took").toOption.exists(_.nonEmpty))
+    assert(c.downField("result").focus.isEmpty)
     assert(!js.noSpaces.contains("TOP-SECRET"))
   }
 
@@ -108,20 +106,20 @@ class JobLogRenderTest extends FunSuite {
     val c = js.hcursor
     // stable: the failure is tagged, carries the job identity, and reports took
     assert(c.downField("nonfatal").get[String]("job-1").toOption.contains("work"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
+    assert(c.get[String]("took").toOption.exists(_.nonEmpty))
     // standalone deliberately omits the error message: it is auto-emitted with the throwable as the log
     // entry's cause, so the stacktrace already carries it and repeating it here would duplicate.
-    assert(c.downField(JobLog.ERROR).focus.isEmpty)
-    assert(c.downField(JobLog.RESULT).focus.isEmpty)
+    assert(c.downField("error").focus.isEmpty)
+    assert(c.downField("result").focus.isEmpty)
   }
 
   test("9.standalone Critical: job under the status tag, took present, no duplicated error message") {
     val js = JobLog.Critical(record(valueJob, succeeded = false), new RuntimeException("boom")).standalone
     val c = js.hcursor
     assert(c.downField("critical").get[String]("job-1").toOption.contains("work"))
-    assert(c.get[String](JobLog.TOOK).toOption.exists(_.nonEmpty))
-    assert(c.downField(JobLog.ERROR).focus.isEmpty)
-    assert(c.downField(JobLog.RESULT).focus.isEmpty)
+    assert(c.get[String]("took").toOption.exists(_.nonEmpty))
+    assert(c.downField("error").focus.isEmpty)
+    assert(c.downField("result").focus.isEmpty)
   }
 
   test("10.standalone Kickoff/Canceled: render the job under their lifecycle key") {
@@ -133,7 +131,7 @@ class JobLogRenderTest extends FunSuite {
 
   // ---- inBatch render (nested inside a serialized BatchResult) -------------------------------------
 
-  // These `inBatch` tests assert stable display invariants (identity, status tag, took, and value/error
+  // These `inBatch` tests assert stable display invariants (identity, status tag, took, and payload
   // disclosure) rather than the exact key layout, which is UI-facing and expected to evolve.
 
   test("11.inBatch Succeeded: identity, status tag, took present, and the produced value is disclosed") {
@@ -145,13 +143,13 @@ class JobLogRenderTest extends FunSuite {
     assert(text.contains("TOP-SECRET-PRODUCED-VALUE"))
   }
 
-  test("12.inBatch Succeeded with an absent value (Json.Null): no result is rendered") {
+  test("12.inBatch Succeeded with Json.Null: null remains under the outcome tag") {
     val js = JobLog.Succeeded(record(quasiJob, succeeded = true), Json.Null).inBatch
     val text = js.noSpaces
     assert(text.contains("job-1") && text.contains("work"))
     assert(text.contains("succeeded"))
-    // dropNullValues removes the absent value: no result key survives
-    assert(js.hcursor.downField(JobLog.RESULT).focus.isEmpty)
+    // Null remains as the outcome's payload under its status tag.
+    assertEquals(js.hcursor.downField("succeeded").focus, Some(Json.Null))
   }
 
   test("13.inBatch Critical: identity, status tag, took, and the exception message are rendered") {
