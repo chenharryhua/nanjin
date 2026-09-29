@@ -6,6 +6,8 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchMode, PostConditionUnsatisfied}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ReportedEvent, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
@@ -61,7 +63,7 @@ class BatchMonadicTest extends CatsEffectSuite {
           assert(monadicValue.result.left.toOption.get.isInstanceOf[Exception])
           // the failing job (index 2) is recorded and marked unsuccessful
           val failed = monadicValue.outcomes.find(_.record.job.index == 2).get
-          assert(!failed.passed)
+          assert(!failed.succeeded)
         }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -88,10 +90,10 @@ class BatchMonadicTest extends CatsEffectSuite {
             val sorted = mb.outcomes.sortBy(_.record.job.index)
             assert(sorted.size == 2)
 
-            assert(sorted.head.passed)
+            assert(sorted.head.succeeded)
             assert(sorted.head.record.job.index == 1)
 
-            assert(!sorted(1).passed)
+            assert(!sorted(1).succeeded)
             assert(sorted(1).record.job.index == 2)
 
             assert(!cExecuted)
@@ -119,11 +121,11 @@ class BatchMonadicTest extends CatsEffectSuite {
             val sorted = mb.outcomes.sortBy(_.record.job.index)
 
             assertEquals(mb.result.isLeft, true)
-            assert(sorted.head.passed)
+            assert(sorted.head.succeeded)
             assert(sorted.head.record.job.index == 1)
             assert(sorted.size == 2)
             assert(sorted(1).record.job.index == 2)
-            assert(sorted(1).passed)
+            assert(sorted(1).succeeded)
           }
         }
     }.compile.lastOrError.map { se =>
@@ -167,10 +169,10 @@ class BatchMonadicTest extends CatsEffectSuite {
 
             assert(sorted.size == 4)
             assert(sorted.forall(_.record.job.kind.isEmpty))
-            assert(sorted.head.passed)
-            assert(sorted(1).passed)
-            assert(sorted(2).passed)
-            assert(sorted(3).passed)
+            assert(sorted.head.succeeded)
+            assert(sorted(1).succeeded)
+            assert(sorted(2).succeeded)
+            assert(sorted(3).succeeded)
           }
         }
     }.compile.lastOrError.map { se =>
@@ -199,7 +201,7 @@ class BatchMonadicTest extends CatsEffectSuite {
             // c never runs; only a and b are recorded
             assert(sorted.size == 2)
             assert(sorted.forall(_.record.job.kind.isEmpty))
-            assert(!sorted(1).passed)
+            assert(!sorted(1).succeeded)
             assert(!cExecuted)
           }
         }
@@ -227,9 +229,9 @@ class BatchMonadicTest extends CatsEffectSuite {
 
           val sorted = monadicValue.outcomes.sortBy(_.record.job.index)
           assert(sorted.size == 2)
-          assert(sorted.head.passed)
+          assert(sorted.head.succeeded)
           assert(sorted.head.record.job.index == 1)
-          assert(sorted(1).passed)
+          assert(sorted(1).succeeded)
           assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.map { se =>
@@ -258,8 +260,8 @@ class BatchMonadicTest extends CatsEffectSuite {
 
           val sorted = monadicValue.outcomes.sortBy(_.record.job.index)
           assert(sorted.size == 2)
-          assert(sorted.head.passed)
-          assert(sorted(1).passed)
+          assert(sorted.head.succeeded)
+          assert(sorted(1).succeeded)
           assert(sorted(1).record.job.index == 2)
         }
     }.compile.lastOrError.map { se =>
@@ -316,13 +318,97 @@ class BatchMonadicTest extends CatsEffectSuite {
               assertEquals(
                 batch.outcomes.map(_.record.job.name),
                 List("start", "failure", "inside", "double", "finish"))
-              assert(batch.outcomes.head.passed)
-              assert(!batch.outcomes(1).passed)
-              assert(batch.outcomes(2).passed)
-              assert(batch.outcomes(3).passed)
-              assert(batch.outcomes(4).passed)
+              assert(batch.outcomes.head.succeeded)
+              assert(!batch.outcomes(1).succeeded)
+              assert(batch.outcomes(2).succeeded)
+              assert(batch.outcomes(3).succeeded)
+              assert(batch.outcomes(4).succeeded)
             }
           })
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("monadic predicate records tracked outcomes and attempt preserves rejection") {
+    service.eventStream { agent =>
+      for {
+        batch <- agent
+          .batch("monadic-predicate")
+          .monadic { job =>
+            for {
+              rejected <- job("rejected", IO.pure(1)).predicate(_ < 0).attempt
+              accepted <- job("accepted", IO.pure(2)).predicate(_ == 2)
+              untracked <- job.untracked(IO.pure(3)).predicate(_ => false)
+            } yield (rejected, accepted, untracked)
+          }
+          .monadicBatch
+          .use(result => IO.pure(result))
+        light <- agent
+          .batchLight("light-monadic-predicate")
+          .monadic { job =>
+            for {
+              rejected <- job("rejected", IO.pure(1)).predicate(_ < 0).attempt
+              accepted <- job("accepted", IO.pure(2)).predicate(_ == 2)
+              untracked <- job.untracked(IO.pure(3)).predicate(_ => false)
+            } yield (rejected, accepted, untracked)
+          }
+          .monadicBatch
+        traced <- agent
+          .batchTraced("traced-monadic-predicate", _.build)
+          .monadic { job =>
+            for {
+              rejected <- job("rejected", IO.pure(1)).predicate(_ < 0).attempt
+              accepted <- job("accepted", IO.pure(2)).predicate(_ == 2)
+              untracked <- job.untracked(IO.pure(3)).predicate(_ => false)
+            } yield (rejected, accepted, untracked)
+          }
+          .monadicBatch
+        _ <- IO {
+          List(batch, light, traced).foreach { result =>
+            assertEquals(result.result, Right((Right(1), 2, 3)))
+            assertEquals(result.outcomes.map(_.record.job.name), List("rejected", "accepted"))
+            assertEquals(result.outcomes.map(_.succeeded), List(false, true))
+          }
+        }
+      } yield ()
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("monadic renderOutcome records explicit and encoded JSON outcomes") {
+    val explicitJson = Json.obj("value" -> Json.fromInt(4))
+    service.eventStream { agent =>
+      for {
+        batch <- agent
+          .batch("monadic-render-outcome")
+          .monadic(job =>
+            job("explicit", IO.pure(4)).renderOutcome(value => Json.obj("value" -> Json.fromInt(value))))
+          .monadicBatch
+          .use(result => IO.pure(result))
+        light <- agent
+          .batchLight("light-monadic-render-outcome")
+          .monadic(job => job("encoded", IO.pure(5)).render)
+          .monadicBatch
+        traced <- agent
+          .batchTraced("traced-monadic-render-outcome", _.build)
+          .monadic(job => job("encoded", IO.pure(6)).render)
+          .monadicBatch
+        _ <- IO {
+          assertEquals(batch.result, Right(4))
+          assertEquals(batch.outcomes.map(_.result), List(Right(explicitJson)))
+          assertEquals(
+            batch.asJson.hcursor.downField("jobs").downArray.downField("succeeded").focus,
+            Some(explicitJson))
+
+          assertEquals(light.result, Right(5))
+          assertEquals(light.outcomes.map(_.result), List(Right(Json.fromInt(5))))
+
+          assertEquals(traced.result, Right(6))
+          assertEquals(traced.outcomes.map(_.result), List(Right(Json.fromInt(6))))
+        }
+      } yield ()
     }.compile.lastOrError.map { se =>
       assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
@@ -343,7 +429,7 @@ class BatchMonadicTest extends CatsEffectSuite {
           .use { batch =>
             IO {
               assertEquals(batch.outcomes.map(_.record.job.name), List("failed", "next"))
-              assert(batch.outcomes.forall(_.passed))
+              assert(batch.outcomes.forall(_.succeeded))
             }
           }
       }

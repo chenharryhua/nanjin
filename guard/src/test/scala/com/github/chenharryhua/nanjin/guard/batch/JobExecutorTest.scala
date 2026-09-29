@@ -54,7 +54,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("1.quasiJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(1)), batchId)
     cj.compute.map { js =>
-      assert(js.record.succeeded)
+      assert(js.record.passed)
       assert(js.result == Right(1))
       assert(cj.job.kind.contains(BatchKind.Quasi))
     }
@@ -63,7 +63,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("2.quasiJob: a predicate miss records failure but retains the produced value as Right") {
     val cj = executor(_ => false, None).quasiJob(jni(IO.pure(42)), batchId)
     cj.compute.map { js =>
-      assert(!js.record.succeeded)
+      assert(!js.record.passed)
       // the value is kept — a quasi batch reports the miss without discarding data
       assert(js.result == Right(42))
     }
@@ -72,7 +72,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("3.quasiJob: a thrown effect records failure and keeps the original Left") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.raiseError(boom)), batchId)
     cj.compute.map { js =>
-      assert(!js.record.succeeded)
+      assert(!js.record.passed)
       assert(js.result == Left(boom))
     }
   }
@@ -82,7 +82,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("4.valueJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).valueJob(jni(IO.pure(1)), batchId)
     cj.compute.map { js =>
-      assert(js.record.succeeded)
+      assert(js.record.passed)
       assert(js.result == Right(1))
       assert(cj.job.kind.contains(BatchKind.Value))
     }
@@ -91,7 +91,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("5.valueJob: a predicate miss folds into Left(PostConditionUnsatisfied)") {
     val cj = executor(_ => false, None).valueJob(jni(IO.pure(42)), batchId)
     cj.compute.map { js =>
-      assert(!js.record.succeeded)
+      assert(!js.record.passed)
       js.result match {
         case Left(_: PostConditionUnsatisfied) => ()
         case other                             => fail(s"expected Left(PostConditionUnsatisfied), got $other")
@@ -102,7 +102,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("6.valueJob: a thrown effect records failure and keeps the original Left") {
     val cj = executor(_ => true, None).valueJob(jni(IO.raiseError(boom)), batchId)
     cj.compute.map { js =>
-      assert(!js.record.succeeded)
+      assert(!js.record.passed)
       assert(js.result == Left(boom))
     }
   }
@@ -133,7 +133,7 @@ class JobExecutorTest extends CatsEffectSuite {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(7)), batchId)
     cj.compute.map { js =>
       assert(js.result == Right(7))
-      assert(js.record.succeeded)
+      assert(js.record.passed)
     }
   }
 

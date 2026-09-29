@@ -27,13 +27,13 @@ class BatchSequentialSpec extends CatsEffectSuite {
     service.eventStreamR { agent =>
       agent.batch("exception").sequential(jobs*).quasiBatch.evalTap { mb =>
         IO {
-          assert(mb.outcomes.head.passed)
+          assert(mb.outcomes.head.succeeded)
           assertEquals(mb.outcomes.head.record.job.mode, BatchMode.Sequential)
           assertEquals(mb.outcomes.head.record.job.kind, Option(BatchKind.Quasi))
-          assert(!mb.outcomes(1).passed)
-          assert(mb.outcomes(2).passed)
-          assert(mb.outcomes(3).passed)
-          assert(mb.outcomes(4).passed)
+          assert(!mb.outcomes(1).succeeded)
+          assert(mb.outcomes(2).succeeded)
+          assert(mb.outcomes(3).succeeded)
+          assert(mb.outcomes(4).succeeded)
         }
       }
     }.compile.lastOrError.map { se =>
@@ -47,11 +47,11 @@ class BatchSequentialSpec extends CatsEffectSuite {
     service.eventStreamR { agent =>
       agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch.evalTap { mb =>
         IO {
-          assert(!mb.outcomes.head.passed)
-          assert(!mb.outcomes(1).passed)
-          assert(!mb.outcomes(2).passed)
-          assert(mb.outcomes(3).passed)
-          assert(mb.outcomes(4).passed)
+          assert(!mb.outcomes.head.succeeded)
+          assert(!mb.outcomes(1).succeeded)
+          assert(!mb.outcomes(2).succeeded)
+          assert(mb.outcomes(3).succeeded)
+          assert(mb.outcomes(4).succeeded)
         }
       }
     }.compile.lastOrError.map { se =>

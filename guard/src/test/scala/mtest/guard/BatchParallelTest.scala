@@ -46,9 +46,9 @@ class BatchParallelTest extends CatsEffectSuite {
         .quasiBatch
         .use { mb =>
           IO {
-            assert(mb.outcomes.head.passed)
-            assert(mb.outcomes(1).passed)
-            assert(!mb.outcomes(2).passed)
+            assert(mb.outcomes.head.succeeded)
+            assert(mb.outcomes(1).succeeded)
+            assert(!mb.outcomes(2).succeeded)
           }.void
         }
     }.compile.lastOrError.map { se =>
@@ -85,11 +85,11 @@ class BatchParallelTest extends CatsEffectSuite {
         .quasiBatch
         .use { mb =>
           IO {
-            assert(!mb.outcomes.head.passed)
+            assert(!mb.outcomes.head.succeeded)
             assertEquals(mb.outcomes.head.record.job.mode, BatchMode.Parallel(3))
             assertEquals(mb.outcomes.head.record.job.kind, Option(BatchKind.Quasi))
-            assert(!mb.outcomes(1).passed)
-            assert(mb.outcomes(2).passed)
+            assert(!mb.outcomes(1).succeeded)
+            assert(mb.outcomes(2).succeeded)
           }.void
         }
     }.compile.lastOrError.map { se =>

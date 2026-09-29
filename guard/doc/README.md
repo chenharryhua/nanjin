@@ -64,10 +64,10 @@ flowchart TD
 
 So:
 
-- **Quasi** always runs to completion. `allPassed` is `false` if any job threw or was rejected by
+- **Quasi** always runs to completion. `allSucceeded` is `false` if any job threw or was rejected by
   its predicate.
 - **Value** stops at the first failing or rejected job by raising, so a `ValueBatch` only ever
-  exists when every retained job succeeded (`allPassed` is always `true`).
+  exists when every retained job succeeded (`allSucceeded` is always `true`).
 
 ## Per-job lifecycle
 
@@ -135,31 +135,31 @@ classDiagram
         spent: Duration
         mode: BatchMode
         batchId: BatchId
-        jobs: List[A]
-        allPassed: Boolean
+        outcomes: List[JobState[A]]
+        allSucceeded: Boolean
     }
     BatchResult <|-- QuasiBatch
     BatchResult <|-- ValueBatch
     BatchResult <|-- MonadicBatch
 
     class QuasiBatch~A~ {
-        jobs: List[JobState[A]]
-        allPassed = jobs.forall(_.passed)
+        outcomes: List[JobState[A]]
+        allSucceeded = outcomes.forall(_.succeeded)
     }
     class ValueBatch~A~ {
-        jobs: List[JobValue[A]]
-        allPassed = true
+        outcomes: List[JobState[A]]
+        allSucceeded = true
     }
     class MonadicBatch~A~ {
-        jobs: List[JobState[Unit]]
+        outcomes: List[JobState[Json]]
         result: Either[Throwable, A]
-        allPassed = jobs.forall(_.passed)
+        allSucceeded = outcomes.forall(_.succeeded)
     }
 ```
 
-- `allPassed` — did every job satisfy its post-condition? Quasi and Value batches always run to
+- `allSucceeded` — did every job satisfy its post-condition and produce a successful result? Quasi and Value batches always run to
   completion; a Monadic batch completes only when its chain is not short-circuited (`result.isRight`),
-  and `allPassed` can be `false` for a completed quasi/monadic batch that had some rejected jobs.
+  and `allSucceeded` can be `false` for a completed quasi/monadic batch that had some rejected jobs.
 
 See `../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/data.scala` for the result and job types, and `internal.scala` for `ExecutionState`,
 `JobCursor`, and the log-entry classification.
@@ -171,10 +171,12 @@ Each completed job is classified by `toLogEntry` into a `JobLog` case (`Succeede
 the core privacy decision:
 
 - `standalone` — the rendering the framework emits **automatically** after each job (via
-  `logCompleted`). It shows only lifecycle facts: the job identity, `took`, the outcome tag, and,
-  on failure, the exception message under `error`. It **never** shows the produced value.
+  `logCompleted`). It shows only lifecycle facts: the job identity, `took`, and the outcome tag.
+  It omits both the produced value and exception message; failures are carried as the log entry's cause.
 - `inBatch` — the rendering nested under a `BatchResult` when the user **explicitly** serializes
-  the returned result. It adds the produced value under `result`.
+  the returned result. Successful values and abbreviated exception messages are stored under the
+  corresponding outcome tag (`succeeded`, `unsatisfied`, `nonfatal`, or `critical`), with `took` as a
+  separate field.
 
 Why the split matters: a job's produced value is the user's data. The automatic log must not leak
 it without the user's agreement, so the produced value is shown only where the user opts in by
@@ -189,21 +191,22 @@ serializing the result. This is enforced by types, not convention:
   `Encoder[A]`) is uncallable for them and `toLogEntry` cannot classify a job into them. The
   "kickoff/cancel never reach a batch-nested render" invariant is a compile-time guarantee.
 
-Key vocabulary in the report JSON (all display-only, not a wire format):
+Keys in the serialized report JSON:
 
 | Key | Meaning |
 | --- | --- |
 | `job-<index>` | the job's configured name, keyed by its 1-based index |
-| `succeeded` / `unsatisfied` / `nonfatal` / `critical` | per-job outcome tag; its value is the `took` duration |
-| `result` | the produced value (only in `inBatch`, i.e. user-triggered serialization) |
-| `error` | exception message on `nonfatal`/`critical`; stack trace at the monadic batch level |
+| `succeeded` / `unsatisfied` / `nonfatal` / `critical` | per-job outcome tag; in `standalone` its value is job metadata, while in `inBatch` it is the produced value or abbreviated exception message |
+| `took` | per-job duration |
+| `result` | successful aggregate value of a `MonadicBatch`; omitted when its chain fails |
 | `passed` / `failed` | `QuasiBatch` integer counts of jobs by outcome |
 | `spent`, `id` | batch-level total duration and identifier |
 
 The batch label is keyed by mode and kind (for example `"Sequential Quasi Batch"`,
-`"Parallel-4 Value Batch"`, `"Monadic Batch"`). A monadic batch shows its final result under `result` on success, or the stack trace
-under `error` on failure; its per-job entries carry no produced value (the history is
-`JobState[Unit]`).
+`"Parallel-4 Value Batch"`, `"Monadic Batch"`). A monadic batch shows its final result under `result`
+only on success; a failure is omitted from the report body and remains available as the log entry's
+throwable cause. Its per-job outcomes are `JobState[Json]`: `renderOutcome` or `render` can include a
+JSON payload, while untranslated jobs retain `Json.Null` under their outcome tag.
 
 # Watchdog
 

@@ -115,8 +115,8 @@ class BatchSpec extends CatsEffectSuite {
 
       result.map { r =>
         assert(r.result.isLeft)
-        assert(r.outcomes.head.passed)
-        assert(r.outcomes(1).passed)
+        assert(r.outcomes.head.succeeded)
+        assert(r.outcomes(1).succeeded)
         assertEquals(r.outcomes.size, 2)
       }
     }.compile.lastOrError.map { se =>

@@ -138,15 +138,15 @@ object Job {
   *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
-  * @param succeeded
+  * @param passed
   *   internal execution flag indicating that the job completed successfully and satisfied its post-condition;
-  *   use [[JobState.passed]] when inspecting a recorded outcome
+  *   use [[JobState.succeeded]] when inspecting a recorded outcome
   */
 final case class JobRecord(
   job: Job,
   start: FiniteDuration,
   end: FiniteDuration,
-  private[batch] val succeeded: Boolean) {
+  private[batch] val passed: Boolean) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
@@ -156,7 +156,7 @@ final case class JobRecord(
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
 
   /** Whether the job satisfied its post-condition and produced a successful result. */
-  val passed: Boolean = record.succeeded && result.isRight
+  val succeeded: Boolean = record.passed && result.isRight
 }
 
 sealed trait BatchResult {
@@ -185,7 +185,8 @@ sealed trait BatchResult {
   def batchId: BatchId
 
   /** The per-job outcome of every job that ran: its completion record (identity, timing) paired with its
-    * result-or-failure. `S` is the per-job value type (`A` for quasi/value, `Unit` for monadic).
+    * result-or-failure. `S` is the per-job value type (`A` for quasi/value, `Json` for monadic; untranslated
+    * monadic outcomes use `Json.Null`).
     */
   def outcomes: List[JobState[S]]
 
@@ -195,9 +196,9 @@ sealed trait BatchResult {
     */
   def result: R
 
-  /** Whether every job in the batch succeeded (satisfied its post-condition).
+  /** Whether every job in the batch passed.
     */
-  final def allPassed: Boolean = outcomes.forall(_.passed)
+  final def allSucceeded: Boolean = outcomes.forall(_.succeeded)
 }
 
 /** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
@@ -215,12 +216,12 @@ final case class QuasiBatch[A](
   override protected type R = Unit
 }
 object QuasiBatch:
-  // Showing the produced value under `result` is safe here: this encoder runs only when the user chooses to
-  // serialize the returned batch, unlike the auto-emitted per-job log (see `JobLog`). Same reason the
-  // `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
+  // Showing the produced value under its outcome tag is safe here: this encoder runs only when the user
+  // chooses to serialize the returned batch, unlike the auto-emitted per-job log (see `JobLog`). Same reason
+  // the `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.outcomes.partition(_.passed)
+      val (passed, failed) = qb.outcomes.partition(_.succeeded)
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
@@ -273,10 +274,10 @@ final case class MonadicBatch[A](
   scope: MetricScope,
   spent: Duration,
   batchId: BatchId,
-  outcomes: List[JobState[Unit]],
+  outcomes: List[JobState[Json]],
   result: Either[Throwable, A])
     extends BatchResult derives Functor {
-  override protected type S = Unit
+  override protected type S = Json
   override protected type R = Either[Throwable, A]
   override val mode: BatchMode = BatchMode.Monadic
 }
@@ -290,6 +291,6 @@ object MonadicBatch:
         JobLog.SPENT -> Json.fromString(fmt.format(mb.spent)),
         JobLog.JOBS -> mb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
-      mb.result.fold(_ => base, r => Json.obj(JobLog.RESULT -> r.asJson).deepMerge(base))
+      mb.result.fold(_ => base, r => Json.obj("result" -> r.asJson).deepMerge(base))
     }
 end MonadicBatch
