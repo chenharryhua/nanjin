@@ -54,10 +54,10 @@ final private case class ExecutionState[A](
   def attempt: ExecutionState[Either[Throwable, A]] =
     ExecutionState[Either[Throwable, A]](
       Right(eoa),
-      head.modify(_.focus(_.record.isValid).modify(b => eoa.fold(_ => true, _ => b)))(history))
+      head.modify(_.focus(_.record.valid).modify(b => eoa.fold(_ => true, _ => b)))(history))
 
   def predicate(f: A => Boolean): ExecutionState[A] =
-    copy(history = head.modify(_.focus(_.record.isValid).replace(eoa.fold(_ => false, f)))(history))
+    copy(history = head.modify(_.focus(_.record.valid).replace(eoa.fold(_ => false, f)))(history))
 
   def renderOutcome(f: A => Json): ExecutionState[A] =
     copy(history = head.modify(_.focus(_.result).replace(eoa.map(f)))(history))
