@@ -46,7 +46,7 @@ class PanelTest extends CatsEffectSuite {
       job(name, index, Some(BatchKind.Quasi)),
       start = 0.seconds,
       end = 5.seconds,
-      passed = succeeded)
+      isValid = succeeded)
     val result: Either[Throwable, Unit] =
       if (succeeded) Right(()) else Left(new RuntimeException("boom"))
     JobState(rec, result)

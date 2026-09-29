@@ -143,7 +143,7 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
         case Some(BatchKind.Value) =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
         case None =>
-          if (js.record.passed)
+          if (js.record.isValid)
             LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
           else
             LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
