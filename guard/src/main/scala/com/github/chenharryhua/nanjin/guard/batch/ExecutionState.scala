@@ -6,8 +6,8 @@ import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import io.circe.Json
-import monocle.Optional
 import monocle.Focus.focus
+import monocle.Optional
 import monocle.function.Index.index
 import monocle.std.option.some
 
@@ -57,7 +57,7 @@ final private case class ExecutionState[A](
       head.modify(_.focus(_.record.valid).modify(b => eoa.fold(_ => true, _ => b)))(history))
 
   def predicate(f: A => Boolean): ExecutionState[A] =
-    copy(history = head.modify(_.focus(_.record.valid).replace(eoa.fold(_ => false, f)))(history))
+    copy(history = head.modify(_.focus(_.record.valid).modify(b => eoa.fold(_ => b, f)))(history))
 
   def renderOutcome(f: A => Json): ExecutionState[A] =
     copy(history = head.modify(_.focus(_.result).replace(eoa.map(f)))(history))
