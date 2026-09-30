@@ -116,7 +116,8 @@ class BatchSpec extends CatsEffectSuite {
       result.map { r =>
         assert(r.result.isLeft)
         assert(r.outcomes.head.succeeded)
-        assert(r.outcomes(1).succeeded)
+        assert(!r.outcomes(1).succeeded)
+        assert(r.outcomes(1).result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
         assertEquals(r.outcomes.size, 2)
       }
     }.compile.lastOrError.map { se =>
