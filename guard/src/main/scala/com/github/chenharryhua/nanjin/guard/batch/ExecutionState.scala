@@ -24,8 +24,8 @@ import scala.concurrent.duration.FiniteDuration
   * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
   *
   * @param eoa
-  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
-  *   short-circuited the chain
+  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a short-circuiting
+  *   error has stopped the chain
   * @param history
   *   tracked job states and invisible-step placeholders so far, most recent first
   */
