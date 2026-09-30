@@ -24,13 +24,13 @@ val cron4sV = "0.8.2"
 val docV = "0.1.5"
 val doobieV = "1.0.0-RC13"
 val drosteV = "0.10.0"
-val fs2KafkaV = "4.1.1"
+val fs2KafkaV = "4.1.2"
 val fs2V = "3.14.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.3"
 val jacksonScalaV = "2.22.3.1"
 val jettyV = "12.1.13"
-val http4sV = "0.23.37"
+val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.4"
 val lz4V = "1.12.0"
@@ -132,7 +132,7 @@ lazy val common = (project in file("common"))
       "org.typelevel" %% "scalac-compat-annotation"    % docV, // doc
       "org.scala-js" % "scalajs-library_2.13" % "1.22.0" % Provided, // doc by cron
       // java
-      "org.apache.commons" % "commons-lang3" % "3.20.0"
+      "org.apache.commons" % "commons-lang3" % "3.21.0"
     ) ++ testLib
   )
 
