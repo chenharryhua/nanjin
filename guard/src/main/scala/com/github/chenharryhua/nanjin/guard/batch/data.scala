@@ -138,15 +138,15 @@ object Job {
   *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
-  * @param passed
-  *   internal execution flag indicating that the job completed successfully and satisfied its post-condition;
-  *   use [[JobState.succeeded]] when inspecting a recorded outcome
+  * @param valid
+  *   internal classification flag: `true` when the job satisfies its post-condition or when a failure is handled
+  *   by `attempt`; use `JobState.succeeded` when inspecting a recorded outcome
   */
 final case class JobRecord(
   job: Job,
   start: FiniteDuration,
   end: FiniteDuration,
-  private[batch] val passed: Boolean) {
+  private[batch] val valid: Boolean) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
@@ -156,7 +156,7 @@ final case class JobRecord(
 final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
 
   /** Whether the job satisfied its post-condition and produced a successful result. */
-  val succeeded: Boolean = record.passed && result.isRight
+  val succeeded: Boolean = record.valid && result.isRight
 }
 
 sealed trait BatchResult {

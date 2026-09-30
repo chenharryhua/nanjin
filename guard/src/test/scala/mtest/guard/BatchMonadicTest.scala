@@ -377,6 +377,44 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
+  test("monadic combinators preserve values and handled state across transitions") {
+    service.eventStream { agent =>
+      for {
+        composed <- agent
+          .batch("monadic-combinators")
+          .monadic { job =>
+            for {
+              start <- job("start", IO.pure(1))
+                .map(_ + 1)
+                .predicate(_ == 2)
+                .renderOutcome(Json.fromInt)
+              captured <- job("failure", IO.raiseError[Int](new Exception("handled"))).attempt
+              derived = captured.fold(_ => 10, identity)
+              total <- job("total", IO.pure(start + derived))
+                .predicate(_ == 12)
+                .renderOutcome(value => Json.obj("value" -> Json.fromInt(value)))
+                .flatMap(value => job("dependent", IO.pure(value + 1)))
+                .predicate(_ == 13)
+            } yield (captured, total)
+          }
+          .monadicBatch
+          .use(result => IO.pure(result))
+        _ <- IO {
+          assertEquals(composed.result.map(_._2), Right(13))
+          assert(composed.result.toOption.get._1.isLeft)
+          assertEquals(
+            composed.outcomes.map(_.record.job.name),
+            List("start", "failure", "total", "dependent"))
+          assertEquals(composed.outcomes.map(_.succeeded), List(true, false, true, true))
+          assertEquals(composed.outcomes.head.result, Right(Json.fromInt(2)))
+          assertEquals(composed.outcomes(2).result, Right(Json.obj("value" -> Json.fromInt(12))))
+        }
+      } yield ()
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
   test("monadic renderOutcome records explicit and encoded JSON outcomes") {
     val explicitJson = Json.obj("value" -> Json.fromInt(4))
     service.eventStream { agent =>
