@@ -139,8 +139,8 @@ object Job {
   * @param end
   *   monotonic clock reading at the end of the job
   * @param valid
-  *   internal execution flag indicating that the job completed successfully and satisfied its post-condition;
-  *   use [[JobState.succeeded]] when inspecting a recorded outcome
+  *   internal classification flag: `true` when the job satisfies its post-condition or when a failure is handled
+  *   by `attempt`; use `JobState.succeeded` when inspecting a recorded outcome
   */
 final case class JobRecord(
   job: Job,
