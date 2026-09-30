@@ -125,7 +125,8 @@ class BatchMonadicTest extends CatsEffectSuite {
             assert(sorted.head.record.job.index == 1)
             assert(sorted.size == 2)
             assert(sorted(1).record.job.index == 2)
-            assert(sorted(1).succeeded)
+            assert(!sorted(1).succeeded)
+            assert(sorted(1).result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
           }
         }
     }.compile.lastOrError.map { se =>
@@ -231,8 +232,9 @@ class BatchMonadicTest extends CatsEffectSuite {
           assert(sorted.size == 2)
           assert(sorted.head.succeeded)
           assert(sorted.head.record.job.index == 1)
-          assert(sorted(1).succeeded)
+          assert(!sorted(1).succeeded)
           assert(sorted(1).record.job.index == 2)
+          assert(sorted(1).result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
         }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -261,8 +263,9 @@ class BatchMonadicTest extends CatsEffectSuite {
           val sorted = monadicValue.outcomes.sortBy(_.record.job.index)
           assert(sorted.size == 2)
           assert(sorted.head.succeeded)
-          assert(sorted(1).succeeded)
+          assert(!sorted(1).succeeded)
           assert(sorted(1).record.job.index == 2)
+          assert(sorted(1).result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
         }
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -410,6 +413,37 @@ class BatchMonadicTest extends CatsEffectSuite {
           assertEquals(composed.outcomes(2).result, Right(Json.obj("value" -> Json.fromInt(12))))
         }
       } yield ()
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
+  test("monadic withFilter records failure through renderOutcome and attempt") {
+    var nextExecuted = false
+
+    service.eventStream { agent =>
+      agent
+        .batch("monadic-filter-combinators")
+        .monadic { job =>
+          job("rejected", IO.pure(1))
+            .withFilter(_ => false)
+            .renderOutcome(_ => Json.fromString("ignored"))
+            .attempt
+            .flatMap { captured =>
+              job("next", IO { nextExecuted = true; captured.isLeft })
+            }
+        }
+        .monadicBatch
+        .use { batch =>
+          IO {
+            assertEquals(batch.result, Right(true))
+            assertEquals(batch.outcomes.map(_.record.job.name), List("rejected", "next"))
+            assert(!batch.outcomes.head.succeeded)
+            assert(batch.outcomes.head.result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
+            assert(batch.outcomes(1).succeeded)
+            assert(nextExecuted)
+          }
+        }
     }.compile.lastOrError.map { se =>
       assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }

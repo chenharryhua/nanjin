@@ -62,6 +62,16 @@ final private case class ExecutionState[A](
   def renderOutcome(f: A => Json): ExecutionState[A] =
     copy(history = head.modify(_.focus(_.result).replace(eoa.map(f)))(history))
 
+  /** Records an unhandled filter rejection as a failed current step and short-circuits the chain. */
+  def withFilterFailure: ExecutionState[A] = {
+    val error = PostConditionUnsatisfied(history.head.map(_.record.job))
+    ExecutionState[A](
+      eoa = Left(error),
+      history = head.modify { js =>
+        JobState(record = js.record.copy(valid = false), result = Left(error))
+      }(history))
+  }
+
 end ExecutionState
 
 private object MonadicOps:
@@ -86,15 +96,11 @@ private object MonadicOps:
     state.map(_.map(f))
 
   def withFilter[F[_]: Monad, R, A](state: State[F, R, A], predicate: A => Boolean): State[F, R, A] =
-    state.map { case unchanged @ ExecutionState(eoa, history) =>
+    state.map { case current @ ExecutionState(eoa, _) =>
       eoa match {
-        case Left(_)      => unchanged
+        case Left(_)      => current
         case Right(value) =>
-          if predicate(value) then unchanged
-          else {
-            val error = PostConditionUnsatisfied(history.head.map(_.record.job))
-            ExecutionState[A](Left(error), history)
-          }
+          if predicate(value) then current else current.withFilterFailure
       }
     }
 
