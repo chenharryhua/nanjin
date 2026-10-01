@@ -111,10 +111,10 @@ object Job {
 
 /** Classification of a completed job, recorded on `JobState.flag` and read together with `JobState.result`.
   *
-  *   - `Succeeded`: the job's outcome counts as a pass. Either it produced a value that satisfied its
-  *     post-condition (or no predicate applies), or, for a monadic job, it threw and the failure was caught
-  *     by a chain-level `attempt`. In the latter case `result` still holds the `Left`, unless a later
-  *     `renderOutcome` replaced it with the caller's rendering of the `Either`.
+  *   - `Succeeded`: the job produced a value that satisfied its post-condition (or no predicate applies), or a
+  *     monadic failure was caught by chain-level `attempt`. A caught failure remains a `Left`, so
+  *     `JobState.succeeded` stays false unless a later `renderOutcome` replaces it with the caller's rendering
+  *     of the `Either`; the flag makes the retained failure nonfatal for logging.
   *   - `Unsatisfied`: the job produced a value that its predicate rejected, and the value is retained as a
   *     `Right` (quasi jobs, and monadic `predicate`, which does not short-circuit).
   *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
