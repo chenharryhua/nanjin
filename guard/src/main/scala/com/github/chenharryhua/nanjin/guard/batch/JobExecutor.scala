@@ -56,7 +56,8 @@ final private class JobExecutor[F[_], A](
     Job(jni.name, jni.index, scope, mode, Some(kind), batchId)
 
   /** Build a value job: a predicate miss folds into `Left(PostConditionUnsatisfied)` so the value batch can
-    * raise it and abort. An exception is likewise a `Left`.
+    * raise it and abort. An exception is likewise a `Left`. Either `Left` is flagged `JobFlag.Failed`; a
+    * value that satisfies the predicate is flagged `JobFlag.Accepted`.
     */
   def valueJob(jni: JobNameIndex[F, A], batchId: BatchId): ComputeJob[F, A] = {
     val job: Job = makeJob(BatchKind.Value, jni, batchId)
@@ -73,13 +74,13 @@ final private class JobExecutor[F[_], A](
           else
             Left(PostConditionUnsatisfied(Some(job)))
         }
-      JobState(JobRecord(job, start, end, result.isRight), result)
+      JobState(JobRecord(job, start, end), result.fold(_ => JobFlag.Failed, _ => JobFlag.Accepted), result)
     }
     ComputeJob(compute, job)
   }
 
-  /** Build a quasi job: a predicate miss records `succeeded = false` but keeps the value as the result, so
-    * the quasi batch retains the outcome and completes. An exception stays a `Left`.
+  /** Build a quasi job: a predicate miss is flagged `JobFlag.Unmet` but keeps the value as the result, so the
+    * quasi batch retains the outcome and completes. An exception stays a `Left`, flagged `JobFlag.Failed`.
     */
   def quasiJob(jni: JobNameIndex[F, A], batchId: BatchId): ComputeJob[F, A] = {
     val job: Job = makeJob(BatchKind.Quasi, jni, batchId)
@@ -89,8 +90,9 @@ final private class JobExecutor[F[_], A](
       eoa <- jni.fa.attempt
       end <- F.monotonic
     } yield {
-      val succeeded = eoa.fold(_ => false, predicate)
-      JobState(JobRecord(job, start, end, succeeded), eoa)
+      val flag: JobFlag =
+        eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
+      JobState(JobRecord(job, start, end), flag, eoa)
     }
     ComputeJob(compute, job)
   }

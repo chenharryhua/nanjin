@@ -210,7 +210,8 @@ class BatchTest extends CatsEffectSuite {
           assert(qr.outcomes.head.succeeded)
           assert(qr.outcomes(1).succeeded)
           assert(qr.outcomes(2).succeeded)
-          assert(qr.outcomes(3).succeeded)
+          assert(!qr.outcomes(3).succeeded)
+          assert(qr.outcomes(3).result.left.toOption.get.isInstanceOf[PostConditionUnsatisfied])
           assert(qr.outcomes.size == 4)
           agent.adhoc.report.void
         }

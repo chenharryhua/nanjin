@@ -32,7 +32,10 @@ class LifecycleTest extends CatsEffectSuite {
     Job(name = "a", index = 1, scope = scope, mode = BatchMode.Sequential, kind = kind, batchId = batchId)
 
   private def state(succeeded: Boolean): JobState[Int] =
-    JobState(JobRecord(job(Some(BatchKind.Quasi)), 0.seconds, 5.seconds, succeeded), Right(1))
+    JobState(
+      JobRecord(job(Some(BatchKind.Quasi)), 0.seconds, 5.seconds),
+      if (succeeded) JobFlag.Accepted else JobFlag.Unmet,
+      Right(1))
 
   private val boom = new RuntimeException("boom")
 

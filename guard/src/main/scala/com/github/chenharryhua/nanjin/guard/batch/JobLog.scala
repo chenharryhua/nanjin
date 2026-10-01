@@ -105,10 +105,9 @@ sealed private trait JobLog[A] extends Product {
 
 private object JobLog {
   // Batch-level report keys: used only by the QuasiBatch/ValueBatch/MonadicBatch encoders in `data.scala`.
-  // `PASSED`/`FAILED` are integer tallies, deliberately named distinctly from the per-job "succeeded" status
-  // tag (the `Succeeded` case's key) so the two never collide in one report: those are counts, the tag
-  // carries a took duration.
-  inline val PASSED = "passed"
+  // `FAILED` is an integer tally, deliberately named distinctly from the per-job "succeeded" status tag (the
+  // `Succeeded` case's key) so the two never collide in one report: it is a count, the tag carries a took
+  // duration.
   inline val FAILED = "failed"
   inline val JOBS = "jobs"
   inline val SPENT = "spent"
@@ -123,12 +122,13 @@ private object JobLog {
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.
   *
-  *   - a thrown exception is `Nonfatal` (`Warn`) for a `Quasi` job, whose failure is retained rather than
-  *     aborting the batch, and `Critical` (`Error`) for a `Value` job or a monadic job (`kind = None`), where
-  *     an exception is fatal to the batch;
-  *   - a produced value is `Succeeded` (`Good`) when it satisfied its post-condition, or `Unsatisfied`
-  *     (`Warn`) when a retained `Right` result failed its predicate (for example quasi jobs and monadic
-  *     predicates that do not short-circuit).
+  *   - a `Left` result is `Nonfatal` (`Warn`) for a `Quasi` job, whose failure is retained rather than
+  *     aborting the batch, and `Critical` (`Error`) for a `Value` job, where it is fatal to the batch. For a
+  *     monadic job (`kind = None`) the flag decides: `JobFlag.Failed` is `Critical`, and any other flag (a
+  *     failure caught by chain-level `attempt`, possibly reclassified by a later `predicate`) is `Nonfatal`;
+  *   - a `Right` result is `Succeeded` (`Good`) when `JobState.succeeded` holds, or `Unsatisfied` (`Warn`)
+  *     otherwise, i.e. when a retained value failed its predicate (the `JobFlag.Unmet` flag; for example
+  *     quasi jobs and monadic predicates that do not short-circuit).
   *
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.
@@ -139,14 +139,16 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
       js.record.job.kind match {
         case Some(BatchKind.Quasi) =>
           LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
-        // Value jobs are always fatal; a handled monadic exception is nonfatal and is marked succeeded.
+        // Value jobs are always fatal; a monadic exception is fatal only when flagged `Failed` (one caught by
+        // chain-level `attempt` is flagged `Accepted` and is nonfatal).
         case Some(BatchKind.Value) =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
         case None =>
-          if (js.record.valid)
-            LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
-          else
-            LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
+          js.flag match {
+            case JobFlag.Failed =>
+              LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
+            case _ => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
+          }
       }
     case Right(a) =>
       if (js.succeeded)

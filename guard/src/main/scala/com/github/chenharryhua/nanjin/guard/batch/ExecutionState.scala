@@ -7,9 +7,10 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import io.circe.Json
 import monocle.Focus.focus
-import monocle.Optional
 import monocle.function.Index.index
+import monocle.macros.GenLens
 import monocle.std.option.some
+import monocle.{Lens, Optional}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -19,13 +20,14 @@ import scala.concurrent.duration.FiniteDuration
   * Each history entry is `Some(JobState[Json])` for a tracked job or `None` for an invisible
   * `pure`/`untracked` step. Tracked outcomes default to `Json.Null`; `renderOutcome` can attach a JSON
   * representation to the current tracked step. Invisible entries preserve positional history so `attempt` can
-  * mark the most recent tracked job as handled. `history` is kept in reverse order (most recent step first)
-  * and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
-  * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
+  * flag the most recent tracked job as `Accepted`. `history` is kept in reverse order (most recent step
+  * first) and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the
+  * chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs
+  * will run.
   *
   * @param eoa
-  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a fatal error has
-  *   short-circuited the chain
+  *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a short-circuiting
+  *   error has stopped the chain
   * @param history
   *   tracked job states and invisible-step placeholders so far, most recent first
   */
@@ -51,16 +53,38 @@ final private case class ExecutionState[A](
     index[NonEmptyList[Option[JobState[Json]]], Int, Option[JobState[Json]]](0)
       .andThen(some[JobState[Json]])
 
+  private val lens: Lens[JobState[Json], JobFlag] = GenLens[JobState[Json]](_.flag)
+
+  /** Lift the result into `Right(eoa)` so the chain continues. If the chain had failed, the current tracked
+    * step is flagged `JobFlag.Accepted` (its failure was caught, so it is logged as nonfatal) while its
+    * recorded `Left` result is kept; a still-succeeding step keeps its flag.
+    */
   def attempt: ExecutionState[Either[Throwable, A]] =
     ExecutionState[Either[Throwable, A]](
       Right(eoa),
-      head.modify(_.focus(_.record.valid).modify(b => eoa.fold(_ => true, _ => b)))(history))
+      head.andThen(lens).modify(jf => eoa.fold(_ => JobFlag.Accepted, _ => jf))(history))
 
+  /** Re-flag the current tracked step from `f` on a still-succeeding result: `JobFlag.Accepted` when `f`
+    * holds, `JobFlag.Unmet` otherwise. Does not short-circuit; a failed chain is left unchanged.
+    */
   def predicate(f: A => Boolean): ExecutionState[A] =
-    copy(history = head.modify(_.focus(_.record.valid).modify(b => eoa.fold(_ => b, f)))(history))
+    copy(history = head.andThen(lens)
+      .modify(jf => eoa.fold(_ => jf, v => if f(v) then JobFlag.Accepted else JobFlag.Unmet))(history))
 
+  /** Replace the current tracked step's recorded result with `eoa.map(f)`. After `attempt`, `eoa` is a
+    * `Right` holding the `Either`, so `f` decides how a caught failure is rendered and the recorded `Left` is
+    * replaced; on a failed chain the `Left` is kept. The flag is not changed.
+    */
   def renderOutcome(f: A => Json): ExecutionState[A] =
     copy(history = head.modify(_.focus(_.result).replace(eoa.map(f)))(history))
+
+  /** Records an unhandled filter rejection as a failed current step and short-circuits the chain. */
+  def withFilterFailure: ExecutionState[A] = {
+    val error = PostConditionUnsatisfied(history.head.map(_.record.job))
+    ExecutionState[A](
+      eoa = Left(error),
+      history = head.modify(_.copy(flag = JobFlag.Failed, result = Left(error)))(history))
+  }
 
 end ExecutionState
 
@@ -86,15 +110,11 @@ private object MonadicOps:
     state.map(_.map(f))
 
   def withFilter[F[_]: Monad, R, A](state: State[F, R, A], predicate: A => Boolean): State[F, R, A] =
-    state.map { case unchanged @ ExecutionState(eoa, history) =>
+    state.map { case current @ ExecutionState(eoa, _) =>
       eoa match {
-        case Left(_)      => unchanged
+        case Left(_)      => current
         case Right(value) =>
-          if predicate(value) then unchanged
-          else {
-            val error = PostConditionUnsatisfied(history.head.map(_.record.job))
-            ExecutionState[A](Left(error), history)
-          }
+          if predicate(value) then current else current.withFilterFailure
       }
     }
 

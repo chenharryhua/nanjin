@@ -15,9 +15,9 @@ class BatchEncoderTest extends FunSuite {
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, Some(BatchKind.Quasi), batchId)
-  private val completed = JobRecord(job, 0.millis, 12.millis, valid = true)
+  private val completed = JobRecord(job, 0.millis, 12.millis)
   private val failed =
-    JobRecord(job.copy(kind = Some(BatchKind.Value)), 0.millis, 12.millis, valid = false)
+    JobRecord(job.copy(kind = Some(BatchKind.Value)), 0.millis, 12.millis)
 
   test("1.quasi and value batches key the label by mode+kind and render each job by its displayName") {
     val quasi = QuasiBatch(
@@ -25,14 +25,14 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, Right(1))))
+      List(JobState(completed, JobFlag.Accepted, Right(1))))
     val value =
       ValueBatch(
         label,
         Duration.ofMillis(20),
         BatchMode.Sequential,
         batchId,
-        List(JobState(completed, Right(1))),
+        List(JobState(completed, JobFlag.Accepted, Right(1))),
         List(1))
 
     val quasiJson = quasi.asJson
@@ -42,9 +42,8 @@ class BatchEncoderTest extends FunSuite {
     assert(quasiJson.hcursor.get[String]("Sequential Quasi Batch").toOption.contains("batch"))
     assert(valueJson.hcursor.get[String]("Sequential Value Batch").toOption.contains("batch"))
 
-    // QuasiBatch outcome counts use "passed"/"failed" (integer tallies), named distinctly from the
-    // per-job "succeeded" status tag which carries a took duration
-    assert(quasiJson.hcursor.get[Int]("passed").toOption.contains(1))
+    // QuasiBatch reports a "failed" integer tally, named distinctly from the per-job "succeeded" status tag
+    // which carries a took duration
     assert(quasiJson.hcursor.get[Int]("failed").toOption.contains(0))
 
     // Each job entry renders its identity, the "succeeded" status tag, the took duration, and (on the
@@ -69,18 +68,19 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(failed, Left(new RuntimeException("boom")))))
+      List(JobState(failed, JobFlag.Failed, Left(new RuntimeException("boom")))))
     // A monadic job that threw: kind = None, and its step history carries the real Left(exception) so the
     // per-job render can classify it as "critical".
     val monadicJob = Job("work", 1, label, BatchMode.Monadic, None, batchId)
-    val monadicThrew = JobRecord(monadicJob, 0.millis, 12.millis, valid = false)
+    val monadicThrew = JobRecord(monadicJob, 0.millis, 12.millis)
     val monadic: MonadicBatch[Int] =
       MonadicBatch(
         label,
         Duration.ofMillis(20),
         batchId,
-        List(JobState[Json](monadicThrew, Left(new RuntimeException("boom")))),
-        Left(new RuntimeException("boom")))
+        List(JobState[Json](monadicThrew, JobFlag.Failed, Left(new RuntimeException("boom")))),
+        Left(new RuntimeException("boom"))
+      )
 
     val quasiJson = quasi.asJson
     val monadicJson = monadic.asJson
@@ -103,13 +103,13 @@ class BatchEncoderTest extends FunSuite {
     assert(monadicJson.hcursor.downField("error").focus.isEmpty)
   }
 
-  test("3.QuasiBatch: allPassed reflects per-job outcomes") {
+  test("3.QuasiBatch: allSucceeded reflects per-job outcomes") {
     val allDone = QuasiBatch(
       label,
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, Right(1))))
+      List(JobState(completed, JobFlag.Accepted, Right(1))))
     // every job satisfied its post-condition
     assert(allDone.allSucceeded)
 
@@ -118,31 +118,34 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(failed, Left(new RuntimeException("x")))))
+      List(JobState(failed, JobFlag.Failed, Left(new RuntimeException("x")))))
     // the batch still completed, but not every job succeeded
     assert(!withFailure.allSucceeded)
   }
 
-  test("4.ValueBatch: allPassed is true") {
+  test("4.ValueBatch: allSucceeded is true") {
     val bv =
       ValueBatch(
         label,
         Duration.ofMillis(20),
         BatchMode.Parallel(2),
         batchId,
-        List(JobState(completed, Right(1))),
+        List(JobState(completed, JobFlag.Accepted, Right(1))),
         List(1))
     assert(bv.allSucceeded)
   }
 
-  test("5.MonadicBatch: result tracks completion; allPassed tracks per-job outcomes") {
+  test("5.MonadicBatch: result tracks completion; allSucceeded tracks per-job outcomes") {
     // chain completed (Right) but a job was rejected by its predicate
     val mb = MonadicBatch(
       label,
       Duration.ofMillis(30),
       batchId,
-      List(JobState(completed, Right(Json.Null)), JobState(failed, Right(Json.Null))),
-      Right(99))
+      List(
+        JobState(completed, JobFlag.Accepted, Right(Json.Null)),
+        JobState(failed, JobFlag.Unmet, Right(Json.Null))),
+      Right(99)
+    )
     assert(mb.result.isRight)
     assert(!mb.allSucceeded)
 
@@ -152,7 +155,7 @@ class BatchEncoderTest extends FunSuite {
         label,
         Duration.ofMillis(30),
         batchId,
-        List(JobState(completed, Right(Json.Null))),
+        List(JobState(completed, JobFlag.Accepted, Right(Json.Null))),
         Left(new RuntimeException("x")))
     assert(aborted.result.isLeft)
     assert(aborted.allSucceeded) // the recorded jobs all succeeded; the failure is the batch-level result
@@ -161,13 +164,13 @@ class BatchEncoderTest extends FunSuite {
   test("6.MonadicBatch encoder keys each job by its index and name") {
     val monadicJob = Job("check", 1, label, BatchMode.Monadic, None, batchId)
     // a predicate-rejected step: value produced (Right) but did not satisfy the predicate (succeeded=false)
-    val monadicRejected = JobRecord(monadicJob, 0.millis, 5.millis, valid = false)
+    val monadicRejected = JobRecord(monadicJob, 0.millis, 5.millis)
     val mb: MonadicBatch[Int] =
       MonadicBatch(
         label,
         Duration.ofMillis(10),
         batchId,
-        List(JobState(monadicRejected, Right(Json.Null))),
+        List(JobState(monadicRejected, JobFlag.Unmet, Right(Json.Null))),
         Right(0))
     val json = mb.asJson
     // the batch label is keyed by mode ("Monadic Batch"); a monadic batch has no kind

@@ -75,8 +75,9 @@ object BatchLight:
             spent = fd.toJava,
             mode = mode,
             batchId = batchId,
-            outcomes = jv.map(v => JobState(v.record, Right(v.result))),
-            result = jv.map(_.result))
+            outcomes = jv.map(v => JobState(v.record, JobFlag.Accepted, Right(v.result))),
+            result = jv.map(_.result)
+          )
         }
       }
   }
@@ -237,7 +238,8 @@ object BatchLight:
               eoa <- fa.attempt
               end <- F.monotonic
             } yield {
-              val completed = JobState(JobRecord(job, start, end, eoa.isRight), eoa.as(Json.Null))
+              val flag = if (eoa.isRight) JobFlag.Accepted else JobFlag.Failed
+              val completed = JobState(JobRecord(job, start, end), flag, eoa.as(Json.Null))
               JobCursor(index + 1, end) ->
                 ExecutionState(eoa = eoa, history = NonEmptyList.one(Some(completed)))
             }
