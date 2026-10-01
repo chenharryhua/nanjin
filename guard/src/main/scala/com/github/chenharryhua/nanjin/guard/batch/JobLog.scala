@@ -127,8 +127,8 @@ private object JobLog {
   *     monadic job (`kind = None`) the flag decides: `JobFlag.Failed` is `Critical`, and any other flag (a
   *     failure caught by chain-level `attempt`, possibly reclassified by a later `predicate`) is `Nonfatal`;
   *   - a `Right` result is `Succeeded` (`Good`) when `JobState.succeeded` holds, or `Unsatisfied` (`Warn`)
-  *     otherwise, i.e. when a retained value failed its predicate (for example quasi jobs and monadic
-  *     predicates that do not short-circuit).
+  *     otherwise, i.e. when a retained value failed its predicate (the `JobFlag.Unmet` flag; for example
+  *     quasi jobs and monadic predicates that do not short-circuit).
   *
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
   * rendering.
