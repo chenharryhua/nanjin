@@ -63,7 +63,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("2.quasiJob: a predicate miss records failure but retains the produced value as Right") {
     val cj = executor(_ => false, None).quasiJob(jni(IO.pure(42)), batchId)
     cj.compute.map { js =>
-      assertEquals(js.flag, JobFlag.Unsatisfied)
+      assertEquals(js.flag, JobFlag.Unmet)
       // the value is kept — a quasi batch reports the miss without discarding data
       assert(js.result == Right(42))
     }

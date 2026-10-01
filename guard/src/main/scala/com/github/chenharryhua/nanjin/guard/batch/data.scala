@@ -115,8 +115,9 @@ object Job {
   *     monadic failure was caught by chain-level `attempt`. A caught failure remains a `Left`, so
   *     `JobState.succeeded` stays false unless a later `renderOutcome` replaces it with the caller's
   *     rendering of the `Either`; the flag makes the retained failure nonfatal for logging.
-  *   - `Unsatisfied`: the job produced a value that its predicate rejected, and the value is retained as a
-  *     `Right` (quasi jobs, and monadic `predicate`, which does not short-circuit).
+  *   - `Unmet`: the job produced a value that its predicate rejected, and the value is retained as a `Right`
+  *     (quasi jobs, and monadic `predicate`, which does not short-circuit). Logged under the
+  *     `JobLog.Unsatisfied` case.
   *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
   *     `PostConditionUnsatisfied` failure (value jobs and monadic `withFilter`).
   *
@@ -124,7 +125,7 @@ object Job {
   * `Critical`, any other flag is `Nonfatal`. See `toLogEntry`.
   */
 enum JobFlag:
-  case Accepted, Unsatisfied, Failed
+  case Accepted, Unmet, Failed
 
 /** A completed job record that captures its identity and timing boundaries. Its classification lives on
   * `JobState.flag`.
@@ -179,9 +180,9 @@ final case class JobState[A](record: JobRecord, flag: JobFlag, result: Either[Th
     * as a `Right`, so the rendered job counts as a pass; the flag is unchanged.
     */
   val succeeded: Boolean = result.isRight && flag.match {
-    case JobFlag.Accepted    => true
-    case JobFlag.Failed      => false
-    case JobFlag.Unsatisfied => false
+    case JobFlag.Accepted => true
+    case JobFlag.Failed   => false
+    case JobFlag.Unmet    => false
   }
 }
 
@@ -222,7 +223,7 @@ sealed trait BatchResult {
     */
   def result: R
 
-  /** Whether every job in the batch passed.
+  /** Whether every job in the batch succeeded.
     */
   final def allSucceeded: Boolean = outcomes.forall(_.succeeded)
 }
@@ -247,13 +248,12 @@ object QuasiBatch:
   // the `Encoder[A]` is required only at these user-triggered encoders, not on the batch builders.
   given [A: Encoder] => Encoder[QuasiBatch[A]] =
     Encoder.instance { qb =>
-      val (passed, failed) = qb.outcomes.partition(_.succeeded)
+      val failed = qb.outcomes.count(!_.succeeded)
       Json.obj(
         batchEntry(qb.mode, Some(BatchKind.Quasi), qb.scope),
         qb.batchId.entry,
         JobLog.SPENT -> Json.fromString(fmt.format(qb.spent)),
-        JobLog.PASSED -> Json.fromInt(passed.length),
-        JobLog.FAILED -> Json.fromInt(failed.length),
+        JobLog.FAILED -> Json.fromInt(failed),
         JobLog.JOBS -> qb.outcomes.map(js => toLogEntry(js).message.inBatch).asJson
       )
     }

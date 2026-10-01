@@ -105,10 +105,9 @@ sealed private trait JobLog[A] extends Product {
 
 private object JobLog {
   // Batch-level report keys: used only by the QuasiBatch/ValueBatch/MonadicBatch encoders in `data.scala`.
-  // `PASSED`/`FAILED` are integer tallies, deliberately named distinctly from the per-job "succeeded" status
-  // tag (the `Succeeded` case's key) so the two never collide in one report: those are counts, the tag
-  // carries a took duration.
-  inline val PASSED = "passed"
+  // `FAILED` is an integer tally, deliberately named distinctly from the per-job "succeeded" status tag (the
+  // `Succeeded` case's key) so the two never collide in one report: it is a count, the tag carries a took
+  // duration.
   inline val FAILED = "failed"
   inline val JOBS = "jobs"
   inline val SPENT = "spent"

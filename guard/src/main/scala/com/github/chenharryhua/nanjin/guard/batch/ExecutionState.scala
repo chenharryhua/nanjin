@@ -20,9 +20,10 @@ import scala.concurrent.duration.FiniteDuration
   * Each history entry is `Some(JobState[Json])` for a tracked job or `None` for an invisible
   * `pure`/`untracked` step. Tracked outcomes default to `Json.Null`; `renderOutcome` can attach a JSON
   * representation to the current tracked step. Invisible entries preserve positional history so `attempt` can
-  * mark the most recent tracked job as handled. `history` is kept in reverse order (most recent step first)
-  * and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the chain has
-  * short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs will run.
+  * flag the most recent tracked job as `Accepted`. `history` is kept in reverse order (most recent step
+  * first) and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the
+  * chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs
+  * will run.
   *
   * @param eoa
   *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a short-circuiting
@@ -55,8 +56,8 @@ final private case class ExecutionState[A](
   private val lens: Lens[JobState[Json], JobFlag] = GenLens[JobState[Json]](_.flag)
 
   /** Lift the result into `Right(eoa)` so the chain continues. If the chain had failed, the current tracked
-    * step is flagged `JobFlag.Accepted` (handled, so logged as nonfatal) while its recorded `Left` result is
-    * kept; a still-succeeding step keeps its flag.
+    * step is flagged `JobFlag.Accepted` (its failure was caught, so it is logged as nonfatal) while its
+    * recorded `Left` result is kept; a still-succeeding step keeps its flag.
     */
   def attempt: ExecutionState[Either[Throwable, A]] =
     ExecutionState[Either[Throwable, A]](
@@ -64,11 +65,11 @@ final private case class ExecutionState[A](
       head.andThen(lens).modify(jf => eoa.fold(_ => JobFlag.Accepted, _ => jf))(history))
 
   /** Re-flag the current tracked step from `f` on a still-succeeding result: `JobFlag.Accepted` when `f`
-    * holds, `JobFlag.Unsatisfied` otherwise. Does not short-circuit; a failed chain is left unchanged.
+    * holds, `JobFlag.Unmet` otherwise. Does not short-circuit; a failed chain is left unchanged.
     */
   def predicate(f: A => Boolean): ExecutionState[A] =
     copy(history = head.andThen(lens)
-      .modify(jf => eoa.fold(_ => jf, v => if f(v) then JobFlag.Accepted else JobFlag.Unsatisfied))(history))
+      .modify(jf => eoa.fold(_ => jf, v => if f(v) then JobFlag.Accepted else JobFlag.Unmet))(history))
 
   /** Replace the current tracked step's recorded result with `eoa.map(f)`. After `attempt`, `eoa` is a
     * `Right` holding the `Either`, so `f` decides how a caught failure is rendered and the recorded `Left` is

@@ -42,9 +42,8 @@ class BatchEncoderTest extends FunSuite {
     assert(quasiJson.hcursor.get[String]("Sequential Quasi Batch").toOption.contains("batch"))
     assert(valueJson.hcursor.get[String]("Sequential Value Batch").toOption.contains("batch"))
 
-    // QuasiBatch outcome counts use "passed"/"failed" (integer tallies), named distinctly from the
-    // per-job "succeeded" status tag which carries a took duration
-    assert(quasiJson.hcursor.get[Int]("passed").toOption.contains(1))
+    // QuasiBatch reports a "failed" integer tally, named distinctly from the per-job "succeeded" status tag
+    // which carries a took duration
     assert(quasiJson.hcursor.get[Int]("failed").toOption.contains(0))
 
     // Each job entry renders its identity, the "succeeded" status tag, the took duration, and (on the
@@ -104,7 +103,7 @@ class BatchEncoderTest extends FunSuite {
     assert(monadicJson.hcursor.downField("error").focus.isEmpty)
   }
 
-  test("3.QuasiBatch: allPassed reflects per-job outcomes") {
+  test("3.QuasiBatch: allSucceeded reflects per-job outcomes") {
     val allDone = QuasiBatch(
       label,
       Duration.ofMillis(20),
@@ -124,7 +123,7 @@ class BatchEncoderTest extends FunSuite {
     assert(!withFailure.allSucceeded)
   }
 
-  test("4.ValueBatch: allPassed is true") {
+  test("4.ValueBatch: allSucceeded is true") {
     val bv =
       ValueBatch(
         label,
@@ -136,7 +135,7 @@ class BatchEncoderTest extends FunSuite {
     assert(bv.allSucceeded)
   }
 
-  test("5.MonadicBatch: result tracks completion; allPassed tracks per-job outcomes") {
+  test("5.MonadicBatch: result tracks completion; allSucceeded tracks per-job outcomes") {
     // chain completed (Right) but a job was rejected by its predicate
     val mb = MonadicBatch(
       label,
@@ -144,7 +143,7 @@ class BatchEncoderTest extends FunSuite {
       batchId,
       List(
         JobState(completed, JobFlag.Accepted, Right(Json.Null)),
-        JobState(failed, JobFlag.Unsatisfied, Right(Json.Null))),
+        JobState(failed, JobFlag.Unmet, Right(Json.Null))),
       Right(99)
     )
     assert(mb.result.isRight)
@@ -171,7 +170,7 @@ class BatchEncoderTest extends FunSuite {
         label,
         Duration.ofMillis(10),
         batchId,
-        List(JobState(monadicRejected, JobFlag.Unsatisfied, Right(Json.Null))),
+        List(JobState(monadicRejected, JobFlag.Unmet, Right(Json.Null))),
         Right(0))
     val json = mb.asJson
     // the batch label is keyed by mode ("Monadic Batch"); a monadic batch has no kind

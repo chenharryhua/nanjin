@@ -46,7 +46,7 @@ class JobLogRenderTest extends FunSuite {
   }
 
   test("2.toLogEntry: a produced value rejected by its predicate is Unsatisfied at Warn level") {
-    val entry = toLogEntry(JobState(record(quasiJob), JobFlag.Unsatisfied, Right(secret)))
+    val entry = toLogEntry(JobState(record(quasiJob), JobFlag.Unmet, Right(secret)))
     assert(entry.message.isInstanceOf[JobLog.Unsatisfied[?]])
     assert(entry.level == LogLevel.Warn)
     assert(entry.cause.isEmpty)
