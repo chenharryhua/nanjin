@@ -93,7 +93,7 @@ object Batch:
                 spent = fd.toJava,
                 mode = mode,
                 batchId = batchId,
-                outcomes = jv.map(v => JobState(v.record, JobFlag.Succeeded, Right(v.result))),
+                outcomes = jv.map(v => JobState(v.record, JobFlag.Accepted, Right(v.result))),
                 result = jv.map(_.result)
               )
           }
@@ -307,7 +307,7 @@ object Batch:
               eoa <- fa.attempt
               end <- F.monotonic
             } yield {
-              val flag = if (eoa.isRight) JobFlag.Succeeded else JobFlag.Failed
+              val flag = if (eoa.isRight) JobFlag.Accepted else JobFlag.Failed
               val js = JobState(JobRecord(job, start, end), flag, eoa)
               JobCursor(index + 1, js.record.end) ->
                 ExecutionState(js.result, NonEmptyList.one(Some(js.as(Json.Null))))

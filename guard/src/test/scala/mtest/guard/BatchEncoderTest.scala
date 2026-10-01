@@ -25,14 +25,14 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, JobFlag.Succeeded, Right(1))))
+      List(JobState(completed, JobFlag.Accepted, Right(1))))
     val value =
       ValueBatch(
         label,
         Duration.ofMillis(20),
         BatchMode.Sequential,
         batchId,
-        List(JobState(completed, JobFlag.Succeeded, Right(1))),
+        List(JobState(completed, JobFlag.Accepted, Right(1))),
         List(1))
 
     val quasiJson = quasi.asJson
@@ -110,7 +110,7 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(20),
       BatchMode.Sequential,
       batchId,
-      List(JobState(completed, JobFlag.Succeeded, Right(1))))
+      List(JobState(completed, JobFlag.Accepted, Right(1))))
     // every job satisfied its post-condition
     assert(allDone.allSucceeded)
 
@@ -131,7 +131,7 @@ class BatchEncoderTest extends FunSuite {
         Duration.ofMillis(20),
         BatchMode.Parallel(2),
         batchId,
-        List(JobState(completed, JobFlag.Succeeded, Right(1))),
+        List(JobState(completed, JobFlag.Accepted, Right(1))),
         List(1))
     assert(bv.allSucceeded)
   }
@@ -143,7 +143,7 @@ class BatchEncoderTest extends FunSuite {
       Duration.ofMillis(30),
       batchId,
       List(
-        JobState(completed, JobFlag.Succeeded, Right(Json.Null)),
+        JobState(completed, JobFlag.Accepted, Right(Json.Null)),
         JobState(failed, JobFlag.Unsatisfied, Right(Json.Null))),
       Right(99)
     )
@@ -156,7 +156,7 @@ class BatchEncoderTest extends FunSuite {
         label,
         Duration.ofMillis(30),
         batchId,
-        List(JobState(completed, JobFlag.Succeeded, Right(Json.Null))),
+        List(JobState(completed, JobFlag.Accepted, Right(Json.Null))),
         Left(new RuntimeException("x")))
     assert(aborted.result.isLeft)
     assert(aborted.allSucceeded) // the recorded jobs all succeeded; the failure is the batch-level result

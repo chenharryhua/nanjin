@@ -45,7 +45,7 @@ class PanelTest extends CatsEffectSuite {
     val rec = JobRecord(job(name, index, Some(BatchKind.Quasi)), start = 0.seconds, end = 5.seconds)
     val result: Either[Throwable, Unit] =
       if (succeeded) Right(()) else Left(new RuntimeException("boom"))
-    JobState(rec, if (succeeded) JobFlag.Succeeded else JobFlag.Failed, result)
+    JobState(rec, if (succeeded) JobFlag.Accepted else JobFlag.Failed, result)
   }
 
   /** Run `f` against a real hub built over a fresh registry, then hand back every gauge's rendered Json so a

@@ -57,7 +57,7 @@ final private class JobExecutor[F[_], A](
 
   /** Build a value job: a predicate miss folds into `Left(PostConditionUnsatisfied)` so the value batch can
     * raise it and abort. An exception is likewise a `Left`. Either `Left` is flagged `JobFlag.Failed`; a
-    * value that satisfies the predicate is flagged `JobFlag.Succeeded`.
+    * value that satisfies the predicate is flagged `JobFlag.Accepted`.
     */
   def valueJob(jni: JobNameIndex[F, A], batchId: BatchId): ComputeJob[F, A] = {
     val job: Job = makeJob(BatchKind.Value, jni, batchId)
@@ -74,7 +74,7 @@ final private class JobExecutor[F[_], A](
           else
             Left(PostConditionUnsatisfied(Some(job)))
         }
-      JobState(JobRecord(job, start, end), result.fold(_ => JobFlag.Failed, _ => JobFlag.Succeeded), result)
+      JobState(JobRecord(job, start, end), result.fold(_ => JobFlag.Failed, _ => JobFlag.Accepted), result)
     }
     ComputeJob(compute, job)
   }
@@ -92,7 +92,7 @@ final private class JobExecutor[F[_], A](
       end <- F.monotonic
     } yield {
       val flag: JobFlag =
-        eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Succeeded else JobFlag.Unsatisfied)
+        eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unsatisfied)
       JobState(JobRecord(job, start, end), flag, eoa)
     }
     ComputeJob(compute, job)

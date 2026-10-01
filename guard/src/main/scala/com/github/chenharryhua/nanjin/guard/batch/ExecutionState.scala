@@ -55,20 +55,20 @@ final private case class ExecutionState[A](
   private val lens: Lens[JobState[Json], JobFlag] = GenLens[JobState[Json]](_.flag)
 
   /** Lift the result into `Right(eoa)` so the chain continues. If the chain had failed, the current tracked
-    * step is flagged `JobFlag.Succeeded` (handled, so logged as nonfatal) while its recorded `Left` result is
+    * step is flagged `JobFlag.Accepted` (handled, so logged as nonfatal) while its recorded `Left` result is
     * kept; a still-succeeding step keeps its flag.
     */
   def attempt: ExecutionState[Either[Throwable, A]] =
     ExecutionState[Either[Throwable, A]](
       Right(eoa),
-      head.andThen(lens).modify(jf => eoa.fold(_ => JobFlag.Succeeded, _ => jf))(history))
+      head.andThen(lens).modify(jf => eoa.fold(_ => JobFlag.Accepted, _ => jf))(history))
 
-  /** Re-flag the current tracked step from `f` on a still-succeeding result: `JobFlag.Succeeded` when `f`
+  /** Re-flag the current tracked step from `f` on a still-succeeding result: `JobFlag.Accepted` when `f`
     * holds, `JobFlag.Unsatisfied` otherwise. Does not short-circuit; a failed chain is left unchanged.
     */
   def predicate(f: A => Boolean): ExecutionState[A] =
     copy(history = head.andThen(lens)
-      .modify(jf => eoa.fold(_ => jf, v => if f(v) then JobFlag.Succeeded else JobFlag.Unsatisfied))(history))
+      .modify(jf => eoa.fold(_ => jf, v => if f(v) then JobFlag.Accepted else JobFlag.Unsatisfied))(history))
 
   /** Replace the current tracked step's recorded result with `eoa.map(f)`. After `attempt`, `eoa` is a
     * `Right` holding the `Either`, so `f` decides how a caught failure is rendered and the recorded `Left` is

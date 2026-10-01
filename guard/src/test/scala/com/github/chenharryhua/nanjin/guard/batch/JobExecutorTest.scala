@@ -54,7 +54,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("1.quasiJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(1)), batchId)
     cj.compute.map { js =>
-      assertEquals(js.flag, JobFlag.Succeeded)
+      assertEquals(js.flag, JobFlag.Accepted)
       assert(js.result == Right(1))
       assert(cj.job.kind.contains(BatchKind.Quasi))
     }
@@ -82,7 +82,7 @@ class JobExecutorTest extends CatsEffectSuite {
   test("4.valueJob: success satisfying the predicate is succeeded and keeps the value") {
     val cj = executor(_ => true, None).valueJob(jni(IO.pure(1)), batchId)
     cj.compute.map { js =>
-      assertEquals(js.flag, JobFlag.Succeeded)
+      assertEquals(js.flag, JobFlag.Accepted)
       assert(js.result == Right(1))
       assert(cj.job.kind.contains(BatchKind.Value))
     }
@@ -133,7 +133,7 @@ class JobExecutorTest extends CatsEffectSuite {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(7)), batchId)
     cj.compute.map { js =>
       assert(js.result == Right(7))
-      assertEquals(js.flag, JobFlag.Succeeded)
+      assertEquals(js.flag, JobFlag.Accepted)
     }
   }
 

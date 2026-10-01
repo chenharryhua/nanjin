@@ -141,7 +141,7 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
         case Some(BatchKind.Quasi) =>
           LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
         // Value jobs are always fatal; a monadic exception is fatal only when flagged `Failed` (one caught by
-        // chain-level `attempt` is flagged `Succeeded` and is nonfatal).
+        // chain-level `attempt` is flagged `Accepted` and is nonfatal).
         case Some(BatchKind.Value) =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
         case None =>

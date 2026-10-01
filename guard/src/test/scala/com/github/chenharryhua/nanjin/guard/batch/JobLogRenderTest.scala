@@ -39,7 +39,7 @@ class JobLogRenderTest extends FunSuite {
   // ---- toLogEntry classification -------------------------------------------------------------------
 
   test("1.toLogEntry: a produced value that satisfied its predicate is Succeeded at Good level") {
-    val entry = toLogEntry(JobState(record(quasiJob), JobFlag.Succeeded, Right(secret)))
+    val entry = toLogEntry(JobState(record(quasiJob), JobFlag.Accepted, Right(secret)))
     assert(entry.message.isInstanceOf[JobLog.Succeeded[?]])
     assert(entry.level == LogLevel.Good)
     assert(entry.cause.isEmpty)
