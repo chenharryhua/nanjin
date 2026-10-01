@@ -123,11 +123,12 @@ private object JobLog {
 
 /** Classifies a completed `JobState` into the matching `JobLog` case and log level.
   *
-  *   - a thrown exception is `Nonfatal` (`Warn`) for a `Quasi` job, whose failure is retained rather than
-  *     aborting the batch, and `Critical` (`Error`) for a `Value` job or a monadic job (`kind = None`), where
-  *     an exception is fatal to the batch;
-  *   - a produced value is `Succeeded` (`Good`) when it satisfied its post-condition, or `Unsatisfied`
-  *     (`Warn`) when a retained `Right` result failed its predicate (for example quasi jobs and monadic
+  *   - a `Left` result is `Nonfatal` (`Warn`) for a `Quasi` job, whose failure is retained rather than
+  *     aborting the batch, and `Critical` (`Error`) for a `Value` job, where it is fatal to the batch. For a
+  *     monadic job (`kind = None`) the flag decides: `JobFlag.Failed` is `Critical`, and any other flag (a
+  *     failure caught by chain-level `attempt`, possibly reclassified by a later `predicate`) is `Nonfatal`;
+  *   - a `Right` result is `Succeeded` (`Good`) when `JobState.succeeded` holds, or `Unsatisfied` (`Warn`)
+  *     otherwise, i.e. when a retained value failed its predicate (for example quasi jobs and monadic
   *     predicates that do not short-circuit).
   *
   * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
@@ -139,14 +140,16 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
       js.record.job.kind match {
         case Some(BatchKind.Quasi) =>
           LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
-        // Value jobs are always fatal; a handled monadic exception is nonfatal and is marked valid.
+        // Value jobs are always fatal; a monadic exception is fatal only when flagged `Failed` (one caught by
+        // chain-level `attempt` is flagged `Succeeded` and is nonfatal).
         case Some(BatchKind.Value) =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
         case None =>
-          if (js.record.valid)
-            LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
-          else
-            LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
+          js.flag match {
+            case JobFlag.Failed =>
+              LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
+            case _ => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
+          }
       }
     case Right(a) =>
       if (js.succeeded)

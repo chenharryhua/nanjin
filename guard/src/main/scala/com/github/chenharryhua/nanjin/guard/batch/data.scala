@@ -109,8 +109,25 @@ object Job {
   }
 }
 
-/** A completed job record that captures its identity, timing boundaries, and whether it finished
-  * successfully.
+/** Classification of a completed job, recorded on `JobState.flag` and read together with `JobState.result`.
+  *
+  *   - `Succeeded`: the job's outcome counts as a pass. Either it produced a value that satisfied its
+  *     post-condition (or no predicate applies), or, for a monadic job, it threw and the failure was caught
+  *     by a chain-level `attempt`. In the latter case `result` still holds the `Left`, unless a later
+  *     `renderOutcome` replaced it with the caller's rendering of the `Either`.
+  *   - `Unsatisfied`: the job produced a value that its predicate rejected, and the value is retained as a
+  *     `Right` (quasi jobs, and monadic `predicate`, which does not short-circuit).
+  *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
+  *     `PostConditionUnsatisfied` failure (value jobs and monadic `withFilter`).
+  *
+  * Logging uses the flag only for a monadic job (`kind = None`) whose `result` is a `Left`: `Failed` is
+  * `Critical`, any other flag is `Nonfatal`. See `toLogEntry`.
+  */
+enum JobFlag:
+  case Succeeded, Unsatisfied, Failed
+
+/** A completed job record that captures its identity and timing boundaries. Its classification lives on
+  * `JobState.flag`.
   *
   * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
   * `end - start`. In `Batch` the window brackets the job's own kickoff log and its effect, so `took` includes
@@ -138,25 +155,34 @@ object Job {
   *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
-  * @param valid
-  *   internal classification flag: `true` when the job satisfies its post-condition or when a failure is
-  *   handled by `attempt`; use `JobState.succeeded` when inspecting a recorded outcome
   */
-final case class JobRecord(
-  job: Job,
-  start: FiniteDuration,
-  end: FiniteDuration,
-  private[batch] val valid: Boolean) {
+final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
 }
 
-/** The recorded outcome of a single batch job, including the completed job summary and its result. */
-final case class JobState[A](record: JobRecord, result: Either[Throwable, A]) derives Functor {
+/** The recorded outcome of a single batch job: the completed job summary, its classification, and its result.
+  *
+  * @param record
+  *   the job's identity and timing
+  * @param flag
+  *   how the job is classified; see `JobFlag`
+  * @param result
+  *   the job's result, or the replacement JSON set by a monadic `renderOutcome`
+  */
+final case class JobState[A](record: JobRecord, flag: JobFlag, result: Either[Throwable, A]) derives Functor {
 
-  /** Whether the job satisfied its post-condition and produced a successful result. */
-  val succeeded: Boolean = record.valid && result.isRight
+  /** Whether the job counts as a pass: `flag` is `JobFlag.Succeeded` and `result` is a `Right`. A monadic
+    * failure caught by `attempt` is flagged `Succeeded` with its `Left` still recorded, so it is not a pass
+    * on its own. A later `renderOutcome` receives the `Either[Throwable, A]` and records the caller's
+    * rendering as a `Right`, so the rendered job counts as a pass; the flag is unchanged.
+    */
+  val succeeded: Boolean = result.isRight && flag.match {
+    case JobFlag.Succeeded   => true
+    case JobFlag.Failed      => false
+    case JobFlag.Unsatisfied => false
+  }
 }
 
 sealed trait BatchResult {
