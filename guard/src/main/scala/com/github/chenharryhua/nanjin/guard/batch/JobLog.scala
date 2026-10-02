@@ -35,8 +35,10 @@ sealed private trait JobLog[A] extends Product {
   // wire format to the Scala type name: renaming a case here is a WIRE-FORMAT BREAK, not a wire-safe rename.
   // `JobLogRenderTest` pins each expected key as a literal string and is the guard against accidental drift.
   final val tag: String = this.productPrefix.toLowerCase
-  private inline val ERROR_MAX = 60 // chars
   private inline val TOOK = "took"
+
+  private def errorMessage(error: Throwable): String =
+    StringUtils.abbreviate(ExceptionUtils.getMessage(error), 60)
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(tag -> job.asJson)
@@ -89,16 +91,14 @@ sealed private trait JobLog[A] extends Product {
       Json.obj(
         record.job.nameEntry,
         TOOK -> Json.fromString(fmt.format(record.took)),
-        tag ->
-          Json.fromString(StringUtils.abbreviate(ExceptionUtils.getMessage(error), ERROR_MAX))
+        tag -> Json.fromString(errorMessage(error))
       )
 
     case JobLog.Critical(record, error) =>
       Json.obj(
         record.job.nameEntry,
         TOOK -> Json.fromString(fmt.format(record.took)),
-        tag ->
-          Json.fromString(StringUtils.abbreviate(ExceptionUtils.getMessage(error), ERROR_MAX))
+        tag -> Json.fromString(errorMessage(error))
       )
   }
 }
