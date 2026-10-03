@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.{Outcome, Ref}
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
@@ -48,8 +48,7 @@ class LifecycleTest extends CatsEffectSuite {
       override protected def create[S: Encoder](
         message: S,
         level: LogLevel,
-        cause: Option[Throwable],
-        mdc: MDC): IO[M] =
+        cause: Option[Throwable]): IO[M] =
         IO.pure((Encoder[S].apply(message), level, cause))
       override protected def publish(event: M): IO[Unit] = sink.update(_ :+ event)
       override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)

@@ -222,7 +222,6 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= List(
       "io.github.timwspence" %% "cats-stm"     % "0.13.5",
-      "org.typelevel" %% "log4cats-slf4j"      % log4catsV,
       "org.http4s" %% "http4s-core"            % http4sV,
       "org.http4s" %% "http4s-dsl"             % http4sV,
       "org.http4s" %% "http4s-ember-server"    % http4sV,
@@ -232,6 +231,7 @@ lazy val guard = (project in file("guard"))
       "org.typelevel" %% "otel4s-core-trace"   % otel4sV,
       // java
       "io.dropwizard.metrics" % "metrics-core" % metricsV,
+      "org.slf4j"             % "slf4j-api"    % slf4jV,
       // test
       "org.http4s" %% "http4s-ember-client"        % http4sV           % Test,
       "org.typelevel" %% "otel4s-oteljava-testkit" % otel4sV           % Test,

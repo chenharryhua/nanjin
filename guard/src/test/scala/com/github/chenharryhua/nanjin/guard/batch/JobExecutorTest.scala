@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
@@ -37,8 +37,7 @@ class JobExecutorTest extends CatsEffectSuite {
     override protected def create[S: Encoder](
       message: S,
       level: LogLevel,
-      cause: Option[Throwable],
-      mdc: MDC): IO[Json] =
+      cause: Option[Throwable]): IO[Json] =
       IO.pure(Encoder[S].apply(message))
     override protected def publish(event: Json): IO[Unit] = sink.update(_ :+ event)
     override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)

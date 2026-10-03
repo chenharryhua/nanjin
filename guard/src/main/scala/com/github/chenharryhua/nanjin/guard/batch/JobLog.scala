@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter as fmt
-import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{LogEntry, LogLevel}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
@@ -138,21 +138,21 @@ private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
     case Left(ex) =>
       js.record.job.kind match {
         case Some(BatchKind.Quasi) =>
-          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
+          LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
         // Value jobs are always fatal; a monadic exception is fatal only when flagged `Failed` (one caught by
         // chain-level `attempt` is flagged `Accepted` and is nonfatal).
         case Some(BatchKind.Value) =>
-          LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
+          LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
         case None =>
           js.flag match {
             case JobFlag.Failed =>
-              LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex), MDC.empty)
-            case _ => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex), MDC.empty)
+              LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
+            case _ => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
           }
       }
     case Right(a) =>
       if (js.succeeded)
-        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None, MDC.empty)
+        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
       else
-        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None, MDC.empty)
+        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
   }

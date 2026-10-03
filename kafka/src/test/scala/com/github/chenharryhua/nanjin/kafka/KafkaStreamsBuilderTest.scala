@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{IO, Ref}
 import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.kafka.config.{KafkaStreamSettings, SerdeSettings}
 import com.github.chenharryhua.nanjin.kafka.streaming.{
   KafkaStreamsAbnormallyStopped,
@@ -133,11 +133,7 @@ class KafkaStreamsBuilderTest extends CatsEffectSuite {
         logged <- Ref.of[IO, List[(LogLevel, StateTransition)]](Nil)
         recordingLog = new Log[IO] {
           override protected type M = (LogLevel, StateTransition)
-          override protected def create[S: Encoder](
-            msg: S,
-            level: LogLevel,
-            ex: Option[Throwable],
-            mdc: MDC): IO[M] =
+          override protected def create[S: Encoder](msg: S, level: LogLevel, ex: Option[Throwable]): IO[M] =
             IO.pure((level, msg.asInstanceOf[StateTransition]))
           override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
           override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)
@@ -201,11 +197,7 @@ class KafkaStreamsBuilderTest extends CatsEffectSuite {
         logged <- Ref.of[IO, List[LogLevel]](Nil)
         recordingLog = new Log[IO] {
           override protected type M = LogLevel
-          override protected def create[S: Encoder](
-            msg: S,
-            level: LogLevel,
-            ex: Option[Throwable],
-            mdc: MDC): IO[M] =
+          override protected def create[S: Encoder](msg: S, level: LogLevel, ex: Option[Throwable]): IO[M] =
             IO.pure(level)
           override protected def publish(event: M): IO[Unit] = logged.update(_ :+ event)
           override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)

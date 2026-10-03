@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.config.{Brief, Domain, ServiceIdenti
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.translator.Translator
-import com.github.chenharryhua.nanjin.common.logging.{LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import munit.{DisciplineSuite, FunSuite}
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -65,8 +65,7 @@ object gendata {
       logRecord = ReportedEvent.LogRecord(
         level = LogLevel.Info,
         stackTrace = None,
-        message = null.asInstanceOf[Message],
-        mdc = MDC.empty)
+        message = null.asInstanceOf[Message])
     )
 
   val allEvents: List[Event] =
