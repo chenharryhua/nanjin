@@ -9,7 +9,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{LogFormat, Service, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
@@ -19,7 +19,6 @@ import com.github.chenharryhua.nanjin.guard.translator.{
 }
 import io.circe.syntax.EncoderOps
 import org.slf4j.{Logger, LoggerFactory}
-import org.typelevel.log4cats.LoggerName
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -28,9 +27,7 @@ private object EventLogSink:
   def apply[F[_]: {Console, Sync}](serviceParams: ServiceParams): LogSink[F] =
     serviceParams.logFormat match {
       case Some(format) =>
-        eventLogSink[F](
-          logFormat = format,
-          loggerName = LoggerName(serviceParams.serviceIdentity.service.value))
+        eventLogSink[F](logFormat = format, service = serviceParams.serviceIdentity.service)
       case None => LogSink(_ => ().pure[F])
     }
 
@@ -51,30 +48,30 @@ private object EventLogSink:
     }
 
   private def consoleLogSink[F[_]: {Monad, Console}](
-    loggerName: LoggerName,
+    service: Service,
     translator: Translator[F, String]): LogSink[F] = {
     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     LogSink { (event: Event) =>
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
-          Console[F].println(show"${fmt.format(event.timestamp.value)} [${loggerName.value}] $text")
+          Console[F].println(show"${fmt.format(event.timestamp.value)} [${service.value}] $text")
         })
         .void
     }
   }
 
-  private def eventLogSink[F[_]: {Console, Sync}](logFormat: LogFormat, loggerName: LoggerName): LogSink[F] =
+  private def eventLogSink[F[_]: {Console, Sync}](logFormat: LogFormat, service: Service): LogSink[F] =
     logFormat match {
       case LogFormat.ConsolePlainText =>
-        consoleLogSink[F](loggerName, AnsiTextTranslator[F])
+        consoleLogSink[F](service, AnsiTextTranslator[F])
       case LogFormat.ConsoleJson =>
-        consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.noSpaces))
+        consoleLogSink[F](service, PrettyJsonTranslator[F].map(_.noSpaces))
       case LogFormat.ConsoleJsonMultiLine =>
-        consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.spaces2))
+        consoleLogSink[F](service, PrettyJsonTranslator[F].map(_.spaces2))
       case LogFormat.ConsoleJsonVerbose =>
-        consoleLogSink[F](loggerName, Translator.idTranslator[F].map(_.asJson.spaces2))
+        consoleLogSink[F](service, Translator.idTranslator[F].map(_.asJson.spaces2))
       case LogFormat.Slf4jJson =>
-        slf4JLogSink[F](LoggerFactory.getLogger(loggerName.value), PrettyJsonTranslator[F].map(_.noSpaces))
+        slf4JLogSink[F](LoggerFactory.getLogger(service.value), PrettyJsonTranslator[F].map(_.noSpaces))
     }
 end EventLogSink
