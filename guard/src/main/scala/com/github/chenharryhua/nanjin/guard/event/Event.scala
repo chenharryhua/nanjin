@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLink}
 import com.github.chenharryhua.nanjin.guard.config.{
   Brief,
   Domain,
@@ -166,10 +166,8 @@ object Event {
       *   severity of the log record
       * @param stackTrace
       *   optional stack trace attached to the record
-      * @param mdc
-      *   mapped diagnostic context associated with the record
       */
-    final case class LogRecord(message: Message, level: LogLevel, stackTrace: Option[StackTrace], mdc: MDC)
+    final case class LogRecord(message: Message, level: LogLevel, stackTrace: Option[StackTrace])
         derives Codec.AsObject
   }
 
@@ -194,8 +192,4 @@ object Event {
       .andThen(GenPrism[MetricsSnapshot.Index, MetricsSnapshot.Periodic])
       .andThen(GenLens[MetricsSnapshot.Periodic](_.tick))
 
-  val mdc: Optional[Event, MDC] =
-    reportedEvent
-      .andThen(GenLens[ReportedEvent](_.logRecord))
-      .andThen(GenLens[ReportedEvent.LogRecord](_.mdc))
 }
