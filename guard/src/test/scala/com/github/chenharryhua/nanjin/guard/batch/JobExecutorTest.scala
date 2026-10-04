@@ -25,9 +25,10 @@ class JobExecutorTest extends CatsEffectSuite {
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val batchId: BatchId = BatchId(1L)
 
-  private def jni(fa: IO[Int]): JobNameIndex[IO, Int] = JobNameIndex[IO, Int]("work", 1, fa)
+  private def jni(fa: IO[Int]): JobNameIndex[IO, Int] =
+    JobNameIndex[IO, Int]("work", 1, fa.attempt.map(None -> _))
   private def jniAt(name: String, index: Int, fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int](name, index, fa)
+    JobNameIndex[IO, Int](name, index, fa.attempt.map(None -> _))
 
   /** A capturing logger: enabled at every level, recording each emitted payload as JSON so tests can assert
     * what was logged. Publish failures are irrelevant here since nothing throws.

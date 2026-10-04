@@ -7,9 +7,19 @@ import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
+import org.typelevel.otel4s.trace.SpanContext
 
-/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute. */
-final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
+/** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute.
+  *
+  * The effect yields the span context of the job's own span (`None` for untraced batches, which open no span)
+  * paired with the job's outcome as an `Either`. The job's own failure is captured in the inner `Either`
+  * rather than failing the effect, so the span context is retained even when the job throws; the outer `F`
+  * fails only for an unexpected error around the job (e.g. in the span machinery itself).
+  */
+final private case class JobNameIndex[F[_], A](
+  name: String,
+  index: Int,
+  fa: F[(Option[SpanContext], Either[Throwable, A])])
 
 /** A successful value job: the produced value paired with the job's completion record. Used internally by the
   * `valueJob` path to carry results before they are folded into a `ValueBatch`.
@@ -64,9 +74,11 @@ final private class JobExecutor[F[_], A](
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
       _ <- log.traverse(lifecycle.logKickoff(_, job))
-      eoa <- jni.fa.attempt
+      outcome <- jni.fa.attempt
       end <- F.monotonic
     } yield {
+      val (spanContext, eoa) =
+        outcome.fold[(Option[SpanContext], Either[Throwable, A])](ex => (None, Left(ex)), identity)
       val result: Either[Throwable, A] =
         eoa.flatMap { a =>
           if (predicate(a))
@@ -74,7 +86,10 @@ final private class JobExecutor[F[_], A](
           else
             Left(PostConditionUnsatisfied(Some(job)))
         }
-      JobState(JobRecord(job, start, end), result.fold(_ => JobFlag.Failed, _ => JobFlag.Accepted), result)
+      JobState(
+        JobRecord(job, start, end, spanContext),
+        result.fold(_ => JobFlag.Failed, _ => JobFlag.Accepted),
+        result)
     }
     ComputeJob(compute, job)
   }
@@ -87,12 +102,14 @@ final private class JobExecutor[F[_], A](
     val compute: F[JobState[A]] = for {
       start <- F.monotonic
       _ <- log.traverse(lifecycle.logKickoff(_, job))
-      eoa <- jni.fa.attempt
+      outcome <- jni.fa.attempt
       end <- F.monotonic
     } yield {
+      val (spanContext, eoa) =
+        outcome.fold[(Option[SpanContext], Either[Throwable, A])](ex => (None, Left(ex)), identity)
       val flag: JobFlag =
         eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
-      JobState(JobRecord(job, start, end), flag, eoa)
+      JobState(JobRecord(job, start, end, spanContext), flag, eoa)
     }
     ComputeJob(compute, job)
   }

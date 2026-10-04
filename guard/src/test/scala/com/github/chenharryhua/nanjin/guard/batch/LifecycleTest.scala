@@ -33,7 +33,7 @@ class LifecycleTest extends CatsEffectSuite {
 
   private def state(succeeded: Boolean): JobState[Int] =
     JobState(
-      JobRecord(job(Some(BatchKind.Quasi)), 0.seconds, 5.seconds),
+      JobRecord(job(Some(BatchKind.Quasi)), 0.seconds, 5.seconds, None),
       if (succeeded) JobFlag.Accepted else JobFlag.Unmet,
       Right(1))
 

@@ -27,7 +27,7 @@ class JobLogRenderTest extends FunSuite {
     Job(name, index, scope, mode, kind, batchId)
 
   private def record(j: Job): JobRecord =
-    JobRecord(j, 0.millis, 12.millis)
+    JobRecord(j, 0.millis, 12.millis, None)
 
   private val quasiJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Quasi))
   private val valueJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Value))
