@@ -390,7 +390,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
-      "com.github.luben" % "zstd-jni"          % "1.5.7-20" // snyk by kafka-schema-registry-client
+      "com.github.luben" % "zstd-jni"          % "1.5.7-21" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
@@ -437,7 +437,9 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
-      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.86" // snyk by hadoop-client
+      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
+      "org.apache.zookeeper" % "zookeeper"            % "3.9.6", // snyk by hadoop-client
+      "org.xerial.snappy"  % "snappy-java"            % "1.1.10.10" // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
