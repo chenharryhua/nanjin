@@ -2,10 +2,8 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
 import cats.effect.MonadCancel
-import cats.kernel.Group
 import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   ActiveGauge,
-  BalanceGauge,
   FrequencyCounter,
   Gauge,
   HealthCheck,
@@ -15,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
 import fs2.Stream
-import io.circe.Encoder
 
 /** Stream-native interface for registering and using metrics.
   *
@@ -69,11 +66,6 @@ sealed trait MetricsHubS[F[_]] {
 
   /** Register a tag-based frequency counter and emit its handle. */
   def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
-
-  /** Register a two-sided balance gauge and emit its transfer handle. */
-  def balanceGauge[A: {Group, Encoder}](
-    source: (String, A),
-    target: (String, A)): Stream[F, BalanceGauge[F, A]]
 }
 
 object MetricsHubS {
@@ -120,10 +112,5 @@ object MetricsHubS {
         name: String,
         f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]] =
         Stream.resource(hub.frequencyCounter(name, f))
-
-      override def balanceGauge[A: {Group, Encoder}](
-        source: (String, A),
-        target: (String, A)): Stream[F, BalanceGauge[F, A]] =
-        Stream.resource(hub.balanceGauge(source, target))
     }
 }

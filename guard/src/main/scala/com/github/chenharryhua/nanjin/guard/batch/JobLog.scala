@@ -45,7 +45,7 @@ sealed private trait JobLog[A] extends Product {
     * return `base` unchanged. Untraced `batch`/`batchLight` jobs have no span context, so no key is added.
     */
   private def withTraceparent(record: JobRecord, base: Json): Json =
-    record.traceparent.fold(base)(tp => base.deepMerge(Json.obj(TRACEPARENT -> Json.fromString(tp))))
+    record.traceparent.fold(base)(tp => Json.obj(TRACEPARENT -> Json.fromString(tp)).deepMerge(base))
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(tag -> job.asJson)

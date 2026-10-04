@@ -221,7 +221,6 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "io.github.timwspence" %% "cats-stm"     % "0.13.5",
       "org.http4s" %% "http4s-core"            % http4sV,
       "org.http4s" %% "http4s-dsl"             % http4sV,
       "org.http4s" %% "http4s-ember-server"    % http4sV,
@@ -430,16 +429,16 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
-      "io.airlift"         % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"           % "netty-all"              % "4.2.18.Final", // snyk by hadoop-client
-      "org.apache.kerby"   % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
-      "org.apache.commons" % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-server"           % jettyV, // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-http"             % jettyV, // snyk by hadoop-client
-      "org.eclipse.jetty"  % "jetty-security"         % jettyV, // snyk by hadoop-client
-      "org.bouncycastle"   % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
-      "org.apache.zookeeper" % "zookeeper"            % "3.9.6", // snyk by hadoop-client
-      "org.xerial.snappy"  % "snappy-java"            % "1.1.10.10" // snyk by hadoop-client
+      "io.airlift"           % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
+      "io.netty"             % "netty-all"              % "4.2.18.Final", // snyk by hadoop-client
+      "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
+      "org.apache.commons"   % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-server"           % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-http"             % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
+      "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
+      "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
+      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.10" // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
