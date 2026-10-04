@@ -106,7 +106,7 @@ class OAuth2Test extends CatsEffectSuite {
         client_secret = Secret("secret"),
         code = Secret("auth-code"),
         redirect_uri = "http://127.0.0.1/callback")
-      login: Login[IO] = auth.authorizationCode(authClient, credential)
+      login: Login[IO] = auth.basicAuthorizationCode(authClient, credential)
       client <- EmberClientBuilder.default[IO].build.flatMap(login.login)
     } yield (client, base)
 
