@@ -95,7 +95,7 @@ final private class JobExecutor[F[_], A](
   }
 
   /** Build a quasi job: a predicate miss is flagged `JobFlag.Unmet` but keeps the value as the result, so the
-    * quasi batch retains the outcome and completes. An exception stays a `Left`, flagged `JobFlag.Failed`.
+    * quasi batch retains the outcome and completes. An exception stays a `Left`, flagged `JobFlag.Unmet`.
     */
   def quasiJob(jni: JobNameIndex[F, A], batchId: BatchId): ComputeJob[F, A] = {
     val job: Job = makeJob(BatchKind.Quasi, jni, batchId)
@@ -108,7 +108,7 @@ final private class JobExecutor[F[_], A](
       val (spanContext, eoa) =
         outcome.fold[(Option[SpanContext], Either[Throwable, A])](ex => (None, Left(ex)), identity)
       val flag: JobFlag =
-        eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
+        eoa.fold(_ => JobFlag.Unmet, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
       JobState(JobRecord(job, start, end, spanContext), flag, eoa)
     }
     ComputeJob(compute, job)

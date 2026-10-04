@@ -71,12 +71,14 @@ class JobLogRenderTest extends FunSuite {
     assert(entry.cause.isEmpty)
   }
 
-  test("3.toLogEntry: an exception in a Quasi job is Nonfatal at Warn level (failure is retained)") {
+  test("3.toLogEntry: a Left flagged Accepted or Unmet is Nonfatal at Warn level (failure is retained)") {
     val ex = new RuntimeException("boom")
-    val entry = toLogEntry(JobState[Json](record(quasiJob), JobFlag.Failed, Left(ex)))
-    assert(entry.message.isInstanceOf[JobLog.Nonfatal[?]])
-    assert(entry.level == LogLevel.Warn)
-    assert(entry.cause.contains(ex))
+    List(JobFlag.Accepted, JobFlag.Unmet).foreach { flag =>
+      val entry = toLogEntry(JobState[Json](record(quasiJob), flag, Left(ex)))
+      assert(entry.message.isInstanceOf[JobLog.Nonfatal[?]])
+      assert(entry.level == LogLevel.Warn)
+      assert(entry.cause.contains(ex))
+    }
   }
 
   test("4.toLogEntry: an exception in a Value job is Critical at Error level (fatal to the batch)") {
