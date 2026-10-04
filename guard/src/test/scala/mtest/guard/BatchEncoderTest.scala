@@ -15,9 +15,9 @@ class BatchEncoderTest extends FunSuite {
   private val label =
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val job = Job("work", 1, label, BatchMode.Sequential, Some(BatchKind.Quasi), batchId)
-  private val completed = JobRecord(job, 0.millis, 12.millis)
+  private val completed = JobRecord(job, 0.millis, 12.millis, None)
   private val failed =
-    JobRecord(job.copy(kind = Some(BatchKind.Value)), 0.millis, 12.millis)
+    JobRecord(job.copy(kind = Some(BatchKind.Value)), 0.millis, 12.millis, None)
 
   test("1.quasi and value batches key the label by mode+kind and render each job by its displayName") {
     val quasi = QuasiBatch(
@@ -72,7 +72,7 @@ class BatchEncoderTest extends FunSuite {
     // A monadic job that threw: kind = None, and its step history carries the real Left(exception) so the
     // per-job render can classify it as "critical".
     val monadicJob = Job("work", 1, label, BatchMode.Monadic, None, batchId)
-    val monadicThrew = JobRecord(monadicJob, 0.millis, 12.millis)
+    val monadicThrew = JobRecord(monadicJob, 0.millis, 12.millis, None)
     val monadic: MonadicBatch[Int] =
       MonadicBatch(
         label,
@@ -164,7 +164,7 @@ class BatchEncoderTest extends FunSuite {
   test("6.MonadicBatch encoder keys each job by its index and name") {
     val monadicJob = Job("check", 1, label, BatchMode.Monadic, None, batchId)
     // a predicate-rejected step: value produced (Right) but did not satisfy the predicate (succeeded=false)
-    val monadicRejected = JobRecord(monadicJob, 0.millis, 5.millis)
+    val monadicRejected = JobRecord(monadicJob, 0.millis, 5.millis, None)
     val mb: MonadicBatch[Int] =
       MonadicBatch(
         label,

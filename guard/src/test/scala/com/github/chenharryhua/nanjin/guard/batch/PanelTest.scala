@@ -42,7 +42,7 @@ class PanelTest extends CatsEffectSuite {
     * `succeeded`); a failed state carries `Left` so a Quasi job classifies as `nonfatal` (see `toLogEntry`).
     */
   private def state(name: String, index: Int, succeeded: Boolean): JobState[Unit] = {
-    val rec = JobRecord(job(name, index, Some(BatchKind.Quasi)), start = 0.seconds, end = 5.seconds)
+    val rec = JobRecord(job(name, index, Some(BatchKind.Quasi)), start = 0.seconds, end = 5.seconds, None)
     val result: Either[Throwable, Unit] =
       if (succeeded) Right(()) else Left(new RuntimeException("boom"))
     JobState(rec, if (succeeded) JobFlag.Accepted else JobFlag.Failed, result)

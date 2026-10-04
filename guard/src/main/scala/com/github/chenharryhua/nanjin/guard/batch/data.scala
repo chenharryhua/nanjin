@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.OpaqueLift
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
+import org.typelevel.otel4s.trace.SpanContext
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -156,11 +157,25 @@ enum JobFlag:
   *   batch's start reading for the first job)
   * @param end
   *   monotonic clock reading at the end of the job
+  * @param spanContext
+  *   the tracing span context of the job's own span, present only for traced batches (`batchTraced`); `None`
+  *   for the untraced `batch`/`batchLight` front ends, which open no span
   */
-final case class JobRecord(job: Job, start: FiniteDuration, end: FiniteDuration) {
+final case class JobRecord(
+  job: Job,
+  start: FiniteDuration,
+  end: FiniteDuration,
+  spanContext: Option[SpanContext]) {
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
+
+  /** The W3C Trace Context `traceparent` header value for this job's span, present only when `spanContext`
+    * is. Format: `00-<32-hex traceId>-<16-hex spanId>-<2-hex flags>`. See
+    * https://www.w3.org/TR/trace-context/#traceparent-header
+    */
+  val traceparent: Option[String] =
+    spanContext.map(ctx => s"00-${ctx.traceIdHex}-${ctx.spanIdHex}-${ctx.traceFlags.toHex}")
 }
 
 /** The recorded outcome of a single batch job: the completed job summary, its classification, and its result.

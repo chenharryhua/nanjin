@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, Me
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.typelevel.otel4s.metrics.MeterProvider
-import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer}
+import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer, TracerProvider}
 
 import java.time.ZoneId
 
@@ -38,7 +38,20 @@ sealed trait Agent[F[_]] {
   /** Time zone used by ticks, retry policies, and circuit-breaker policies. */
   val zoneId: ZoneId
 
+  /** The service's otel4s tracer, the same instance that `batchTraced` opens job and batch spans with.
+    *
+    * Use it to instrument your own effects against the service's tracer so their spans nest as children of
+    * the service's spans instead of detached root spans. For a tracer built from the provider rather than
+    * this shared instance, see `tracerProvider`.
+    */
   def tracer: Tracer[F]
+
+  /** The service's otel4s tracer provider, shared with the service's own job/batch spans.
+    *
+    * Use it to build HTTP client middleware (or any other instrumentation) against the same otel4s instance
+    * the service uses, so their spans nest as children of the service's spans instead of detached root spans.
+    */
+  def tracerProvider: TracerProvider[F]
 
   /** Create a view that reports metrics and messages under `name`.
     *
@@ -133,6 +146,7 @@ sealed trait Agent[F[_]] {
 
 final private class GeneralAgent[F[_]: Async](
   val tracer: Tracer[F],
+  val tracerProvider: TracerProvider[F],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   dispatcher: Dispatcher[F],
@@ -147,6 +161,7 @@ final private class GeneralAgent[F[_]: Async](
   override def withDomain(domain: String): Agent[F] =
     new GeneralAgent[F](
       tracer = tracer,
+      tracerProvider = tracerProvider,
       serviceParams = serviceParams,
       channel = channel,
       dispatcher = dispatcher,

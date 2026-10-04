@@ -21,6 +21,12 @@ final private[guard] case class BatchTracer[F[_]](tracer: Tracer[F], parent: Spa
 
 object BatchTraced:
 
+  /** A traced job before its span is bound: its display name, 1-based position in the batch, and a function
+    * that produces the job's effect given the batch's parent span. It becomes a runnable `JobNameIndex` only
+    * once `BatchRunner.bind` wraps `run` in the job's own child span.
+    */
+  final private[BatchTraced] case class SpanJob[F[_], A](name: String, index: Int, run: Span[F] => F[A])
+
   /*
    * Runners
    */
@@ -31,22 +37,34 @@ object BatchTraced:
 
     protected def scope: MetricScope
 
-    protected def jobs: List[JobNameIndex[F, A]]
+    protected def jobs: List[SpanJob[F, A]]
 
     protected def batchIdGenerator: F[BatchId]
 
     protected def executor: JobExecutor[F, A]
 
-    protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
+    protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]]
 
     protected def batchTracer: BatchTracer[F]
 
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
 
+    /** Bind a job's parent-span function to its own child span named after the job, yielding a runnable
+      * `JobNameIndex` whose effect runs inside `span(name)`. Must be called within `batchTracer.parent`'s
+      * scope so the child span nests under the batch parent.
+      */
+    private def bind(sj: SpanJob[F, A]): JobNameIndex[F, A] =
+      JobNameIndex(
+        sj.name,
+        sj.index,
+        batchTracer.tracer
+          .span(sj.name)
+          .use(span => sj.run(span).attempt.map(eoa => Some(span.context) -> eoa)))
+
     final def quasiBatch: F[QuasiBatch[A]] =
       batchIdGenerator.flatMap { batchId =>
         batchTracer.parent.surround {
-          F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
+          F.timed(traverseJobs(sj => executor.quasiJob(bind(sj), batchId).compute)).map {
             case (fd: FiniteDuration, js: List[JobState[A]]) =>
               QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
           }
@@ -56,8 +74,8 @@ object BatchTraced:
     final def valueBatch: F[ValueBatch[A]] =
       batchIdGenerator.flatMap { batchId =>
         batchTracer.parent.surround {
-          F.timed(traverseJobs { jni =>
-            executor.valueJob(jni, batchId)
+          F.timed(traverseJobs { sj =>
+            executor.valueJob(bind(sj), batchId)
               .compute
               .map(js => js.result.map(JobValue(js.record, _)))
               .rethrow
@@ -82,7 +100,7 @@ object BatchTraced:
     predicate: A => Boolean,
     protected val scope: MetricScope,
     parallelism: Int,
-    protected val jobs: List[JobNameIndex[F, A]],
+    protected val jobs: List[SpanJob[F, A]],
     protected val batchIdGenerator: F[BatchId],
     protected val batchTracer: BatchTracer[F]
   )(using F: Async[F])
@@ -92,7 +110,7 @@ object BatchTraced:
     override protected val executor: JobExecutor[F, A] =
       JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
-    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
+    override protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]] =
       F.parTraverseN(parallelism)(jobs)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
@@ -105,7 +123,7 @@ object BatchTraced:
   final class Sequential[F[_], A] private[BatchTraced] (
     predicate: A => Boolean,
     protected val scope: MetricScope,
-    protected val jobs: List[JobNameIndex[F, A]],
+    protected val jobs: List[SpanJob[F, A]],
     protected val batchIdGenerator: F[BatchId],
     protected val batchTracer: BatchTracer[F])(using F: Async[F])
       extends BatchRunner[F, A] {
@@ -114,7 +132,7 @@ object BatchTraced:
     override protected val executor: JobExecutor[F, A] =
       JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
-    override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
+    override protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]] =
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
@@ -215,11 +233,11 @@ object BatchTraced:
                 batchId = batchId)
 
             for {
-              eoa <- batchTracer.tracer.span(name).use(f).attempt
+              (ctx, eoa) <- batchTracer.tracer.span(name).use(span => f(span).attempt.map(span.context -> _))
               end <- F.monotonic
             } yield {
               val flag = if (eoa.isRight) JobFlag.Accepted else JobFlag.Failed
-              val completed = JobState(JobRecord(job, start, end), flag, eoa.as(Json.Null))
+              val completed = JobState(JobRecord(job, start, end, Some(ctx)), flag, eoa.as(Json.Null))
               JobCursor(index + 1, end) ->
                 ExecutionState(eoa = eoa, history = NonEmptyList.one(Some(completed)))
             }
@@ -241,7 +259,7 @@ final class BatchTraced[F[_]: Async] private[guard] (
 
   def sequential[A](fas: (String, Span[F] => F[A])*): BatchTraced.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, f), idx) =>
-      JobNameIndex[F, A](name, idx + 1, batchTracer.tracer.span(name).use(f))
+      BatchTraced.SpanJob[F, A](name, idx + 1, f)
     }
     new BatchTraced.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator, batchTracer)
   }
@@ -249,7 +267,7 @@ final class BatchTraced[F[_]: Async] private[guard] (
   def parallel[A](parallelism: Int)(fas: (String, Span[F] => F[A])*): BatchTraced.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, f), idx) =>
-      JobNameIndex[F, A](name, idx + 1, batchTracer.tracer.span(name).use(f))
+      BatchTraced.SpanJob[F, A](name, idx + 1, f)
     }
     new BatchTraced.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator, batchTracer)
   }

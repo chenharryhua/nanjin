@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.Monad
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.implicits.showInterpolator
@@ -7,9 +8,8 @@ import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import cats.{Defer, Monad}
-import com.github.chenharryhua.nanjin.common.logging.{LogLevel, MDC}
-import com.github.chenharryhua.nanjin.guard.config.{LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
+import com.github.chenharryhua.nanjin.guard.config.{LogFormat, Service, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
@@ -18,8 +18,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   Translator
 }
 import io.circe.syntax.EncoderOps
-import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.{LoggerName, StructuredLogger}
+import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -28,71 +27,51 @@ private object EventLogSink:
   def apply[F[_]: {Console, Sync}](serviceParams: ServiceParams): LogSink[F] =
     serviceParams.logFormat match {
       case Some(format) =>
-        eventLogSink[F](
-          logFormat = format,
-          loggerName = LoggerName(serviceParams.serviceIdentity.service.value))
+        eventLogSink[F](logFormat = format, service = serviceParams.serviceIdentity.service)
       case None => LogSink(_ => ().pure[F])
     }
 
-  private def slf4JLogSink[F[_]: {Monad, Defer}](
-    logger: StructuredLogger[F],
-    translator: Translator[F, String]): LogSink[F] =
+  private def slf4JLogSink[F[_]](logger: Logger, translator: Translator[F, String])(using
+    F: Sync[F]): LogSink[F] =
     LogSink { (event: Event) =>
-      Event.mdc.getOption(event).map(_.value).match {
-        case Some(ctx) =>
-          translator
-            .translate(event)
-            .flatMap(_.traverse { text =>
-              eventLogLevel[F, Unit](event).run {
-                case LogLevel.Debug => logger.debug(ctx)(text)
-                case LogLevel.Info  => logger.info(ctx)(text)
-                case LogLevel.Good  => logger.info(ctx)(text)
-                case LogLevel.Warn  => logger.warn(ctx)(text)
-                case LogLevel.Error => logger.error(ctx)(text)
-              }
-            })
-        case None =>
-          translator
-            .translate(event)
-            .flatMap(_.traverse { text =>
-              eventLogLevel[F, Unit](event).run {
-                case LogLevel.Debug => logger.debug(text)
-                case LogLevel.Info  => logger.info(text)
-                case LogLevel.Good  => logger.info(text)
-                case LogLevel.Warn  => logger.warn(text)
-                case LogLevel.Error => logger.error(text)
-              }
-            })
-      }.void
+      translator
+        .translate(event)
+        .flatMap(_.traverse { text =>
+          eventLogLevel[F, Unit](event).run {
+            case LogLevel.Debug => F.blocking(logger.debug(text))
+            case LogLevel.Info  => F.blocking(logger.info(text))
+            case LogLevel.Good  => F.blocking(logger.info(text))
+            case LogLevel.Warn  => F.blocking(logger.warn(text))
+            case LogLevel.Error => F.blocking(logger.error(text))
+          }
+        }.void)
     }
 
   private def consoleLogSink[F[_]: {Monad, Console}](
-    loggerName: LoggerName,
+    service: Service,
     translator: Translator[F, String]): LogSink[F] = {
     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     LogSink { (event: Event) =>
       translator
         .translate(event)
         .flatMap(_.traverse { text =>
-          Console[F].println(show"${fmt.format(event.timestamp.value)} [${loggerName.value}] $text")
+          Console[F].println(show"${fmt.format(event.timestamp.value)} [${service.value}] $text")
         })
         .void
     }
   }
 
-  private def eventLogSink[F[_]: {Console, Sync}](logFormat: LogFormat, loggerName: LoggerName): LogSink[F] =
+  private def eventLogSink[F[_]: {Console, Sync}](logFormat: LogFormat, service: Service): LogSink[F] =
     logFormat match {
       case LogFormat.ConsolePlainText =>
-        consoleLogSink[F](loggerName, AnsiTextTranslator[F])
+        consoleLogSink[F](service, AnsiTextTranslator[F])
       case LogFormat.ConsoleJson =>
-        consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.noSpaces))
+        consoleLogSink[F](service, PrettyJsonTranslator[F].map(_.noSpaces))
       case LogFormat.ConsoleJsonMultiLine =>
-        consoleLogSink[F](loggerName, PrettyJsonTranslator[F].map(_.spaces2))
+        consoleLogSink[F](service, PrettyJsonTranslator[F].map(_.spaces2))
       case LogFormat.ConsoleJsonVerbose =>
-        consoleLogSink[F](loggerName, Translator.idTranslator[F].map(_.asJson.spaces2))
+        consoleLogSink[F](service, Translator.idTranslator[F].map(_.asJson.spaces2))
       case LogFormat.Slf4jJson =>
-        slf4JLogSink[F](
-          Slf4jLogger.getLoggerFromName[F](loggerName.value),
-          PrettyJsonTranslator[F].map(_.noSpaces))
+        slf4JLogSink[F](LoggerFactory.getLogger(service.value), PrettyJsonTranslator[F].map(_.noSpaces))
     }
 end EventLogSink

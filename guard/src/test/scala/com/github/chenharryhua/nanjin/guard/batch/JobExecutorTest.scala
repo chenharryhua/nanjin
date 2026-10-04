@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.IO
 import cats.effect.kernel.Ref
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
@@ -25,9 +25,10 @@ class JobExecutorTest extends CatsEffectSuite {
     MetricScope(MetricScope.Label("batch"), Domain("test"), Service("test-service"), Task("task"))
   private val batchId: BatchId = BatchId(1L)
 
-  private def jni(fa: IO[Int]): JobNameIndex[IO, Int] = JobNameIndex[IO, Int]("work", 1, fa)
+  private def jni(fa: IO[Int]): JobNameIndex[IO, Int] =
+    JobNameIndex[IO, Int]("work", 1, fa.attempt.map(None -> _))
   private def jniAt(name: String, index: Int, fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int](name, index, fa)
+    JobNameIndex[IO, Int](name, index, fa.attempt.map(None -> _))
 
   /** A capturing logger: enabled at every level, recording each emitted payload as JSON so tests can assert
     * what was logged. Publish failures are irrelevant here since nothing throws.
@@ -37,8 +38,7 @@ class JobExecutorTest extends CatsEffectSuite {
     override protected def create[S: Encoder](
       message: S,
       level: LogLevel,
-      cause: Option[Throwable],
-      mdc: MDC): IO[Json] =
+      cause: Option[Throwable]): IO[Json] =
       IO.pure(Encoder[S].apply(message))
     override protected def publish(event: Json): IO[Unit] = sink.update(_ :+ event)
     override protected def enabled(level: LogLevel): IO[Boolean] = IO.pure(true)

@@ -7,7 +7,7 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.order.given
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, LogLocator, MDC}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel, LogLocator}
 import com.github.chenharryhua.nanjin.guard.config.{Domain, LogThreshold, ServiceParams, StackTrace}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message}
@@ -25,11 +25,8 @@ final private class ReportedEventHandler[F[_]: Sync](
   logSink: LogSink[F],
   logLocator: Option[LogLocator]
 ) {
-  private def createReportedEvent[S: Encoder](
-    message: S,
-    level: LogLevel,
-    stackTrace: Option[StackTrace],
-    mdc: MDC)(using F: Sync[F]): F[ReportedEvent] =
+  private def createReportedEvent[S: Encoder](message: S, level: LogLevel, stackTrace: Option[StackTrace])(
+    using F: Sync[F]): F[ReportedEvent] =
     (F.unique, serviceParams.serviceIdentity.timestamp[F]).mapN { case (token, ts) =>
       ReportedEvent(
         serviceIdentity = serviceParams.serviceIdentity,
@@ -40,8 +37,7 @@ final private class ReportedEventHandler[F[_]: Sync](
         ReportedEvent.LogRecord(
           level = level,
           stackTrace = stackTrace,
-          message = Message(Encoder[S].apply(message)),
-          mdc = mdc)
+          message = Message(Encoder[S].apply(message)))
       )
     }
 
@@ -67,9 +63,8 @@ final private class ReportedEventHandler[F[_]: Sync](
     override protected def create[S: Encoder](
       message: S,
       level: LogLevel,
-      stackTrace: Option[Throwable],
-      mdc: MDC): F[ReportedEvent] =
-      createReportedEvent[S](message, level, stackTrace.map(StackTrace(_)), mdc)
+      stackTrace: Option[Throwable]): F[ReportedEvent] =
+      createReportedEvent[S](message, level, stackTrace.map(StackTrace(_)))
 
     override protected def publish(event: ReportedEvent): F[Unit] =
       logThreshold.get.flatMap { threshold =>
