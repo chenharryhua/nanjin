@@ -169,6 +169,13 @@ final case class JobRecord(
 
   /** Elapsed time for this job, derived as `end - start`. */
   val took: Duration = (end - start).toJava
+
+  /** The W3C Trace Context `traceparent` header value for this job's span, present only when `spanContext`
+    * is. Format: `00-<32-hex traceId>-<16-hex spanId>-<2-hex flags>`. See
+    * https://www.w3.org/TR/trace-context/#traceparent-header
+    */
+  val traceparent: Option[String] =
+    spanContext.map(ctx => s"00-${ctx.traceIdHex}-${ctx.spanIdHex}-${ctx.traceFlags.toHex}")
 }
 
 /** The recorded outcome of a single batch job: the completed job summary, its classification, and its result.

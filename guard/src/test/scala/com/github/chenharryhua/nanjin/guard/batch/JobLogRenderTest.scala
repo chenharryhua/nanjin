@@ -5,6 +5,8 @@ import com.github.chenharryhua.nanjin.guard.config.{Domain, Service, Task}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.Json
 import munit.FunSuite
+import org.typelevel.otel4s.trace.{SpanContext, TraceFlags, TraceState}
+import scodec.bits.ByteVector
 
 import scala.concurrent.duration.DurationInt
 
@@ -28,6 +30,23 @@ class JobLogRenderTest extends FunSuite {
 
   private def record(j: Job): JobRecord =
     JobRecord(j, 0.millis, 12.millis, None)
+
+  // a valid span context with a known trace/span id, so the derived traceparent is deterministic
+  private val traceIdHex = "0af7651916cd43dd8448eb211c80319c"
+  private val spanIdHex = "b7ad6b7169203331"
+  private val spanContext: SpanContext =
+    SpanContext(
+      traceId = ByteVector.fromValidHex(traceIdHex),
+      spanId = ByteVector.fromValidHex(spanIdHex),
+      traceFlags = TraceFlags.Sampled,
+      traceState = TraceState.empty,
+      remote = false
+    )
+  // the W3C traceparent for the above context: 00-<traceId>-<spanId>-01 (sampled)
+  private val expectedTraceparent = s"00-$traceIdHex-$spanIdHex-01"
+
+  private def tracedRecord(j: Job): JobRecord =
+    JobRecord(j, 0.millis, 12.millis, Some(spanContext))
 
   private val quasiJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Quasi))
   private val valueJob = job("work", 1, BatchMode.Sequential, Some(BatchKind.Value))
@@ -164,4 +183,36 @@ class JobLogRenderTest extends FunSuite {
   // Note: Kickoff/Canceled extend JobLog[Nothing], so `inBatch` (which needs an Encoder[A]) is uncallable
   // for them by construction — matching the "should not happen" comment on those arms. Their real render is
   // `standalone`, covered above.
+
+  // ---- traceparent (traced batches) ----------------------------------------------------------------
+
+  // A traced job carries a span context; both renders expose it as a W3C `traceparent` key. Untraced jobs
+  // (spanContext = None) add no such key. Covers all four outcome cases across standalone and inBatch.
+
+  test("14.standalone: a traced job renders traceparent for every outcome case") {
+    val succeeded = JobLog.Succeeded(tracedRecord(quasiJob), secret).standalone
+    val unsatisfied = JobLog.Unsatisfied(tracedRecord(quasiJob), secret).standalone
+    val nonfatal = JobLog.Nonfatal(tracedRecord(quasiJob), new RuntimeException("boom")).standalone
+    val critical = JobLog.Critical(tracedRecord(valueJob), new RuntimeException("boom")).standalone
+    List(succeeded, unsatisfied, nonfatal, critical).foreach { js =>
+      assertEquals(js.hcursor.get[String]("traceparent").toOption, Some(expectedTraceparent))
+    }
+  }
+
+  test("15.inBatch: a traced job renders traceparent for every outcome case") {
+    val succeeded = JobLog.Succeeded(tracedRecord(quasiJob), secret).inBatch
+    val unsatisfied = JobLog.Unsatisfied(tracedRecord(quasiJob), secret).inBatch
+    val nonfatal = JobLog.Nonfatal[Json](tracedRecord(quasiJob), new RuntimeException("boom")).inBatch
+    val critical = JobLog.Critical[Json](tracedRecord(valueJob), new RuntimeException("boom")).inBatch
+    List(succeeded, unsatisfied, nonfatal, critical).foreach { js =>
+      assertEquals(js.hcursor.get[String]("traceparent").toOption, Some(expectedTraceparent))
+    }
+  }
+
+  test("16.an untraced job (spanContext = None) renders no traceparent key") {
+    val standalone = JobLog.Succeeded(record(quasiJob), secret).standalone
+    val inBatch = JobLog.Succeeded(record(quasiJob), secret).inBatch
+    assert(standalone.hcursor.downField("traceparent").focus.isEmpty)
+    assert(inBatch.hcursor.downField("traceparent").focus.isEmpty)
+  }
 }

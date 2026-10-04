@@ -36,37 +36,52 @@ sealed private trait JobLog[A] extends Product {
   // `JobLogRenderTest` pins each expected key as a literal string and is the guard against accidental drift.
   final val tag: String = this.productPrefix.toLowerCase
   private inline val TOOK = "took"
+  private inline val TRACEPARENT = "traceparent"
 
   private def errorMessage(error: Throwable): String =
     StringUtils.abbreviate(ExceptionUtils.getMessage(error), 60)
+
+  /** Prepend the job's W3C `traceparent` to `base` when the job ran in a span (traced batches); otherwise
+    * return `base` unchanged. Untraced `batch`/`batchLight` jobs have no span context, so no key is added.
+    */
+  private def withTraceparent(record: JobRecord, base: Json): Json =
+    record.traceparent.fold(base)(tp => base.deepMerge(Json.obj(TRACEPARENT -> Json.fromString(tp))))
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(tag -> job.asJson)
     case JobLog.Canceled(job) => Json.obj(tag -> job.asJson)
 
     case JobLog.Succeeded(record, _) =>
-      Json.obj(
-        tag -> record.job.asJson,
-        TOOK -> Json.fromString(fmt.format(record.took))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          tag -> record.job.asJson,
+          TOOK -> Json.fromString(fmt.format(record.took))
+        ))
 
     case JobLog.Unsatisfied(record, _) =>
-      Json.obj(
-        tag -> record.job.asJson,
-        TOOK -> Json.fromString(fmt.format(record.took))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          tag -> record.job.asJson,
+          TOOK -> Json.fromString(fmt.format(record.took))
+        ))
 
     case JobLog.Nonfatal(record, _) =>
-      Json.obj(
-        tag -> record.job.asJson,
-        TOOK -> Json.fromString(fmt.format(record.took))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          tag -> record.job.asJson,
+          TOOK -> Json.fromString(fmt.format(record.took))
+        ))
 
     case JobLog.Critical(record, _) =>
-      Json.obj(
-        tag -> record.job.asJson,
-        TOOK -> Json.fromString(fmt.format(record.took))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          tag -> record.job.asJson,
+          TOOK -> Json.fromString(fmt.format(record.took))
+        ))
   }
 
   def inBatch(using Encoder[A]): Json = this match {
@@ -74,32 +89,40 @@ sealed private trait JobLog[A] extends Product {
     case JobLog.Canceled(_) => Json.Null // should not happen
 
     case JobLog.Succeeded(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        TOOK -> Json.fromString(fmt.format(record.took)),
-        tag -> result.asJson
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          record.job.nameEntry,
+          TOOK -> Json.fromString(fmt.format(record.took)),
+          tag -> result.asJson
+        ))
 
     case JobLog.Unsatisfied(record, result) =>
-      Json.obj(
-        record.job.nameEntry,
-        TOOK -> Json.fromString(fmt.format(record.took)),
-        tag -> result.asJson
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          record.job.nameEntry,
+          TOOK -> Json.fromString(fmt.format(record.took)),
+          tag -> result.asJson
+        ))
 
     case JobLog.Nonfatal(record, error) =>
-      Json.obj(
-        record.job.nameEntry,
-        TOOK -> Json.fromString(fmt.format(record.took)),
-        tag -> Json.fromString(errorMessage(error))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          record.job.nameEntry,
+          TOOK -> Json.fromString(fmt.format(record.took)),
+          tag -> Json.fromString(errorMessage(error))
+        ))
 
     case JobLog.Critical(record, error) =>
-      Json.obj(
-        record.job.nameEntry,
-        TOOK -> Json.fromString(fmt.format(record.took)),
-        tag -> Json.fromString(errorMessage(error))
-      )
+      withTraceparent(
+        record,
+        Json.obj(
+          record.job.nameEntry,
+          TOOK -> Json.fromString(fmt.format(record.took)),
+          tag -> Json.fromString(errorMessage(error))
+        ))
   }
 }
 
