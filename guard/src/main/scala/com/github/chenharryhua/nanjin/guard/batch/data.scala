@@ -122,8 +122,9 @@ object Job {
   *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
   *     `PostConditionUnsatisfied` failure (value jobs and monadic `withFilter`).
   *
-  * Logging uses the flag only for a monadic job (`kind = None`) whose `result` is a `Left`: `Failed` is
-  * `Critical`, any other flag is `Nonfatal`. See `toLogEntry`.
+  * Logging keys on the flag alone, independent of the job's `BatchKind`: on a `Left` result, `Failed` is
+  * `Critical` and `Accepted`/`Unmet` are `Nonfatal`; on a `Right` result, `Accepted` is `Succeeded` and
+  * `Unmet` is `Unsatisfied`. See `toLogEntry`.
   */
 enum JobFlag:
   case Accepted, Unmet, Failed

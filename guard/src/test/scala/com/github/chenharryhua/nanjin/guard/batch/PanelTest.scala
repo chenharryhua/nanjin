@@ -38,8 +38,9 @@ class PanelTest extends CatsEffectSuite {
       kind = kind,
       batchId = batchId)
 
-  /** Build a completed `JobState` for a Quasi job. A succeeded state carries `Right(())` (renders
-    * `succeeded`); a failed state carries `Left` so a Quasi job classifies as `nonfatal` (see `toLogEntry`).
+  /** Build a completed `JobState` for a Quasi job. A succeeded state carries `Right(())` and
+    * `JobFlag.Accepted` (renders `succeeded`); a failed state carries `Left` and `JobFlag.Failed`, which
+    * classifies as `critical` (see `toLogEntry`).
     */
   private def state(name: String, index: Int, succeeded: Boolean): JobState[Unit] = {
     val rec = JobRecord(job(name, index, Some(BatchKind.Quasi)), start = 0.seconds, end = 5.seconds, None)
@@ -115,8 +116,8 @@ class PanelTest extends CatsEffectSuite {
       assert(keys == List("job-1 alpha", "job-2 beta")) // sorted by index, keyed by displayName
       // each value is "<took> (<severity>)"; the severity mirrors toLogEntry's classification
       assert(obj("job-1 alpha").flatMap(_.asString).exists(_.contains("(succeeded)")))
-      // a failed Quasi job classifies as nonfatal (its failure is retained, not fatal to the batch)
-      assert(obj("job-2 beta").flatMap(_.asString).exists(_.contains("(nonfatal)")))
+      // a Failed-flagged job classifies as critical (classification keys on the flag, not the BatchKind)
+      assert(obj("job-2 beta").flatMap(_.asString).exists(_.contains("(critical)")))
     }
   }
 

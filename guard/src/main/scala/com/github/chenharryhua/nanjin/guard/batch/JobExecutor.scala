@@ -108,7 +108,7 @@ final private class JobExecutor[F[_], A](
       val (spanContext, eoa) =
         outcome.fold[(Option[SpanContext], Either[Throwable, A])](ex => (None, Left(ex)), identity)
       val flag: JobFlag =
-        eoa.fold(_ => JobFlag.Failed, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
+        eoa.fold(_ => JobFlag.Unmet, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
       JobState(JobRecord(job, start, end, spanContext), flag, eoa)
     }
     ComputeJob(compute, job)
