@@ -26,9 +26,9 @@ class JobExecutorTest extends CatsEffectSuite {
   private val batchId: BatchId = BatchId(1L)
 
   private def jni(fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int]("work", 1, fa.attempt.map(None -> _))
+    JobNameIndex[IO, Int]("work", 1, fa)
   private def jniAt(name: String, index: Int, fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int](name, index, fa.attempt.map(None -> _))
+    JobNameIndex[IO, Int](name, index, fa)
 
   /** A capturing logger: enabled at every level, recording each emitted payload as JSON so tests can assert
     * what was logged. Publish failures are irrelevant here since nothing throws.
@@ -69,10 +69,10 @@ class JobExecutorTest extends CatsEffectSuite {
     }
   }
 
-  test("3.quasiJob: a thrown effect records failure and keeps the original Left") {
+  test("3.quasiJob: a thrown effect is flagged Unmet (retained, nonfatal) and keeps the original Left") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.raiseError(boom)), batchId)
     cj.compute.map { js =>
-      assertEquals(js.flag, JobFlag.Failed)
+      assertEquals(js.flag, JobFlag.Unmet)
       assert(js.result == Left(boom))
     }
   }

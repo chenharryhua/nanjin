@@ -259,7 +259,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
   /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchLight.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa.attempt.map(None -> _))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new BatchLight.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator)
   }
@@ -268,7 +268,7 @@ final class BatchLight[F[_]: Async] private[guard] (scope: MetricScope, batchIdG
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchLight.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa.attempt.map(None -> _))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new BatchLight.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator)
   }

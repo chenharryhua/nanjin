@@ -21,9 +21,9 @@ final private[guard] case class BatchTracer[F[_]](tracer: Tracer[F], parent: Spa
 
 object BatchTraced:
 
-  /** A traced job before its span is bound: its display name, 1-based position in the batch, and a function
-    * that produces the job's effect given the batch's parent span. It becomes a runnable `JobNameIndex` only
-    * once `BatchRunner.bind` wraps `run` in the job's own child span.
+  /** A traced job: its display name, 1-based position in the batch, and a function that produces the job's
+    * effect given the job's own span. `BatchRunner.runTraced` opens that child span (named after the job),
+    * passes it to `run`, and records the span context on the job's `JobRecord`.
     */
   final private[BatchTraced] case class SpanJob[F[_], A](name: String, index: Int, run: Span[F] => F[A])
 
@@ -41,7 +41,7 @@ object BatchTraced:
 
     protected def batchIdGenerator: F[BatchId]
 
-    protected def executor: JobExecutor[F, A]
+    protected def predicate: A => Boolean
 
     protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]]
 
@@ -49,22 +49,47 @@ object BatchTraced:
 
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
 
-    /** Bind a job's parent-span function to its own child span named after the job, yielding a runnable
-      * `JobNameIndex` whose effect runs inside `span(name)`. Must be called within `batchTracer.parent`'s
-      * scope so the child span nests under the batch parent.
+    /** Static metadata for a traced job of the given `kind`. */
+    private def makeJob(kind: BatchKind, sj: SpanJob[F, A], batchId: BatchId): Job =
+      Job(sj.name, sj.index, scope, mode, Some(kind), batchId)
+
+    /** Run `sj` inside its own child span (named after the job) and record the span context, timing the
+      * `attempt`ed effect. The child span nests under `batchTracer.parent`, whose scope the callers enter.
+      * The classification of `eoa` is left to the caller, matching the quasi/value split; `BatchTraced`
+      * carries its own copy of those rules rather than sharing `JobExecutor`'s.
       */
-    private def bind(sj: SpanJob[F, A]): JobNameIndex[F, A] =
-      JobNameIndex(
-        sj.name,
-        sj.index,
-        batchTracer.tracer
-          .span(sj.name)
-          .use(span => sj.run(span).attempt.map(eoa => Some(span.context) -> eoa)))
+    private def runTraced(job: Job, sj: SpanJob[F, A]): F[(JobRecord, Either[Throwable, A])] =
+      batchTracer.tracer.span(sj.name).use { span =>
+        for {
+          start <- F.monotonic
+          eoa <- sj.run(span).attempt
+          end <- F.monotonic
+        } yield (JobRecord(job, start, end, Some(span.context)), eoa)
+      }
+
+    /** A quasi job: a predicate miss is flagged `JobFlag.Unmet` but keeps the value as a `Right`; a thrown
+      * effect stays a `Left`, also flagged `JobFlag.Unmet`.
+      */
+    private def quasiJob(sj: SpanJob[F, A], batchId: BatchId): F[JobState[A]] =
+      runTraced(makeJob(BatchKind.Quasi, sj, batchId), sj).map { case (record, eoa) =>
+        val flag = eoa.fold(_ => JobFlag.Unmet, v => if predicate(v) then JobFlag.Accepted else JobFlag.Unmet)
+        JobState(record, flag, eoa)
+      }
+
+    /** A value job: a predicate miss folds into `Left(PostConditionUnsatisfied)` so the value batch can raise
+      * it and abort; any `Left` is flagged `JobFlag.Failed`, a passing value `JobFlag.Accepted`.
+      */
+    private def valueJob(sj: SpanJob[F, A], batchId: BatchId): F[JobState[A]] =
+      runTraced(makeJob(BatchKind.Value, sj, batchId), sj).map { case (record, eoa) =>
+        val result =
+          eoa.flatMap(a => if (predicate(a)) Right(a) else Left(PostConditionUnsatisfied(Some(record.job))))
+        JobState(record, result.fold(_ => JobFlag.Failed, _ => JobFlag.Accepted), result)
+      }
 
     final def quasiBatch: F[QuasiBatch[A]] =
       batchIdGenerator.flatMap { batchId =>
         batchTracer.parent.surround {
-          F.timed(traverseJobs(sj => executor.quasiJob(bind(sj), batchId).compute)).map {
+          F.timed(traverseJobs(sj => quasiJob(sj, batchId))).map {
             case (fd: FiniteDuration, js: List[JobState[A]]) =>
               QuasiBatch(scope = scope, spent = fd.toJava, mode = mode, batchId = batchId, outcomes = js)
           }
@@ -75,10 +100,7 @@ object BatchTraced:
       batchIdGenerator.flatMap { batchId =>
         batchTracer.parent.surround {
           F.timed(traverseJobs { sj =>
-            executor.valueJob(bind(sj), batchId)
-              .compute
-              .map(js => js.result.map(JobValue(js.record, _)))
-              .rethrow
+            valueJob(sj, batchId).map(js => js.result.map(JobValue(js.record, _))).rethrow
           }).map { case (fd: FiniteDuration, jv: List[JobValue[A]]) =>
             ValueBatch(
               scope = scope,
@@ -97,7 +119,7 @@ object BatchTraced:
    * Parallel
    */
   final class Parallel[F[_], A] private[BatchTraced] (
-    predicate: A => Boolean,
+    protected val predicate: A => Boolean,
     protected val scope: MetricScope,
     parallelism: Int,
     protected val jobs: List[SpanJob[F, A]],
@@ -107,8 +129,6 @@ object BatchTraced:
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
-    override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]] =
       F.parTraverseN(parallelism)(jobs)(f)
@@ -121,7 +141,7 @@ object BatchTraced:
    * Sequential
    */
   final class Sequential[F[_], A] private[BatchTraced] (
-    predicate: A => Boolean,
+    protected val predicate: A => Boolean,
     protected val scope: MetricScope,
     protected val jobs: List[SpanJob[F, A]],
     protected val batchIdGenerator: F[BatchId],
@@ -129,8 +149,6 @@ object BatchTraced:
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential
-    override protected val executor: JobExecutor[F, A] =
-      JobExecutor[F, A](predicate = predicate, mode = mode, scope = scope, log = None)
 
     override protected def traverseJobs[B](f: SpanJob[F, A] => F[B]): F[List[B]] =
       jobs.traverse(f)

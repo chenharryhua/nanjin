@@ -331,7 +331,7 @@ final class Batch[F[_]: Async] private[guard] (
 
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa.attempt.map(None -> _))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Sequential[F, A](
       predicate = _ => true,
@@ -348,7 +348,7 @@ final class Batch[F[_]: Async] private[guard] (
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa.attempt.map(None -> _))
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Parallel[F, A](
       predicate = _ => true,
