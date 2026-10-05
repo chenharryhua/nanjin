@@ -151,7 +151,7 @@ object BatchMetered:
    * Monadic
    */
 
-  final private case class Context[F[_]](update: BatchPanel.Update[F], log: Log[F], batchId: BatchId)
+  final private case class Context[F[_]](update: BatchPanel.Update[F], batchId: BatchId)
 
   /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
   final class JobBuilder[F[_]] private[BatchMetered] (
@@ -252,7 +252,7 @@ object BatchMetered:
           .evalMap { case BatchPanel(update, activeGauge) =>
             val exec = for {
               batchId <- batchIdGenerator
-              context = Context[F](update, log, batchId)
+              context = Context[F](update, batchId)
               start <- F.monotonic
               (_, state @ ExecutionState(eoa, history)) <- kleisli.run(context).run(JobCursor(1, start))
               // the run's final head is the one job no `flatMap` reached; emit it here, still inside the
@@ -310,7 +310,7 @@ object BatchMetered:
       */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
-        Kleisli { case Context(update, log, batchId) =>
+        Kleisli { case Context(update, batchId) =>
           StateT { case JobCursor(index: Int, start: FiniteDuration) =>
             val job: Job =
               Job(
