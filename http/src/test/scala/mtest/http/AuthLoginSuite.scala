@@ -105,7 +105,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("1a.clientCredentials supports client_secret_basic for acquisition and refresh") {
+  test("2.clientCredentials supports client_secret_basic for acquisition and refresh") {
     cats.effect.testkit.TestControl.executeEmbed {
       val token_calls = Ref.unsafe[IO, Int](0)
       val auth_client = Resource.pure[IO, Client[IO]](
@@ -148,7 +148,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("1a1.client_secret_basic form-encodes reserved and UTF-8 credentials") {
+  test("3.client_secret_basic form-encodes reserved and UTF-8 credentials") {
     val client_id = "client:id +/?"
     val client_secret = "sëcret: +/%"
     val expected_authorization =
@@ -175,7 +175,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       .map(result => assertEquals(result, "ok"))
   }
 
-  test("1a2.clientCredentials replays POST once and the server applies its side effect once") {
+  test("4.clientCredentials replays POST once and the server applies its side effect once") {
     for {
       token_calls <- Ref.of[IO, Int](0)
       business_attempts <- Ref.of[IO, Int](0)
@@ -225,7 +225,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("1b.clientCredentials retains and rotates refresh tokens") {
+  test("5.clientCredentials retains and rotates refresh tokens") {
     cats.effect.testkit.TestControl.executeEmbed {
       val token_calls = Ref.unsafe[IO, Int](0)
       val used_refresh_tokens = Ref.unsafe[IO, List[String]](Nil)
@@ -277,7 +277,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Authorization Code                                                          */
   /* -------------------------------------------------------------------------- */
 
-  test("2.authorizationCode login injects Authorization header") {
+  test("6.authorizationCode login injects Authorization header") {
     val authClient = Resource
       .pure[IO, Client[IO]](
         tokenServer(expectedGrantType = "authorization_code")
@@ -303,7 +303,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2a.authorizationCode refreshes instead of reusing a rejected authorization code") {
+  test("7.authorizationCode refreshes instead of reusing a rejected authorization code") {
     val grant_types = Ref.unsafe[IO, List[String]](Nil)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -352,7 +352,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2b.authorizationCode accepts a minimal token response and sends the exact exchange") {
+  test("8.authorizationCode accepts a minimal token response and sends the exact exchange") {
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -393,7 +393,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2i.postAuthorizationCode puts the client credentials in the body and sends no Basic header") {
+  test("9.postAuthorizationCode puts the client credentials in the body and sends no Basic header") {
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -430,7 +430,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2c.authorizationCode retains a refresh token when a refresh response omits it") {
+  test("10.authorizationCode retains a refresh token when a refresh response omits it") {
     val refresh_tokens = Ref.unsafe[IO, List[String]](Nil)
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
@@ -482,7 +482,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2d.authorizationCode requires reauthorization when a rejected token has no refresh token") {
+  test("11.authorizationCode requires reauthorization when a rejected token has no refresh token") {
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
         case POST -> Root / "token" =>
@@ -510,7 +510,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2e.authorizationCode login permits only one resource acquisition") {
+  test("12.authorizationCode login permits only one resource acquisition") {
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -542,7 +542,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2f.authorizationCode keeps the code consumed after a failed exchange") {
+  test("13.authorizationCode keeps the code consumed after a failed exchange") {
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -573,7 +573,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2g.authorizationCode keeps the code consumed after a canceled exchange") {
+  test("14.authorizationCode keeps the code consumed after a canceled exchange") {
     for {
       exchange_started <- Deferred[IO, Unit]
       token_calls <- Ref.of[IO, Int](0)
@@ -605,7 +605,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("2h.authorizationCode rejects an overlapping acquisition before allocating its auth client") {
+  test("15.authorizationCode rejects an overlapping acquisition before allocating its auth client") {
     for {
       auth_allocations <- Ref.of[IO, Int](0)
       exchange_started <- Deferred[IO, Unit]
@@ -646,7 +646,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
   /* Sanity: token is reused within lifetime                                     */
   /* -------------------------------------------------------------------------- */
 
-  test("3.login reuses token within its lifetime") {
+  test("16.login reuses token within its lifetime") {
     val ref = Ref.unsafe[IO, Int](0)
 
     val app = HttpApp[IO] {
@@ -685,7 +685,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4.unauthorized response triggers client-credentials reacquisition") {
+  test("17.unauthorized response triggers client-credentials reacquisition") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
     val currentToken = Ref.unsafe[IO, String]("old-token")
 
@@ -739,7 +739,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4a.unauthorized response is released exactly once before retry") {
+  test("18.unauthorized response is released exactly once before retry") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
     val unauthorizedReleases = Ref.unsafe[IO, Int](0)
 
@@ -785,7 +785,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } *> unauthorizedReleases.get.map(releases => assertEquals(releases, 1))
   }
 
-  test("4a1.unauthorized response releases a one-slot pool before retry") {
+  test("19.unauthorized response releases a one-slot pool before retry") {
     val token_calls = Ref.unsafe[IO, Int](0)
     val auth_client = Resource.pure[IO, Client[IO]](
       Client.fromHttpApp(HttpApp[IO] {
@@ -826,7 +826,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4b.cancellation during first request releases the connection") {
+  test("20.cancellation during first request releases the connection") {
     val released = Ref.unsafe[IO, Boolean](false)
 
     val authClient = Resource.pure[IO, Client[IO]](
@@ -858,7 +858,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4c.second 401 after refresh is returned to caller without looping") {
+  test("21.second 401 after refresh is returned to caller without looping") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
 
     val authClient = Resource.pure[IO, Client[IO]](
@@ -893,7 +893,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("4d.getTokenFromCredentials failure during 401 recovery propagates the error") {
+  test("22.getTokenFromCredentials failure during 401 recovery propagates the error") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
 
     val authClient = Resource.pure[IO, Client[IO]](
@@ -924,7 +924,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("5.Uri JSON codec round-trips HTTP4S URIs") {
+  test("23.Uri JSON codec round-trips HTTP4S URIs") {
     import UriJsonCodec.given
 
     val uri = uri"https://example.com/api"
@@ -935,7 +935,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     assertEquals(decoded, Right(uri))
   }
 
-  test("6.Uri JSON codec preserves explicit ports") {
+  test("24.Uri JSON codec preserves explicit ports") {
     import UriJsonCodec.given
 
     val uri = uri"https://example.com:8443/api"
@@ -946,7 +946,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     assertEquals(decoded, Right(uri))
   }
 
-  test("7.Salesforce password grant rewrites the URI and removes a stale Host header") {
+  test("25.Salesforce password grant rewrites the URI and removes a stale Host header") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
         Ok(
@@ -991,7 +991,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("7a.Salesforce accepts minimal and complete token responses") {
+  test("26.Salesforce accepts minimal and complete token responses") {
     val credential = Salesforce.PasswordGrant(
       auth_endpoint = uri"/token",
       client_id = "client-id",
@@ -1029,7 +1029,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("8.Salesforce password grant preserves full path, query, and fragment after path-info translation") {
+  test("27.Salesforce password grant preserves full path, query, and fragment after path-info translation") {
     val authApp = HttpApp[IO] {
       case POST -> Root / "token" =>
         Ok(
@@ -1076,7 +1076,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("8a.Salesforce password grant: non-positive or absent expiresIn disables scheduled renewal") {
+  test("28.Salesforce password grant: non-positive or absent expiresIn disables scheduled renewal") {
     val credential = Salesforce.PasswordGrant(
       auth_endpoint = uri"http://sf.test/token",
       client_id = "client-id",
@@ -1117,7 +1117,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("8b.Salesforce password grant: positive expiresIn schedules a renewal before expiry") {
+  test("29.Salesforce password grant: positive expiresIn schedules a renewal before expiry") {
     cats.effect.testkit.TestControl.executeEmbed {
       val credential = Salesforce.PasswordGrant(
         auth_endpoint = uri"http://sf.test/token",
@@ -1154,7 +1154,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("9.clientCredentials with scopes includes scope in token request") {
+  test("30.clientCredentials with scopes includes scope in token request") {
     val scopeReceived = Ref.unsafe[IO, Option[String]](None)
 
     val app = HttpApp[IO] {
@@ -1189,7 +1189,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10.clientCredentials with refresh_token uses refresh on renewal") {
+  test("31.clientCredentials with refresh_token uses refresh on renewal") {
     val tokenCalls = Ref.unsafe[IO, Int](0)
 
     val app = HttpApp[IO] {
@@ -1249,7 +1249,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10.1.oauth renewal delay follows short and long lifetime boundaries") {
+  test("32.oauth renewal delay follows short and long lifetime boundaries") {
     def assert_renewal(lifetime_seconds: Long, expected_delay: FiniteDuration): IO[Unit] =
       cats.effect.testkit.TestControl.executeEmbed {
         val token_calls = Ref.unsafe[IO, Int](0)
@@ -1303,7 +1303,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } *> assert_extreme_lifetime_does_not_overflow
   }
 
-  test("10.2.non-positive expires_in accepts the token and disables scheduled renewal") {
+  test("33.non-positive expires_in accepts the token and disables scheduled renewal") {
     cats.effect.testkit.TestControl.executeEmbed {
       val client_credential = ClientCredentials(uri"/token", "id", Secret("secret"))
       val authorization_code = AuthorizationCode(
@@ -1342,7 +1342,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10.3.non-positive expires_in replacements are published without another scheduled renewal") {
+  test("34.non-positive expires_in replacements are published without another scheduled renewal") {
     val client_credential = ClientCredentials(uri"/token", "id", Secret("secret"))
     val authorization_code = AuthorizationCode(
       auth_endpoint = uri"/token",
@@ -1416,7 +1416,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10a.failed scheduled renewal waits for reactive replacement, then schedules the new token") {
+  test("35.failed scheduled renewal waits for reactive replacement, then schedules the new token") {
     cats.effect.testkit.TestControl.executeEmbed {
       for {
         token_calls <- Ref.of[IO, Int](0)
@@ -1466,7 +1466,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10b.scheduled and unauthorized refreshes share one successful replacement") {
+  test("36.scheduled and unauthorized refreshes share one successful replacement") {
     cats.effect.testkit.TestControl.executeEmbed {
       for {
         token_calls <- Ref.of[IO, Int](0)
@@ -1532,7 +1532,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10c.failed scheduled refresh allows unauthorized recovery policy") {
+  test("37.failed scheduled refresh allows unauthorized recovery policy") {
     cats.effect.testkit.TestControl.executeEmbed {
       for {
         token_calls <- Ref.of[IO, Int](0)
@@ -1597,7 +1597,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10d.unauthorized refresh resets the scheduled renewal timer") {
+  test("38.unauthorized refresh resets the scheduled renewal timer") {
     cats.effect.testkit.TestControl.executeEmbed {
       val token_calls = Ref.unsafe[IO, Int](0)
       val auth_app = HttpApp[IO] {
@@ -1648,7 +1648,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10e.unauthorized refresh starts scheduling after an unscheduled token") {
+  test("39.unauthorized refresh starts scheduling after an unscheduled token") {
     cats.effect.testkit.TestControl.executeEmbed {
       val token_calls = Ref.unsafe[IO, Int](0)
       val auth_app = HttpApp[IO] {
@@ -1698,7 +1698,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("10f.releasing the authenticated client cancels a blocked renewal") {
+  test("40.releasing the authenticated client cancels a blocked renewal") {
     cats.effect.testkit.TestControl.executeEmbed {
       for {
         token_calls <- Ref.of[IO, Int](0)
@@ -1735,7 +1735,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     }
   }
 
-  test("11.concurrent 401s share one token refresh") {
+  test("41.concurrent 401s share one token refresh") {
     for {
       token_calls <- Ref.of[IO, Int](0)
       stale_requests <- Ref.of[IO, Int](0)
@@ -1787,7 +1787,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } yield ()
   }
 
-  test("11a.stale 401 retries the current token without refreshing again") {
+  test("42.stale 401 retries the current token without refreshing again") {
     for {
       token_calls <- Ref.of[IO, Int](0)
       delayed_request_seen <- Deferred[IO, Unit]
@@ -1844,7 +1844,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     } yield ()
   }
 
-  test("12.Login.login(Resource) convenience method works") {
+  test("43.Login.login(Resource) convenience method works") {
     val authClient = Resource.pure[IO, Client[IO]](
       tokenServer(expectedGrantType = "client_credentials")
     )
