@@ -519,4 +519,90 @@ class BatchMonadicTest extends CatsEffectSuite {
         assertEquals(nonfatalJobs, List("failed"))
       }
   }
+
+  /* ---- monadic lifecycle emission -----------------------------------------------------------------
+   * Every tracked job that logs a kickoff must log exactly one completion. `flatMap` emits the head it
+   * leaves behind and `monadicBatch` emits the run's final head, so the last job of a chain and the job
+   * that short-circuits one are each emitted once, from different places.
+   */
+
+  private val verboseService: ServiceGuard[IO] =
+    TaskGuard[IO]("batch")
+      .service("monadic-lifecycle")
+      .updateConfig(_.withLogThreshold(_.Debug, _.Debug))
+
+  private val outcomeTags: Set[String] = Set("succeeded", "unsatisfied", "nonfatal", "critical")
+
+  /** The job names carried by kickoff events and by completion events, in emission order. */
+  private def lifecycleNames(events: List[ReportedEvent]): (List[String], List[String]) = {
+    def jobName(payload: Json, tag: String): Option[String] =
+      payload.hcursor
+        .downField(tag)
+        .focus
+        .flatMap(_.asObject)
+        .flatMap(_.toList.collectFirst { case (key, value) if key.startsWith("job-") => value })
+        .flatMap(_.asString)
+
+    val tagged: List[(String, String)] = events.flatMap { event =>
+      val payload = event.logRecord.message.value
+      payload.asObject.toList.flatMap(_.keys).flatMap(tag => jobName(payload, tag).map(tag -> _))
+    }
+
+    (
+      tagged.collect { case ("kickoff", name) => name },
+      tagged.collect { case (tag, name) if outcomeTags(tag) => name })
+  }
+
+  test("every monadic job that logs a kickoff logs exactly one completion") {
+    verboseService
+      .eventStream { agent =>
+        agent
+          .batchMetered("monadic-lifecycle-ok")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.pure(1))
+              b <- job("b", IO.pure(2))
+              c <- job("c", IO.pure(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .use_
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val (kickoffs, completions) = lifecycleNames(events)
+        assertEquals(kickoffs, List("a", "b", "c"))
+        // "c" is the chain's final head: no flatMap reaches it, so monadicBatch emits it
+        assertEquals(completions, List("a", "b", "c"))
+      }
+  }
+
+  test("a short-circuited monadic chain logs one completion per started job") {
+    verboseService
+      .eventStream { agent =>
+        agent
+          .batchMetered("monadic-lifecycle-short-circuit")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.pure(1))
+              b <- job("b", IO.raiseError[Int](new Exception("boom")))
+              c <- job("c", IO.pure(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .use_
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val (kickoffs, completions) = lifecycleNames(events)
+        // "c" never starts because "b" short-circuits the chain
+        assertEquals(kickoffs, List("a", "b"))
+        // "b" is emitted once, by monadicBatch, not also by the flatMap that observed its failure
+        assertEquals(completions, List("a", "b"))
+      }
+  }
 }

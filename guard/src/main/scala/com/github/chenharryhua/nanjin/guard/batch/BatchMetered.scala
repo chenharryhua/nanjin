@@ -161,22 +161,40 @@ object BatchMetered:
     batchIdGenerator: F[BatchId]
   )(using F: Async[F]):
 
+    /** Emit the completion log and panel update for `state`'s most recent tracked job, if it has one.
+      *
+      * Completion is deferred rather than emitted when the job runs, because `attempt`, `predicate`, and
+      * `renderOutcome` re-flag or re-render the head after the fact; emitting later reports the finalized
+      * state. Each tracked job is emitted exactly once, from one of two places:
+      *   - `Monadic.flatMap` emits its left-hand state's head when the chain continues, because a further
+      *     segment is about to push new entries in front of it;
+      *   - `monadicBatch` emits the run's final head, which no `flatMap` reached — either the last job of a
+      *     chain that succeeded, or the job that short-circuited it.
+      *
+      * A `pure`/`untracked` step records `None` and so emits nothing.
+      */
+    private def completeHead[X](context: Context[F], state: ExecutionState[X]): F[Unit] =
+      state.history.head.traverse(js => lifecycle.logCompleted(log, js) >> context.update(js)).void
+
     final class Monadic[A] private[BatchMetered] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], Context[F], ExecutionState[A]]):
 
-      /** Sequence a dependent monadic job when the previous job succeeds. */
+      /** Sequence a dependent monadic job when the previous job succeeds.
+        *
+        * When the chain continues, the left-hand state's head is finalized — any `attempt`, `predicate`, or
+        * `renderOutcome` has already been applied to it — so it is emitted here. When the chain has
+        * short-circuited, the head stays the final head of the run and `monadicBatch` emits it instead, so it
+        * is not emitted twice. See `completeHead`.
+        */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] = {
         val nextKleisli = Kleisli { (context: Context[F]) =>
           StateT { (cursor: JobCursor) =>
             kleisli.run(context).run(cursor).flatMap { case (nextCursor, execState) =>
-              val completePrevious: F[Option[Unit]] = execState.history.head
-                .traverse(js => lifecycle.logCompleted(log, js) >> context.update(js))
-
               execState.eoa match {
                 case Left(ex) =>
-                  completePrevious.as(nextCursor -> execState.update[B](ex))
+                  (nextCursor -> execState.update[B](ex)).pure[F]
                 case Right(value) =>
-                  completePrevious >>
+                  completeHead(context, execState) >>
                     f(value).kleisli.run(context).run(nextCursor)
                       .map { case (finalCursor, nextState) =>
                         finalCursor -> execState.prependHistory[B](nextState)
@@ -233,14 +251,14 @@ object BatchMetered:
       def monadicBatch: Resource[F, MonadicBatch[A]] =
         BatchPanel.monadic[F](metrics)
           .evalMap { case BatchPanel(update, activeGauge) =>
-            (for {
+            val exec = for {
               batchId <- batchIdGenerator
+              context = Context[F](update, log, batchId)
               start <- F.monotonic
-              execution <- kleisli
-                .run(Context[F](update, log, batchId))
-                .run(JobCursor(1, start))
-              (_, ExecutionState(eoa, history)) = execution
-              _ <- history.head.traverse(js => lifecycle.logCompleted(log, js) >> update(js))
+              (_, state @ ExecutionState(eoa, history)) <- kleisli.run(context).run(JobCursor(1, start))
+              // the run's final head is the one job no `flatMap` reached; emit it here, still inside the
+              // active gauge's scope so the panel reflects it
+              _ <- completeHead(context, state)
               end <- F.monotonic
             } yield MonadicBatch(
               scope = metrics.scope,
@@ -248,7 +266,8 @@ object BatchMetered:
               batchId = batchId,
               outcomes = history.toList.flatten.reverse,
               result = eoa
-            )).guarantee(activeGauge.deactivate)
+            )
+            exec.guarantee(activeGauge.deactivate)
           }
     end Monadic
     object Monadic:

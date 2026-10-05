@@ -57,15 +57,19 @@ object BatchTraced:
       * `attempt`ed effect. The child span nests under `batchTracer.parent`, whose scope the callers enter.
       * The classification of `eoa` is left to the caller, matching the quasi/value split; `BatchTraced`
       * carries its own copy of those rules rather than sharing `JobExecutor`'s.
+      *
+      * The timing window brackets the span, so `took` includes opening and closing it, matching the monadic
+      * traced path (whose cursor-threaded `start` cannot exclude it) and the framing that `BatchMetered`
+      * already counts for its own jobs. See `JobRecord` for the resulting semantics.
       */
     private def runTraced(job: Job, sj: SpanJob[F, A]): F[(JobRecord, Either[Throwable, A])] =
-      batchTracer.tracer.span(sj.name).use { span =>
-        for {
-          start <- F.monotonic
-          eoa <- sj.run(span).attempt
-          end <- F.monotonic
-        } yield (JobRecord(job, start, end, Some(span.context)), eoa)
-      }
+      for {
+        start <- F.monotonic
+        (ctx, eoa) <- batchTracer.tracer
+          .span(sj.name)
+          .use(span => sj.run(span).attempt.map(span.context -> _))
+        end <- F.monotonic
+      } yield (JobRecord(job, start, end, Some(ctx)), eoa)
 
     /** A quasi job: a predicate miss is flagged `JobFlag.Unmet` but keeps the value as a `Right`; a thrown
       * effect stays a `Left`, also flagged `JobFlag.Unmet`.
