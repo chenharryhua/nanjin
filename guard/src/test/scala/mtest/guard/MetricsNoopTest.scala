@@ -3,7 +3,7 @@ package mtest.guard
 import cats.Id
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
-import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{ActiveGauge, BalanceGauge, IdleGauge, Ratio}
+import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{ActiveGauge, IdleGauge, Ratio}
 import munit.CatsEffectSuite
 
 class MetricsNoopTest extends CatsEffectSuite {
@@ -111,21 +111,4 @@ class MetricsNoopTest extends CatsEffectSuite {
     active.deactivate
   }
 
-  // BalanceGauge noop
-
-  test("22.BalanceGauge.noop forward is a no-op") {
-    val balance = BalanceGauge.noop[IO, Int]
-    balance.forward(100)
-  }
-
-  test("23.BalanceGauge.noop backward is a no-op") {
-    val balance = BalanceGauge.noop[IO, Int]
-    balance.backward(50)
-  }
-
-  test("24.BalanceGauge.noop works with Id") {
-    val balance = BalanceGauge.noop[Id, Long]
-    balance.forward(10L)
-    balance.backward(5L)
-  }
 }

@@ -15,7 +15,7 @@ class BatchSpec extends CatsEffectSuite {
   test("monadic: filter - fully") {
     service.eventStream { agent =>
       val result: IO[Int] = agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -44,7 +44,7 @@ class BatchSpec extends CatsEffectSuite {
   test("applicative: combines values sequentially") {
     service.eventStream { agent =>
       val result = agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           type M[A] = job.Monadic[A]
           val combined = Applicative[M].map2(job("a", IO(1)), job("b", IO(2)))(_ + _)
@@ -65,7 +65,7 @@ class BatchSpec extends CatsEffectSuite {
   test("identity law preserves the job result") {
     service.eventStream { agent =>
       val left = agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           Applicative[job.Monadic].ap(Applicative[job.Monadic].pure((x: Int) => x))(job("a", IO(1)))
         }
@@ -76,7 +76,7 @@ class BatchSpec extends CatsEffectSuite {
         })
 
       val right = agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           job("a", IO(1))
         }
@@ -102,7 +102,7 @@ class BatchSpec extends CatsEffectSuite {
   test("invincible") {
     service.eventStream { agent =>
       val result = agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(1))

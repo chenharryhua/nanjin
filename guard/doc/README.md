@@ -6,13 +6,17 @@ the pieces fit together.
 
 ## Entry points
 
-`Batch[F]` is the façade. From it you pick one of three execution shapes, then choose how failures
-are handled.
+There are three façades with the same three execution shapes. `Batch[F]` (from `Agent.batch`) is the
+lightweight default: it returns `F` values directly and keeps no metrics panel. `BatchMetered[F]`
+(from `Agent.batchMetered`) adds the metrics-backed progress panel and lifecycle logging and returns
+its results as a `Resource[F, _]`. `BatchTraced[F]` (from `Agent.batchTraced`) opens an OpenTelemetry
+span per job. From any of them you pick one of three execution shapes, then choose how failures are
+handled.
 
 ```mermaid
 flowchart TD
-    Batch["Batch[F]"] -->|"sequential(fas*)"| Seq["Batch.Sequential[F, A]"]
-    Batch -->|"parallel(n)(fas*)"| Par["Batch.Parallel[F, A]"]
+    Batch["Batch[F] / BatchMetered[F]"] -->|"sequential(fas*)"| Seq["Sequential[F, A]"]
+    Batch -->|"parallel(n)(fas*)"| Par["Parallel[F, A]"]
     Batch -->|"monadic(build)"| JB["JobBuilder[F] -> Monadic[A]"]
 
     Seq -->|quasiBatch| QSeq["QuasiBatch[A]"]
@@ -21,7 +25,7 @@ flowchart TD
     Par -->|valueBatch| VPar["ValueBatch[A]"]
     JB  -->|monadicBatch| MB["MonadicBatch[A]"]
 
-    QSeq --- note1["Resource[F, _]; run with .use"]:::note
+    QSeq --- note1["BatchMetered: Resource[F, _]; run with .use"]:::note
     classDef note fill:#f6f6f6,stroke:#bbb,color:#333,font-style:italic;
 ```
 
@@ -30,8 +34,9 @@ flowchart TD
 - **Monadic** — later jobs depend on earlier results, composed with `map`/`flatMap`. Produces a
   `MonadicBatch` carrying the step history and the final `Either`.
 
-All of `quasiBatch`, `valueBatch`, and `monadicBatch` return a `Resource[F, _]`; the batch runs
-when the resource is used, and the active gauge / writers are released on close.
+`BatchMetered`'s `quasiBatch`, `valueBatch`, and `monadicBatch` return a `Resource[F, _]`; the batch
+runs when the resource is used, and the active gauge / writers are released on close. The lightweight
+`Batch` returns these results directly in `F` with no gauge or resource scope.
 
 ## The two failure models
 

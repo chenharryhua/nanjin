@@ -32,7 +32,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     service.eventStream { agent =>
       agent
-        .batch("quasi.parallel.mixed")
+        .batchMetered("quasi.parallel.mixed")
         .parallel(jobs*)
         .quasiBatch
         .use(qb => IO(qb.outcomes.foreach(check_aligned)))
@@ -45,7 +45,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     service.eventStream { agent =>
       agent
-        .batch("quasi.parallel.predicate")
+        .batchMetered("quasi.parallel.predicate")
         .parallel(jobs*)
         .withPostCondition(_ > 2)
         .quasiBatch
@@ -60,7 +60,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
       List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3), "d" -> IO(4))
     service.eventStream { agent =>
       agent
-        .batch("quasi.sequential.mixed")
+        .batchMetered("quasi.sequential.mixed")
         .sequential(jobs*)
         .quasiBatch
         .use(qb => IO(qb.outcomes.foreach(check_aligned)))
@@ -73,7 +73,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4))
     service.eventStream { agent =>
       agent
-        .batch("quasi.sequential.predicate")
+        .batchMetered("quasi.sequential.predicate")
         .sequential(jobs*)
         .withPostCondition(_ > 3)
         .quasiBatch
@@ -87,7 +87,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO.raiseError[Int](new Exception("boom")), "c" -> IO(3))
     service.eventStream { agent =>
       agent
-        .batch("value.sequential.mixed")
+        .batchMetered("value.sequential.mixed")
         .sequential(jobs*)
         .quasiBatch
         .use { qb =>
@@ -105,7 +105,7 @@ class JobStateInvariantSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     service.eventStream { agent =>
       agent
-        .batch("value.parallel.predicate")
+        .batchMetered("value.parallel.predicate")
         .parallel(jobs*)
         .withPostCondition(_ < 2)
         .quasiBatch

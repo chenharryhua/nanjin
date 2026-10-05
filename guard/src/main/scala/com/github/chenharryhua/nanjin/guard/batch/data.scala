@@ -116,14 +116,18 @@ object Job {
   *     monadic failure was caught by chain-level `attempt`. A caught failure remains a `Left`, so
   *     `JobState.succeeded` stays false unless a later `renderOutcome` replaces it with the caller's
   *     rendering of the `Either`; the flag makes the retained failure nonfatal for logging.
-  *   - `Unmet`: the job produced a value that its predicate rejected, and the value is retained as a `Right`
-  *     (quasi jobs, and monadic `predicate`, which does not short-circuit). Logged under the
-  *     `JobLog.Unsatisfied` case.
-  *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
-  *     `PostConditionUnsatisfied` failure (value jobs and monadic `withFilter`).
+  *   - `Unmet`: a quasi job retained a value rejected by its predicate as a `Right`, or retained a thrown
+  *     effect as a `Left`; monadic `predicate` also uses `Unmet` when it rejects a value retained as a
+  *     `Right` without short-circuiting. Its log case follows the result, not the flag alone:
+  *     `JobLog.Unsatisfied` for a retained `Right`, `JobLog.Nonfatal` for a retained `Left`.
+  *   - `Failed`: the job failed and the failure is fatal to its batch: a value or monadic job that threw, or
+  *     a post-condition miss turned into a `PostConditionUnsatisfied` failure (value jobs and monadic
+  *     `withFilter`). A quasi job that throws is flagged `Unmet` instead, because the quasi batch retains the
+  *     outcome and carries on.
   *
-  * Logging uses the flag only for a monadic job (`kind = None`) whose `result` is a `Left`: `Failed` is
-  * `Critical`, any other flag is `Nonfatal`. See `toLogEntry`.
+  * Logging keys on the flag together with the result, and never on the job's `BatchKind`: on a `Left` result,
+  * `Failed` is `Critical` and `Accepted`/`Unmet` are `Nonfatal`; on a `Right` result, `Accepted` is
+  * `Succeeded` and `Unmet`/`Failed` are `Unsatisfied`. See `toLogEntry`.
   */
 enum JobFlag:
   case Accepted, Unmet, Failed
@@ -132,23 +136,25 @@ enum JobFlag:
   * `JobState.flag`.
   *
   * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
-  * `end - start`. In `Batch` the window brackets the job's own kickoff log and its effect, so `took` includes
-  * the kickoff; in `BatchLight` there is no kickoff log, so `took` is the effect alone. Either way the
+  * `end - start`. What the window brackets beyond the job's own effect differs by front end: in
+  * `BatchMetered` it also covers the job's kickoff log; in `BatchTraced` it also covers opening and closing
+  * the job's child span; in `Batch` there is neither, so `took` is the effect alone. In every case the
   * completion log (when present) is written after `end` and is therefore not part of `took`. Kickoff and
-  * completion are internal, non-throwing framework log writes, so their cost is negligible: the batch `spent`
-  * is at least the sum of the per-job `took`s, but the difference (completion logging plus batch framing) is
-  * tiny in practice, not a place where meaningful time hides. Apart from that negligible kickoff delta,
-  * `Batch` and `BatchLight` share the same timing model.
+  * completion are internal, non-throwing framework log writes, and span start/end are local recording calls,
+  * so this framing is normally a negligible share of `took`: the batch `spent` is at least the sum of the
+  * per-job `took`s, but the difference (completion logging plus batch framing) is tiny in practice, not a
+  * place where meaningful time hides. Apart from which framing each one counts, the three front ends share
+  * the same timing model.
   *
-  * For monadic batches (both `Batch` and `BatchLight`) each job's `start` is carried over from the previous
-  * job's `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
+  * For monadic batches (all three front ends) each job's `start` is carried over from the previous job's
+  * `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
   * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
   * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
   * This keeps the per-job durations contiguous, so they sum to the span from the first job's `start` to the
   * last job's `end`. That span is slightly shorter than the batch `spent`, which is measured against a fresh
   * clock reading taken after the whole chain finishes and therefore also covers trailing framing that follows
-  * the last job (final state threading, and in `Batch` the metrics-panel deactivation). The remainder is tiny
-  * in practice; see `MonadicBatch`.
+  * the last job (final state threading, and in `BatchMetered` the metrics-panel deactivation). The remainder
+  * is tiny in practice; see `MonadicBatch`.
   *
   * @param job
   *   the job metadata this record describes
@@ -159,7 +165,7 @@ enum JobFlag:
   *   monotonic clock reading at the end of the job
   * @param spanContext
   *   the tracing span context of the job's own span, present only for traced batches (`batchTraced`); `None`
-  *   for the untraced `batch`/`batchLight` front ends, which open no span
+  *   for the untraced `batch`/`batchMetered` front ends, which open no span
   */
 final case class JobRecord(
   job: Job,

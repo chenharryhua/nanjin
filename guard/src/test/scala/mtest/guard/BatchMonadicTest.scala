@@ -20,7 +20,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("1.good") {
     service.eventStreamR { agent =>
       agent
-        .batch("good")
+        .batchMetered("good")
         .monadic { job =>
           for {
             _ <- job.pure(1)
@@ -49,7 +49,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("2.exception") {
     service.eventStreamR { agent =>
       agent
-        .batch("exception")
+        .batchMetered("exception")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -74,7 +74,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     var cExecuted = false
     service.eventStreamR { agent =>
       agent
-        .batch("invincible")
+        .batchMetered("invincible")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -107,7 +107,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("4.withFilter rejects and aborts the chain") {
     service.eventStreamR { agent =>
       agent
-        .batch("invincible")
+        .batchMetered("invincible")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -137,7 +137,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("4a.withFilter on a pure value should fail without crashing") {
     service.eventStreamR { agent =>
       agent
-        .batch("filter-pure")
+        .batchMetered("filter-pure")
         .monadic { job =>
           job.pure(1).withFilter(_ => false)
         }
@@ -154,7 +154,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("4b.monadic jobs are successful when their effects succeed") {
     service.eventStreamR { agent =>
       agent
-        .batch("invincible-json")
+        .batchMetered("invincible-json")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -186,7 +186,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     var cExecuted = false
     service.eventStreamR { agent =>
       agent
-        .batch("fail-safe-exception")
+        .batchMetered("fail-safe-exception")
         .monadic { job =>
           for {
             _ <- job("a", IO(1))
@@ -214,7 +214,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("5.filter") {
     service.eventStreamR { agent =>
       agent
-        .batch("exception")
+        .batchMetered("exception")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -246,7 +246,7 @@ class BatchMonadicTest extends CatsEffectSuite {
 
     service.eventStreamR { agent =>
       agent
-        .batch("filter-state")
+        .batchMetered("filter-state")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -276,7 +276,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   test("6.cancel") {
     service.eventStream { agent =>
       agent
-        .batch("good")
+        .batchMetered("good")
         .monadic { job =>
           for {
             a <- job("a", IO(1).delayBy(1.second))
@@ -299,7 +299,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
-          .batch("shared-monadic-ops")
+          .batchMetered("shared-monadic-ops")
           .monadic { job =>
             for {
               start <- job("start", IO.pure(1)).map(_ + 1)
@@ -337,7 +337,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     service.eventStream { agent =>
       for {
         batch <- agent
-          .batch("monadic-predicate")
+          .batchMetered("monadic-predicate")
           .monadic { job =>
             for {
               rejected <- job("rejected", IO.pure(1)).predicate(_ < 0).attempt
@@ -348,7 +348,7 @@ class BatchMonadicTest extends CatsEffectSuite {
           .monadicBatch
           .use(result => IO.pure(result))
         light <- agent
-          .batchLight("light-monadic-predicate")
+          .batch("light-monadic-predicate")
           .monadic { job =>
             for {
               rejected <- job("rejected", IO.pure(1)).predicate(_ < 0).attempt
@@ -384,7 +384,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     service.eventStream { agent =>
       for {
         composed <- agent
-          .batch("monadic-combinators")
+          .batchMetered("monadic-combinators")
           .monadic { job =>
             for {
               start <- job("start", IO.pure(1))
@@ -423,7 +423,7 @@ class BatchMonadicTest extends CatsEffectSuite {
 
     service.eventStream { agent =>
       agent
-        .batch("monadic-filter-combinators")
+        .batchMetered("monadic-filter-combinators")
         .monadic { job =>
           job("rejected", IO.pure(1))
             .withFilter(_ => false)
@@ -454,13 +454,13 @@ class BatchMonadicTest extends CatsEffectSuite {
     service.eventStream { agent =>
       for {
         batch <- agent
-          .batch("monadic-render-outcome")
+          .batchMetered("monadic-render-outcome")
           .monadic(job =>
             job("explicit", IO.pure(4)).renderOutcome(value => Json.obj("value" -> Json.fromInt(value))))
           .monadicBatch
           .use(result => IO.pure(result))
         light <- agent
-          .batchLight("light-monadic-render-outcome")
+          .batch("light-monadic-render-outcome")
           .monadic(job => job("encoded", IO.pure(5)).render)
           .monadicBatch
         traced <- agent
@@ -490,7 +490,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     service
       .eventStream { agent =>
         agent
-          .batch("attempt-lifecycle")
+          .batchMetered("attempt-lifecycle")
           .monadic { job =>
             for {
               _ <- job("failed", IO.raiseError[Int](new Exception("handled"))).attempt
@@ -517,6 +517,92 @@ class BatchMonadicTest extends CatsEffectSuite {
             .toOption
         }
         assertEquals(nonfatalJobs, List("failed"))
+      }
+  }
+
+  /* ---- monadic lifecycle emission -----------------------------------------------------------------
+   * Every tracked job that logs a kickoff must log exactly one completion. `flatMap` emits the head it
+   * leaves behind and `monadicBatch` emits the run's final head, so the last job of a chain and the job
+   * that short-circuits one are each emitted once, from different places.
+   */
+
+  private val verboseService: ServiceGuard[IO] =
+    TaskGuard[IO]("batch")
+      .service("monadic-lifecycle")
+      .updateConfig(_.withLogThreshold(_.Debug, _.Debug))
+
+  private val outcomeTags: Set[String] = Set("succeeded", "unsatisfied", "nonfatal", "critical")
+
+  /** The job names carried by kickoff events and by completion events, in emission order. */
+  private def lifecycleNames(events: List[ReportedEvent]): (List[String], List[String]) = {
+    def jobName(payload: Json, tag: String): Option[String] =
+      payload.hcursor
+        .downField(tag)
+        .focus
+        .flatMap(_.asObject)
+        .flatMap(_.toList.collectFirst { case (key, value) if key.startsWith("job-") => value })
+        .flatMap(_.asString)
+
+    val tagged: List[(String, String)] = events.flatMap { event =>
+      val payload = event.logRecord.message.value
+      payload.asObject.toList.flatMap(_.keys).flatMap(tag => jobName(payload, tag).map(tag -> _))
+    }
+
+    (
+      tagged.collect { case ("kickoff", name) => name },
+      tagged.collect { case (tag, name) if outcomeTags(tag) => name })
+  }
+
+  test("every monadic job that logs a kickoff logs exactly one completion") {
+    verboseService
+      .eventStream { agent =>
+        agent
+          .batchMetered("monadic-lifecycle-ok")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.pure(1))
+              b <- job("b", IO.pure(2))
+              c <- job("c", IO.pure(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .use_
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val (kickoffs, completions) = lifecycleNames(events)
+        assertEquals(kickoffs, List("a", "b", "c"))
+        // "c" is the chain's final head: no flatMap reaches it, so monadicBatch emits it
+        assertEquals(completions, List("a", "b", "c"))
+      }
+  }
+
+  test("a short-circuited monadic chain logs one completion per started job") {
+    verboseService
+      .eventStream { agent =>
+        agent
+          .batchMetered("monadic-lifecycle-short-circuit")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.pure(1))
+              b <- job("b", IO.raiseError[Int](new Exception("boom")))
+              c <- job("c", IO.pure(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .use_
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val (kickoffs, completions) = lifecycleNames(events)
+        // "c" never starts because "b" short-circuits the chain
+        assertEquals(kickoffs, List("a", "b"))
+        // "b" is emitted once, by monadicBatch, not also by the flatMap that observed its failure
+        assertEquals(completions, List("a", "b"))
       }
   }
 }

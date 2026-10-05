@@ -114,7 +114,7 @@ class Performance extends CatsEffectSuite {
   test("8.performance batch light") {
     var i: Int = 0
     service
-      .eventStream(agent => agent.batchLight("batch").monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
+      .eventStream(agent => agent.batch("batch").monadic(_("j", IO(i += 1))).monadicBatch.foreverM)
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

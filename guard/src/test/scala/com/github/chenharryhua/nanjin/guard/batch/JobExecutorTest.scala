@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
 import munit.CatsEffectSuite
 
-/** Direct tests for `JobExecutor`, the shared per-job builder behind `Batch` and `BatchLight`.
+/** Direct tests for `JobExecutor`, the shared per-job builder behind `Batch` and `BatchMetered`.
   *
   * Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
   * package-private `JobExecutor`, `ComputeJob`, and `JobNameIndex`.
@@ -16,8 +16,8 @@ import munit.CatsEffectSuite
   * The two behaviours guarded here have regressed before when the quasi/value builders were merged or moved:
   *   - a predicate miss is retained as `Right` in a quasi job but folded to `Left(PostConditionUnsatisfied)`
   *     in a value job;
-  *   - both builders emit a kickoff log when a `Log` is supplied (`Batch`), and neither does when it is
-  *     absent (`BatchLight`).
+  *   - both builders emit a kickoff log when a `Log` is supplied (`BatchMetered`), and neither does when it
+  *     is absent (`Batch`).
   */
 class JobExecutorTest extends CatsEffectSuite {
 
@@ -26,9 +26,9 @@ class JobExecutorTest extends CatsEffectSuite {
   private val batchId: BatchId = BatchId(1L)
 
   private def jni(fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int]("work", 1, fa.attempt.map(None -> _))
+    JobNameIndex[IO, Int]("work", 1, fa)
   private def jniAt(name: String, index: Int, fa: IO[Int]): JobNameIndex[IO, Int] =
-    JobNameIndex[IO, Int](name, index, fa.attempt.map(None -> _))
+    JobNameIndex[IO, Int](name, index, fa)
 
   /** A capturing logger: enabled at every level, recording each emitted payload as JSON so tests can assert
     * what was logged. Publish failures are irrelevant here since nothing throws.
@@ -69,10 +69,10 @@ class JobExecutorTest extends CatsEffectSuite {
     }
   }
 
-  test("3.quasiJob: a thrown effect records failure and keeps the original Left") {
+  test("3.quasiJob: a thrown effect is flagged Unmet (retained, nonfatal) and keeps the original Left") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.raiseError(boom)), batchId)
     cj.compute.map { js =>
-      assertEquals(js.flag, JobFlag.Failed)
+      assertEquals(js.flag, JobFlag.Unmet)
       assert(js.result == Left(boom))
     }
   }
@@ -129,7 +129,7 @@ class JobExecutorTest extends CatsEffectSuite {
     }
   }
 
-  test("9.no Log (BatchLight path): the job still runs and produces a JobState") {
+  test("9.no Log (Batch path): the job still runs and produces a JobState") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(7)), batchId)
     cj.compute.map { js =>
       assert(js.result == Right(7))

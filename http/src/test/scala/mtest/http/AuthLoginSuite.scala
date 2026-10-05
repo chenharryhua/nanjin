@@ -294,7 +294,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       )
 
     val login =
-      auth.authorizationCode[IO](authClient, credential)
+      auth.basicAuthorizationCode[IO](authClient, credential)
 
     login.login(protectedResource).use { authed =>
       authed.expect[String](uri"/resource").map { body =>
@@ -341,7 +341,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       redirect_uri = "https://example.com/callback"
     )
 
-    auth.authorizationCode[IO](auth_client, credential).login(resource_client).use { authed =>
+    auth.basicAuthorizationCode[IO](auth_client, credential).login(resource_client).use { authed =>
       for {
         body <- authed.expect[String](uri"/resource")
         grants <- grant_types.get
@@ -359,7 +359,8 @@ final class AuthLoginSuite extends CatsEffectSuite {
         case request @ POST -> Root / "token" =>
           request.as[UrlForm].flatMap { form =>
             assertEquals(form.getFirst("grant_type"), Some("authorization_code"))
-            assertEquals(form.getFirst("client_id"), Some("client-id"))
+            assertEquals(form.getFirst("client_id"), None)
+            assertEquals(form.getFirst("client_secret"), None)
             assertEquals(form.getFirst("code"), Some("auth-code"))
             assertEquals(form.getFirst("redirect_uri"), Some("https://example.com/callback"))
             assertEquals(form.getFirst("scope"), None)
@@ -382,7 +383,44 @@ final class AuthLoginSuite extends CatsEffectSuite {
       redirect_uri = "https://example.com/callback"
     )
 
-    auth.authorizationCode[IO](auth_client, credential).login(protectedResource).use { authed =>
+    auth.basicAuthorizationCode[IO](auth_client, credential).login(protectedResource).use { authed =>
+      authed.expect[String](uri"/resource")
+    }.flatMap { body =>
+      token_calls.get.map { calls =>
+        assertEquals(body, "ok")
+        assertEquals(calls, 1)
+      }
+    }
+  }
+
+  test("2i.postAuthorizationCode puts the client credentials in the body and sends no Basic header") {
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case request @ POST -> Root / "token" =>
+          request.as[UrlForm].flatMap { form =>
+            assertEquals(form.getFirst("grant_type"), Some("authorization_code"))
+            assertEquals(form.getFirst("client_id"), Some("client-id"))
+            assertEquals(form.getFirst("client_secret"), Some("secret"))
+            assertEquals(form.getFirst("code"), Some("auth-code"))
+            assertEquals(form.getFirst("redirect_uri"), Some("https://example.com/callback"))
+            assertEquals(request.headers.get[Authorization], None)
+            token_calls.update(_ + 1) *>
+              Ok("""{"access_token":"post-token","token_type":"Bearer"}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+
+    val credential = AuthorizationCode(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      code = Secret("auth-code"),
+      redirect_uri = "https://example.com/callback"
+    )
+
+    auth.postAuthorizationCode[IO](auth_client, credential).login(protectedResource).use { authed =>
       authed.expect[String](uri"/resource")
     }.flatMap { body =>
       token_calls.get.map { calls =>
@@ -431,7 +469,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       redirect_uri = "https://example.com/callback"
     )
 
-    auth.authorizationCode[IO](auth_client, credential).login(resource_client).use { authed =>
+    auth.basicAuthorizationCode[IO](auth_client, credential).login(resource_client).use { authed =>
       for {
         first_status <- authed.status(Request[IO](uri = uri"/resource"))
         body <- authed.expect[String](uri"/resource")
@@ -461,7 +499,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       redirect_uri = "https://example.com/callback"
     )
 
-    auth.authorizationCode[IO](auth_client, credential).login(always_unauthorized).use { authed =>
+    auth.basicAuthorizationCode[IO](auth_client, credential).login(always_unauthorized).use { authed =>
       authed.status(Request[IO](uri = uri"/resource"))
     }.attempt.map {
       case Left(error) =>
@@ -489,7 +527,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       code = Secret("auth-code"),
       redirect_uri = "https://example.com/callback"
     )
-    val login = auth.authorizationCode[IO](auth_client, credential)
+    val login = auth.basicAuthorizationCode[IO](auth_client, credential)
 
     for {
       body <- login.login(protectedResource).use(_.expect[String](uri"/resource"))
@@ -520,7 +558,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
       code = Secret("auth-code"),
       redirect_uri = "https://example.com/callback"
     )
-    val login = auth.authorizationCode[IO](auth_client, credential)
+    val login = auth.basicAuthorizationCode[IO](auth_client, credential)
 
     for {
       first_acquisition <- login.login(protectedResource).use_.attempt
@@ -553,7 +591,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         code = Secret("auth-code"),
         redirect_uri = "https://example.com/callback"
       )
-      login = auth.authorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+      login = auth.basicAuthorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
       first_acquisition <- login.login(protectedResource).use_.start
       _ <- exchange_started.get
       _ <- first_acquisition.cancel
@@ -589,7 +627,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         code = Secret("auth-code"),
         redirect_uri = "https://example.com/callback"
       )
-      login = auth.authorizationCode[IO](auth_client, credential)
+      login = auth.basicAuthorizationCode[IO](auth_client, credential)
       first_acquisition <- login.login(protectedResource).use_.start
       _ <- exchange_started.get
       second_acquisition <- login.login(protectedResource).use_.attempt
@@ -1290,7 +1328,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
         client_result <- auth.postClientCredentials[IO](zero_client, client_credential)
           .login(protectedResource)
           .use(client => client.expect[String](uri"/resource") <* IO.sleep(1.hour))
-        authorization_result <- auth.authorizationCode[IO](negative_client, authorization_code)
+        authorization_result <- auth.basicAuthorizationCode[IO](negative_client, authorization_code)
           .login(protectedResource)
           .use(client => client.expect[String](uri"/resource") <* IO.sleep(1.hour))
         final_client_calls <- client_calls.get
@@ -1360,7 +1398,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
             IO.pure(Response[IO](Status.Unauthorized))
         }
 
-        auth.authorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), authorization_code)
+        auth.basicAuthorizationCode[IO](Resource.pure(Client.fromHttpApp(auth_app)), authorization_code)
           .login(Client.fromHttpApp(business_app))
           .use { authed =>
             authed.run(Request[IO](uri = uri"/resource")).use(response =>

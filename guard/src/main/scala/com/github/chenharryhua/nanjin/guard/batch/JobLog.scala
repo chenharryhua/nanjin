@@ -42,10 +42,10 @@ sealed private trait JobLog[A] extends Product {
     StringUtils.abbreviate(ExceptionUtils.getMessage(error), 60)
 
   /** Prepend the job's W3C `traceparent` to `base` when the job ran in a span (traced batches); otherwise
-    * return `base` unchanged. Untraced `batch`/`batchLight` jobs have no span context, so no key is added.
+    * return `base` unchanged. Untraced `batch`/`batchMetered` jobs have no span context, so no key is added.
     */
   private def withTraceparent(record: JobRecord, base: Json): Json =
-    record.traceparent.fold(base)(tp => base.deepMerge(Json.obj(TRACEPARENT -> Json.fromString(tp))))
+    record.traceparent.fold(base)(tp => Json.obj(TRACEPARENT -> Json.fromString(tp)).deepMerge(base))
 
   def standalone: Json = this match {
     case JobLog.Kickoff(job)  => Json.obj(tag -> job.asJson)
@@ -143,39 +143,35 @@ private object JobLog {
   final case class Critical[A](record: JobRecord, error: Throwable) extends JobLog[A]
 }
 
-/** Classifies a completed `JobState` into the matching `JobLog` case and log level.
+/** Classifies a completed `JobState` into the matching `JobLog` case and log level, keyed solely on
+  * `JobState.flag` (the job's `BatchKind` no longer participates):
   *
-  *   - a `Left` result is `Nonfatal` (`Warn`) for a `Quasi` job, whose failure is retained rather than
-  *     aborting the batch, and `Critical` (`Error`) for a `Value` job, where it is fatal to the batch. For a
-  *     monadic job (`kind = None`) the flag decides: `JobFlag.Failed` is `Critical`, and any other flag (a
-  *     failure caught by chain-level `attempt`, possibly reclassified by a later `predicate`) is `Nonfatal`;
-  *   - a `Right` result is `Succeeded` (`Good`) when `JobState.succeeded` holds, or `Unsatisfied` (`Warn`)
-  *     otherwise, i.e. when a retained value failed its predicate (the `JobFlag.Unmet` flag; for example
-  *     quasi jobs and monadic predicates that do not short-circuit).
+  *   - a `Left` result is `Critical` (`Error`) when the flag is `JobFlag.Failed`, where the failure is fatal
+  *     to the batch, and `Nonfatal` (`Warn`) for `JobFlag.Accepted` or `JobFlag.Unmet`, where the failure is
+  *     retained (a quasi outcome, or a monadic failure caught by chain-level `attempt`) rather than aborting
+  *     the batch;
+  *   - a `Right` result is `Succeeded` (`Good`) for `JobFlag.Accepted`, i.e. a passing value, and
+  *     `Unsatisfied` (`Warn`) for `JobFlag.Unmet` (a retained value that failed its predicate, as in quasi
+  *     jobs and non-short-circuiting monadic predicates). `JobFlag.Failed` on a `Right` cannot arise from the
+  *     job builders — a failure is always a `Left` — so it is grouped defensively with `Unmet`.
   *
-  * The `Some(ex)` on the failing cases carries the throwable through to the log entry for downstream
+  * The `Some(ex)` on the `Left` cases carries the throwable through to the log entry for downstream
   * rendering.
   */
 private def toLogEntry[A](js: JobState[A]): LogEntry[JobLog[A]] =
   js.result match {
     case Left(ex) =>
-      js.record.job.kind match {
-        case Some(BatchKind.Quasi) =>
+      js.flag match {
+        case JobFlag.Accepted | JobFlag.Unmet =>
           LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
-        // Value jobs are always fatal; a monadic exception is fatal only when flagged `Failed` (one caught by
-        // chain-level `attempt` is flagged `Accepted` and is nonfatal).
-        case Some(BatchKind.Value) =>
+        case JobFlag.Failed =>
           LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
-        case None =>
-          js.flag match {
-            case JobFlag.Failed =>
-              LogEntry(JobLog.Critical(js.record, ex), LogLevel.Error, Some(ex))
-            case _ => LogEntry(JobLog.Nonfatal(js.record, ex), LogLevel.Warn, Some(ex))
-          }
       }
     case Right(a) =>
-      if (js.succeeded)
-        LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
-      else
-        LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
+      js.flag match {
+        case JobFlag.Accepted =>
+          LogEntry(JobLog.Succeeded(js.record, a), LogLevel.Good, None)
+        case JobFlag.Unmet | JobFlag.Failed =>
+          LogEntry(JobLog.Unsatisfied(js.record, a), LogLevel.Warn, None)
+      }
   }
