@@ -233,13 +233,14 @@ object BatchMetered:
       def monadicBatch: Resource[F, MonadicBatch[A]] =
         BatchPanel.monadic[F](metrics)
           .evalMap { case BatchPanel(update, activeGauge) =>
-            for {
+            (for {
               batchId <- batchIdGenerator
               start <- F.monotonic
-              (_, ExecutionState(eoa, history)) <- kleisli
+              execution <- kleisli
                 .run(Context[F](update, log, batchId))
                 .run(JobCursor(1, start))
-                .guarantee(activeGauge.deactivate)
+              (_, ExecutionState(eoa, history)) = execution
+              _ <- history.head.traverse(js => lifecycle.logCompleted(log, js) >> update(js))
               end <- F.monotonic
             } yield MonadicBatch(
               scope = metrics.scope,
@@ -247,7 +248,7 @@ object BatchMetered:
               batchId = batchId,
               outcomes = history.toList.flatten.reverse,
               result = eoa
-            )
+            )).guarantee(activeGauge.deactivate)
           }
     end Monadic
     object Monadic:
