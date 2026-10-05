@@ -42,7 +42,7 @@ sealed private trait JobLog[A] extends Product {
     StringUtils.abbreviate(ExceptionUtils.getMessage(error), 60)
 
   /** Prepend the job's W3C `traceparent` to `base` when the job ran in a span (traced batches); otherwise
-    * return `base` unchanged. Untraced `batch`/`batchLight` jobs have no span context, so no key is added.
+    * return `base` unchanged. Untraced `batch`/`batchMetered` jobs have no span context, so no key is added.
     */
   private def withTraceparent(record: JobRecord, base: Json): Json =
     record.traceparent.fold(base)(tp => Json.obj(TRACEPARENT -> Json.fromString(tp)).deepMerge(base))

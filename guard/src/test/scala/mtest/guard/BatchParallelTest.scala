@@ -16,7 +16,7 @@ class BatchParallelTest extends CatsEffectSuite {
   test("1.invalid parallelism should fail fast") {
     service.eventStream { agent =>
       agent
-        .batch("invalid.parallelism")
+        .batchMetered("invalid.parallelism")
         .parallel(0)("a" -> IO(1))
         .quasiBatch
         .use_
@@ -28,7 +28,7 @@ class BatchParallelTest extends CatsEffectSuite {
   test("2.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
     service.eventStreamR { agent =>
-      agent.batch("good job").parallel(jobs*).quasiBatch
+      agent.batchMetered("good job").parallel(jobs*).quasiBatch
     }.compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
@@ -41,7 +41,7 @@ class BatchParallelTest extends CatsEffectSuite {
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
     service.eventStream { agent =>
       agent
-        .batch("exception.quasi")
+        .batchMetered("exception.quasi")
         .parallel(jobs*)
         .quasiBatch
         .use { mb =>
@@ -63,7 +63,7 @@ class BatchParallelTest extends CatsEffectSuite {
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
     service.eventStream { agent =>
       agent
-        .batch("exception.value")
+        .batchMetered("exception.value")
         .parallel(jobs*)
         .valueBatch
         .attempt
@@ -79,7 +79,7 @@ class BatchParallelTest extends CatsEffectSuite {
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(3.seconds), "c" -> IO(3).delayBy(2.seconds))
     service.eventStream { agent =>
       agent
-        .batch("predicate.quasi")
+        .batchMetered("predicate.quasi")
         .parallel(jobs*)
         .withPostCondition(_ > 2)
         .quasiBatch
@@ -102,7 +102,7 @@ class BatchParallelTest extends CatsEffectSuite {
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     service.eventStream { agent =>
       agent
-        .batch("predicate.value")
+        .batchMetered("predicate.value")
         .parallel(jobs*)
         .withPostCondition(_ < 2)
         .valueBatch
@@ -123,7 +123,7 @@ class BatchParallelTest extends CatsEffectSuite {
 
     service.eventStream { agent =>
       agent
-        .batch("failed-cancels-siblings")
+        .batchMetered("failed-cancels-siblings")
         .parallel(jobs*)
         .valueBatch
         .attempt

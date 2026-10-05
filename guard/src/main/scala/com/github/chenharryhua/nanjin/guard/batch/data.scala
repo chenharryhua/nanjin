@@ -133,15 +133,15 @@ enum JobFlag:
   * `JobState.flag`.
   *
   * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
-  * `end - start`. In `Batch` the window brackets the job's own kickoff log and its effect, so `took` includes
-  * the kickoff; in `BatchLight` there is no kickoff log, so `took` is the effect alone. Either way the
+  * `end - start`. In `BatchMetered` the window brackets the job's own kickoff log and its effect, so `took`
+  * includes the kickoff; in `Batch` there is no kickoff log, so `took` is the effect alone. Either way the
   * completion log (when present) is written after `end` and is therefore not part of `took`. Kickoff and
   * completion are internal, non-throwing framework log writes, so their cost is negligible: the batch `spent`
   * is at least the sum of the per-job `took`s, but the difference (completion logging plus batch framing) is
   * tiny in practice, not a place where meaningful time hides. Apart from that negligible kickoff delta,
-  * `Batch` and `BatchLight` share the same timing model.
+  * `BatchMetered` and `Batch` share the same timing model.
   *
-  * For monadic batches (both `Batch` and `BatchLight`) each job's `start` is carried over from the previous
+  * For monadic batches (both `BatchMetered` and `Batch`) each job's `start` is carried over from the previous
   * job's `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
   * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
   * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
@@ -160,7 +160,7 @@ enum JobFlag:
   *   monotonic clock reading at the end of the job
   * @param spanContext
   *   the tracing span context of the job's own span, present only for traced batches (`batchTraced`); `None`
-  *   for the untraced `batch`/`batchLight` front ends, which open no span
+  *   for the untraced `batch`/`batchMetered` front ends, which open no span
   */
 final case class JobRecord(
   job: Job,

@@ -15,7 +15,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
   test("quasi: good job") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
-      agent.batch("good job").sequential(jobs*).quasiBatch
+      agent.batchMetered("good job").sequential(jobs*).quasiBatch
     }.compile.lastOrError.map { se =>
       assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
     }
@@ -25,7 +25,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     val jobs =
       List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
-      agent.batch("exception").sequential(jobs*).quasiBatch.evalTap { mb =>
+      agent.batchMetered("exception").sequential(jobs*).quasiBatch.evalTap { mb =>
         IO {
           assert(mb.outcomes.head.succeeded)
           assertEquals(mb.outcomes.head.record.job.mode, BatchMode.Sequential)
@@ -45,7 +45,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     val jobs =
       List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
-      agent.batch("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch.evalTap { mb =>
+      agent.batchMetered("predicate").sequential(jobs*).withPostCondition(_ > 3).quasiBatch.evalTap { mb =>
         IO {
           assert(!mb.outcomes.head.succeeded)
           assert(!mb.outcomes(1).succeeded)
@@ -63,7 +63,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
       agent
-        .batch("good job")
+        .batchMetered("good job")
         .sequential(jobs*)
         .valueBatch
         .evalTap { bv =>
@@ -83,7 +83,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
-          .batch("exception")
+          .batchMetered("exception")
           .sequential(jobs*)
           .valueBatch
           .use_
@@ -103,7 +103,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     service.eventStreamR { agent =>
       val result: Resource[IO, ValueBatch[Int]] =
         agent
-          .batch("predicate")
+          .batchMetered("predicate")
           .sequential(jobs*)
           .withPostCondition(_ > 3)
           .valueBatch

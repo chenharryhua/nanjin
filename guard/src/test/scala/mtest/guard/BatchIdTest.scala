@@ -68,19 +68,19 @@ class BatchIdTest extends CatsEffectSuite {
       repeated(resource.use(value => IO.pure(id(value))))
 
     service.eventStream { agent =>
-      val batch = agent.batch("batch-id").sequential("job" -> IO.pure(1))
-      val batchLight = agent.batchLight("batch-light-id").sequential("job" -> IO.pure(1))
+      val batchMetered = agent.batchMetered("batch-id").sequential("job" -> IO.pure(1))
+      val batch = agent.batch("batch-light-id").sequential("job" -> IO.pure(1))
       val batchTraced = agent.batchTraced("batch-traced-id", _.build).sequential("job" -> (_ => IO.pure(1)))
 
       for {
-        batchQuasi <- repeatedResource(batch.quasiBatch, _.batchId.value)
-        batchValue <- repeatedResource(batch.valueBatch, _.batchId.value)
+        batchQuasi <- repeatedResource(batchMetered.quasiBatch, _.batchId.value)
+        batchValue <- repeatedResource(batchMetered.valueBatch, _.batchId.value)
         batchMonadic <- repeatedResource(
-          agent.batch("batch-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch,
+          agent.batchMetered("batch-monadic-id").monadic(job => job("job", IO.pure(1))).monadicBatch,
           _.batchId.value)
-        lightQuasi <- repeated(batchLight.quasiBatch.map(_.batchId.value))
-        lightValue <- repeated(batchLight.valueBatch.map(_.batchId.value))
-        lightMonadic <- repeated(agent.batchLight("light-monadic-id").monadic(job =>
+        lightQuasi <- repeated(batch.quasiBatch.map(_.batchId.value))
+        lightValue <- repeated(batch.valueBatch.map(_.batchId.value))
+        lightMonadic <- repeated(agent.batch("light-monadic-id").monadic(job =>
           job("job", IO.pure(1))).monadicBatch.map(_.batchId.value))
         tracedQuasi <- repeated(batchTraced.quasiBatch.map(_.batchId.value))
         tracedValue <- repeated(batchTraced.valueBatch.map(_.batchId.value))

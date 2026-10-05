@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.Log
 import com.github.chenharryhua.nanjin.common.resilience.{CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchId, BatchLight, BatchTraced, BatchTracer}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchId, BatchMetered, BatchTraced, BatchTracer}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
@@ -60,11 +60,24 @@ sealed trait Agent[F[_]] {
     */
   def withDomain(domain: String): Agent[F]
 
-  /** Create a metrics-backed batch for a named operation. */
+  /** Create a lightweight batch for a named operation without a metrics hub. */
   def batch(label: String): Batch[F]
 
-  /** Create a lightweight batch for a named operation without a metrics hub. */
-  def batchLight(label: String): BatchLight[F]
+  /** Create a metrics-backed batch for a named operation. */
+  def batchMetered(label: String): BatchMetered[F]
+
+  /** Create a traced batch for a named operation, running each job in its own OpenTelemetry span.
+    *
+    * `f` turns the batch's parent span builder into the `SpanOps` that establishes the parent span: it
+    * receives a `SpanBuilder` already named `label` and carrying the metric scope's attributes, so the caller
+    * only chooses how the parent span is opened (for example `_.build` for a plain span, or a modified
+    * builder). Each job then runs in a child span named after the job, nested under that parent.
+    *
+    * @param label
+    *   names the batch, used both as the metric-scope label and the parent span name
+    * @param f
+    *   builds the parent `SpanOps` from the pre-configured `SpanBuilder`
+    */
   def batchTraced(label: String, f: SpanBuilder[F] => SpanOps[F]): BatchTraced[F]
 
   /** Create a stream of scheduled ticks in the agent's time zone.
@@ -195,8 +208,8 @@ final private class GeneralAgent[F[_]: Async](
   override def facilitateS[A](label: String)(f: MetricsHubS[F] => A): A =
     f(metricsHubS(label))
 
-  override def batch(label: String): Batch[F] =
-    new Batch[F](log = logger, metrics = metricsHub(label), batchIdGenerator = batchIdGenerator)
+  override def batchMetered(label: String): BatchMetered[F] =
+    new BatchMetered[F](log = logger, metrics = metricsHub(label), batchIdGenerator = batchIdGenerator)
 
   override def batchTraced(label: String, f: SpanBuilder[F] => SpanOps[F]): BatchTraced[F] = {
     val scope = MetricScope(
@@ -213,13 +226,13 @@ final private class GeneralAgent[F[_]: Async](
     )
   }
 
-  override def batchLight(label: String): BatchLight[F] = {
+  override def batch(label: String): Batch[F] = {
     val scope = MetricScope(
       MetricScope.Label(label),
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    new BatchLight[F](scope, batchIdGenerator)
+    new Batch[F](scope, batchIdGenerator)
   }
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =

@@ -11,9 +11,9 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 /** A job that has not yet run: its display name, 1-based position in the batch, and the effect to execute.
   *
   * `fa` is the job's plain effect. `JobExecutor` runs it under `attempt`, so a thrown job becomes a `Left`
-  * without failing the surrounding batch. This type backs the untraced `Batch`/`BatchLight` front ends, which
-  * open no span; the traced front end (`BatchTraced`) builds its outcomes independently and does not use this
-  * type.
+  * without failing the surrounding batch. This type backs the untraced `Batch`/`BatchMetered` front ends,
+  * which open no span; the traced front end (`BatchTraced`) builds its outcomes independently and does not
+  * use this type.
   */
 final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
 
@@ -27,12 +27,12 @@ final private case class JobValue[A](record: JobRecord, result: A)
   * @param compute
   *   the effect that runs the job and yields its `JobState` (timing, outcome, and produced value)
   * @param job
-  *   the job's static metadata, which `Batch` threads into `lifecycle.handleOutcome` for lifecycle logging
-  *   and panel updates; `BatchLight` ignores it and uses only `compute`
+  *   the job's static metadata, which `BatchMetered` threads into `lifecycle.handleOutcome` for lifecycle
+  *   logging and panel updates; `Batch` ignores it and uses only `compute`
   */
 final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
 
-/** Builds the per-job effect for the untraced batch front ends, `Batch` and `BatchLight`.
+/** Builds the per-job effect for the untraced batch front ends, `Batch` and `BatchMetered`.
   *
   * The two differ in wrapper (`Resource`/metrics vs. plain `F`) and in whether they log, but the construction
   * of a single job — timing it, running it under `attempt`, and classifying the outcome against the
@@ -50,7 +50,7 @@ final private case class ComputeJob[F[_], A](compute: F[JobState[A]], job: Job)
   * @param scope
   *   the metric scope (label and domain) the jobs run under
   * @param log
-  *   `Some` for `Batch`, which emits a kickoff log before each job; `None` for `BatchLight`, where kickoff
+  *   `Some` for `BatchMetered`, which emits a kickoff log before each job; `None` for `Batch`, where kickoff
   *   logging is a no-op
   */
 final private class JobExecutor[F[_], A](

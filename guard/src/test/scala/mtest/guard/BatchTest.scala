@@ -20,7 +20,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("1.quasi.sequential") {
     service.eventStream { ga =>
-      ga.batch("quasi.sequential")
+      ga.batchMetered("quasi.sequential")
         .sequential[Unit](
           "a" -> IO.raiseError(new Exception()),
           "bbb" -> IO.sleep(1.second),
@@ -48,7 +48,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("2.quasi.parallel") {
     service.eventStream { ga =>
-      ga.batch("quasi.parallel")
+      ga.batchMetered("quasi.parallel")
         .parallel(3)(
           "a" -> IO.sleep(3.second),
           "bb" -> IO.sleep(2.seconds),
@@ -77,7 +77,7 @@ class BatchTest extends CatsEffectSuite {
   test("3.sequential") {
     service.eventStream { agent =>
       agent
-        .batch("sequential")
+        .batchMetered("sequential")
         .sequential(
           "a" -> IO.sleep(1.second).as(1.mb.toString),
           "b" -> IO.sleep(2.seconds).as(2.tb.toString),
@@ -91,7 +91,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("4.parallel") {
     service.eventStream { ga =>
-      ga.batch("parallel")
+      ga.batchMetered("parallel")
         .parallel(3)(
           "a" -> IO.sleep(3.second),
           "b" -> IO.sleep(2.seconds),
@@ -110,7 +110,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("5.sequential.exception") {
     service.eventStream { ga =>
-      ga.batch("sequential")
+      ga.batchMetered("sequential")
         .sequential(
           "a" -> IO.sleep(1.second),
           "b" -> IO.sleep(2.seconds),
@@ -132,7 +132,7 @@ class BatchTest extends CatsEffectSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").parallel(3)(jobs*).valueBatch.use_
+      ga.batchMetered("parallel").parallel(3)(jobs*).valueBatch.use_
     }.map(checkJson).compile.lastOrError.map { se =>
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
     }
@@ -141,7 +141,7 @@ class BatchTest extends CatsEffectSuite {
   test("7.batch mode") {
     val j1 = service
       .eventStream(
-        _.batch("parallel-1")
+        _.batchMetered("parallel-1")
           .parallel("a" -> IO(true))
           .quasiBatch
           .map(r => assert(r.mode == BatchMode.Parallel(1)))
@@ -152,7 +152,7 @@ class BatchTest extends CatsEffectSuite {
 
     val j2 = service
       .eventStream(ga =>
-        ga.batch("sequential")
+        ga.batchMetered("sequential")
           .sequential("a" -> IO(true))
           .quasiBatch
           .map(r => assert(r.mode == BatchMode.Sequential))
@@ -166,7 +166,7 @@ class BatchTest extends CatsEffectSuite {
   test("8.monadic for comprehension") {
     service.eventStream { agent =>
       agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(10))
@@ -193,7 +193,7 @@ class BatchTest extends CatsEffectSuite {
   test("9.invincible monadic error") {
     service.eventStream { agent =>
       agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(10))
@@ -223,7 +223,7 @@ class BatchTest extends CatsEffectSuite {
   test("10.monadic one") {
     service.eventStream { agent =>
       agent
-        .batch("monadic")
+        .batchMetered("monadic")
         .monadic(job => job("a", IO(0)))
         .monadicBatch
         .use(_ => agent.adhoc.report.void)
@@ -233,8 +233,8 @@ class BatchTest extends CatsEffectSuite {
   test("11.monadic many") {
     service.eventStream { agent =>
       agent
-        .batch("monadic")
-        .monadic { (job: Batch.JobBuilder[IO]) =>
+        .batchMetered("monadic")
+        .monadic { (job: BatchMetered.JobBuilder[IO]) =>
           val p1 = for {
             a <- job("1", IO(1))
             b <- job("2", IO(2))
@@ -284,7 +284,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("12.sorted parallel") {
     service.eventStream { agent =>
-      agent.batch("sorted.parallel").parallel(jobs*).valueBatch.use {
+      agent.batchMetered("sorted.parallel").parallel(jobs*).valueBatch.use {
         case ValueBatch(_, _, _, _, outcomes, values) =>
           IO {
             assert(values.head == 1)
@@ -312,7 +312,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("13.sorted sequential") {
     service.eventStream { agent =>
-      agent.batch("sorted.sequential").sequential(jobs*).valueBatch.use {
+      agent.batchMetered("sorted.sequential").sequential(jobs*).valueBatch.use {
         case ValueBatch(_, _, _, _, outcomes, values) =>
           IO {
             assert(values.head == 1)
@@ -345,7 +345,7 @@ class BatchTest extends CatsEffectSuite {
 
     service.eventStream { agent =>
       val sequential = agent
-        .batch("ordered.sequential")
+        .batchMetered("ordered.sequential")
         .sequential("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
         .valueBatch
         .use { batch =>
@@ -355,7 +355,7 @@ class BatchTest extends CatsEffectSuite {
         }
 
       val parallel = agent
-        .batch("ordered.parallel")
+        .batchMetered("ordered.parallel")
         .parallel(3)("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
         .valueBatch
         .use { batch =>
@@ -365,7 +365,7 @@ class BatchTest extends CatsEffectSuite {
         }
 
       val monadic = agent
-        .batch("ordered.monadic")
+        .batchMetered("ordered.monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
@@ -391,7 +391,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("15.empty sequential") {
     service
-      .eventStreamR(_.batch("b").sequential[Int]().valueBatch)
+      .eventStreamR(_.batchMetered("b").sequential[Int]().valueBatch)
       .compile
       .lastOrError
       .map(se => assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0))
@@ -399,7 +399,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("16.empty parallel") {
     service
-      .eventStreamR(_.batch("b").parallel[Int](1)().valueBatch)
+      .eventStreamR(_.batchMetered("b").parallel[Int](1)().valueBatch)
       .compile
       .lastOrError
       .map(se => assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0))
@@ -407,7 +407,7 @@ class BatchTest extends CatsEffectSuite {
 
   test("17.monadic flatMap limits") {
     service.updateConfig(_.withReportPolicy(_.fixedDelay(1.hour).repeat)).eventStreamR { agent =>
-      agent.batch("many flatmap").monadic { job =>
+      agent.batchMetered("many flatmap").monadic { job =>
         List.fill(5_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).monadicBatch >>
           (1 to 5_000).toList.traverse(x => job(x.toString, IO(x))).monadicBatch
       }
@@ -416,9 +416,9 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("18.monadic lift(F[A]) - Batch") {
+  test("18.monadic lift(F[A]) - BatchMetered") {
     service.eventStreamR { agent =>
-      agent.batch("lift").monadic { job =>
+      agent.batchMetered("lift").monadic { job =>
         val result = for {
           config <- job.untracked(IO("hello"))
           len <- job("length", IO(config.length))
@@ -436,9 +436,9 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("19.monadic lift(F[A]) - BatchLight") {
+  test("19.monadic lift(F[A]) - Batch") {
     service.eventStreamR { agent =>
-      agent.batchLight("lift-light").monadic { job =>
+      agent.batch("lift-light").monadic { job =>
         val batch = for {
           x <- job.untracked(IO(42))
           y <- job("double", IO(x * 2))
@@ -455,9 +455,9 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("20.monadic lift(F[A]) - failure short-circuits the chain") {
+  test("20.monadic lift(F[A]) - BatchMetered - failure short-circuits the chain") {
     service.eventStreamR { agent =>
-      agent.batch("lift-error").monadic { job =>
+      agent.batchMetered("lift-error").monadic { job =>
         val boom = new Exception("boom")
         val result = for {
           _ <- job.untracked(IO.raiseError[Int](boom))
@@ -480,9 +480,9 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("21.monadic lift(F[A]) - BatchLight - failure short-circuits the chain") {
+  test("21.monadic lift(F[A]) - Batch - failure short-circuits the chain") {
     service.eventStream { agent =>
-      agent.batchLight("lift-light-error").monadic { job =>
+      agent.batch("lift-light-error").monadic { job =>
         val oops = new Exception("oops")
         val batch = for {
           _ <- job.untracked(IO.raiseError[String](oops))
@@ -491,7 +491,7 @@ class BatchTest extends CatsEffectSuite {
         batch.monadicBatch.map { mb =>
           assert(mb.result.isLeft)
           assert(mb.outcomes.isEmpty)
-          // BatchLight wraps untracked-step failures identically to Batch
+          // Batch wraps untracked-step failures identically to BatchMetered
           mb.result.left.toOption.get match {
             case UntrackedStepException(cause) => assert(cause eq oops)
             case other                         => fail(s"expected UntrackedStepException, got $other")
@@ -508,7 +508,7 @@ class BatchTest extends CatsEffectSuite {
     // invisible lift/pure steps. spent is now the full span, so a 200ms lifted sleep
     // between two fast jobs must be reflected in spent.
     service.eventStreamR { agent =>
-      agent.batch("monadic-invisible-lift").monadic { job =>
+      agent.batchMetered("monadic-invisible-lift").monadic { job =>
         val result = for {
           a <- job("a", IO(1))
           _ <- job.untracked(IO.sleep(200.millis))
@@ -532,12 +532,12 @@ class BatchTest extends CatsEffectSuite {
     // finishes, so it also covers trailing framing that follows the last job; sumTook is
     // therefore <= spent, with only a tiny remainder.
     //
-    // Alignment guard: Batch and BatchLight share the same timing model. This relationship
+    // Alignment guard: BatchMetered and Batch share the same timing model. This relationship
     // must hold identically here and in BatchLightMonadicTest "sum of per-job took telescopes
     // to the span through the last job". If one changes, both must — do not let the two
     // variants drift apart.
     service.eventStreamR { agent =>
-      agent.batch("monadic-took-sum").monadic { job =>
+      agent.batchMetered("monadic-took-sum").monadic { job =>
         val result = for {
           a <- job("a", IO.sleep(30.millis).as(1))
           _ <- job.pure(())
@@ -565,9 +565,9 @@ class BatchTest extends CatsEffectSuite {
     // deactivation), so took <= spent by a tiny margin.
     //
     // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent covers
-    // that job's took". Batch and BatchLight must agree on this edge of the timing model.
+    // that job's took". BatchMetered and Batch must agree on this edge of the timing model.
     service.eventStreamR { agent =>
-      agent.batch("monadic-single-job").monadic { job =>
+      agent.batchMetered("monadic-single-job").monadic { job =>
         job("only", IO.sleep(40.millis).as(1)).monadicBatch.map { mb =>
           assert(mb.outcomes.size == 1)
           assert(mb.outcomes.head.record.took.toNanos <= mb.spent.toNanos)

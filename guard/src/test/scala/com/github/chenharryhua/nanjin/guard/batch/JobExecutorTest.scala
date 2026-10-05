@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
 import munit.CatsEffectSuite
 
-/** Direct tests for `JobExecutor`, the shared per-job builder behind `Batch` and `BatchLight`.
+/** Direct tests for `JobExecutor`, the shared per-job builder behind `Batch` and `BatchMetered`.
   *
   * Lives in package `com.github.chenharryhua.nanjin.guard.batch` (not `mtest`) so it can reach the
   * package-private `JobExecutor`, `ComputeJob`, and `JobNameIndex`.
@@ -16,8 +16,8 @@ import munit.CatsEffectSuite
   * The two behaviours guarded here have regressed before when the quasi/value builders were merged or moved:
   *   - a predicate miss is retained as `Right` in a quasi job but folded to `Left(PostConditionUnsatisfied)`
   *     in a value job;
-  *   - both builders emit a kickoff log when a `Log` is supplied (`Batch`), and neither does when it is
-  *     absent (`BatchLight`).
+  *   - both builders emit a kickoff log when a `Log` is supplied (`BatchMetered`), and neither does when it
+  *     is absent (`Batch`).
   */
 class JobExecutorTest extends CatsEffectSuite {
 
@@ -129,7 +129,7 @@ class JobExecutorTest extends CatsEffectSuite {
     }
   }
 
-  test("9.no Log (BatchLight path): the job still runs and produces a JobState") {
+  test("9.no Log (Batch path): the job still runs and produces a JobState") {
     val cj = executor(_ => true, None).quasiJob(jni(IO.pure(7)), batchId)
     cj.compute.map { js =>
       assert(js.result == Right(7))
