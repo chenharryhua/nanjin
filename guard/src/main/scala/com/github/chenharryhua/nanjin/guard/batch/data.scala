@@ -116,9 +116,9 @@ object Job {
   *     monadic failure was caught by chain-level `attempt`. A caught failure remains a `Left`, so
   *     `JobState.succeeded` stays false unless a later `renderOutcome` replaces it with the caller's
   *     rendering of the `Either`; the flag makes the retained failure nonfatal for logging.
-  *   - `Unmet`: the job produced a value that its predicate rejected, and the value is retained as a `Right`
-  *     (quasi jobs, and monadic `predicate`, which does not short-circuit). Logged under the
-  *     `JobLog.Unsatisfied` case.
+  *   - `Unmet`: a quasi job retained a value rejected by its predicate as a `Right`, or retained a thrown
+  *     effect as a `Left`; monadic `predicate` also uses `Unmet` when it rejects a value retained as a `Right`
+  *     without short-circuiting. Logged under the `JobLog.Unsatisfied` case.
   *   - `Failed`: the job failed. It threw, or its post-condition miss was turned into a
   *     `PostConditionUnsatisfied` failure (value jobs and monadic `withFilter`).
   *
