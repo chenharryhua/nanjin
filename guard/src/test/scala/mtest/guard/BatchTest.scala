@@ -533,7 +533,7 @@ class BatchTest extends CatsEffectSuite {
     // therefore <= spent, with only a tiny remainder.
     //
     // Alignment guard: BatchMetered and Batch share the same timing model. This relationship
-    // must hold identically here and in BatchLightMonadicTest "sum of per-job took telescopes
+    // must hold identically here and in BatchDefaultMonadicTest "sum of per-job took telescopes
     // to the span through the last job". If one changes, both must — do not let the two
     // variants drift apart.
     service.eventStreamR { agent =>
@@ -564,7 +564,7 @@ class BatchTest extends CatsEffectSuite {
     // framing captured by the fresh post-chain reading (here also the metrics-panel
     // deactivation), so took <= spent by a tiny margin.
     //
-    // Alignment guard: mirrors BatchLightMonadicTest "single-job monadic batch spent covers
+    // Alignment guard: mirrors BatchDefaultMonadicTest "single-job monadic batch spent covers
     // that job's took". BatchMetered and Batch must agree on this edge of the timing model.
     service.eventStreamR { agent =>
       agent.batchMetered("monadic-single-job").monadic { job =>

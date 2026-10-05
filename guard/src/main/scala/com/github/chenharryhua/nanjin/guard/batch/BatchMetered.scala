@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Applicative
 import cats.data.{Kleisli, NonEmptyList, StateT}
-import cats.effect.kernel.syntax.concurrent.given
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.syntax.clock.given
 import cats.effect.syntax.monadCancel.given
@@ -104,13 +103,13 @@ object BatchMetered:
   /*
    * Parallel
    */
-  final class Parallel[F[_]: Async, A] private[BatchMetered] (
+  final class Parallel[F[_], A] private[BatchMetered] (
     predicate: A => Boolean,
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     parallelism: Int,
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: F[BatchId])
+    protected val batchIdGenerator: F[BatchId])(using F: Async[F])
       extends BatchRunner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
@@ -118,7 +117,7 @@ object BatchMetered:
       JobExecutor[F, A](predicate = predicate, mode = mode, scope = metrics.scope, log = Some(log))
 
     override protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]] =
-      jobs.parTraverseN(parallelism)(f)
+      F.parTraverseN(parallelism)(jobs)(f)
 
     override def withPostCondition(f: A => Boolean): Parallel[F, A] =
       new Parallel[F, A](predicate = f, log, metrics, parallelism, jobs, batchIdGenerator)
@@ -128,12 +127,12 @@ object BatchMetered:
    * Sequential
    */
 
-  final class Sequential[F[_]: Async, A] private[BatchMetered] (
+  final class Sequential[F[_], A] private[BatchMetered] (
     predicate: A => Boolean,
     protected val log: Log[F],
     protected val metrics: MetricsHub[F],
     protected val jobs: List[JobNameIndex[F, A]],
-    protected val batchIdGenerator: F[BatchId])
+    protected val batchIdGenerator: F[BatchId])(using Async[F])
       extends BatchRunner[F, A] {
 
     override protected val mode: BatchMode = BatchMode.Sequential

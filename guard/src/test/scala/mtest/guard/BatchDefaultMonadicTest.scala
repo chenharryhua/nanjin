@@ -12,9 +12,9 @@ import munit.CatsEffectSuite
 
 import scala.concurrent.duration.DurationInt
 
-class BatchLightMonadicTest extends CatsEffectSuite {
+class BatchDefaultMonadicTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("batch").service("batch-light")
+    TaskGuard[IO]("batch").service("batch-default")
 
   test("monadic: smoke") {
     service.eventStream { agent =>
