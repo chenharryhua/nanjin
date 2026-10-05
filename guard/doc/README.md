@@ -6,7 +6,7 @@ the pieces fit together.
 
 ## Entry points
 
-There are two façades with the same three execution shapes. `Batch[F]` (from `Agent.batch`) is the
+There are three façades with the same three execution shapes. `Batch[F]` (from `Agent.batch`) is the
 lightweight default: it returns `F` values directly and keeps no metrics panel. `BatchMetered[F]`
 (from `Agent.batchMetered`) adds the metrics-backed progress panel and lifecycle logging and returns
 its results as a `Resource[F, _]`. `BatchTraced[F]` (from `Agent.batchTraced`) opens an OpenTelemetry
