@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.55.10"
+val awsV = "2.55.11"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.16"
@@ -29,7 +29,7 @@ val fs2V = "3.14.0"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.3"
 val jacksonScalaV = "2.22.3.1"
-val jettyV = "12.1.13"
+val jettyV = "12.1.14"
 val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
 val logbackV = "1.6.5"
@@ -438,10 +438,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
       "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
-      // Do NOT upgrade to 1.1.10.10: its stricter checkOutputSpace breaks Hadoop 3.5.0's native SnappyCodec
-      // direct-buffer accounting and makes every snappy write throw on close (see NJBytesTest "3.snappy").
-      // 1.1.10.8 is past the CVE-2023-43642 fix (satisfies snyk) and compatible with the codec.
-      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.8" // snyk by hadoop-client
+      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.11" // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
