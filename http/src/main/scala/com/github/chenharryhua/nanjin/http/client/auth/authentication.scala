@@ -112,7 +112,7 @@ def basicClientCredentials[F[_]: Async](
   * have consumed the code.
   *
   * The client secret is placed in the request body, so body-logging middleware can expose it. The token
-  * endpoint should use TLS outside local test environments. Use [[basicAuthorizationCode]] when the server
+  * endpoint should use TLS outside local test environments. Use `basicAuthorizationCode` when the server
   * supports client-secret-basic authentication.
   *
   * Each token-endpoint request is attempted once by this layer. Configure retries and failure observability
