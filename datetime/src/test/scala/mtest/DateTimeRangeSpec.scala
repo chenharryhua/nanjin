@@ -69,7 +69,7 @@ final class DateTimeRangeSpec extends FunSuite {
       ))
   }
 
-  test("days excludes an exclusive midnight and is empty for an empty range") {
+  test("6.days excludes an exclusive midnight and is empty for an empty range") {
     val start = Instant.parse("2024-01-01T00:00:00Z")
     val midnight = Instant.parse("2024-01-02T00:00:00Z")
     val throughMidnight = DateTimeRange(utc).withStartTime(start).withEndTime(midnight)
@@ -79,7 +79,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(empty.days.isEmpty)
   }
 
-  test("6.days is empty for infinite ranges") {
+  test("7.days is empty for infinite ranges") {
     assert(DateTimeRange(utc).days.isEmpty)
   }
 
@@ -87,7 +87,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // Subranges
   // ------------------------------------------------------------
 
-  test("7.subranges splits range correctly") {
+  test("8.subranges splits range correctly") {
     val dtr =
       DateTimeRange(utc)
         .withStartTime(LocalDateTime.parse("2024-01-01T00:00:00"))
@@ -99,7 +99,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(subs.forall(_.finiteDuration.contains(1.hour)))
   }
 
-  test("8.subranges empty for infinite range") {
+  test("9.subranges empty for infinite range") {
     assert(DateTimeRange(utc).subranges(1.hour).isEmpty)
   }
 
@@ -107,7 +107,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // inBetween semantics
   // ------------------------------------------------------------
 
-  test("9.inBetween respects half-open interval") {
+  test("10.inBetween respects half-open interval") {
     val start = LocalDateTime.parse("2024-01-01T00:00:00")
     val end = LocalDateTime.parse("2024-01-01T01:00:00")
 
@@ -122,7 +122,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(!dtr.inBetween(e))
   }
 
-  test("inBetween is false for empty and reversed ranges") {
+  test("11.inBetween is false for empty and reversed ranges") {
     val start = Instant.parse("2024-01-01T00:00:00Z")
     val end = start.plusSeconds(60)
     val empty = DateTimeRange(utc).withStartTime(start).withEndTime(start)
@@ -137,7 +137,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // Period / Duration
   // ------------------------------------------------------------
 
-  test("10.period computes date-based period") {
+  test("12.period computes date-based period") {
     val dtr =
       DateTimeRange(utc)
         .withStartTime(LocalDate.parse("2024-01-01"))
@@ -146,7 +146,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(dtr.period.contains(Period.ofDays(9)))
   }
 
-  test("11.javaDuration computes time-based duration") {
+  test("13.javaDuration computes time-based duration") {
     val dtr =
       DateTimeRange(utc)
         .withStartTime(LocalDateTime.parse("2024-01-01T00:00:00"))
@@ -159,7 +159,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // PartialOrder
   // ------------------------------------------------------------
 
-  test("12.partial order: containing range is greater") {
+  test("14.partial order: containing range is greater") {
     val outer =
       DateTimeRange(utc).withStartTime("2024-01-01T00:00:00").withEndTime("2024-01-02T00:00:00")
 
@@ -172,7 +172,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(po.partialCompare(inner, outer) == -1.0)
   }
 
-  test("13.partial order: overlapping but non-containing is NaN") {
+  test("15.partial order: overlapping but non-containing is NaN") {
     val a =
       DateTimeRange(utc).withStartTime("2024-01-01T00:00:00").withEndTime("2024-01-01T12:00:00")
 
@@ -188,7 +188,7 @@ final class DateTimeRangeSpec extends FunSuite {
   // Circe codec
   // ------------------------------------------------------------
 
-  test("14.circe decoder: optional start/end") {
+  test("16.circe decoder: optional start/end") {
     val json =
       """
         |{
@@ -204,7 +204,7 @@ final class DateTimeRangeSpec extends FunSuite {
     assert(dtr.end.isEmpty)
   }
 
-  test("15.circe round-trip preserves semantics") {
+  test("17.circe round-trip preserves semantics") {
     val original =
       DateTimeRange(utc)
         .withStartTime(LocalDateTime.parse("2024-01-01T10:00:00"))
