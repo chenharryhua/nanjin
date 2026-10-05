@@ -65,20 +65,20 @@ class NJParquetTest extends CatsEffectSuite {
     fs2(fs2Root, ParquetFile(_.Zstandard(_.Seven)), pandaSet)
   }
 
-  test("LZO parquet".ignore) {
+  test("7.LZO parquet".ignore) {
     fs2(fs2Root, ParquetFile(_.Lzo), pandaSet)
   }
 
-  test("BROTLI parquet".ignore) {
+  test("8.BROTLI parquet".ignore) {
     fs2(fs2Root, ParquetFile(_.Brotli), pandaSet)
   }
 
-  test("7.laziness") {
+  test("9.laziness") {
     hdp.source("./does/not/exist").parquet(100)
     hdp.sink("./does/not/exist").parquet
   }
 
-  test("8.rotation - policy") {
+  test("10.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     val file = ParquetFile(_.Snappy)
@@ -105,7 +105,7 @@ class NJParquetTest extends CatsEffectSuite {
     }
   }
 
-  test("9.rotation - size") {
+  test("11.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val file = ParquetFile(_.Snappy)
@@ -131,7 +131,7 @@ class NJParquetTest extends CatsEffectSuite {
     }
   }
 
-  test("10.best") {
+  test("12.best") {
     val path = fs2Root / "rotation" / "tick"
 
     def r1(str: String): Option[Int] = Try(str.takeRight(4).toInt).toOption
@@ -148,7 +148,7 @@ class NJParquetTest extends CatsEffectSuite {
     }
   }
 
-  test("11.stream concat") {
+  test("13.stream concat") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.parquet"
 
@@ -161,7 +161,7 @@ class NJParquetTest extends CatsEffectSuite {
     } yield assert(size == 3000)
   }
 
-  test("12.stream concat - 2") {
+  test("14.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink =
@@ -172,7 +172,7 @@ class NJParquetTest extends CatsEffectSuite {
       (s ++ s ++ s).through(sink.parquet).compile.drain
   }
 
-  test("large number (10000) of files - passed but too cost to run it".ignore) {
+  test("15.large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 5000L
     val file = ParquetFile(_.Uncompressed)

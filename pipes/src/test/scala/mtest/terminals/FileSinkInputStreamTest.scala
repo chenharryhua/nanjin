@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 class FileSinkInputStreamTest extends CatsEffectSuite {
 
-  test("inputStream writes all input bytes and reports their count") {
+  test("1.inputStream writes all input bytes and reports their count") {
     val path = Url.parse("./data/test/terminals/input-stream/bytes.bin")
     val first = "first stream\n".getBytes(StandardCharsets.UTF_8)
     val second = "second stream".getBytes(StandardCharsets.UTF_8)
@@ -36,7 +36,7 @@ class FileSinkInputStreamTest extends CatsEffectSuite {
     run
   }
 
-  test("inputStream closes each input stream") {
+  test("2.inputStream closes each input stream") {
     val path = Url.parse("./data/test/terminals/input-stream/closed.bin")
     val closed = new AtomicBoolean(false)
     val input = new InputStream {
@@ -60,7 +60,7 @@ class FileSinkInputStreamTest extends CatsEffectSuite {
     run.map(_ => assert(closed.get()))
   }
 
-  test("inputStream honors the buffer size in bytes for non-byte units") {
+  test("3.inputStream honors the buffer size in bytes for non-byte units") {
     val path = Url.parse("./data/test/terminals/input-stream/buffer-size.bin")
     val maxLen = new AtomicInteger(0)
     // payload larger than one byte so the requested read length is observable
