@@ -145,7 +145,7 @@ object BatchMetered:
       jobs.traverse(f)
 
     override def withPostCondition(f: A => Boolean): Sequential[F, A] =
-      new BatchMetered.Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator)
+      new Sequential[F, A](predicate = f, log, metrics, jobs, batchIdGenerator)
   }
 
   /*
@@ -349,6 +349,7 @@ final class BatchMetered[F[_]: Async] private[guard] (
   metrics: MetricsHub[F],
   batchIdGenerator: F[BatchId]):
 
+  /** Create a sequential batch from named effects. */
   def sequential[A](fas: (String, F[A])*): BatchMetered.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -363,7 +364,8 @@ final class BatchMetered[F[_]: Async] private[guard] (
 
   /** Create a parallel batch from named effects using the given parallelism.
     *
-    * `parallelism` must be greater than zero.
+    * `parallelism` must be greater than zero; it is validated when this builder is called, so a non-positive
+    * value raises `IllegalArgumentException` at construction rather than failing the batch effect.
     */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): BatchMetered.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
@@ -380,7 +382,7 @@ final class BatchMetered[F[_]: Async] private[guard] (
     )
   }
 
-  /** Create a parallel batch with parallelism inferred from the job count. */
+  /** Create a parallel batch with parallelism inferred from the job count, at least one. */
   def parallel[A](fas: (String, F[A])*): BatchMetered.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 

@@ -129,7 +129,8 @@ object Batch:
    * Monadic
    */
 
-  final class JobBuilder[F[_]] private[Batch] (val scope: MetricScope, batchIdGenerator: F[BatchId])(using
+  /** Builder for monadic batches whose jobs are composed with `map` and `flatMap`. */
+  final class JobBuilder[F[_]] private[Batch] (scope: MetricScope, batchIdGenerator: F[BatchId])(using
     F: Async[F]):
 
     final class Monadic[A] private[Batch] (
@@ -264,7 +265,11 @@ final class Batch[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenera
     new Batch.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator)
   }
 
-  /** Create a parallel batch with an explicit positive parallelism. */
+  /** Create a parallel batch from named effects using the given parallelism.
+    *
+    * `parallelism` must be greater than zero; it is validated when this builder is called, so a non-positive
+    * value raises `IllegalArgumentException` at construction rather than failing the batch effect.
+    */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
@@ -273,9 +278,11 @@ final class Batch[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenera
     new Batch.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator)
   }
 
+  /** Create a parallel batch with parallelism inferred from the job count, at least one. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 
+  /** Build a monadic batch using a fluent job builder for dependent steps. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
     val builder = new Batch.JobBuilder[F](scope, batchIdGenerator)
     f(builder)
