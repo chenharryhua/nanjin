@@ -63,29 +63,29 @@ class JsonTest extends FunSuite {
     assert(out.hcursor.get[Int]("keep").toOption.contains(42))
   }
 
-  test("5a.redact - custom transform is applied to matched string values") {
+  test("6.redact - custom transform is applied to matched string values") {
     val in = Json.obj("card" -> "4111111111111111".asJson, "keep" -> "visible".asJson)
     val out = json.redact(List("card"), s => "*" * (s.length - 4) + s.takeRight(4))(in)
     assert(out.hcursor.get[String]("card").toOption.contains("*" * 12 + "1111"))
     assert(out.hcursor.get[String]("keep").toOption.contains("visible"))
   }
 
-  test("6.redact - no keys is a no-op") {
+  test("7.redact - no keys is a no-op") {
     val in = Json.obj("password" -> "secret".asJson, "n" -> Json.arr(1.asJson, 2.asJson))
     assert(json.redact()(in) == in)
   }
 
-  test("7.redact - no matching key leaves json unchanged") {
+  test("8.redact - no matching key leaves json unchanged") {
     val in = Json.obj("a" -> "1".asJson, "b" -> Json.obj("c" -> "2".asJson))
     assert(json.redact("zzz")(in) == in)
   }
 
-  test("8.redact - non-object root is returned unchanged") {
+  test("9.redact - non-object root is returned unchanged") {
     assert(json.redact("password")("hello".asJson) == "hello".asJson)
     assert(json.redact("password")(123.asJson) == 123.asJson)
   }
 
-  test("8a.redact - accepts a splatted collection") {
+  test("10.redact - accepts a splatted collection") {
     val in = Json.obj("password" -> "p".asJson, "user" -> "alice".asJson)
     val configured = List("password")
     val out = json.redact(configured*)(in)
@@ -95,13 +95,13 @@ class JsonTest extends FunSuite {
 
   // ---------------- prettify ----------------
 
-  test("9.prettify - formats a large number with grouping separators") {
+  test("11.prettify - formats a large number with grouping separators") {
     val in: Json = Json.obj("count" -> 1234567.asJson)
     val out = json.prettify(in)
     assert(out.hcursor.get[String]("count").toOption.contains("1,234,567"))
   }
 
-  test("10.prettify - formats numbers nested in objects and arrays") {
+  test("12.prettify - formats numbers nested in objects and arrays") {
     val in: Json =
       Json.obj("nested" -> Json.obj("big" -> 1000000.asJson), "list" -> Json.arr(2000.asJson, 3000.asJson))
     val out = json.prettify(in)
@@ -110,19 +110,19 @@ class JsonTest extends FunSuite {
     assert(out.hcursor.downField("list").downN(1).as[String].toOption.contains("3,000"))
   }
 
-  test("11.prettify - reformats duration-encoded strings") {
+  test("13.prettify - reformats duration-encoded strings") {
     val in: Json = Json.obj("elapsed" -> Duration.ofSeconds(65).asJson)
     val out = json.prettify(in)
     assert(out.hcursor.get[String]("elapsed").toOption.contains("1 minute 5 seconds"))
   }
 
-  test("12.prettify - leaves non-numeric, non-duration strings untouched") {
+  test("14.prettify - leaves non-numeric, non-duration strings untouched") {
     val in: Json = Json.obj("name" -> "alice".asJson)
     val out = json.prettify(in)
     assert(out.hcursor.get[String]("name").toOption.contains("alice"))
   }
 
-  test("13.prettify - preserves object keys") {
+  test("15.prettify - preserves object keys") {
     val in: Json = Json.obj("a" -> 10.asJson, "b" -> 20.asJson)
     val out = json.prettify(in)
     assert(out.hcursor.keys.map(_.toSet).contains(Set("a", "b")))

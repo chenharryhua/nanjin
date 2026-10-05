@@ -29,7 +29,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     case _ => false
   }
 
-  test("CircuitBreaker: allows successful effects") {
+  test("1.CircuitBreaker: allows successful effects") {
     breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
       cb.protect(IO.pure(42)).map { result =>
         assertEquals(result, 42)
@@ -37,7 +37,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: opens after exceeding maxFailures") {
+  test("2.CircuitBreaker: opens after exceeding maxFailures") {
     val err = new RuntimeException("boom")
 
     breaker(2, Policy.fixedDelay(10.seconds).repeat).use { cb =>
@@ -50,7 +50,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: rejects immediately when open") {
+  test("3.CircuitBreaker: rejects immediately when open") {
     val err = new RuntimeException("fail")
 
     breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
@@ -62,7 +62,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: exposes Open state without counter") {
+  test("4.CircuitBreaker: exposes Open state without counter") {
     val err = new RuntimeException("fail")
 
     breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
@@ -74,7 +74,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: moves to half-open after policy tick") {
+  test("5.CircuitBreaker: moves to half-open after policy tick") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -90,7 +90,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: allows only one in-flight call in half-open") {
+  test("6.CircuitBreaker: allows only one in-flight call in half-open") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -115,7 +115,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: closes after successful half-open probe") {
+  test("7.CircuitBreaker: closes after successful half-open probe") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -132,7 +132,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: re-opens if half-open probe fails") {
+  test("8.CircuitBreaker: re-opens if half-open probe fails") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -149,14 +149,14 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: rejects non-positive maxFailures at configuration time") {
+  test("9.CircuitBreaker: rejects non-positive maxFailures at configuration time") {
     // maxFailures is validated eagerly while constructing the Resource, so the
     // IllegalArgumentException is thrown synchronously rather than inside the effect.
     intercept[IllegalArgumentException](breaker(0, Policy.fixedDelay(10.seconds).repeat))
     intercept[IllegalArgumentException](breaker(-1, Policy.fixedDelay(10.seconds).repeat))
   }
 
-  test("CircuitBreaker: stays half-open when half-open probe is canceled") {
+  test("10.CircuitBreaker: stays half-open when half-open probe is canceled") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -174,7 +174,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: stays closed when a closed-state call is canceled") {
+  test("11.CircuitBreaker: stays closed when a closed-state call is canceled") {
     breaker(
       maxFailures = 1,
       policy = Policy.fixedDelay(100.millis).repeat
@@ -188,7 +188,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: reuses singleton rejection throwable") {
+  test("12.CircuitBreaker: reuses singleton rejection throwable") {
     breaker(1, Policy.fixedDelay(10.seconds).repeat).use { cb =>
       for {
         _ <- cb.attempt(IO.raiseError(new RuntimeException("fail")))
@@ -205,7 +205,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: does not let stale success overwrite newer closed failures") {
+  test("13.CircuitBreaker: does not let stale success overwrite newer closed failures") {
     breaker(3, Policy.fixedDelay(10.seconds).repeat).use { cb =>
       for {
         gate <- Deferred[IO, Unit]
@@ -224,7 +224,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: does not let stale failure increment newer closed failures") {
+  test("14.CircuitBreaker: does not let stale failure increment newer closed failures") {
     breaker(3, Policy.fixedDelay(10.seconds).repeat).use { cb =>
       for {
         gate <- Deferred[IO, Unit]
@@ -242,7 +242,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: does not let stale failure write after closed count cycles") {
+  test("15.CircuitBreaker: does not let stale failure write after closed count cycles") {
     breaker(2, Policy.fixedDelay(80.millis).repeat).use { cb =>
       for {
         gate <- Deferred[IO, Unit]
@@ -263,7 +263,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: State encoder produces correct JSON for Closed") {
+  test("16.CircuitBreaker: State encoder produces correct JSON for Closed") {
     import io.circe.Encoder
 
     val state: CircuitBreaker.State = CircuitBreaker.State.Closed(3)
@@ -272,7 +272,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     assertEquals(json.hcursor.get[Int]("failures").toOption.get, 3)
   }
 
-  test("CircuitBreaker: State encoder produces correct JSON for HalfOpen") {
+  test("17.CircuitBreaker: State encoder produces correct JSON for HalfOpen") {
     import io.circe.Encoder
 
     val state: CircuitBreaker.State = CircuitBreaker.State.HalfOpen
@@ -280,7 +280,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     assertEquals(json.hcursor.get[String]("state").toOption.get, "Half-Open")
   }
 
-  test("CircuitBreaker: State encoder produces correct JSON for Open") {
+  test("18.CircuitBreaker: State encoder produces correct JSON for Open") {
     import io.circe.Encoder
 
     val state: CircuitBreaker.State = CircuitBreaker.State.Open
@@ -288,7 +288,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     assertEquals(json.hcursor.get[String]("state").toOption.get, "Open")
   }
 
-  test("CircuitBreaker: reports HalfOpen state after cancel restores probe admission") {
+  test("19.CircuitBreaker: reports HalfOpen state after cancel restores probe admission") {
     val err = new RuntimeException("fail")
 
     breaker(
@@ -311,7 +311,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("CircuitBreaker: half-open probe success from stale Closed admission is ignored") {
+  test("20.CircuitBreaker: half-open probe success from stale Closed admission is ignored") {
     // This exercises the evolve(HalfOpenRunning, from=Closed) -> ms path
     breaker(
       maxFailures = 2,

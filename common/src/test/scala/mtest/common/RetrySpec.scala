@@ -103,7 +103,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("4a.Retry: repeating an empty policy behaves as an exhausted policy") {
+  test("5.Retry: repeating an empty policy behaves as an exhausted policy") {
     val failure = new RuntimeException("boom")
 
     for {
@@ -119,7 +119,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("5.Retry: decision should not be called when effect succeeds immediately") {
+  test("6.Retry: decision should not be called when effect succeeds immediately") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -139,7 +139,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("6.Retry: decision receives increasing tick indexes") {
+  test("7.Retry: decision receives increasing tick indexes") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -162,7 +162,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("7.Retry: decision failure should preserve original operation failure") {
+  test("8.Retry: decision failure should preserve original operation failure") {
     val zoneId = ZoneId.systemDefault()
 
     val retryIO = Retry[IO](
@@ -181,7 +181,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("7a.Retry: decision failure identical to operation failure avoids self-suppression") {
+  test("9.Retry: decision failure identical to operation failure avoids self-suppression") {
     val failure = new RuntimeException("boom")
 
     for {
@@ -195,7 +195,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("7b.Retry: synchronous decision failure preserves the operation failure") {
+  test("10.Retry: synchronous decision failure preserves the operation failure") {
     val operation_failure = new RuntimeException("operation boom")
     val decision_failure = new RuntimeException("decision boom")
 
@@ -210,7 +210,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("8.Retry: retryAfter normalizes negative and preserves exact positive delays") {
+  test("11.Retry: retryAfter normalizes negative and preserves exact positive delays") {
     def observed_delay(delay: FiniteDuration): IO[FiniteDuration] =
       cats.effect.testkit.TestControl.executeEmbed {
         for {
@@ -247,7 +247,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("8a.Retry: negative retryAfter encodes normalized timing metadata") {
+  test("12.Retry: negative retryAfter encodes normalized timing metadata") {
     import io.circe.Encoder
 
     for {
@@ -274,7 +274,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("9.Retry: decision can observe attempt cause retries and snooze") {
+  test("13.Retry: decision can observe attempt cause retries and snooze") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -304,7 +304,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("10.Retry: decision can observe failedAt") {
+  test("14.Retry: decision can observe failedAt") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -329,7 +329,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("11.Retry: previousCause is None on first attempt, Some thereafter") {
+  test("15.Retry: previousCause is None on first attempt, Some thereafter") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -356,7 +356,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("12.Retry: elapsed grows across attempts") {
+  test("16.Retry: elapsed grows across attempts") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -383,7 +383,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("13.Retry: reusable across multiple calls with independent elapsed") {
+  test("17.Retry: reusable across multiple calls with independent elapsed") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -404,7 +404,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("13a.Retry: reused fixed-rate policy anchors tick 1 to each invocation") {
+  test("18.Retry: reused fixed-rate policy anchors tick 1 to each invocation") {
     cats.effect.testkit.TestControl.executeEmbed {
       def observed_delay(retry: Retry[IO]): IO[FiniteDuration] =
         for {
@@ -438,7 +438,7 @@ class RetrySpec extends CatsEffectSuite {
     }
   }
 
-  test("14.Retry: Decision.accepted is true for followPolicy") {
+  test("19.Retry: Decision.accepted is true for followPolicy") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -462,7 +462,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("15.Retry: Decision.accepted is false for giveUp") {
+  test("20.Retry: Decision.accepted is false for giveUp") {
     val zoneId = ZoneId.systemDefault()
 
     val prom = for {
@@ -481,7 +481,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("16.Retry: Decision encoder produces correct JSON for followPolicy") {
+  test("21.Retry: Decision encoder produces correct JSON for followPolicy") {
     import io.circe.Encoder
 
     val zoneId = ZoneId.systemDefault()
@@ -512,7 +512,7 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("17.Retry: Decision encoder produces correct JSON for giveUp") {
+  test("22.Retry: Decision encoder produces correct JSON for giveUp") {
     import io.circe.Encoder
 
     val zoneId = ZoneId.systemDefault()

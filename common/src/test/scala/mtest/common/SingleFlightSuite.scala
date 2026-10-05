@@ -74,7 +74,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("4a.canceling the sole waiter waits for cleanup before starting a new flight") {
+  test("5.canceling the sole waiter waits for cleanup before starting a new flight") {
     TestControl.executeEmbed {
       for {
         single_flight <- SingleFlight[IO, Int]
@@ -106,7 +106,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("5.tryApply returns None without evaluating its argument when busy") {
+  test("6.tryApply returns None without evaluating its argument when busy") {
     TestControl.executeEmbed {
       for {
         single_flight <- SingleFlight[IO, Int]
@@ -128,7 +128,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("6.tryApply runs its argument when idle") {
+  test("7.tryApply runs its argument when idle") {
     for {
       single_flight <- SingleFlight[IO, Int]
       counter <- Ref.of[IO, Int](0)
@@ -140,7 +140,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("7.tryApply propagates worker errors") {
+  test("8.tryApply propagates worker errors") {
     for {
       single_flight <- SingleFlight[IO, Int]
       result <- single_flight.tryApply(IO.raiseError[Int](new RuntimeException("boom"))).attempt
@@ -150,7 +150,7 @@ final class SingleFlightSuite extends CatsEffectSuite {
     }
   }
 
-  test("8.SingleFlight executes once per high-contention wave") {
+  test("9.SingleFlight executes once per high-contention wave") {
     TestControl.executeEmbed {
       for {
         single_flight <- SingleFlight[IO, Int]

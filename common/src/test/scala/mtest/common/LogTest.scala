@@ -25,7 +25,7 @@ class LogTest extends CatsEffectSuite {
     def snapshot: Vector[M] = events
   }
 
-  test("logs enabled messages with their level and optional exception") {
+  test("1.logs enabled messages with their level and optional exception") {
     val log = new RecordingLog(Set(LogLevel.Error, LogLevel.Warn))
     val ex = new IllegalStateException("boom")
 
@@ -34,7 +34,7 @@ class LogTest extends CatsEffectSuite {
     }
   }
 
-  test("does not evaluate a message when the level is disabled") {
+  test("2.does not evaluate a message when the level is disabled") {
     val log = new RecordingLog(Set.empty)
 
     val boom = new RuntimeException("should not be evaluated")
@@ -45,7 +45,7 @@ class LogTest extends CatsEffectSuite {
     }
   }
 
-  test("logs enabled debug messages") {
+  test("3.logs enabled debug messages") {
     val log = new RecordingLog(Set(LogLevel.Debug))
 
     log.debug("ok").map { _ =>
@@ -53,7 +53,7 @@ class LogTest extends CatsEffectSuite {
     }
   }
 
-  test("does not evaluate a debug message when debug is disabled") {
+  test("4.does not evaluate a debug message when debug is disabled") {
     val log = new RecordingLog(Set.empty)
     val boom = new RuntimeException("should not be evaluated")
     def msg: String = throw boom
@@ -63,7 +63,7 @@ class LogTest extends CatsEffectSuite {
     }
   }
 
-  test("noop logger ignores messages without throwing") {
+  test("5.noop logger ignores messages without throwing") {
     val log = Log.noop[IO]
 
     for {
@@ -72,7 +72,7 @@ class LogTest extends CatsEffectSuite {
     } yield ()
   }
 
-  test("LogLevel exposes the expected ordering and encoding") {
+  test("6.LogLevel exposes the expected ordering and encoding") {
     assert(LogLevel.Error.value > LogLevel.Warn.value)
     assert(LogLevel.Warn.value > LogLevel.Info.value)
     assert(LogLevel.Info.value > LogLevel.Debug.value)
