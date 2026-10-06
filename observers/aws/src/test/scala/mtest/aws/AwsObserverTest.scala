@@ -18,7 +18,8 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends CatsEffectSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
-    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).repeat.limited(1)))
+    .updateConfig(_.addBrief("brief")
+      .withRestartPolicy(10.hours, _.fixedDelay(1.second).repeat.limited(1)))
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter("meter", _.withUnit(Bytes)))

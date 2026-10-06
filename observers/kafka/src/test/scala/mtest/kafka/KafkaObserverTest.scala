@@ -15,7 +15,6 @@ class KafkaObserverTest extends CatsEffectSuite {
       .service("observer")
       .eventStream(_ => IO(()))
       .through(KafkaObserver(ctx).withTranslator(_.skipMetricsSnapshot).observe(topic))
-      .debug()
       .compile
       .drain
   }

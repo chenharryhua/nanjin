@@ -1,11 +1,11 @@
 package mtest.guard
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.common.resilience.Retry.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import munit.CatsEffectSuite
@@ -34,7 +34,7 @@ class RetryTest extends CatsEffectSuite {
     service.eventStream { agent =>
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).repeat.limited(3)).withDecision { tv =>
         i += 1
-        IO.println(tv).as(tv.followPolicy)
+        IO(tv.followPolicy)
       })
 
       retry.use(_(action))
@@ -75,9 +75,7 @@ class RetryTest extends CatsEffectSuite {
     service
       .eventStream(agent =>
         agent.retry(_.withPolicy(_.empty)).use { retry =>
-          (retry(IO.println(1)) >>
-            retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
-            retry(IO.println(4))).guarantee(agent.adhoc.report)
+          retry(IO.unit <* IO.canceled)
         })
       .mapFilter(Event.serviceStop.getOption)
       .compile
@@ -89,24 +87,13 @@ class RetryTest extends CatsEffectSuite {
 
   test("7.retry - cancellation internal") {
     def action(agent: Agent[IO]) = for {
-      counter <- agent.facilitate("retry")(_.counter("total.calls"))
       retry <- agent.retry(_.withPolicy(_.empty))
-    } yield (in: IO[Unit]) =>
-      IO.uncancelable(poll =>
-        in *>
-          IO.println("before retry") *>
-          counter.inc(1) *>
-          retry(poll(in)) *>
-          IO.println("after retry"))
+    } yield (in: IO[Unit]) => IO.uncancelable(poll => in *> retry(poll(in)))
 
     service
       .eventStream(agent =>
-        agent.facilitate("retry.internal.cancellation")(_ => action(agent)).use { retry =>
-          (retry(IO.println("first")) >>
-            IO.println("----") >>
-            retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
-            retry(IO.println("third"))).guarantee(agent.adhoc.report)
-        })
+        agent.facilitate("retry.internal.cancellation")(_ => action(agent))
+          .surround(IO.canceled))
       .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
@@ -119,17 +106,12 @@ class RetryTest extends CatsEffectSuite {
     def action(agent: Agent[IO]) = for {
       counter <- agent.facilitate("retry")(_.counter("total.calls"))
       retry <- agent.retry(_.withPolicy(_.fixedDelay(10.hours).repeat))
-    } yield (in: IO[Unit]) =>
-      IO.uncancelable(poll =>
-        IO.println("before retry") *>
-          counter.inc(1) *>
-          poll(retry(in)) *> // retry(poll(in)) will wait 10 hours
-          IO.println("after retry"))
+    } yield (in: IO[Unit]) => IO.uncancelable(poll => counter.inc(1) *> poll(retry(in)))
 
     service
       .eventStream(agent =>
         agent.facilitate("retry.external.cancellation")(_ => action(agent)).use { retry =>
-          IO.race(retry(IO.println("before exception") >> IO.raiseError(new Exception)), IO.sleep(3.seconds))
+          IO.race(retry(IO.unit >> IO.raiseError(new Exception)), IO.sleep(3.seconds))
             .void
             .guarantee(agent.adhoc.report)
         })

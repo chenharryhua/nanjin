@@ -4,11 +4,11 @@ import better.files.*
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
 import com.github.chenharryhua.nanjin.terminals.partitionPath.*
-import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath, FolderRetentionResult}
+import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
-import munit.CatsEffectSuite
 import mtest.terminals.HadoopTestData.hdp
+import munit.CatsEffectSuite
 
 import java.time.{LocalDate, LocalDateTime}
 
@@ -132,15 +132,7 @@ class HadoopTest extends CatsEffectSuite {
     assert(extractDate(p1).isEmpty)
   }
 
-  test("12.retention status") {
-    import io.circe.syntax.EncoderOps
-    import cats.syntax.show.given
-    val frs = FolderRetentionResult(path, Retained)
-    println(frs.asJson)
-    println(frs.status.show)
-  }
-
-  test("13.date folder retention removes stale partitions") {
+  test("12.date folder retention removes stale partitions") {
     val retentionRoot = path / "retention" / "isolated"
 
     val keep = retentionRoot / ymd(LocalDate.of(2025, 8, 10))
@@ -165,7 +157,7 @@ class HadoopTest extends CatsEffectSuite {
     }
   }
 
-  test("14.missing paths are handled as empty") {
+  test("13.missing paths are handled as empty") {
     val missingRoot = path / "retention" / "missing"
 
     for {
@@ -183,7 +175,7 @@ class HadoopTest extends CatsEffectSuite {
     }
   }
 
-  test("15.copy keeps source and overwrites target") {
+  test("14.copy keeps source and overwrites target") {
     val root = path / "copy-move" / "copy-case"
     val source = root / "source.txt"
     val target = root / "target.txt"
@@ -205,7 +197,7 @@ class HadoopTest extends CatsEffectSuite {
     }
   }
 
-  test("16.move deletes source and keeps target") {
+  test("15.move deletes source and keeps target") {
     val root = path / "copy-move" / "move-case"
     val source = root / "source.txt"
     val target = root / "target.txt"
@@ -224,24 +216,24 @@ class HadoopTest extends CatsEffectSuite {
     }
   }
 
-  test("17.FileSource.bytes rejects sub-byte buffer size") {
+  test("16.FileSource.bytes rejects sub-byte buffer size") {
     intercept[IllegalArgumentException] {
       hdp.source(path / "any.txt").bytes(squants.information.Bytes(0))
     }
   }
 
-  test("18.extractDate - Year as first path segment") {
+  test("17.extractDate - Year as first path segment") {
     val p1 = Url.parse("Year=2025") / "Month=03" / "Day=15"
     assert(extractDate(p1).get == LocalDate.of(2025, 3, 15))
   }
 
-  test("19.rotateSink rejects size=0") {
+  test("18.rotateSink rejects size=0") {
     intercept[IllegalArgumentException] {
       hdp.rotateSink(java.time.ZoneId.systemDefault(), 0L)(_ => path)
     }
   }
 
-  test("20.rotateSink rejects negative size") {
+  test("19.rotateSink rejects negative size") {
     intercept[IllegalArgumentException] {
       hdp.rotateSink(java.time.ZoneId.systemDefault(), -1L)(_ => path)
     }

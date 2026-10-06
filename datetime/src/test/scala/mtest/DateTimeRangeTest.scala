@@ -1,16 +1,16 @@
 package mtest
 
-import cats.{Alternative, Eq}
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
 import cats.syntax.all.*
+import cats.{Alternative, Eq}
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.given
 import io.circe.syntax.EncoderOps
-import org.scalacheck.{Arbitrary, Cogen, Gen}
 import munit.DisciplineSuite
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import java.sql.Timestamp
 import java.time.*
@@ -103,16 +103,6 @@ class DateTimeRangeTest extends DisciplineSuite {
     val sameDay = DateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
     assert(sameDay.days.size == 1)
     assert(sameDay.days.head == d3)
-
-    println(DateTimeRange(newyorkTime))
-    println(DateTimeRange(newyorkTime).withStartTime(dt4))
-    println(DateTimeRange(newyorkTime).withEndTime(dt4))
-  }
-
-  test("6.json") {
-    val dr = DateTimeRange(newyorkTime).withToday
-    println(dr.asJson.noSpaces)
-    println(dr)
   }
 
   test("7.days") {
@@ -138,9 +128,6 @@ class DateTimeRangeTest extends DisciplineSuite {
     assert(t.zonedEndTime.get.toLocalDate == today.plusDays(1))
     assert(y.zonedEndTime.get.toLocalDate == today)
     assert(e.zonedEndTime.get.toLocalDate == today.minusDays(1))
-    println(t)
-    println(y)
-    println(e)
   }
 
   test("9.fluent api") {
