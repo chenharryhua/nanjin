@@ -32,7 +32,7 @@ class BatchClassificationParitySpec extends CatsEffectSuite {
   private val tracedJobs: List[(String, Span[IO] => IO[Int])] =
     jobs.map { case (name, fa) => name -> ((_: Span[IO]) => fa) }
 
-  test("quasi classification agrees between Batch and BatchTraced") {
+  test("1.quasi classification agrees between Batch and BatchTraced") {
     service
       .eventStream { agent =>
         for {
@@ -63,7 +63,7 @@ class BatchClassificationParitySpec extends CatsEffectSuite {
       .map(event => assertEquals(event.asInstanceOf[ServiceStop].cause.exitCode, 0))
   }
 
-  test("value classification agrees between Batch and BatchTraced") {
+  test("2.value classification agrees between Batch and BatchTraced") {
     service
       .eventStream { agent =>
         def untracedValue(label: String, fa: IO[Int], p: Int => Boolean) =

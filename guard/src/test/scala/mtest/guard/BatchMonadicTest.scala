@@ -134,7 +134,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("4a.withFilter on a pure value should fail without crashing") {
+  test("5.withFilter on a pure value should fail without crashing") {
     service.eventStreamR { agent =>
       agent
         .batchMetered("filter-pure")
@@ -151,7 +151,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("4b.monadic jobs are successful when their effects succeed") {
+  test("6.monadic jobs are successful when their effects succeed") {
     service.eventStreamR { agent =>
       agent
         .batchMetered("invincible-json")
@@ -181,7 +181,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("4c.a thrown exception is recorded unsuccessful and aborts the chain") {
+  test("7.a thrown exception is recorded unsuccessful and aborts the chain") {
     val errorMessage = "boom"
     var cExecuted = false
     service.eventStreamR { agent =>
@@ -211,7 +211,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("5.filter") {
+  test("8.filter") {
     service.eventStreamR { agent =>
       agent
         .batchMetered("exception")
@@ -241,7 +241,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("5b.filter should preserve post-condition failure in job state") {
+  test("9.filter should preserve post-condition failure in job state") {
     var cExecuted = false
 
     service.eventStreamR { agent =>
@@ -273,7 +273,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("6.cancel") {
+  test("10.cancel") {
     service.eventStream { agent =>
       agent
         .batchMetered("good")
@@ -295,7 +295,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("shared MonadicOps compose map, flatMap, attempt, and withFilter") {
+  test("11.shared MonadicOps compose map, flatMap, attempt, and withFilter") {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
@@ -333,7 +333,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic predicate records tracked outcomes and attempt preserves rejection") {
+  test("12.monadic predicate records tracked outcomes and attempt preserves rejection") {
     service.eventStream { agent =>
       for {
         batch <- agent
@@ -380,7 +380,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic combinators preserve values and handled state across transitions") {
+  test("13.monadic combinators preserve values and handled state across transitions") {
     service.eventStream { agent =>
       for {
         composed <- agent
@@ -418,7 +418,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic withFilter records failure through renderOutcome and attempt") {
+  test("14.monadic withFilter records failure through renderOutcome and attempt") {
     var nextExecuted = false
 
     service.eventStream { agent =>
@@ -449,7 +449,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic renderOutcome records explicit and encoded JSON outcomes") {
+  test("15.monadic renderOutcome records explicit and encoded JSON outcomes") {
     val explicitJson = Json.obj("value" -> Json.fromInt(4))
     service.eventStream { agent =>
       for {
@@ -486,7 +486,7 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("attempt logs the finalized handled state on the next transition") {
+  test("16.attempt logs the finalized handled state on the next transition") {
     service
       .eventStream { agent =>
         agent
@@ -553,7 +553,7 @@ class BatchMonadicTest extends CatsEffectSuite {
       tagged.collect { case (tag, name) if outcomeTags(tag) => name })
   }
 
-  test("every monadic job that logs a kickoff logs exactly one completion") {
+  test("17.every monadic job that logs a kickoff logs exactly one completion") {
     verboseService
       .eventStream { agent =>
         agent
@@ -579,7 +579,7 @@ class BatchMonadicTest extends CatsEffectSuite {
       }
   }
 
-  test("a short-circuited monadic chain logs one completion per started job") {
+  test("18.a short-circuited monadic chain logs one completion per started job") {
     verboseService
       .eventStream { agent =>
         agent

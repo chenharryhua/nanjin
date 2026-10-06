@@ -126,7 +126,7 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("4b.timer records in the configured time unit via withTimeUnit") {
+  test("5.timer records in the configured time unit via withTimeUnit") {
     MetricsTestkit.inMemory[IO]().use { testkit =>
       val service =
         TaskGuard[IO]("otel")
@@ -151,7 +151,7 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("5.timer.timing preserves the effect result and records one observation") {
+  test("6.timer.timing preserves the effect result and records one observation") {
     MetricsTestkit.inMemory[IO]().use { testkit =>
       val service =
         TaskGuard[IO]("otel")
@@ -173,7 +173,7 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("5b.numericGauge maps to an ObservableGauge and records the value with attributes") {
+  test("7.numericGauge maps to an ObservableGauge and records the value with attributes") {
     // A numericGauge maps to an otel4s ObservableGauge, whose callback only reports while the registration
     // resource is open. Unlike the push instruments, it records nothing after release, so metrics must be
     // collected while the gauge is still alive: collectMetrics runs inside the facilitate `use` scope.
@@ -202,7 +202,7 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("6.noop provider (default) records nothing to OpenTelemetry") {
+  test("8.noop provider (default) records nothing to OpenTelemetry") {
     // No withMeterProvider call, so ServiceConfig keeps MeterProvider.noop[IO]. Instruments still work
     // (Dropwizard side), but nothing reaches the testkit.
     MetricsTestkit.inMemory[IO]().use { testkit =>
@@ -216,7 +216,7 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("7.the MeterProvider resource is acquired on start and released on stop") {
+  test("9.the MeterProvider resource is acquired on start and released on stop") {
     // A Resource that records its acquire/release into a Ref, yielding a noop provider. Verifies nanjin owns
     // the provider's lifecycle: it must be opened once when the service starts and closed once when it stops.
     (for {

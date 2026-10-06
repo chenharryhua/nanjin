@@ -503,7 +503,7 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("24.monadic spent counts invisible lift steps between jobs") {
+  test("22.monadic spent counts invisible lift steps between jobs") {
     // Regression: the old spent summed per-job took, dropping wall-clock consumed by
     // invisible lift/pure steps. spent is now the full span, so a 200ms lifted sleep
     // between two fast jobs must be reflected in spent.
@@ -525,7 +525,7 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("25.monadic sum of per-job took within spent (gaps redistributed)") {
+  test("23.monadic sum of per-job took within spent (gaps redistributed)") {
     // monadicHistory rewrites each job's start to the previous job's end, so per-job took
     // values are contiguous and telescope to the span from the first job's start to the last
     // job's end. spent is measured against a fresh clock reading taken after the whole chain
@@ -558,7 +558,7 @@ class BatchTest extends CatsEffectSuite {
     }
   }
 
-  test("26.single-job monadic batch spent covers that job's took, within a tiny remainder") {
+  test("24.single-job monadic batch spent covers that job's took, within a tiny remainder") {
     // Edge of monadicHistory: with one visible job there is nothing to redistribute, so the
     // single job's took is the whole through-last-job span. spent adds only the trailing
     // framing captured by the fresh post-chain reading (here also the metrics-panel

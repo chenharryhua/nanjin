@@ -12,7 +12,7 @@ class BatchSpec extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withReportPolicy(_.crontab(_.secondly).repeat))
 
-  test("monadic: filter - fully") {
+  test("1.monadic: filter - fully") {
     service.eventStream { agent =>
       val result: IO[Int] = agent
         .batchMetered("monadic")
@@ -41,7 +41,7 @@ class BatchSpec extends CatsEffectSuite {
     }
   }
 
-  test("applicative: combines values sequentially") {
+  test("2.applicative: combines values sequentially") {
     service.eventStream { agent =>
       val result = agent
         .batchMetered("monadic")
@@ -62,7 +62,7 @@ class BatchSpec extends CatsEffectSuite {
     }
   }
 
-  test("identity law preserves the job result") {
+  test("3.identity law preserves the job result") {
     service.eventStream { agent =>
       val left = agent
         .batchMetered("monadic")
@@ -99,7 +99,7 @@ class BatchSpec extends CatsEffectSuite {
     }
   }
 
-  test("invincible") {
+  test("4.invincible") {
     service.eventStream { agent =>
       val result = agent
         .batchMetered("monadic")
