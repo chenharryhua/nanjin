@@ -39,7 +39,7 @@ val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
 val parquetV = "1.18.1"
 val postgresV = "42.7.13"
-val scalapbV = "0.11.20"
+val scalapbV = "0.11.21"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.20"
 
@@ -430,7 +430,7 @@ lazy val pipes = (project in file("pipes"))
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
       "io.airlift"           % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"             % "netty-all"              % "4.2.18.Final", // snyk by hadoop-client
+      "io.netty"             % "netty-all"              % "4.2.19.Final", // snyk by hadoop-client
       "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
       "org.apache.commons"   % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-server"           % jettyV, // snyk by hadoop-client
