@@ -77,16 +77,16 @@ class NJBytesTest extends CatsEffectSuite {
     fs2(fs2Root / "tiger.json.deflate", TestData.tigerSet)
   }
 
-  test("ZSTANDARD".ignore) {
+  test("7.ZSTANDARD".ignore) {
     fs2(fs2Root / "tiger.json.zst", TestData.tigerSet)
   }
 
-  test("7.laziness") {
+  test("8.laziness") {
     hdp.source("./does/not/exist").bytes(1.mb)
     hdp.sink("./does/not/exist").bytes
   }
 
-  test("8.rotation - policy") {
+  test("9.rotation - policy") {
     val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     val sink =
@@ -104,7 +104,7 @@ class NJBytesTest extends CatsEffectSuite {
       .drain
   }
 
-  test("9.rotation - size") {
+  test("10.rotation - size") {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     val sink = hdp.rotateSink(sydneyTime, 10000)(t => path / s"${t.index}.json").bytes

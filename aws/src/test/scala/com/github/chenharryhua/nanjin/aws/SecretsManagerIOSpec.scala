@@ -31,21 +31,21 @@ class SecretsManagerIOSpec extends CatsEffectSuite {
       getValue(GetSecretValueRequest.builder().secretId(secretId).build()).map(_.secretBinary())
   }
 
-  test("DummySecretsManager: return secret string") {
+  test("1.DummySecretsManager: return secret string") {
     val sm = new DummySecretsManager
     sm.getString("string-secret").map { result =>
       assertEquals(result, "super-secret")
     }
   }
 
-  test("DummySecretsManager: return secret binary") {
+  test("2.DummySecretsManager: return secret binary") {
     val sm = new DummySecretsManager
     sm.getBinary("binary-secret").map { result =>
       assertEquals(result.asUtf8String(), "binary-secret")
     }
   }
 
-  test("DummySecretsManager: fail for unknown secret") {
+  test("3.DummySecretsManager: fail for unknown secret") {
     val sm = new DummySecretsManager
     interceptIO[NoSuchElementException] {
       sm.getString("missing-secret")
@@ -92,21 +92,21 @@ class SecretsManagerIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("NullAwareSecretsManager: return string when secret is a string secret") {
+  test("4.NullAwareSecretsManager: return string when secret is a string secret") {
     val sm = new NullAwareSecretsManager
     sm.getString("only-string").map { result =>
       assertEquals(result, "hello")
     }
   }
 
-  test("NullAwareSecretsManager: return binary when secret is a binary secret") {
+  test("5.NullAwareSecretsManager: return binary when secret is a binary secret") {
     val sm = new NullAwareSecretsManager
     sm.getBinary("only-binary").map { result =>
       assertEquals(result.asUtf8String(), "bytes")
     }
   }
 
-  test("NullAwareSecretsManager: fail with IllegalStateException when getString called on binary secret") {
+  test("6.NullAwareSecretsManager: fail with IllegalStateException when getString called on binary secret") {
     val sm = new NullAwareSecretsManager
     interceptIO[IllegalStateException] {
       sm.getString("only-binary")
@@ -116,7 +116,7 @@ class SecretsManagerIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("NullAwareSecretsManager: fail with IllegalStateException when getBinary called on string secret") {
+  test("7.NullAwareSecretsManager: fail with IllegalStateException when getBinary called on string secret") {
     val sm = new NullAwareSecretsManager
     interceptIO[IllegalStateException] {
       sm.getBinary("only-string")

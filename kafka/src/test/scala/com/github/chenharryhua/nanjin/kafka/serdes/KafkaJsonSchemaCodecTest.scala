@@ -10,7 +10,7 @@ class KafkaJsonSchemaCodecTest extends FunSuite {
   private val codec = KafkaCodec.json[JsonSchemaPerson](objectMapper)
     .updateConfig(_.jsonSchemaDraft(JsonSchemaDraft.DRAFT_07))
 
-  test("generates a JSON schema for the runtime class") {
+  test("1.generates a JSON schema for the runtime class") {
     val schema = codec.schema
     val rendered = schema.toString
 
@@ -19,7 +19,7 @@ class KafkaJsonSchemaCodecTest extends FunSuite {
     assert(rendered.contains("type"))
   }
 
-  test("wraps values in a Confluent JSON schema envelope and round-trips them") {
+  test("2.wraps values in a Confluent JSON schema envelope and round-trips them") {
     val person = JsonSchemaPerson("alice", 30)
 
     val envelope = codec.from(person)

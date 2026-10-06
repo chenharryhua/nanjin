@@ -124,7 +124,7 @@ class Performance extends CatsEffectSuite {
       }
   }
 
-  test("8.performance batch traced") {
+  test("9.performance batch traced") {
     var i: Int = 0
     service
       .eventStream(agent =>

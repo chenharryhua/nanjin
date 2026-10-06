@@ -179,7 +179,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
   }
 
-  test("8.1.decode error on ambiguous policy payload") {
+  test("9.decode error on ambiguous policy payload") {
     val conflict = """
       {
         "empty": true,
@@ -189,7 +189,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[Policy](conflict).toOption.isEmpty)
   }
 
-  test("8.2.decode error when no top-level policy variant exists") {
+  test("10.decode error when no top-level policy variant exists") {
     val noVariant = """
       {
         "policy": {
@@ -200,11 +200,11 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[Policy](noVariant).toOption.isEmpty)
   }
 
-  test("8.3.decode error when empty policy payload is not strict true") {
+  test("11.decode error when empty policy payload is not strict true") {
     assert(decode[Policy]("""{ "empty": false }""").toOption.isEmpty)
   }
 
-  test("8.4.decode rejects the removed expire policy variant") {
+  test("12.decode rejects the removed expire policy variant") {
     val legacy = """
       {
         "expire": "PT5S",
@@ -218,7 +218,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(result.swap.toOption.exists(_.getMessage.contains("No policy variant key found")))
   }
 
-  test("9.except") {
+  test("13.except") {
     val policy = Policy.crontab(_.hourly).repeat.except(_.midnight).except(_.elevenPM).except(_.midnight)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -243,7 +243,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
       }
   }
 
-  test("10.offset") {
+  test("14.offset") {
     val policy = Policy.crontab(_.hourly).repeat.offset(3.seconds)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     tickStream.testPolicy[IO]((_: Policy.type) => policy).take(32).compile.toList.map { ticks =>
@@ -253,13 +253,13 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     }
   }
 
-  test("11.jitter") {
+  test("15.jitter") {
     val policy = Policy.crontab(_.hourly).repeat.jitter(3.seconds)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
   }
 
-  test("12.limited") {
+  test("16.limited") {
     val policy = Policy.crontab(_.hourly).repeat.limited(3)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     tickStream.testPolicy[IO]((_: Policy.type) => policy).take(60).compile.toList.map { ticks =>
@@ -267,14 +267,14 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     }
   }
 
-  test("13.limited 0") {
+  test("17.limited 0") {
     val policy = Policy.crontab(_.hourly).repeat.limited(0)
     tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.map { ticks =>
       assert(ticks.isEmpty)
     }
   }
 
-  test("14.limited neg") {
+  test("18.limited neg") {
     val policy = Policy.crontab(_.hourly).repeat.limited(-1)
     tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.map { ticks =>
       assert(ticks.isEmpty)

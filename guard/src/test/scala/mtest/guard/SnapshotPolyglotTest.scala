@@ -14,7 +14,7 @@ import squants.information.Bytes
 class SnapshotPolyglotTest extends CatsEffectSuite {
   private val service = TaskGuard[IO]("snapshot").service("snapshot")
 
-  test("renders the full snapshot across JSON and YAML formats") {
+  test("1.renders the full snapshot across JSON and YAML formats") {
     service.eventStream { agent =>
       agent
         .facilitate("snapshot") { fac =>
@@ -59,7 +59,7 @@ class SnapshotPolyglotTest extends CatsEffectSuite {
     }
   }
 
-  test("domains render in a stable, deterministic order across formats and repeated renders") {
+  test("2.domains render in a stable, deterministic order across formats and repeated renders") {
     // Two distinct domains; metrics are registered in a fixed order so their ages are ordered.
     // Register the alphabetically-LATER domain ("zulu") FIRST, so registration/age order contradicts name
     // order. This lets the assertions distinguish age-primary ordering from a mere alphabetical fallback.

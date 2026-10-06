@@ -9,7 +9,7 @@ import scala.concurrent.duration.DurationInt
 
 class CircuitBreakerInternalSpec extends CatsEffectSuite {
 
-  test("CircuitBreaker rejection classification: maps rejection to singleton RejectedException") {
+  test("1.CircuitBreaker rejection classification: maps rejection to singleton RejectedException") {
     CircuitBreaker[IO](
       ZoneId.systemDefault(),
       maxFailures = 1,

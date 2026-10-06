@@ -46,7 +46,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("1a.metric identifier round trip") {
+  test("2.metric identifier round trip") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
@@ -57,7 +57,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("1b.scraper ignores a metric identifier with the wrong registry type") {
+  test("3.scraper ignores a metric identifier with the wrong registry type") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
@@ -70,7 +70,7 @@ class MetricsTest extends CatsEffectSuite {
       }
   }
 
-  test("2.counter risk") {
+  test("4.counter risk") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.asRisk))
@@ -81,7 +81,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("3.counter disable") {
+  test("5.counter disable") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.enable(false)))
@@ -93,7 +93,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("3b.counter inc") {
+  test("6.counter inc") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
@@ -106,7 +106,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("3c.counter reset by policy") {
+  test("7.counter reset by policy") {
     service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.withPolicy(_.fixedDelay(200.millis).repeat)))
@@ -128,7 +128,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("4.meter") {
+  test("8.meter") {
     service.eventStream { agent =>
       val meter: Resource[IO, Meter[IO]] = agent.facilitate("meter")(_.meter("meter", _.withUnit(AUD)))
       meter.use(m => m.mark(10) >> m.mark(20) >> agent.adhoc.report.void)
@@ -141,7 +141,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("4b.meter mark") {
+  test("9.meter mark") {
     service.eventStream { agent =>
       agent
         .facilitate("meter")(_.meter("meter"))
@@ -155,7 +155,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("5.meter disable") {
+  test("10.meter disable") {
     service.eventStream { agent =>
       agent
         .facilitate("meter")(_.meter("meter", _.enable(false)))
@@ -166,7 +166,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("6.histogram") {
+  test("11.histogram") {
     service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Bytes)))
@@ -181,7 +181,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("6b.histogram update") {
+  test("12.histogram update") {
     service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram"))
@@ -196,7 +196,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("7.histogram timer") {
+  test("13.histogram timer") {
     service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Milliseconds)))
@@ -211,7 +211,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("8.histogram percent") {
+  test("14.histogram percent") {
     service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.withUnit(Percent)))
@@ -226,7 +226,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("9.histogram disable") {
+  test("15.histogram disable") {
     service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.enable(false).withUnit(Bytes)))
@@ -238,7 +238,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("10.timer") {
+  test("16.timer") {
     service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
@@ -251,7 +251,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("10b.timer elapsedNano") {
+  test("17.timer elapsedNano") {
     service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer"))
@@ -266,7 +266,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("11.timer disable") {
+  test("18.timer disable") {
     service.eventStream { agent =>
       agent
         .facilitate("timer")(_.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))))
@@ -277,7 +277,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("12.empty") {
+  test("19.empty") {
     service
       .eventStream(_.adhoc.report)
       .map(checkJson)
@@ -289,7 +289,7 @@ class MetricsTest extends CatsEffectSuite {
       }
   }
 
-  test("13.conflict name") {
+  test("20.conflict name") {
     service
       .eventStream(agent =>
         agent.facilitate("same.name") { mtx =>
@@ -311,7 +311,7 @@ class MetricsTest extends CatsEffectSuite {
       }
   }
 
-  test("13a.concurrent metric registration") {
+  test("21.concurrent metric registration") {
     service.eventStream { agent =>
       val acquire = (1 to 128).toList.parTraverse { index =>
         agent.facilitate(s"concurrent-$index")(_.counter("counter")).allocated
@@ -328,7 +328,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("13b.periodic reports stop with downstream cancellation") {
+  test("22.periodic reports stop with downstream cancellation") {
     TaskGuard[IO]("periodic-metrics")
       .service("periodic-metrics")
       .updateConfig(_.withReportPolicy(_.fixedDelay(100.millis).repeat))
@@ -344,7 +344,7 @@ class MetricsTest extends CatsEffectSuite {
       }
   }
 
-  test("14.measured.retry - give up") {
+  test("23.measured.retry - give up") {
     service.eventStream { agent =>
       agent
         .retry(_.withDecision(tv => IO(tv.followPolicy)))
@@ -354,7 +354,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("15.measured.retry - unworthy retry") {
+  test("24.measured.retry - unworthy retry") {
     service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
@@ -365,7 +365,7 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("16.meter + counter") {
+  test("25.meter + counter") {
     service.eventStream { agent =>
       val run = agent.facilitate("abc-xyz-123") { mtx =>
         for {

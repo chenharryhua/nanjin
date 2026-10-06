@@ -27,7 +27,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
   // RotateBySizeSink tests
   // ============================
 
-  test("size: record count integrity - various sizes") {
+  test("1.size: record count integrity - various sizes") {
     // The sum of recordCount across all rotated files must equal total input elements
     val cases = List(
       (7, 3L),
@@ -60,7 +60,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }.void
   }
 
-  test("size: large chunk exceeding multiple size limits") {
+  test("2.size: large chunk exceeding multiple size limits") {
     // A single chunk of 25 elements with sizeLimit=3 should produce ceil(25/3) = 9 files
     val path = root / "size-multi-split"
 
@@ -84,7 +84,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }
   }
 
-  test("size: sizeLimit = 1 gives one file per element") {
+  test("3.size: sizeLimit = 1 gives one file per element") {
     val path = root / "size-limit-one"
 
     val totalElements = 5
@@ -103,7 +103,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }
   }
 
-  test("size: empty stream produces single file with zero records") {
+  test("4.size: empty stream produces single file with zero records") {
     val path = root / "size-empty"
 
     val sink = hdp.rotateSink(sydneyTime, 10L)(t => path / s"${t.index}.circe").circe
@@ -122,7 +122,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }
   }
 
-  test("size: file URL uniqueness") {
+  test("5.size: file URL uniqueness") {
     val path = root / "size-unique-urls"
 
     val sink = hdp.rotateSink(sydneyTime, 3L)(t => path / s"${t.index}.circe").circe
@@ -144,7 +144,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
   // RotateByPolicySink tests
   // ============================
 
-  test("policy: record count integrity") {
+  test("6.policy: record count integrity") {
     val path = root / "policy-integrity"
 
     val totalElements = 100
@@ -169,7 +169,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }
   }
 
-  test("policy: empty stream produces single file with zero records") {
+  test("7.policy: empty stream produces single file with zero records") {
     val path = root / "policy-empty"
 
     val sink =
@@ -189,7 +189,7 @@ class RotationIntegrityTest extends CatsEffectSuite {
     }
   }
 
-  test("policy: file URL uniqueness") {
+  test("8.policy: file URL uniqueness") {
     val path = root / "policy-unique-urls"
 
     val sink =

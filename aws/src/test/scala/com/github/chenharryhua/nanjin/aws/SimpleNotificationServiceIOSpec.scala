@@ -17,7 +17,7 @@ class SimpleNotificationServiceIOSpec extends CatsEffectSuite {
     override def serviceName(): String = "abc"
   }
 
-  test("SimpleNotificationService: publish a message") {
+  test("1.SimpleNotificationService: publish a message") {
     val fakeClient = new FakeSnsClient()
 
     // Wrap fake client into our service
@@ -33,7 +33,7 @@ class SimpleNotificationServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleNotificationService: publish using builder syntax") {
+  test("2.SimpleNotificationService: publish using builder syntax") {
     val fakeClient = new FakeSnsClient()
 
     val service: SimpleNotificationService[IO] =

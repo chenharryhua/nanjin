@@ -164,7 +164,7 @@ class EventPipeEdgeCaseTest extends CatsEffectSuite {
 
   // --- indexFilter divisor=1 ---
 
-  test("11.EventPipe.indexFilter(1) keeps all periodic metrics") {
+  test("10.EventPipe.indexFilter(1) keeps all periodic metrics") {
     val filtered = service
       .eventStream(_ => IO.sleep(3.seconds))
       .map(checkJson)

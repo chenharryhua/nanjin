@@ -146,7 +146,7 @@ class NJBinAvroTest extends CatsEffectSuite {
       (s ++ s ++ s).through(sink.binAvro).compile.drain
   }
 
-  test("large number (10000) of files - passed but too cost to run it".ignore) {
+  test("12.large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 5000L
     val file = BinAvroFile(_.Uncompressed)

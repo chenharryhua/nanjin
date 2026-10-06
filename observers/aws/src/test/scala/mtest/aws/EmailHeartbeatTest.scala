@@ -29,7 +29,7 @@ class EmailHeartbeatTest extends CatsEffectSuite {
         IO.pure(SendRawEmailResponse.builder().messageId("fake.raw.message.id").build())
     })
 
-  test("empty tick still sends a heartbeat email") {
+  test("1.empty tick still sends a heartbeat email") {
     val program =
       Ref.of[IO, List[String]](Nil).flatMap { sent =>
         val mail =

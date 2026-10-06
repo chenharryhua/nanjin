@@ -196,7 +196,7 @@ class NJJacksonTest extends CatsEffectSuite {
     } yield assert(better.files.File(path.toString()).list(_.extension.contains(".json")).size == 2)
   }
 
-  test("large number (10000) of files - passed but too cost to run it".ignore) {
+  test("13.large number (10000) of files - passed but too cost to run it".ignore) {
     val path = fs2Root / "rotation" / "many"
     val number = 5000L
     val file = JacksonFile(_.Uncompressed)

@@ -170,7 +170,7 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
-  test("12.frequency counter - accumulates tags") {
+  test("11.frequency counter - accumulates tags") {
     service.eventStream { agent =>
       agent.facilitate("freq") { fac =>
         fac.frequencyCounter("errors").use { fc =>
@@ -191,7 +191,7 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
-  test("13.frequency counter - policy reset clears counts") {
+  test("12.frequency counter - policy reset clears counts") {
     service.eventStream { agent =>
       agent.facilitate("freq-reset") { fac =>
         fac.frequencyCounter("errors", _.withPolicy(_.fixedDelay(200.millis).repeat)).use { fc =>
@@ -208,7 +208,7 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
-  test("14.frequency counter - disabled is noop") {
+  test("13.frequency counter - disabled is noop") {
     service.eventStream { agent =>
       agent.facilitate("freq-disabled") { fac =>
         fac.frequencyCounter("errors", _.enable(false)).use { fc =>
@@ -225,7 +225,7 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
-  test("15.gauge returning Json.Null is excluded from snapshot") {
+  test("14.gauge returning Json.Null is excluded from snapshot") {
     service.eventStream { agent =>
       agent.facilitate("null-gauge") { fac =>
         for {

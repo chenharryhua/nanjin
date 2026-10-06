@@ -9,7 +9,7 @@ final case class JsonPerson(name: String, age: Int)
 final case class AvroPerson(name: String, age: Int)
 
 class BiTransformTest extends FunSuite {
-  test("integer option conversion preserves values and nulls") {
+  test("1.integer option conversion preserves values and nulls") {
     val bi = summon[BiTransform[java.lang.Integer, Option[Int]]]
 
     assert(bi.to(Integer.valueOf(42)) == Some(42))
@@ -17,7 +17,7 @@ class BiTransformTest extends FunSuite {
     assert(bi.from(None) == null)
   }
 
-  test("generic record transform round-trips to and from a case class") {
+  test("2.generic record transform round-trips to and from a case class") {
     val bi = summon[BiTransform[GenericRecord, AvroPerson]]
     val person = AvroPerson("bob", 40)
 
@@ -28,7 +28,7 @@ class BiTransformTest extends FunSuite {
     assert(bi.to(record).age == person.age)
   }
 
-  test("JSON node transform round-trips to and from a case class") {
+  test("3.JSON node transform round-trips to and from a case class") {
     given mapper: objectMapper.type = objectMapper
     val bi = summon[BiTransform[JsonNode, JsonPerson]]
     val person = JsonPerson("bob", 40)

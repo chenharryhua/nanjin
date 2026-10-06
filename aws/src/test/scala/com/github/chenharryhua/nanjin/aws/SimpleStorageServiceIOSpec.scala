@@ -110,7 +110,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
     }
 
-  test("SimpleStorageService: head object using request") {
+  test("1.SimpleStorageService: head object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -122,7 +122,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: head object using builder syntax") {
+  test("2.SimpleStorageService: head object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -135,7 +135,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("SimpleStorageService: rename object using request") {
+  test("3.SimpleStorageService: rename object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -148,7 +148,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: copy object using request") {
+  test("4.SimpleStorageService: copy object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -167,7 +167,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: copy object using builder syntax") {
+  test("5.SimpleStorageService: copy object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -185,7 +185,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("SimpleStorageService: delete object using request and builder syntax") {
+  test("6.SimpleStorageService: delete object using request and builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -202,7 +202,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("SimpleStorageService: rename object using builder syntax") {
+  test("7.SimpleStorageService: rename object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -215,7 +215,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("SimpleStorageService: presign get object using request") {
+  test("8.SimpleStorageService: presign get object using request") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -232,7 +232,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: presign get object using builder syntax") {
+  test("9.SimpleStorageService: presign get object using builder syntax") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -246,7 +246,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
       }
   }
 
-  test("SimpleStorageService: presign get object using an S3 URL") {
+  test("10.SimpleStorageService: presign get object using an S3 URL") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -259,7 +259,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: accept a URI with a host and path when presigning by URL") {
+  test("11.SimpleStorageService: accept a URI with a host and path when presigning by URL") {
     val client = new FakeS3Client
     val service = mkService(client)
 
@@ -269,7 +269,7 @@ class SimpleStorageServiceIOSpec extends CatsEffectSuite {
     }
   }
 
-  test("SimpleStorageService: delegate URI validation to S3") {
+  test("12.SimpleStorageService: delegate URI validation to S3") {
     val client = new FakeS3Client
     val service = mkService(client)
 

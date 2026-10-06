@@ -108,7 +108,7 @@ class DataTypesTest extends FunSuite {
 
   // --- GroupId ---
 
-  test("17.GroupId - JSON round-trip") {
+  test("16.GroupId - JSON round-trip") {
     val gid = GroupId("consumer-group-1")
     val decoded = decode[GroupId](gid.asJson.noSpaces)
     assert(decoded == Right(gid))
@@ -117,11 +117,11 @@ class DataTypesTest extends FunSuite {
 
   // --- Partition ---
 
-  test("19.Partition - subtraction") {
+  test("17.Partition - subtraction") {
     assert(Partition(5) - Partition(2) == 3)
   }
 
-  test("20.Partition - JSON round-trip") {
+  test("18.Partition - JSON round-trip") {
     val p = Partition(7)
     val decoded = decode[Partition](p.asJson.noSpaces)
     assert(decoded == Right(p))

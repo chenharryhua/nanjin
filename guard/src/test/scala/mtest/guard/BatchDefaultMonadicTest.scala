@@ -16,7 +16,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch-default")
 
-  test("monadic: smoke") {
+  test("1.monadic: smoke") {
     service.eventStream { agent =>
       agent
         .batch("light")
@@ -43,7 +43,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: completed jobs are ordered by index") {
+  test("2.monadic: completed jobs are ordered by index") {
     service.eventStream { agent =>
       agent
         .batch("light-ordered")
@@ -66,7 +66,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: timing is preserved in the batch report") {
+  test("3.monadic: timing is preserved in the batch report") {
     service.eventStream { agent =>
       agent
         .batch("light-timing")
@@ -88,7 +88,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: spent counts invisible lift steps between jobs") {
+  test("4.monadic: spent counts invisible lift steps between jobs") {
     // Regression: the old spent summed per-job took, which dropped the wall-clock
     // consumed by invisible lift/pure steps. spent is now the full span, so a 200ms
     // lifted sleep sandwiched between two fast jobs must show up in spent.
@@ -115,7 +115,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: sum of per-job took telescopes to the span through the last job, within spent") {
+  test("5.monadic: sum of per-job took telescopes to the span through the last job, within spent") {
     // monadicHistory rewrites each job's start to the previous job's end, so the per-job
     // took values are contiguous and telescope to the span from the first job's start to
     // the last job's end. spent is measured against a fresh clock reading taken after the
@@ -123,7 +123,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     // sumTook is therefore <= spent, with only a tiny remainder.
     //
     // Alignment guard: Batch and BatchMetered share the same timing model. This relationship
-    // must hold identically here and in BatchTest "25.monadic sum of per-job took within
+    // must hold identically here and in BatchTest "23.monadic sum of per-job took within
     // spent". If one changes, both must — do not let the two variants drift apart.
     service.eventStream { agent =>
       agent
@@ -150,7 +150,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: a later job's took absorbs the preceding invisible gap") {
+  test("6.monadic: a later job's took absorbs the preceding invisible gap") {
     // The gap left by an invisible step lands in the following visible job's took.
     // Here b runs ~20ms but is preceded by a 150ms invisible sleep, so b's took
     // must reflect the gap, not just b's own execution time.
@@ -176,7 +176,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: single-job monadic batch spent covers that job's took, within a tiny remainder") {
+  test("7.monadic: single-job monadic batch spent covers that job's took, within a tiny remainder") {
     // Edge of monadicHistory: with one visible job there is nothing to redistribute, so the
     // single job's took is the whole through-last-job span. spent adds only the trailing
     // framing captured by the fresh post-chain reading, so took <= spent by a tiny margin.
@@ -199,7 +199,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: exception") {
+  test("8.monadic: exception") {
     var aExecuted = false
     var bExecuted = false
     var cExecuted = false
@@ -227,7 +227,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: withFilter rejects and stops the chain") {
+  test("9.monadic: withFilter rejects and stops the chain") {
     var aExecuted = false
     var bExecuted = false
     var cExecuted = false
@@ -259,7 +259,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: supports applicative-style composition") {
+  test("10.monadic: supports applicative-style composition") {
     service.eventStream { agent =>
       agent
         .batch("light-applicative")
@@ -279,7 +279,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: identity law preserves the job result") {
+  test("11.monadic: identity law preserves the job result") {
     service.eventStream { agent =>
       val left = agent
         .batch("light-applicative-identity")
@@ -310,7 +310,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: withFilter on a pure value should fail without crashing (light-1)") {
+  test("12.monadic: withFilter on a pure value should fail without crashing (light-1)") {
     service.eventStream { agent =>
       agent
         .batch("light-filter-pure")
@@ -328,7 +328,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: withFilter should fail when predicate is not satisfied") {
+  test("13.monadic: withFilter should fail when predicate is not satisfied") {
     service.eventStream { agent =>
       agent
         .batch("light-filter")
@@ -351,7 +351,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: withFilter on a pure value should fail without crashing (light-2)") {
+  test("14.monadic: withFilter on a pure value should fail without crashing (light-2)") {
     service.eventStream { agent =>
       agent
         .batch("light-filter-pure")
@@ -369,7 +369,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: successful effects mark jobs succeeded") {
+  test("15.monadic: successful effects mark jobs succeeded") {
     service.eventStream { agent =>
       agent
         .batch("light-tuple")
@@ -395,7 +395,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("sequential: quasiBatch should support rename and predicate") {
+  test("16.sequential: quasiBatch should support rename and predicate") {
     service.eventStream { agent =>
       agent
         .batch("light-sequential")
@@ -417,7 +417,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("sequential: completed jobs are ordered by index") {
+  test("17.sequential: completed jobs are ordered by index") {
     service.eventStream { agent =>
       agent
         .batch("light-sequential-ordered")
@@ -433,7 +433,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("sequential: valueBatch should fail when predicate is not satisfied") {
+  test("18.sequential: valueBatch should fail when predicate is not satisfied") {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
@@ -451,7 +451,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("sequential: valueBatch should return all values on success") {
+  test("19.sequential: valueBatch should return all values on success") {
     service.eventStream { agent =>
       agent
         .batch("light-sequential-value-ok")
@@ -471,7 +471,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: parallel(0) should fail fast") {
+  test("20.parallel: parallel(0) should fail fast") {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
@@ -488,7 +488,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: parallel(fas*) should fail fast when empty") {
+  test("21.parallel: parallel(fas*) should fail fast when empty") {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
@@ -505,7 +505,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: parallel(fas*) should create parallel mode using input size") {
+  test("22.parallel: parallel(fas*) should create parallel mode using input size") {
     service.eventStream { agent =>
       agent
         .batch("light-parallel-default")
@@ -527,7 +527,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: parallel(parallelism)(fas*) should use explicit parallelism") {
+  test("23.parallel: parallel(parallelism)(fas*) should use explicit parallelism") {
     service.eventStream { agent =>
       agent
         .batch("light-parallel-explicit")
@@ -546,7 +546,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: completed jobs are ordered by index") {
+  test("24.parallel: completed jobs are ordered by index") {
     service.eventStream { agent =>
       agent
         .batch("light-parallel-ordered")
@@ -562,7 +562,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: valueBatch should fail when predicate is not satisfied") {
+  test("25.parallel: valueBatch should fail when predicate is not satisfied") {
     service.eventStreamR { agent =>
       Resource.eval(
         agent
@@ -580,7 +580,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("parallel: failed action cancels sibling jobs") {
+  test("26.parallel: failed action cancels sibling jobs") {
     var aCompleted = false
     var cCompleted = false
 
@@ -606,7 +606,7 @@ class BatchDefaultMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("monadic: attempt surfaces a failure and continues") {
+  test("27.monadic: attempt surfaces a failure and continues") {
     val errorMessage = "handled-light"
 
     service.eventStreamR { agent =>

@@ -64,7 +64,7 @@ class StructuredGenericRecordSpec extends FunSuite {
   val structured: Unregistered[GenericRecord] = summon[Structured[GenericRecord]]
   val serde: Serde[GenericRecord] = ctx.asKey(structured).serde
 
-  test("round-trip GenericRecord") {
+  test("1.round-trip GenericRecord") {
     val bytes = serde.serializer.serialize("topic", record(1, "a"))
     val out = serde.deserializer.deserialize("topic", bytes)
 
@@ -72,7 +72,7 @@ class StructuredGenericRecordSpec extends FunSuite {
     assertEquals(out.get("name").toString, "a")
   }
 
-  test("support headers") {
+  test("2.support headers") {
     val headers = new RecordHeaders().add("k", "v".getBytes)
 
     val bytes = serde.serializer.serialize("topic", headers, record(2, "b"))
@@ -81,12 +81,12 @@ class StructuredGenericRecordSpec extends FunSuite {
     assertEquals(out.get("id").asInstanceOf[Int], 2)
   }
 
-  test("handle null") {
+  test("3.handle null") {
     val bytes = serde.serializer.serialize("topic", null)
     assertEquals(serde.deserializer.deserialize("topic", bytes), null)
   }
 
-  test("fail on corrupted input") {
+  test("4.fail on corrupted input") {
     intercept[Exception] {
       serde.deserializer.deserialize("topic", Array(1, 2, 3))
     }

@@ -110,7 +110,7 @@ class LifecycleTest extends CatsEffectSuite {
 
   // ---- the plain log writers ------------------------------------------------------------------------
 
-  test("7.logKickoff renders under the kickoff key at Info; logCanceled under canceled at Warn") {
+  test("4.logKickoff renders under the kickoff key at Info; logCanceled under canceled at Warn") {
     run { (log, _) =>
       lifecycle.logKickoff[IO](log, job(None)) *> lifecycle.logCanceled[IO](log, job(None))
     }.map { case (_, logs, _) =>

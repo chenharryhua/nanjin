@@ -12,7 +12,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("sequential")
 
-  test("quasi: good job") {
+  test("1.quasi: good job") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
       agent.batchMetered("good job").sequential(jobs*).quasiBatch
@@ -21,7 +21,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     }
   }
 
-  test("quasi: exception") {
+  test("2.quasi: exception") {
     val jobs =
       List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
@@ -41,7 +41,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     }
   }
 
-  test("quasi: predicate") {
+  test("3.quasi: predicate") {
     val jobs =
       List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
@@ -59,7 +59,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     }
   }
 
-  test("value: good job") {
+  test("4.value: good job") {
     val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
       agent
@@ -77,7 +77,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     }
   }
 
-  test("value: exception") {
+  test("5.value: exception") {
     val jobs =
       List("a" -> IO(1), "b" -> IO.raiseError(new Exception("abc")), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>
@@ -97,7 +97,7 @@ class BatchSequentialSpec extends CatsEffectSuite {
     }
   }
 
-  test("value: predicate") {
+  test("6.value: predicate") {
     val jobs =
       List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
     service.eventStreamR { agent =>

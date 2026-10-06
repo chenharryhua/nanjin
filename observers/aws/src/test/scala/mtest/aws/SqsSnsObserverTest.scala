@@ -34,7 +34,7 @@ class SqsSnsObserverTest extends CatsEffectSuite {
         IO.pure(ChangeMessageVisibilityResponse.builder().build())
     })
 
-  test("SqsObserver sends a message per translated event") {
+  test("1.SqsObserver sends a message per translated event") {
     Ref.of[IO, List[String]](Nil).flatMap { sent =>
       val sqs = SqsObserver(recording_sqs(sent))
       service
@@ -50,7 +50,7 @@ class SqsSnsObserverTest extends CatsEffectSuite {
     }
   }
 
-  test("SqsObserver with skipAll translator sends nothing") {
+  test("2.SqsObserver with skipAll translator sends nothing") {
     Ref.of[IO, List[String]](Nil).flatMap { sent =>
       val sqs = SqsObserver(recording_sqs(sent)).withTranslator(_.skipAll)
       service
@@ -71,7 +71,7 @@ class SqsSnsObserverTest extends CatsEffectSuite {
           IO.pure(PublishResponse.builder().messageId("fake").build())
     })
 
-  test("SnsObserver publishes a message per translated event") {
+  test("3.SnsObserver publishes a message per translated event") {
     Ref.of[IO, List[String]](Nil).flatMap { sent =>
       val sns = SnsObserver(recording_sns(sent))
       service
@@ -87,7 +87,7 @@ class SqsSnsObserverTest extends CatsEffectSuite {
     }
   }
 
-  test("SnsObserver with skipAll translator publishes nothing") {
+  test("4.SnsObserver with skipAll translator publishes nothing") {
     Ref.of[IO, List[String]](Nil).flatMap { sent =>
       val sns = SnsObserver(recording_sns(sent)).withTranslator(_.skipAll)
       service

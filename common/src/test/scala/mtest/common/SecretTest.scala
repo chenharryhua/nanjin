@@ -29,13 +29,13 @@ class SecretTest extends FunSuite {
     assert(Secret(secret).hashCode == Secret(secret).hashCode)
   }
 
-  test("6.json encoder masks the value") {
+  test("5.json encoder masks the value") {
     val json = Secret(secret).asJson
     assert(json == io.circe.Json.fromString("***"))
     assert(!json.noSpaces.contains(secret))
   }
 
-  test("7.enclosing type derives a codec that masks the secret field") {
+  test("6.enclosing type derives a codec that masks the secret field") {
     final case class DbConfig(user: String, password: Secret) derives Encoder.AsObject
 
     val json = DbConfig("alice", Secret(secret)).asJson

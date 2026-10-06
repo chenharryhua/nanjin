@@ -15,7 +15,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
 
   private val root: Url = Url.parse("./data/test/terminals/rotate-boundary")
 
-  test("size rotation - exact boundary does not create extra file") {
+  test("1.size rotation - exact boundary does not create extra file") {
     // sizeLimit = 5, emit exactly 5 elements => should produce 1 file, not 2
     val path = root / "exact-boundary"
 
@@ -37,7 +37,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - one over boundary creates 2 files") {
+  test("2.size rotation - one over boundary creates 2 files") {
     // sizeLimit = 5, emit 6 elements => should produce 2 files
     val path = root / "one-over"
 
@@ -59,7 +59,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - exact multiple of boundary creates correct files") {
+  test("3.size rotation - exact multiple of boundary creates correct files") {
     // sizeLimit = 3, emit 9 elements => should produce 3 files of 3 each
     val path = root / "exact-multiple"
 
@@ -80,7 +80,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - single element under limit produces 1 file") {
+  test("4.size rotation - single element under limit produces 1 file") {
     val path = root / "single"
 
     val sizeLimit = 10L
@@ -100,7 +100,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - chunk crossing boundary (chunkN=3, sizeLimit=5)") {
+  test("5.size rotation - chunk crossing boundary (chunkN=3, sizeLimit=5)") {
     // With chunkN(3) and sizeLimit=5, a split must happen within a chunk
     val path = root / "chunk-cross"
 
@@ -128,7 +128,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - chunk larger than sizeLimit (chunkN=10, sizeLimit=3)") {
+  test("6.size rotation - chunk larger than sizeLimit (chunkN=10, sizeLimit=3)") {
     // A single chunk of 10 items with sizeLimit=3 forces multiple intra-chunk splits
     val path = root / "chunk-larger"
 
@@ -155,7 +155,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - chunk boundary with text format (chunkN=7, sizeLimit=4)") {
+  test("7.size rotation - chunk boundary with text format (chunkN=7, sizeLimit=4)") {
     val path = root / "chunk-text"
 
     val sizeLimit = 4L
@@ -180,7 +180,7 @@ class RotateBySizeBoundaryTest extends CatsEffectSuite {
     }
   }
 
-  test("size rotation - chunk boundary with binAvro format (chunkN=5, sizeLimit=3)") {
+  test("8.size rotation - chunk boundary with binAvro format (chunkN=5, sizeLimit=3)") {
     import mtest.terminals.HadoopTestData.*
     val path = root / "chunk-binavro"
 
