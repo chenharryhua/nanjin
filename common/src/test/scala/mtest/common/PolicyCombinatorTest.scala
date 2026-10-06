@@ -179,7 +179,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
   }
 
-  test("9.1.decode error on ambiguous policy payload") {
+  test("9.decode error on ambiguous policy payload") {
     val conflict = """
       {
         "empty": true,
@@ -189,7 +189,7 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[Policy](conflict).toOption.isEmpty)
   }
 
-  test("10.2.decode error when no top-level policy variant exists") {
+  test("10.decode error when no top-level policy variant exists") {
     val noVariant = """
       {
         "policy": {
@@ -200,11 +200,11 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     assert(decode[Policy](noVariant).toOption.isEmpty)
   }
 
-  test("11.3.decode error when empty policy payload is not strict true") {
+  test("11.decode error when empty policy payload is not strict true") {
     assert(decode[Policy]("""{ "empty": false }""").toOption.isEmpty)
   }
 
-  test("12.4.decode rejects the removed expire policy variant") {
+  test("12.decode rejects the removed expire policy variant") {
     val legacy = """
       {
         "expire": "PT5S",
