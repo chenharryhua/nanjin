@@ -39,7 +39,7 @@ class AwsArnTest extends FunSuite {
     println(address.show)
   }
 
-  test("7.email content") {
+  test("6.email content") {
     summon[Encoder[EmailContent]]
     summon[Decoder[EmailContent]]
   }
