@@ -39,7 +39,7 @@ val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
 val parquetV = "1.18.1"
 val postgresV = "42.7.13"
-val scalapbV = "0.11.20"
+val scalapbV = "0.11.21"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.20"
 
