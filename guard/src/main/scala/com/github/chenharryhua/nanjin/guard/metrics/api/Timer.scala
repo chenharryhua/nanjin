@@ -20,7 +20,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricScope,
   MetricToken
 }
-import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
+import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, Meter as OtelMeter}
 import squants.time.Nanoseconds
 
 import java.time.Duration as JavaDuration
@@ -123,15 +123,14 @@ object Timer {
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
+      meter: OtelMeter[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
       def timer: Resource[F, Timer[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            ContT.pure(m.histogram[Double](name).withUnit(timeunit.symbol))
+          otel <- Resource.eval(
+            ContT.pure(meter.histogram[Double](name).withUnit(timeunit.symbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
-              .run(_.create)
-          })
+              .run(_.create))
           t <- Resource.make(
             MetricToken(name).map(Impl[F](scope, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
         } yield t
@@ -144,7 +143,7 @@ object Timer {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meterProvider: MeterProvider[F],
+    meter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =
     f(
       new Builder(
@@ -153,5 +152,5 @@ object Timer {
         description = None,
         boundaries = None,
         timeunit = squants.Seconds))
-      .build[F](scope, name, mr, meterProvider)
+      .build[F](scope, name, mr, meter)
 }

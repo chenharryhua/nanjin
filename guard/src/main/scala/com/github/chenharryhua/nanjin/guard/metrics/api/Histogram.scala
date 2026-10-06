@@ -21,7 +21,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken,
   Squants
 }
-import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
+import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, Meter as OtelMeter}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
@@ -98,15 +98,14 @@ object Histogram {
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
+      meter: OtelMeter[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
+          otel <- Resource.eval(
+            ContT.pure(meter.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
-              .run(_.create)
-          })
+              .run(_.create))
           h <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
               scope = scope,
@@ -126,7 +125,7 @@ object Histogram {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meterProvider: MeterProvider[F],
+    meter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
     f(
       new Builder(
@@ -135,5 +134,5 @@ object Histogram {
         reservoir = None,
         description = None,
         boundaries = None))
-      .build[F](scope, name, mr, meterProvider)
+      .build[F](scope, name, mr, meter)
 }

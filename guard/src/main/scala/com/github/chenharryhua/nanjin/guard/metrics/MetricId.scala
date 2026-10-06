@@ -75,6 +75,7 @@ final case class MetricScope(label: MetricScope.Label, domain: Domain, service: 
     derives Codec.AsObject {
   val attributes: List[Attribute[String]] =
     List(
+      Attribute("nj.label", label.value),
       Attribute("nj.domain", domain.value),
       Attribute("nj.service", service.value),
       Attribute("nj.task", task.value)

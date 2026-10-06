@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken,
   Squants
 }
-import org.typelevel.otel4s.metrics.{Counter as OtelCounter, MeterProvider}
+import org.typelevel.otel4s.metrics.{Counter as OtelCounter, Meter as OtelMeter}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful event-rate meter. */
@@ -76,13 +76,13 @@ object Meter {
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
+      otelMeter: OtelMeter[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
       def meter: Resource[F, Meter[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
+          otel <- Resource.eval {
+            val builder = otelMeter.counter[Long](name).withUnit(squants.unitSymbol)
             description.fold(builder)(builder.withDescription).create
-          })
+          }
           m <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
               scope = scope,
@@ -101,8 +101,8 @@ object Meter {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meterProvider: MeterProvider[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Meter[F]] =
     f(new Builder(isEnabled = true, squants = Squants(Each), description = None))
-      .build[F](scope, name, mr, meterProvider)
+      .build[F](scope, name, mr, otelMeter)
 }

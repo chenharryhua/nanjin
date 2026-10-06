@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken
 }
 import org.typelevel.otel4s.Attribute
-import org.typelevel.otel4s.metrics.{MeterProvider, UpDownCounter}
+import org.typelevel.otel4s.metrics.{Meter as OtelMeter, UpDownCounter}
 import squants.Each
 
 import java.time.ZoneId
@@ -110,13 +110,13 @@ object Counter {
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId,
-      meterProvider: MeterProvider[F]): Resource[F, Counter[F]] = {
+      meter: OtelMeter[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
-          upDown <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            val builder = m.upDownCounter[Long](name).withUnit(Each.symbol)
+          upDown <- Resource.eval {
+            val builder = meter.upDownCounter[Long](name).withUnit(Each.symbol)
             description.fold(builder)(builder.withDescription).create
-          })
+          }
           counter <- Resource.make(
             MetricToken(name)
               .map { metricName =>
@@ -139,8 +139,8 @@ object Counter {
     scope: MetricScope,
     name: String,
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F],
+    meter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Counter[F]] =
     f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = None))
-      .build[F](scope, name, mr, zoneId, meterProvider)
+      .build[F](scope, name, mr, zoneId, meter)
 }

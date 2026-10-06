@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   Ratio
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
-import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.metrics.Meter as OtelMeter
 
 import java.time.ZoneId
 
@@ -128,28 +128,28 @@ object MetricsHub {
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F]): MetricsHub[F] =
-    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meterProvider)
+    meter: OtelMeter[F]): MetricsHub[F] =
+    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meter)
 
   private class Impl[F[_]: Async](
     val scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F])
+    meter: OtelMeter[F])
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, scope, name, zoneId, meterProvider, f)
+      Counter[F](metricRegistry, scope, name, zoneId, meter, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, scope, name, meterProvider, f)
+      Meter[F](metricRegistry, scope, name, meter, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, scope, name, meterProvider, f)
+      Histogram[F](metricRegistry, scope, name, meter, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, scope, name, meterProvider, f)
+      Timer[F](metricRegistry, scope, name, meter, f)
 
     // gauges
 
@@ -159,7 +159,7 @@ object MetricsHub {
       Gauge[F](gaugeParams, name, f)
 
     override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
-      NumericGauge[F](metricRegistry, scope, name, dispatcher, meterProvider, fa, f)
+      NumericGauge[F](metricRegistry, scope, name, dispatcher, meter, fa, f)
 
     override def healthCheck(
       name: String,

@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   Squants
 }
 import io.circe.Json
-import org.typelevel.otel4s.metrics.{MeterProvider, ObservableGauge}
+import org.typelevel.otel4s.metrics.{Meter as OtelMeter, ObservableGauge}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -67,7 +67,7 @@ object NumericGauge {
       scope: MetricScope,
       name: String,
       dispatcher: Dispatcher[F],
-      meterProvider: MeterProvider[F],
+      meter: OtelMeter[F],
       fa: F[Long])(using F: Async[F]): Resource[F, Unit] = {
 
       // The Dropwizard side stores the value as a JSON number so it flows through the existing snapshot
@@ -90,13 +90,11 @@ object NumericGauge {
       // MeterProvider is MeterProvider.noop this whole resource is a no-op. The optional description is
       // threaded with ContT, mirroring Timer's instrument construction.
       def observable(id: MetricId): Resource[F, Unit] =
-        Resource.eval(meterProvider.get(scope.label.value)).flatMap { m =>
-          ContT
-            .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
-              m.observableGauge[Long](name).withUnit(squants.unitSymbol))
-            .map(b => description.fold(b)(b.withDescription))
-            .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
-        }
+        ContT
+          .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
+            meter.observableGauge[Long](name).withUnit(squants.unitSymbol))
+          .map(b => description.fold(b)(b.withDescription))
+          .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
 
       def impl: Resource[F, Unit] =
         for {
@@ -115,9 +113,9 @@ object NumericGauge {
     scope: MetricScope,
     name: String,
     dispatcher: Dispatcher[F],
-    meterProvider: MeterProvider[F],
+    meter: OtelMeter[F],
     fa: F[Long],
     f: Endo[Builder]): Resource[F, Unit] =
     f(new Builder(isEnabled = true, timeout = 5.seconds, squants = Squants(Each), description = None))
-      .build[F](metricRegistry, scope, name, dispatcher, meterProvider, fa)
+      .build[F](metricRegistry, scope, name, dispatcher, meter, fa)
 }
