@@ -102,7 +102,7 @@ object NumericGauge {
       // threaded with ContT, mirroring Timer's instrument construction.
       def observable(id: MetricId): Resource[F, Unit] =
         ContT
-          .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
+          .pure[Resource[F, *], Unit, ObservableGauge.Builder[F, Long]](
             otelMeter.observableGauge[Long](name).withUnit(squants.unitSymbol))
           .map(b => description.fold(b)(b.withDescription))
           .run(_.createWithCallback(cb =>
