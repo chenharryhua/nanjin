@@ -73,13 +73,15 @@ end MetricToken
 
 final case class MetricScope(label: MetricScope.Label, domain: Domain, service: Service, task: Task)
     derives Codec.AsObject {
-  val attributes: List[Attribute[String]] =
+  val identityAttributes: List[Attribute[String]] =
     List(
-      Attribute("nj.label", label.value),
       Attribute("nj.domain", domain.value),
       Attribute("nj.service", service.value),
       Attribute("nj.task", task.value)
     )
+
+  val attributes: List[Attribute[String]] =
+    Attribute("nj.label", label.value) :: identityAttributes
 
   /** The framework `nj.*` attributes together with caller-supplied `userAttributes`, used as the otel point
     * attributes. On a key conflict the user attribute wins, including over the framework identity dimensions
