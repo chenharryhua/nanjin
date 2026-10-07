@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.api.gauges.{
   Ratio
 }
 import com.github.chenharryhua.nanjin.guard.metrics.api.{Counter, Histogram, Meter, Timer}
-import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.metrics.Meter as OtelMeter
 
 import java.time.ZoneId
 
@@ -74,6 +74,25 @@ import java.time.ZoneId
   * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/ratio/idle/active/frequency) is
   * Dropwizard-only: an arbitrary encoded value cannot satisfy otel4s's numeric `MeasurementValue`. Use
   * `numericGauge` when the value is a `Long` and should also reach OpenTelemetry.
+  *
+  * ===Point attributes===
+  * Every otel point is stamped with the framework dimensions `nj.label`, `nj.domain`, `nj.service` and
+  * `nj.task`, derived from the instrument's `MetricScope`. The otel-exporting instruments (counter, meter,
+  * histogram, timer, numericGauge) additionally accept caller-supplied string attributes via
+  * `withAttributes(attributes: (String, String)*)` on their builder:
+  *
+  * {{ agent.metricsHub("requests").counter("total", _.withAttributes("endpoint" -> "/orders")) }}
+  *
+  * These attributes are '''static''': fixed when the instrument is built and applied to every measurement,
+  * which departs from OpenTelemetry's own model where attributes are supplied per record. For a dimension
+  * that varies per event, create a separate instrument rather than threading the value through here. Keep
+  * them low-cardinality (known at construction), since each distinct attribute set is a separate otel series.
+  * On a key conflict the user attribute '''wins''' — a caller may deliberately override an `nj.*` dimension —
+  * and the first value wins over a later duplicate key. Attributes affect only the OpenTelemetry export, not
+  * the Dropwizard snapshot. Repeated `withAttributes` calls accumulate.
+  *
+  * The non-numeric gauges (`gauge`/`healthCheck`/`ratio`/`idle`/`active`/`frequency`) expose no
+  * `withAttributes`: they do not reach OpenTelemetry (see above), so point attributes would have no effect.
   */
 sealed trait MetricsHub[F[_]] {
 
@@ -128,28 +147,28 @@ object MetricsHub {
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F]): MetricsHub[F] =
-    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meterProvider)
+    otelMeter: OtelMeter[F]): MetricsHub[F] =
+    new Impl[F](scope, metricRegistry, dispatcher, zoneId, otelMeter)
 
   private class Impl[F[_]: Async](
     val scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F])
+    otelMeter: OtelMeter[F])
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, scope, name, zoneId, meterProvider, f)
+      Counter[F](metricRegistry, scope, name, zoneId, otelMeter, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, scope, name, meterProvider, f)
+      Meter[F](metricRegistry, scope, name, otelMeter, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, scope, name, meterProvider, f)
+      Histogram[F](metricRegistry, scope, name, otelMeter, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, scope, name, meterProvider, f)
+      Timer[F](metricRegistry, scope, name, otelMeter, f)
 
     // gauges
 
@@ -159,7 +178,7 @@ object MetricsHub {
       Gauge[F](gaugeParams, name, f)
 
     override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
-      NumericGauge[F](metricRegistry, scope, name, dispatcher, meterProvider, fa, f)
+      NumericGauge[F](metricRegistry, scope, name, dispatcher, otelMeter, fa, f)
 
     override def healthCheck(
       name: String,

@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
   panicText,
-  Attribute,
   IndentSpace,
+  Labelled,
   SnapshotPolyglot,
   Translator
 }
@@ -45,11 +45,11 @@ private object TeamsTranslator {
 
   private def service_info(evt: Event): FactSet = {
     val si = evt.serviceIdentity
-    val service = Attribute(si.service).textEntry
-    val host = Attribute(si.host).textEntry
-    val sid = Attribute(si.serviceId).textEntry
-    val ts = Attribute(evt.timestamp).textEntry
-    val uptime = Attribute(evt.upTime).textEntry
+    val service = Labelled(si.service).textEntry
+    val host = Labelled(si.host).textEntry
+    val sid = Labelled(si.serviceId).textEntry
+    val ts = Labelled(evt.timestamp).textEntry
+    val uptime = Labelled(evt.upTime).textEntry
     FactSet(
       List(
         Fact(ts.tag, ts.text),
@@ -67,15 +67,15 @@ private object TeamsTranslator {
     * `None`); Teams omits a Fact with an empty value, so the link simply does not appear.
     */
   private def logLink(evt: Event): String =
-    Attribute(evt.logLink)
+    Labelled(evt.logLink)
       .fold { (tag, olink) =>
         olink.map(link => s"[$tag](${link.value})")
       }.getOrElse("")
 
   private def service_start(evt: ServiceStart): AdaptiveCard = {
-    val snz = Attribute(Snooze(evt.tick.snooze)).textEntry
-    val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val brief = Attribute(evt.brief).typeName
+    val snz = Labelled(Snooze(evt.tick.snooze)).textEntry
+    val idx = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val brief = Labelled(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -93,10 +93,10 @@ private object TeamsTranslator {
   }
 
   private def service_panic(evt: ServicePanic): AdaptiveCard = {
-    val active = Attribute(Active(evt.tick.active)).textEntry
-    val idx = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val stackTrace = Attribute(evt.stackTrace).typeName
-    val brief = Attribute(evt.brief).typeName
+    val active = Labelled(Active(evt.tick.active)).textEntry
+    val idx = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val stackTrace = Labelled(evt.stackTrace).typeName
+    val brief = Labelled(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -117,8 +117,8 @@ private object TeamsTranslator {
   }
 
   private def service_stop(evt: ServiceStop): AdaptiveCard = {
-    val cause = Attribute(evt.cause).textEntry
-    val brief = Attribute(evt.brief).typeName
+    val cause = Labelled(evt.cause).textEntry
+    val brief = Labelled(evt.brief).typeName
 
     AdaptiveCard(
       body = List(
@@ -133,8 +133,8 @@ private object TeamsTranslator {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): AdaptiveCard = {
-    val idx = Attribute(evt.index).textEntry
-    val snapshot = Attribute(evt.snapshot).typeName
+    val idx = Labelled(evt.index).textEntry
+    val snapshot = Labelled(evt.snapshot).typeName
     val yaml = new SnapshotPolyglot(evt.snapshot, IndentSpace.Nbsp).toYaml
 
     AdaptiveCard(
@@ -152,11 +152,11 @@ private object TeamsTranslator {
   }
 
   private def reported_event(evt: ReportedEvent): AdaptiveCard = {
-    val domain = Attribute(evt.domain).textEntry
-    val correlation = Attribute(evt.correlation).textEntry
-    val message = Attribute(evt.logRecord.message).typeName
+    val domain = Labelled(evt.domain).textEntry
+    val correlation = Labelled(evt.correlation).textEntry
+    val message = Labelled(evt.logRecord.message).typeName
     val stackTrace = evt.logRecord.stackTrace.map { st =>
-      val attr = Attribute(st).typeName
+      val attr = Labelled(st).typeName
       List(BolderTextBlock(attr), StackTraceBlock(st))
     }.sequence.flatten
 

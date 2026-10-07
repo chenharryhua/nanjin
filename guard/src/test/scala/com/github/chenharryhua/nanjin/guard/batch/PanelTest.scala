@@ -57,11 +57,13 @@ class PanelTest extends CatsEffectSuite {
     Dispatcher
       .parallel[IO]
       .use { dispatcher =>
-        val registry = new MetricRegistry
-        val hub = MetricsHub[IO](scope, registry, dispatcher, ZoneId.systemDefault(), MeterProvider.noop[IO])
-        val readGauges: () => List[Json] =
-          () => registry.getGauges.asScala.values.toList.map(_.asInstanceOf[CodahaleGauge[Json]].getValue)
-        f(hub, readGauges)
+        MeterProvider.noop[IO].get("test").flatMap { meter =>
+          val registry = new MetricRegistry
+          val hub = MetricsHub[IO](scope, registry, dispatcher, ZoneId.systemDefault(), meter)
+          val readGauges: () => List[Json] =
+            () => registry.getGauges.asScala.values.toList.map(_.asInstanceOf[CodahaleGauge[Json]].getValue)
+          f(hub, readGauges)
+        }
       }
 
   // ---- BatchPanel.apply: completion ratio ----------------------------------------------------------

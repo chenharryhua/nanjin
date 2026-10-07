@@ -50,25 +50,25 @@ class HttpTest extends CatsEffectSuite {
     server
       .surround(
         client.use(c =>
-          c.expect[String]("http://127.0.0.1:8080/timeout/one").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://127.0.0.1:8080/timeout/two").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://127.0.0.1:8080/timeout/three").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://127.0.0.1:8080/timeout/four").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://127.0.0.1:8080/timeout/five").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://127.0.0.1:8080/timeout/six").attempt.flatMap(IO.println)))
+          c.expect[String]("http://127.0.0.1:8080/timeout/one").attempt >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/two").attempt >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/three").attempt >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/four").attempt >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/five").attempt >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/six").attempt))
   }
 
   test("2.failure") {
     val client = ember.map(httpRetry(sydneyTime, _.fixedRate(1.seconds).repeat.limited(3)))
     val run =
-      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure")))
     interceptIO[Exception](run)
   }
 
   test("3.give up") {
     val client = ember.map(httpRetry(sydneyTime, _.empty))
     val run =
-      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure")))
     interceptIO[Exception](run)
   }
 
@@ -80,20 +80,20 @@ class HttpTest extends CatsEffectSuite {
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
     val client = ember.map(httpRetry(sydneyTime, _.empty))
-    server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println)))
+    server.surround(client.use(_.expect[String](postRequest)))
   }
 
   test("5.cookie box") {
     val client = ember.map(cookieBox(new CookieManager()))
     server
-      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie").flatMap(IO.println)))
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie")))
       .delayBy(2.seconds)
   }
 
   test("6.trace") {
     val client = ember
     server
-      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world")))
       .delayBy(2.seconds)
   }
 

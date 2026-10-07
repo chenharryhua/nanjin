@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken
 }
 import org.typelevel.otel4s.Attribute
-import org.typelevel.otel4s.metrics.{MeterProvider, UpDownCounter}
+import org.typelevel.otel4s.metrics.{Meter as OtelMeter, UpDownCounter}
 import squants.Each
 
 import java.time.ZoneId
@@ -36,6 +36,7 @@ object Counter {
     metricRegistry: MetricRegistry,
     isRisk: Boolean,
     name: MetricToken,
+    userAttributes: List[Attribute[String]],
     upDown: UpDownCounter[F, Long])(using F: Sync[F])
       extends Counter[F] {
     private val id: MetricId =
@@ -45,15 +46,16 @@ object Counter {
 
     private val counter: CodahaleCounter = metricRegistry.counter(id.identifier)
 
-    // nanjin's conceptual grouping attributes (nj.domain / nj.service / nj.task). Note: risk and normal
-    // counters are NOT separated by a point attribute here, so under the same metric name they aggregate
-    // into a single OpenTelemetry series. Distinguish them via the metric name if separate series are needed.
-    private val attributes: List[Attribute[String]] = id.scope.attributes
+    // nanjin's conceptual grouping attributes (nj.domain / nj.service / nj.task) plus any caller-supplied
+    // ones. Note: risk and normal counters are NOT separated by a point attribute here, so under the same
+    // metric name they aggregate into a single OpenTelemetry series. Distinguish them via the metric name or
+    // a user attribute if separate series are needed.
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     // Records to Dropwizard and to the otel4s UpDownCounter (a no-op when the configured MeterProvider is
     // MeterProvider.noop). nanjin's Counter maps to UpDownCounter because inc accepts negative deltas.
     override def inc(num: Long): F[Unit] =
-      F.delay(counter.inc(num)) >> upDown.add(num, attributes)
+      F.delay(counter.inc(num)) >> upDown.add(num, attributes*)
 
     // Dropwizard-only, by design. The policy reset keeps the Dropwizard count cumulative only within the
     // current reporting window. The otel4s UpDownCounter is intentionally NOT reset: OpenTelemetry
@@ -86,41 +88,58 @@ object Counter {
     isEnabled: Boolean,
     isRisk: Boolean,
     policy: Policy,
-    description: Option[String])
+    description: Option[String],
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Classify the counter as a risk counter in reported metrics. */
-    def asRisk: Builder = new Builder(isEnabled, true, policy, description)
+    def asRisk: Builder = new Builder(isEnabled, true, policy, description, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, isRisk, policy, Some(description))
+      new Builder(isEnabled, isRisk, policy, Some(description), userAttributes)
 
     /** Enable or disable metric registration; disabled counters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, isRisk, policy, description)
+      new Builder(isEnabled, isRisk, policy, description, userAttributes)
 
     /** Reset the counter to zero whenever the supplied policy emits a tick.
       */
     def withPolicy(f: Policy.type => Policy): Builder =
-      new Builder(isEnabled, isRisk, f(Policy), description)
+      new Builder(isEnabled, isRisk, f(Policy), description, userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every `inc` in addition to
+      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
+      * measurement — for a dimension that varies per event, create a separate instrument. Keep them
+      * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
+      * conflict the user attribute wins (over the framework `nj.*` dimensions, and the first wins over a
+      * later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard snapshot.
+      * Repeated calls accumulate.
+      */
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(
+        isEnabled,
+        isRisk,
+        policy,
+        description,
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Counter] def build[F[_]: Async](
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId,
-      meterProvider: MeterProvider[F]): Resource[F, Counter[F]] = {
+      otelMeter: OtelMeter[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
-          upDown <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            val builder = m.upDownCounter[Long](name).withUnit(Each.symbol)
+          upDown <- Resource.eval {
+            val builder = otelMeter.upDownCounter[Long](name).withUnit(Each.symbol)
             description.fold(builder)(builder.withDescription).create
-          })
+          }
           counter <- Resource.make(
             MetricToken(name)
               .map { metricName =>
-                new Impl[F](scope, metricRegistry, isRisk, metricName, upDown)
+                new Impl[F](scope, metricRegistry, isRisk, metricName, userAttributes, upDown)
               })(_.unregister)
           // Keep the counter cumulative only within the current policy window.
           _ <- tickStream.tickScheduled[F](zoneId, _.fresh(policy))
@@ -139,8 +158,14 @@ object Counter {
     scope: MetricScope,
     name: String,
     zoneId: ZoneId,
-    meterProvider: MeterProvider[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Counter[F]] =
-    f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = None))
-      .build[F](scope, name, mr, zoneId, meterProvider)
+    f(
+      new Builder(
+        isEnabled = true,
+        isRisk = false,
+        policy = Policy.empty,
+        description = None,
+        userAttributes = Nil))
+      .build[F](scope, name, mr, zoneId, otelMeter)
 }

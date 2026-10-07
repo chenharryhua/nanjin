@@ -32,7 +32,7 @@ class NJAvroTest extends CatsEffectSuite {
       actionResult <- action
       _ = assert(actionResult.toSet == data)
       size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
-      _ <- hdp.source(tgt).avro(100, readerSchema).debug().compile.drain
+      _ <- hdp.source(tgt).avro(100, readerSchema).compile.drain
       _ = assert(size == data.size)
       roundTrip <- hdp.source(tgt).avro(100).compile.toList
     } yield assert(roundTrip.toSet == data)

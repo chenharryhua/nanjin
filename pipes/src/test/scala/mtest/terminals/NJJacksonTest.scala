@@ -31,7 +31,7 @@ class NJJacksonTest extends CatsEffectSuite {
       _ = assert(actionResult.toSet == data)
       _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
       size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
-      _ <- hdp.source(tgt).jackson(100, pandaSchema, readerSchema).debug().compile.drain
+      _ <- hdp.source(tgt).jackson(100, pandaSchema, readerSchema).compile.drain
       _ = assert(size == data.size)
       roundTrip <- hdp.source(tgt).jackson(10, pandaSchema).compile.toList
     } yield assert(roundTrip.toSet == data)
@@ -79,7 +79,6 @@ class NJJacksonTest extends CatsEffectSuite {
         .repeatN(number)
         .through(hdp.rotateSink(zoneId, _.fixedDelay(200.millis).repeat)(t =>
           path / file.fileName(t)).jackson)
-        .debug(_.asJson.noSpaces)
         .compile
         .toList
       size <-

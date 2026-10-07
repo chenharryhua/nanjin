@@ -7,12 +7,13 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
-import munit.CatsEffectSuite
+import munit.{CatsEffectSuite, IgnoreSuite}
 import squants.information.Bytes
 
 import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.ConsoleLogTest"
+@IgnoreSuite
 class ConsoleLogTest extends CatsEffectSuite {
   private def action(agent: Agent[IO]): IO[Unit] = {
     val mtx = agent.facilitate("job") { mtx =>

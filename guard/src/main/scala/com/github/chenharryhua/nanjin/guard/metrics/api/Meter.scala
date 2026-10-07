@@ -15,7 +15,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken,
   Squants
 }
-import org.typelevel.otel4s.metrics.{Counter as OtelCounter, MeterProvider}
+import org.typelevel.otel4s.Attribute
+import org.typelevel.otel4s.metrics.{Counter as OtelCounter, Meter as OtelMeter}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful event-rate meter. */
@@ -36,6 +37,7 @@ object Meter {
     metricRegistry: MetricRegistry,
     squants: Squants,
     name: MetricToken,
+    userAttributes: List[Attribute[String]],
     otel: OtelCounter[F, Long])(using F: Sync[F])
       extends Meter[F] {
 
@@ -46,49 +48,67 @@ object Meter {
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
       )
 
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
+
     private val meter: CodahaleMeter = metricRegistry.meter(id.identifier)
 
     // Records to Dropwizard and to an otel4s monotonic Counter (no-op when the configured MeterProvider is
     // MeterProvider.noop). nanjin's Meter counts events; the otel SDK derives the rate from the sum.
     override def mark(num: Long): F[Unit] =
-      F.delay(meter.mark(num)) >> otel.add(num, id.scope.attributes)
+      F.delay(meter.mark(num)) >> otel.add(num, attributes*)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
   }
 
-  final class Builder private[Meter] (isEnabled: Boolean, squants: Squants, description: Option[String])
+  final class Builder private[Meter] (
+    isEnabled: Boolean,
+    squants: Squants,
+    description: Option[String],
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Enable or disable metric registration; disabled meters become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, squants, description)
+      new Builder(isEnabled, squants, description, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, squants, Some(description))
+      new Builder(isEnabled, squants, Some(description), userAttributes)
 
     /** Attach a squants unit to the reported meter. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, Squants(um), description)
+      new Builder(isEnabled, Squants(um), description, userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every measurement in
+      * addition to the framework `nj.*` attributes. They are '''static''': fixed for the life of the
+      * instrument and applied to every `mark`, not per measurement — for a dimension that varies per event,
+      * create a separate instrument. Keep them low-cardinality (known at construction), since each distinct
+      * attribute set is a separate OpenTelemetry series. On a key conflict the user attribute wins (over the
+      * framework `nj.*` dimensions, and the first wins over a later duplicate key). Attributes affect only
+      * the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      */
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(isEnabled, squants, description, userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Meter] def build[F[_]](
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
+      otelMeter: OtelMeter[F])(using F: Sync[F]): Resource[F, Meter[F]] = {
       def meter: Resource[F, Meter[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            val builder = m.counter[Long](name).withUnit(squants.unitSymbol)
+          otel <- Resource.eval {
+            val builder = otelMeter.counter[Long](name).withUnit(squants.unitSymbol)
             description.fold(builder)(builder.withDescription).create
-          })
+          }
           m <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
               scope = scope,
               metricRegistry = metricRegistry,
               squants = squants,
               name = metricName,
+              userAttributes = userAttributes,
               otel = otel)
           })(_.unregister)
         } yield m
@@ -101,8 +121,8 @@ object Meter {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meterProvider: MeterProvider[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Meter[F]] =
-    f(new Builder(isEnabled = true, squants = Squants(Each), description = None))
-      .build[F](scope, name, mr, meterProvider)
+    f(new Builder(isEnabled = true, squants = Squants(Each), description = None, userAttributes = Nil))
+      .build[F](scope, name, mr, otelMeter)
 }

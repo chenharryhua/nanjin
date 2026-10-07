@@ -17,7 +17,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   Squants
 }
 import io.circe.Json
-import org.typelevel.otel4s.metrics.{MeterProvider, ObservableGauge}
+import org.typelevel.otel4s.Attribute
+import org.typelevel.otel4s.metrics.{Meter as OtelMeter, ObservableGauge}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -43,31 +44,47 @@ object NumericGauge {
     private[NumericGauge] val isEnabled: Boolean,
     private[NumericGauge] val timeout: FiniteDuration,
     private[NumericGauge] val squants: Squants,
-    private[NumericGauge] val description: Option[String])
+    private[NumericGauge] val description: Option[String],
+    private[NumericGauge] val userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Enable or disable gauge registration; disabled gauges become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, timeout, squants, description)
+      new Builder(isEnabled, timeout, squants, description, userAttributes)
 
     /** Bound evaluation time when the Dropwizard registry reads the gauge value. */
     def withTimeout(timeout: FiniteDuration): Builder =
-      new Builder(isEnabled, timeout, squants, description)
+      new Builder(isEnabled, timeout, squants, description, userAttributes)
 
     /** Attach a squants unit whose symbol is carried by the OpenTelemetry instrument (default `Each`). */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, timeout, Squants(um), description)
+      new Builder(isEnabled, timeout, Squants(um), description, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, timeout, squants, Some(description))
+      new Builder(isEnabled, timeout, squants, Some(description), userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every observation in
+      * addition to the framework `nj.*` attributes. They are '''static''': fixed for the life of the
+      * instrument. Keep them low-cardinality, since each distinct attribute set is a separate OpenTelemetry
+      * series. On a key conflict the user attribute wins (over the framework `nj.*` dimensions, and the first
+      * wins over a later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard
+      * snapshot. Repeated calls accumulate.
+      */
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(
+        isEnabled,
+        timeout,
+        squants,
+        description,
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[NumericGauge] def build[F[_]](
       metricRegistry: MetricRegistry,
       scope: MetricScope,
       name: String,
       dispatcher: Dispatcher[F],
-      meterProvider: MeterProvider[F],
+      otelMeter: OtelMeter[F],
       fa: F[Long])(using F: Async[F]): Resource[F, Unit] = {
 
       // The Dropwizard side stores the value as a JSON number so it flows through the existing snapshot
@@ -90,13 +107,12 @@ object NumericGauge {
       // MeterProvider is MeterProvider.noop this whole resource is a no-op. The optional description is
       // threaded with ContT, mirroring Timer's instrument construction.
       def observable(id: MetricId): Resource[F, Unit] =
-        Resource.eval(meterProvider.get(scope.label.value)).flatMap { m =>
-          ContT
-            .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
-              m.observableGauge[Long](name).withUnit(squants.unitSymbol))
-            .map(b => description.fold(b)(b.withDescription))
-            .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
-        }
+        ContT
+          .pure[Resource[F, *], Unit, ObservableGauge.Builder[F, Long]](
+            otelMeter.observableGauge[Long](name).withUnit(squants.unitSymbol))
+          .map(b => description.fold(b)(b.withDescription))
+          .run(_.createWithCallback(cb =>
+            fa.flatMap(a => cb.record(a, id.scope.attributesWith(userAttributes)*))).void)
 
       def impl: Resource[F, Unit] =
         for {
@@ -115,9 +131,15 @@ object NumericGauge {
     scope: MetricScope,
     name: String,
     dispatcher: Dispatcher[F],
-    meterProvider: MeterProvider[F],
+    otelMeter: OtelMeter[F],
     fa: F[Long],
     f: Endo[Builder]): Resource[F, Unit] =
-    f(new Builder(isEnabled = true, timeout = 5.seconds, squants = Squants(Each), description = None))
-      .build[F](metricRegistry, scope, name, dispatcher, meterProvider, fa)
+    f(
+      new Builder(
+        isEnabled = true,
+        timeout = 5.seconds,
+        squants = Squants(Each),
+        description = None,
+        userAttributes = Nil))
+      .build[F](metricRegistry, scope, name, dispatcher, otelMeter, fa)
 }

@@ -64,9 +64,6 @@ class SqsS3EventParserTest extends FunSuite {
   }
 
   test("2.nulls") {
-    println(SqsMessage(null, null, 0, 0, 0).asJson.noSpaces)
-    println(SqsMessage(null, Message.builder().build(), 0, 0, 0).asJson.noSpaces)
-    println(SqsMessage(ReceiveMessageRequest.builder().build(), null, 0, 0, 0).asJson.noSpaces)
     assert(sqsS3Parser(SqsMessage(null, null, 0, 0, 0)).isEmpty)
     assert(
       sqsS3Parser(

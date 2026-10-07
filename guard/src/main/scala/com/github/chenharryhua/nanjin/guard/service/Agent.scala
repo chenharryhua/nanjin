@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricScope, MetricsHub, MetricsHubS}
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.metrics.Meter as OtelMeter
 import org.typelevel.otel4s.trace.{SpanBuilder, SpanOps, Tracer, TracerProvider}
 
 import java.time.ZoneId
@@ -166,7 +166,7 @@ final private class GeneralAgent[F[_]: Async](
   batchIdGenerator: F[BatchId],
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meterProvider: MeterProvider[F]
+  otelMeter: OtelMeter[F]
 ) extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
@@ -181,7 +181,7 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meterProvider = meterProvider
+      otelMeter = otelMeter
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -196,7 +196,7 @@ final private class GeneralAgent[F[_]: Async](
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, meterProvider)
+    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, otelMeter)
   }
 
   override def metricsHubS(label: String): MetricsHubS[F] =

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   htmlColoring,
   panicText,
-  Attribute,
+  Labelled,
   SnapshotPolyglot,
   Translator
 }
@@ -25,13 +25,13 @@ private object HtmlTranslator extends all {
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
     val si = evt.serviceIdentity
-    val task_name = Attribute(si.task).textEntry
-    val host = Attribute(si.host).textEntry
+    val task_name = Labelled(si.task).textEntry
+    val host = Labelled(si.host).textEntry
     val (service_tag, service) =
-      Attribute(si.service).entry(s => si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
-    val service_id = Attribute(si.serviceId).textEntry
-    val uptime = Attribute(evt.upTime).textEntry
-    val timestamp = Attribute(evt.timestamp).textEntry
+      Labelled(si.service).entry(s => si.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
+    val service_id = Labelled(si.serviceId).textEntry
+    val uptime = Labelled(evt.upTime).textEntry
+    val timestamp = Labelled(evt.timestamp).textEntry
 
     frag(
       tr(th(task_name.tag), th(host.tag), th(timestamp.tag)),
@@ -45,16 +45,16 @@ private object HtmlTranslator extends all {
     pre(small(js.spaces2))
 
   private def stack_trace_text(c: StackTrace): Text.TypedTag[String] = {
-    val err = Attribute(c).textEntry
+    val err = Labelled(c).textEntry
     p(b(s"${err.tag}: "), pre(small(err.text)))
   }
 
   // events
 
   private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
-    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val active = Attribute(Active(evt.tick.active)).textEntry
-    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
+    val index = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val active = Labelled(Active(evt.tick.active)).textEntry
+    val snooze = Labelled(Snooze(evt.tick.snooze)).textEntry
 
     val fg = frag(
       tr(th(index.tag), th(active.tag), th(snooze.tag)),
@@ -68,8 +68,8 @@ private object HtmlTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
-    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val active = Attribute(Active(evt.tick.active)).textEntry
+    val index = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val active = Labelled(Active(evt.tick.active)).textEntry
 
     val fg = frag(
       tr(th(index.tag), th(active.tag)),
@@ -84,7 +84,7 @@ private object HtmlTranslator extends all {
   }
 
   private def service_stop(evt: ServiceStop): Text.TypedTag[String] = {
-    val stop_cause = Attribute(evt.cause).textEntry
+    val stop_cause = Labelled(evt.cause).textEntry
 
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
@@ -95,8 +95,8 @@ private object HtmlTranslator extends all {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
-    val idx = Attribute(evt.index).textEntry
-    val took = Attribute(evt.took).textEntry
+    val idx = Labelled(evt.index).textEntry
+    val took = Labelled(evt.took).textEntry
     val fg = frag(
       tr(th(idx.tag), th(took.tag)),
       tr(td(idx.text), td(took.text))
@@ -109,9 +109,9 @@ private object HtmlTranslator extends all {
   }
 
   private def reported_event(evt: ReportedEvent): Text.TypedTag[String] = {
-    val domain = Attribute(evt.domain).textEntry
-    val correlation = Attribute(evt.correlation).textEntry
-    val logLevel = Attribute(evt.logRecord.level).textEntry
+    val domain = Labelled(evt.domain).textEntry
+    val correlation = Labelled(evt.correlation).textEntry
+    val logLevel = Labelled(evt.logRecord.level).textEntry
 
     val fg = frag(
       tr(th(domain.tag), th(correlation.tag), th(logLevel.tag)),

@@ -34,7 +34,7 @@ class NJJsonNodeTest extends CatsEffectSuite {
       _ = assert(actionResult.toSet == data)
       _ = assert(jawn.decode[FileKind](fileName).toOption.get == file)
       size <- ts.through(sink).fold(0)(_ + _).compile.lastOrError
-      _ <- hdp.source(tgt).jsonNode(100, objectMapper.reader()).debug().compile.drain
+      _ <- hdp.source(tgt).jsonNode(100, objectMapper.reader()).compile.drain
       _ = assert(size == data.size)
       roundTrip <-
         hdp

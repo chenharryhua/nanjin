@@ -155,8 +155,12 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         meterProvider <- Stream.resource(service_config.meterProvider)
+        // "nanjin" is the OpenTelemetry instrumentation scope name: it identifies this library as the
+        // producer and must be stable across services/deployments. Service identity (service.name,
+        // service.instance.id) belongs on the SDK Resource, not here. See ServiceConfig.withMeterProvider.
+        otelMeter <- Stream.eval(meterProvider.get("nanjin"))
         tracerProvider <- Stream.resource(service_config.tracerProvider)
-        tracer <- Stream.eval(tracerProvider.get(serviceParams.serviceIdentity.service.value))
+        tracer <- Stream.eval(tracerProvider.get("nanjin"))
         channel <- Stream.eval(Channel.unbounded[F, Event])
         logSink = EventLogSink[F](serviceParams)
         logLocator <- Stream.eval(service_config.logLocator)
@@ -178,7 +182,7 @@ private[guard] object ServiceGuard {
             batchIdGenerator = F.delay(BatchId(batchIdGenerator.getAndIncrement())),
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
-            meterProvider = meterProvider
+            otelMeter = otelMeter
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

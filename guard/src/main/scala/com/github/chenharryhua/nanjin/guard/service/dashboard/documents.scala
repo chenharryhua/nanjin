@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
-import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Attribute, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlColoring, Labelled, SnapshotPolyglot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
@@ -36,25 +36,25 @@ private object documents {
     val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.value.toInstant))
 
     Json.obj(
-      Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.service).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
       "active" -> Json.fromBoolean(active),
-      Attribute(Present(now.value)).map(_.json).snakeJsonEntry,
-      Attribute(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
+      Labelled(Present(now.value)).map(_.json).snakeJsonEntry,
+      Labelled(serviceParams.policies.restart.policy).map(_.show).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
       "history" ->
         panics.reverse.map { sp =>
           Json.obj(
             "index" -> Json.fromLong(sp.tick.index),
-            Attribute(Age(Duration.between(sp.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
+            Labelled(Age(Duration.between(sp.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
             "up_rouse_at" -> sp.tick.local(_.commence).asJson,
-            Attribute(Active(sp.tick.active)).map(_.show).snakeJsonEntry,
+            Labelled(Active(sp.tick.active)).map(_.show).snakeJsonEntry,
             "panic_at" -> sp.tick.local(_.acquires).asJson,
-            Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
+            Labelled(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
             "restart_at" -> sp.tick.local(_.conclude).asJson,
-            Attribute(sp.stackTrace).snakeJsonEntry
+            Labelled(sp.stackTrace).snakeJsonEntry
           )
         }.asJson
     )
@@ -65,20 +65,20 @@ private object documents {
     reportedEvents: Vector[ReportedEvent],
     now: Timestamp): Json =
     Json.obj(
-      Attribute(serviceParams.serviceIdentity.service).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
-      Attribute(Present(now.value)).map(_.json).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.service).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(Present(now.value)).map(_.json).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.timeZone).snakeJsonEntry,
+      Labelled(serviceParams.serviceIdentity.launchTime.upTime(now)).map(_.show).snakeJsonEntry,
       "errors" -> reportedEvents.size.asJson,
       "history" -> reportedEvents.reverse.map { sm =>
         Json.obj(
-          Attribute(sm.domain).snakeJsonEntry,
-          Attribute(sm.correlation).snakeJsonEntry,
-          Attribute(Age(Duration.between(sm.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
-          Attribute(sm.timestamp).map(_.value.toLocalDateTime).snakeJsonEntry,
-          Attribute(sm.logRecord.message).snakeJsonEntry,
-          Attribute(sm.logRecord.stackTrace).snakeJsonEntry
+          Labelled(sm.domain).snakeJsonEntry,
+          Labelled(sm.correlation).snakeJsonEntry,
+          Labelled(Age(Duration.between(sm.timestamp.value, now.value))).map(_.json).snakeJsonEntry,
+          Labelled(sm.timestamp).map(_.value.toLocalDateTime).snakeJsonEntry,
+          Labelled(sm.logRecord.message).snakeJsonEntry,
+          Labelled(sm.logRecord.stackTrace).snakeJsonEntry
         )
       }.asJson
     )
@@ -125,18 +125,18 @@ private object documents {
     serviceParams: ServiceParams,
     now: ZonedDateTime,
     took: Option[Duration]): Text.TypedTag[String] = {
-    val service_name = Attribute(serviceParams.serviceIdentity.service).textEntry
-    val policy = Attribute(serviceParams.policies.report).textEntry
-    val timezone = Attribute(serviceParams.serviceIdentity.timeZone).textEntry
-    val uptime = Attribute(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).textEntry
-    val present = Attribute(Present(now)).map(_.text).textEntry
+    val service_name = Labelled(serviceParams.serviceIdentity.service).textEntry
+    val policy = Labelled(serviceParams.policies.report).textEntry
+    val timezone = Labelled(serviceParams.serviceIdentity.timeZone).textEntry
+    val uptime = Labelled(serviceParams.serviceIdentity.launchTime.upTime(Timestamp(now))).textEntry
+    val present = Labelled(Present(now)).map(_.text).textEntry
     took.fold(
       table(
         tr(th(service_name.tag), th(policy.tag), th(timezone.tag), th(uptime.tag), th(present.tag)),
         tr(td(service_name.text), td(policy.text), td(timezone.text), td(uptime.text), td(present.text))
       )
     ) { tk =>
-      val spend = Attribute(Took(tk)).textEntry
+      val spend = Labelled(Took(tk)).textEntry
       table(
         tr(
           th(service_name.tag),
@@ -171,9 +171,9 @@ private object documents {
     now: ZonedDateTime): Text.TypedTag[String] = {
 
     val list = metricsSnapshots.reverse.map { mr =>
-      val took = Attribute(mr.took).textEntry
-      val idx = Attribute(mr.index).textEntry
-      val timestamp = Attribute(mr.timestamp).map(_.value.toLocalDateTime.show).textEntry
+      val took = Labelled(mr.took).textEntry
+      val idx = Labelled(mr.index).textEntry
+      val timestamp = Labelled(mr.timestamp).map(_.value.toLocalDateTime.show).textEntry
       div(
         table(
           tr(th(style := htmlColoring(mr))(idx.tag), th(timestamp.tag), th(took.tag)),

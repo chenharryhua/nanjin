@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{
   eventLogLevel,
   eventTitle,
   panicText,
-  Attribute,
+  Labelled,
   SnapshotPolyglot,
   TextEntry,
   Translator
@@ -54,8 +54,8 @@ private object SlackTranslator extends all {
     MarkdownSection(s"*${entry.tag}:* ${entry.text}")
 
   private def host_service_section(sp: ServiceIdentity): JuxtaposeSection = {
-    val host = Attribute(sp.host).textEntry
-    val (tag, name) = Attribute(sp.service).textEntry.withText(escape).toPair
+    val host = Labelled(sp.host).textEntry
+    val (tag, name) = Labelled(sp.service).textEntry.withText(escape).toPair
     val service = sp.homepage match {
       case Some(value) => TextField(tag, s"<$value|$name>")
       case None        => TextField(tag, name)
@@ -64,19 +64,19 @@ private object SlackTranslator extends all {
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection = {
-    val uptime = Attribute(evt.upTime).textEntry
-    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
+    val uptime = Labelled(evt.upTime).textEntry
+    val zone = Labelled(evt.serviceIdentity.timeZone).textEntry
     JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
   }
 
   private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
-    val uptime = Attribute(evt.upTime).textEntry
-    val idx = Attribute(evt.index).textEntry
+    val uptime = Labelled(evt.upTime).textEntry
+    val idx = Labelled(evt.index).textEntry
     JuxtaposeSection(first = TextField(idx), second = TextField(uptime))
   }
 
   private def metrics_section(evt: MetricsSnapshot): TagValueSection = {
-    val ss = Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
+    val ss = Labelled(evt.snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
     val tag = evt.logLink.fold(ss.tag)(link => s"<${link.value}|${ss.tag}>")
     if (evt.snapshot.nonEmpty) {
       TagValueSection(tag, s"""```${abbreviate(ss.text)}```""")
@@ -84,23 +84,23 @@ private object SlackTranslator extends all {
   }
 
   private def message_section(evt: ReportedEvent): TagValueSection = {
-    val ss = Attribute(evt.logRecord.message).map(msg => s"```${abbreviate(msg.value.spaces2)}```").textEntry
+    val ss = Labelled(evt.logRecord.message).map(msg => s"```${abbreviate(msg.value.spaces2)}```").textEntry
     val tag = evt.logLink.fold(ss.tag)(link => s"<${link.value}|${ss.tag}>")
 
     TagValueSection(tag, ss.text)
   }
 
   private def brief(serviceBrief: Brief, logLink: Option[LogLink]): TagValueSection = {
-    val sb = Attribute(serviceBrief).textEntry
+    val sb = Labelled(serviceBrief).textEntry
     val tag = logLink.fold(sb.tag)(link => s"<${link.value}|${sb.tag}>")
     TagValueSection(tag, s"```${abbreviate(sb.text)}```")
   }
 
   // events
   private def service_start(evt: ServiceStart): SlackApp = {
-    val zone = Attribute(evt.serviceIdentity.timeZone).textEntry
-    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
+    val zone = Labelled(evt.serviceIdentity.timeZone).textEntry
+    val index = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val snooze = Labelled(Snooze(evt.tick.snooze)).textEntry
 
     val index_section = if (evt.tick.index === 0) {
       JuxtaposeSection(first = TextField(zone), second = TextField(index))
@@ -109,7 +109,7 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val service_id = Labelled(evt.serviceIdentity.serviceId).textEntry
     SlackApp(
       username = evt.serviceIdentity.task.value,
       attachments = List(
@@ -128,11 +128,11 @@ private object SlackTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): SlackApp = {
-    val uptime = Attribute(evt.upTime).textEntry
-    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
-    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
-    val error = Attribute(evt.stackTrace).textEntry.withText(txt => s"```${abbreviate(txt)}```")
-    val active = Attribute(Active(evt.tick.active)).textEntry
+    val uptime = Labelled(evt.upTime).textEntry
+    val service_id = Labelled(evt.serviceIdentity.serviceId).textEntry
+    val index = Labelled(Index(evt.tick.index)).map(_.value).textEntry
+    val error = Labelled(evt.stackTrace).textEntry.withText(txt => s"```${abbreviate(txt)}```")
+    val active = Labelled(Active(evt.tick.active)).textEntry
     val color = coloring(evt)
 
     SlackApp(
@@ -157,8 +157,8 @@ private object SlackTranslator extends all {
 
   private def service_stop(evt: ServiceStop): SlackApp = {
     val color = coloring(evt)
-    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
-    val stop_cause = Attribute(evt.cause).textEntry
+    val service_id = Labelled(evt.serviceIdentity.serviceId).textEntry
+    val stop_cause = Labelled(evt.cause).textEntry
 
     SlackApp(
       username = evt.serviceIdentity.task.value,
@@ -178,7 +178,7 @@ private object SlackTranslator extends all {
   }
 
   private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
-    val service_id = Attribute(evt.serviceIdentity.serviceId).textEntry
+    val service_id = Labelled(evt.serviceIdentity.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
       username = evt.serviceIdentity.task.value,
@@ -206,9 +206,9 @@ private object SlackTranslator extends all {
     }
 
     val color = coloring(evt)
-    val domain = Attribute(evt.domain).textEntry
-    val service = Attribute(evt.serviceIdentity.serviceId).textEntry
-    val correlation = Attribute(evt.correlation).textEntry
+    val domain = Labelled(evt.domain).textEntry
+    val service = Labelled(evt.serviceIdentity.serviceId).textEntry
+    val correlation = Labelled(evt.correlation).textEntry
 
     val attachment = Attachment(
       color = color,
@@ -221,7 +221,7 @@ private object SlackTranslator extends all {
       )
     )
 
-    val error: Option[Attachment] = Attribute(evt.logRecord.stackTrace).fold { (tag, ost) =>
+    val error: Option[Attachment] = Labelled(evt.logRecord.stackTrace).fold { (tag, ost) =>
       ost.map { st =>
         Attachment(color = color, blocks = List(TagValueSection(tag, s"```${abbreviate(st.show)}```")))
       }

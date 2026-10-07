@@ -13,10 +13,10 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.55.11"
+val awsV = "2.55.12"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
-val circeV = "0.14.16"
+val circeV = "0.14.17"
 val circeOpticsV = "0.15.1"
 val confluentV = "8.3.2"
 val kafkaV = "8.3.2-ce"
@@ -389,7 +389,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
-      "com.github.luben" % "zstd-jni"          % "1.5.7-21" // snyk by kafka-schema-registry-client
+      "com.github.luben" % "zstd-jni"          % "1.5.7-22" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))

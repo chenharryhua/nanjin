@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import io.opentelemetry.sdk.metrics.data.MetricData
 import munit.CatsEffectSuite
 import org.typelevel.otel4s.Attribute
-import org.typelevel.otel4s.metrics.MeterProvider
+import org.typelevel.otel4s.metrics.{BucketBoundaries, MeterProvider}
 import org.typelevel.otel4s.oteljava.testkit.metrics.{
   MetricExpectation,
   MetricExpectations,
@@ -29,6 +29,10 @@ class OtelMetricsTest extends CatsEffectSuite {
   // are namespaced with an "nj." prefix to stay distinct from any OpenTelemetry SDK Resource attributes the
   // caller sets at a higher level. The service is built with TaskGuard[IO]("otel").service("otel"), so both
   // nj.task and nj.service are "otel"; domain defaults to "default".
+  // All instruments here are acquired via agent.facilitate("hub"), so the metric-group label is "hub". The
+  // single service-level meter carries the label as a point attribute (nj.label) rather than as the
+  // instrumentation scope name, so every recorded point includes it.
+  private val njLabel: Attribute[String] = Attribute("nj.label", "hub")
   private val njDomain: Attribute[String] = Attribute("nj.domain", "default")
   private val njService: Attribute[String] = Attribute("nj.service", "otel")
   private val njTask: Attribute[String] = Attribute("nj.task", "otel")
@@ -55,7 +59,7 @@ class OtelMetricsTest extends CatsEffectSuite {
         MetricExpectation
           .sum[Long]("requests")
           .points(PointSetExpectation.exists(
-            PointExpectation.numeric(2L).attributesExact(njDomain, njService, njTask)))
+            PointExpectation.numeric(2L).attributesExact(njLabel, njDomain, njService, njTask)))
       )
     }
   }
@@ -77,7 +81,7 @@ class OtelMetricsTest extends CatsEffectSuite {
         MetricExpectation
           .sum[Long]("throughput")
           .points(PointSetExpectation.exists(
-            PointExpectation.numeric(30L).attributesExact(njDomain, njService, njTask)))
+            PointExpectation.numeric(30L).attributesExact(njLabel, njDomain, njService, njTask)))
       )
     }
   }
@@ -197,7 +201,7 @@ class OtelMetricsTest extends CatsEffectSuite {
         MetricExpectation
           .gauge[Long]("queue_depth")
           .points(PointSetExpectation.exists(
-            PointExpectation.numeric(7L).attributesExact(njDomain, njService, njTask)))
+            PointExpectation.numeric(7L).attributesExact(njLabel, njDomain, njService, njTask)))
       )
     }
   }
@@ -234,6 +238,112 @@ class OtelMetricsTest extends CatsEffectSuite {
     } yield (a, r)).map { case (acquired, released) =>
       assert(acquired == 1)
       assert(released == 1)
+    }
+  }
+
+  test("10.withAttributes adds caller attributes to the exported point alongside the nj.* ones") {
+    val endpoint: Attribute[String] = Attribute("endpoint", "/orders")
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent.facilitate("hub")(_.counter("requests", _.withAttributes("endpoint" -> "/orders")))
+            .use(_.inc(5)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .sum[Long]("requests")
+          .points(PointSetExpectation.exists(
+            PointExpectation.numeric(5L).attributesExact(endpoint, njLabel, njDomain, njService, njTask)))
+      )
+    }
+  }
+
+  test("11.withAttributes lets a user attribute override a framework nj.* dimension") {
+    // nj.label is a framework identity dimension, but the user is allowed to override it: the point carries
+    // the user's nj.label=override, not the framework's hub.
+    val njLabelOverride: Attribute[String] = Attribute("nj.label", "override")
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent
+            .facilitate("hub")(_.counter("requests", _.withAttributes("nj.label" -> "override")))
+            .use(_.inc(1)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .sum[Long]("requests")
+          .points(PointSetExpectation.exists(
+            PointExpectation.numeric(1L).attributesExact(njLabelOverride, njDomain, njService, njTask)))
+      )
+    }
+  }
+
+  test("12.histogram withBoundaries sets the exported bucket boundaries") {
+    // Boundaries [5, 15] split the number line into (-inf,5], (5,15], (15,+inf). Values 10 and 20 fall in the
+    // second and third buckets respectively, so the exported counts are [0, 1, 1].
+    val boundaries: BucketBoundaries = BucketBoundaries(5.0, 15.0)
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent
+            .facilitate("hub")(_.histogram("samples", _.withBoundaries(boundaries)))
+            .use(h => h.update(10) >> h.update(20)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .histogram("samples")
+          .points(PointSetExpectation.exists(
+            PointExpectation.histogram.boundaries(boundaries).counts(List(0L, 1L, 1L))))
+      )
+    }
+  }
+
+  test("13.timer withBoundaries sets the exported bucket boundaries in the recorded unit") {
+    // Default time unit is seconds. Boundaries [1, 4] split into (-inf,1], (1,4], (4,+inf). Both 2s and 3s
+    // land in the middle bucket, so the exported counts are [0, 2, 0].
+    val boundaries: BucketBoundaries = BucketBoundaries(1.0, 4.0)
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent
+            .facilitate("hub")(_.timer("latency", _.withBoundaries(boundaries)))
+            .use(t => t.elapsed(2.seconds) >> t.elapsed(3.seconds)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .histogram("latency")
+          .unit("s")
+          .points(PointSetExpectation.exists(
+            PointExpectation.histogram.boundaries(boundaries).counts(List(0L, 2L, 0L))))
+      )
     }
   }
 }

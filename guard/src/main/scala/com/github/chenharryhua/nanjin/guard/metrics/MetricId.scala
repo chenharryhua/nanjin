@@ -75,10 +75,22 @@ final case class MetricScope(label: MetricScope.Label, domain: Domain, service: 
     derives Codec.AsObject {
   val attributes: List[Attribute[String]] =
     List(
+      Attribute("nj.label", label.value),
       Attribute("nj.domain", domain.value),
       Attribute("nj.service", service.value),
       Attribute("nj.task", task.value)
     )
+
+  /** The framework `nj.*` attributes together with caller-supplied `userAttributes`, used as the otel point
+    * attributes. On a key conflict the user attribute wins, including over the framework identity dimensions
+    * (`nj.label`/`nj.domain`/`nj.service`/`nj.task`): user attributes are listed first and `distinctBy` keeps
+    * the first occurrence of each key, so the merge is deterministic rather than relying on the otel
+    * backend's handling of duplicate keys.
+    */
+  def attributesWith(userAttributes: List[Attribute[String]]): List[Attribute[String]] =
+    // distinctBy keeps the first occurrence per key, so listing user attributes first lets them win on a
+    // conflict, including over the framework nj.* dimensions
+    (userAttributes ::: attributes).distinctBy(_.key.name)
 }
 object MetricScope {
   opaque type Label = String

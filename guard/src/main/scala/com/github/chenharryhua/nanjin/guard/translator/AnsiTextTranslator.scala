@@ -20,11 +20,11 @@ object AnsiTextTranslator {
     }.value
 
   private def service_event(se: Event): String = {
-    val host: String = Attribute(se.serviceIdentity.host).labelledText
-    val sn: String = Attribute(se.serviceIdentity.service).labelledText
-    val tn: String = Attribute(se.serviceIdentity.task).labelledText
-    val sid: String = Attribute(se.serviceIdentity.serviceId).labelledText
-    val uptime: String = Attribute(se.upTime).labelledText
+    val host: String = Labelled(se.serviceIdentity.host).labelledText
+    val sn: String = Labelled(se.serviceIdentity.service).labelledText
+    val tn: String = Labelled(se.serviceIdentity.task).labelledText
+    val sid: String = Labelled(se.serviceIdentity.serviceId).labelledText
+    val uptime: String = Labelled(se.upTime).labelledText
 
     s"""|${coloredEventTitle(se)}
         |$sn, $tn, $uptime
@@ -34,7 +34,7 @@ object AnsiTextTranslator {
 
   private def service_start(evt: ServiceStart): String = {
     val idx = s"index:${evt.tick.index}"
-    val snz = Attribute(Took(evt.tick.snooze)).labelledText
+    val snz = Labelled(Took(evt.tick.snooze)).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $snz
@@ -44,23 +44,23 @@ object AnsiTextTranslator {
 
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"index:${evt.tick.index}"
-    val act = Attribute(Active(evt.tick.active)).labelledText
+    val act = Labelled(Active(evt.tick.active)).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $act
         |${panicText(evt)}
-        |${Attribute(evt.stackTrace).labelledText}
+        |${Labelled(evt.stackTrace).labelledText}
         |""".stripMargin
   }
 
   private def service_stop(evt: ServiceStop): String =
     s"""|${service_event(evt)}
-        |${Attribute(evt.cause).labelledText}
+        |${Labelled(evt.cause).labelledText}
         |""".stripMargin
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
-    val idx = Attribute(evt.index).labelledText
-    val took = Attribute(evt.took).labelledText
+    val idx = Labelled(evt.index).labelledText
+    val took = Labelled(evt.took).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $took
@@ -69,15 +69,15 @@ object AnsiTextTranslator {
   }
 
   private def reported_event(evt: ReportedEvent): String = {
-    val correlation = Attribute(evt.correlation).labelledText
-    val domain = Attribute(evt.domain).labelledText
+    val correlation = Labelled(evt.correlation).labelledText
+    val domain = Labelled(evt.domain).labelledText
     val message = evt.logRecord.message.value.spaces2
 
     show"""|${service_event(evt)}
            |  $domain, $correlation
            |${evt.logRecord.stackTrace.fold(message) { st =>
             s"""|$message
-                |${Attribute(st).labelledText}""".stripMargin
+                |${Labelled(st).labelledText}""".stripMargin
           }}
            |""".stripMargin
   }

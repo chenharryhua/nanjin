@@ -89,8 +89,6 @@ class NJTextTest extends CatsEffectSuite {
         .map(_.toString)
         .through(hdp.rotateSink(zoneId, _.fixedDelay(100.milliseconds).repeat)(t =>
           path / fk.fileName(t)).text)
-        .evalTap(tv => IO.println(tv.window))
-        .debug(_.asJson.noSpaces)
         .fold(0L)((sum, v) => sum + v.recordCount)
         .compile
         .lastOrError
@@ -117,7 +115,6 @@ class NJTextTest extends CatsEffectSuite {
         .repeatN(number)
         .map(_.toString)
         .through(hdp.rotateSink(sydneyTime, 15000)(t => path / fk.fileName(t)).text)
-        .debug(_.asJson.noSpaces)
         .fold(0L)((sum, v) => sum + v.recordCount)
         .compile
         .lastOrError

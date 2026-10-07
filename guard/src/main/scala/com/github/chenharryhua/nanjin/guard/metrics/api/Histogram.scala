@@ -21,7 +21,8 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricToken,
   Squants
 }
-import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, MeterProvider}
+import org.typelevel.otel4s.Attribute
+import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, Meter as OtelMeter}
 import squants.{Each, Quantity, UnitOfMeasure}
 
 /** Effectful distribution recorder for observed numeric values. */
@@ -43,6 +44,7 @@ object Histogram {
     squants: Squants,
     reservoir: Option[Reservoir],
     name: MetricToken,
+    userAttributes: List[Attribute[String]],
     otel: OtelHistogram[F, Long])(using F: Sync[F])
       extends Histogram[F] {
 
@@ -61,10 +63,12 @@ object Histogram {
 
     private val histogram: CodahaleHistogram = metricRegistry.histogram(id.identifier, supplier)
 
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
+
     // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
     // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
     override def update(num: Long): F[Unit] =
-      F.delay(histogram.update(num)) >> otel.record(num, id.scope.attributes)
+      F.delay(histogram.update(num)) >> otel.record(num, attributes*)
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(id.identifier)).void
 
@@ -75,38 +79,61 @@ object Histogram {
     squants: Squants,
     reservoir: Option[Reservoir],
     description: Option[String],
-    boundaries: Option[BucketBoundaries])
+    boundaries: Option[BucketBoundaries],
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, squants, Some(reservoir), description, boundaries)
+      new Builder(isEnabled, squants, Some(reservoir), description, boundaries, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, squants, reservoir, Some(description), boundaries)
+      new Builder(isEnabled, squants, reservoir, Some(description), boundaries, userAttributes)
 
     /** Attach a squants unit to the reported histogram. */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, Squants(um), reservoir, description, boundaries)
+      new Builder(isEnabled, Squants(um), reservoir, description, boundaries, userAttributes)
+
+    /** Set explicit bucket boundaries for the OpenTelemetry histogram. Affects only the OpenTelemetry export,
+      * not the Dropwizard reservoir.
+      */
+    def withBoundaries(boundaries: BucketBoundaries): Builder =
+      new Builder(isEnabled, squants, reservoir, description, Some(boundaries), userAttributes)
 
     /** Enable or disable metric registration; disabled histograms become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, squants, reservoir, description, boundaries)
+      new Builder(isEnabled, squants, reservoir, description, boundaries, userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every `update` in addition to the
+      * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
+      * measurement — for a dimension that varies per event, create a separate instrument. Keep them
+      * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
+      * conflict the user attribute wins (over the framework `nj.*` dimensions, and the first wins over a
+      * later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard snapshot.
+      * Repeated calls accumulate.
+      */
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(
+        isEnabled,
+        squants,
+        reservoir,
+        description,
+        boundaries,
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Histogram] def build[F[_]](
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meterProvider: MeterProvider[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
+      otelMeter: OtelMeter[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
-          otel <- Resource.eval(meterProvider.get(scope.label.value).flatMap { m =>
-            ContT.pure(m.histogram[Long](name).withUnit(squants.unitSymbol))
+          otel <- Resource.eval(
+            ContT.pure(otelMeter.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
-              .run(_.create)
-          })
+              .run(_.create))
           h <- Resource.make(MetricToken(name).map { metricName =>
             new Impl[F](
               scope = scope,
@@ -114,6 +141,7 @@ object Histogram {
               squants = squants,
               reservoir = reservoir,
               name = metricName,
+              userAttributes = userAttributes,
               otel = otel)
           })(_.unregister)
         } yield h
@@ -126,7 +154,7 @@ object Histogram {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meterProvider: MeterProvider[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
     f(
       new Builder(
@@ -134,6 +162,7 @@ object Histogram {
         squants = Squants(Each),
         reservoir = None,
         description = None,
-        boundaries = None))
-      .build[F](scope, name, mr, meterProvider)
+        boundaries = None,
+        userAttributes = Nil))
+      .build[F](scope, name, mr, otelMeter)
 }

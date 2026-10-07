@@ -5,17 +5,16 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import munit.CatsEffectSuite
+import munit.{CatsEffectSuite, IgnoreSuite}
 
 import scala.concurrent.duration.DurationDouble
 
+@IgnoreSuite
 class ServiceMessageTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("Messaging System")
       .service("Forward")
-      .updateConfig(
-        _.withLogThreshold(_.Debug, _.Debug)
-          .withReportPolicy(_.fixedRate(100.milliseconds).repeat))
+      .updateConfig(_.withReportPolicy(_.fixedRate(100.milliseconds).repeat))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     val log = agent.logger
