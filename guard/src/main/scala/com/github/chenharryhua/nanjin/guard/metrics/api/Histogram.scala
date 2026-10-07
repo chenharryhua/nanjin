@@ -95,6 +95,12 @@ object Histogram {
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um), reservoir, description, boundaries, userAttributes)
 
+    /** Set explicit bucket boundaries for the OpenTelemetry histogram. Affects only the OpenTelemetry export,
+      * not the Dropwizard reservoir.
+      */
+    def withBoundaries(boundaries: BucketBoundaries): Builder =
+      new Builder(isEnabled, squants, reservoir, description, Some(boundaries), userAttributes)
+
     /** Enable or disable metric registration; disabled histograms become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, squants, reservoir, description, boundaries, userAttributes)

@@ -120,6 +120,13 @@ object Timer {
     def withTimeUnit(timeunit: squants.time.TimeUnit): Builder =
       new Builder(isEnabled, reservoir, description, boundaries, timeunit, userAttributes)
 
+    /** Set explicit bucket boundaries for the OpenTelemetry duration histogram. The values are in the unit
+      * chosen by `withTimeUnit` (default seconds). Affects only the OpenTelemetry export, not the Dropwizard
+      * reservoir.
+      */
+    def withBoundaries(boundaries: BucketBoundaries): Builder =
+      new Builder(isEnabled, reservoir, description, Some(boundaries), timeunit, userAttributes)
+
     /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir, description, boundaries, timeunit, userAttributes)
