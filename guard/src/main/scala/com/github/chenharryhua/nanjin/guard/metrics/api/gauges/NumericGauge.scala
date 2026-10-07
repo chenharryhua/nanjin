@@ -67,7 +67,7 @@ object NumericGauge {
       scope: MetricScope,
       name: String,
       dispatcher: Dispatcher[F],
-      meter: OtelMeter[F],
+      otelMeter: OtelMeter[F],
       fa: F[Long])(using F: Async[F]): Resource[F, Unit] = {
 
       // The Dropwizard side stores the value as a JSON number so it flows through the existing snapshot
@@ -92,7 +92,7 @@ object NumericGauge {
       def observable(id: MetricId): Resource[F, Unit] =
         ContT
           .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
-            meter.observableGauge[Long](name).withUnit(squants.unitSymbol))
+            otelMeter.observableGauge[Long](name).withUnit(squants.unitSymbol))
           .map(b => description.fold(b)(b.withDescription))
           .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
 
@@ -113,9 +113,9 @@ object NumericGauge {
     scope: MetricScope,
     name: String,
     dispatcher: Dispatcher[F],
-    meter: OtelMeter[F],
+    otelMeter: OtelMeter[F],
     fa: F[Long],
     f: Endo[Builder]): Resource[F, Unit] =
     f(new Builder(isEnabled = true, timeout = 5.seconds, squants = Squants(Each), description = None))
-      .build[F](metricRegistry, scope, name, dispatcher, meter, fa)
+      .build[F](metricRegistry, scope, name, dispatcher, otelMeter, fa)
 }

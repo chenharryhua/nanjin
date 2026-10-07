@@ -128,28 +128,28 @@ object MetricsHub {
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meter: OtelMeter[F]): MetricsHub[F] =
-    new Impl[F](scope, metricRegistry, dispatcher, zoneId, meter)
+    otelMeter: OtelMeter[F]): MetricsHub[F] =
+    new Impl[F](scope, metricRegistry, dispatcher, zoneId, otelMeter)
 
   private class Impl[F[_]: Async](
     val scope: MetricScope,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId,
-    meter: OtelMeter[F])
+    otelMeter: OtelMeter[F])
       extends MetricsHub[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      Counter[F](metricRegistry, scope, name, zoneId, meter, f)
+      Counter[F](metricRegistry, scope, name, zoneId, otelMeter, f)
 
     override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      Meter[F](metricRegistry, scope, name, meter, f)
+      Meter[F](metricRegistry, scope, name, otelMeter, f)
 
     override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      Histogram[F](metricRegistry, scope, name, meter, f)
+      Histogram[F](metricRegistry, scope, name, otelMeter, f)
 
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      Timer[F](metricRegistry, scope, name, meter, f)
+      Timer[F](metricRegistry, scope, name, otelMeter, f)
 
     // gauges
 
@@ -159,7 +159,7 @@ object MetricsHub {
       Gauge[F](gaugeParams, name, f)
 
     override def numericGauge(name: String, fa: F[Long], f: Endo[NumericGauge.Builder]): Resource[F, Unit] =
-      NumericGauge[F](metricRegistry, scope, name, dispatcher, meter, fa, f)
+      NumericGauge[F](metricRegistry, scope, name, dispatcher, otelMeter, fa, f)
 
     override def healthCheck(
       name: String,

@@ -155,7 +155,7 @@ private[guard] object ServiceGuard {
         // service level singletons
         dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
         meterProvider <- Stream.resource(service_config.meterProvider)
-        meter <- Stream.eval(meterProvider.get(serviceParams.serviceIdentity.service.value))
+        otelMeter <- Stream.eval(meterProvider.get(serviceParams.serviceIdentity.service.value))
         tracerProvider <- Stream.resource(service_config.tracerProvider)
         tracer <- Stream.eval(tracerProvider.get(serviceParams.serviceIdentity.service.value))
         channel <- Stream.eval(Channel.unbounded[F, Event])
@@ -179,7 +179,7 @@ private[guard] object ServiceGuard {
             batchIdGenerator = F.delay(BatchId(batchIdGenerator.getAndIncrement())),
             metricsEventHandler = meHandler,
             reportedEventHandler = reHandler,
-            meter = meter
+            otelMeter = otelMeter
           )
         event <- channel.stream // main stream
           .concurrently(meHandler.reportPeriodically)

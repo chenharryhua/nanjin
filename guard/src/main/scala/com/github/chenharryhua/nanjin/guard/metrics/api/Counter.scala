@@ -110,11 +110,11 @@ object Counter {
       name: String,
       metricRegistry: MetricRegistry,
       zoneId: ZoneId,
-      meter: OtelMeter[F]): Resource[F, Counter[F]] = {
+      otelMeter: OtelMeter[F]): Resource[F, Counter[F]] = {
       def counter: Resource[F, Impl[F]] =
         for {
           upDown <- Resource.eval {
-            val builder = meter.upDownCounter[Long](name).withUnit(Each.symbol)
+            val builder = otelMeter.upDownCounter[Long](name).withUnit(Each.symbol)
             description.fold(builder)(builder.withDescription).create
           }
           counter <- Resource.make(
@@ -139,8 +139,8 @@ object Counter {
     scope: MetricScope,
     name: String,
     zoneId: ZoneId,
-    meter: OtelMeter[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Counter[F]] =
     f(new Builder(isEnabled = true, isRisk = false, policy = Policy.empty, description = None))
-      .build[F](scope, name, mr, zoneId, meter)
+      .build[F](scope, name, mr, zoneId, otelMeter)
 }

@@ -123,11 +123,11 @@ object Timer {
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meter: OtelMeter[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
+      otelMeter: OtelMeter[F])(using F: Sync[F]): Resource[F, Timer[F]] = {
       def timer: Resource[F, Timer[F]] =
         for {
           otel <- Resource.eval(
-            ContT.pure(meter.histogram[Double](name).withUnit(timeunit.symbol))
+            ContT.pure(otelMeter.histogram[Double](name).withUnit(timeunit.symbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create))
@@ -143,7 +143,7 @@ object Timer {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meter: OtelMeter[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Timer[F]] =
     f(
       new Builder(
@@ -152,5 +152,5 @@ object Timer {
         description = None,
         boundaries = None,
         timeunit = squants.Seconds))
-      .build[F](scope, name, mr, meter)
+      .build[F](scope, name, mr, otelMeter)
 }

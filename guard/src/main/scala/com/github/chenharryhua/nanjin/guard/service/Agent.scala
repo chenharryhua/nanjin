@@ -166,7 +166,7 @@ final private class GeneralAgent[F[_]: Async](
   batchIdGenerator: F[BatchId],
   metricsEventHandler: MetricsEventHandler[F],
   reportedEventHandler: ReportedEventHandler[F],
-  meter: OtelMeter[F]
+  otelMeter: OtelMeter[F]
 ) extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.serviceIdentity.launchTime.zoneId
@@ -181,7 +181,7 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       metricsEventHandler = metricsEventHandler,
       reportedEventHandler = reportedEventHandler.withDomain(domain),
-      meter = meter
+      otelMeter = otelMeter
     )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -196,7 +196,7 @@ final private class GeneralAgent[F[_]: Async](
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, meter)
+    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, otelMeter)
   }
 
   override def metricsHubS(label: String): MetricsHubS[F] =

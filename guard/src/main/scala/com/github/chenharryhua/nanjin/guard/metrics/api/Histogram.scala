@@ -98,11 +98,11 @@ object Histogram {
       scope: MetricScope,
       name: String,
       metricRegistry: MetricRegistry,
-      meter: OtelMeter[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
+      otelMeter: OtelMeter[F])(using F: Sync[F]): Resource[F, Histogram[F]] = {
       def histogram: Resource[F, Histogram[F]] =
         for {
           otel <- Resource.eval(
-            ContT.pure(meter.histogram[Long](name).withUnit(squants.unitSymbol))
+            ContT.pure(otelMeter.histogram[Long](name).withUnit(squants.unitSymbol))
               .map(b => boundaries.fold(b)(b.withExplicitBucketBoundaries))
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create))
@@ -125,7 +125,7 @@ object Histogram {
     mr: MetricRegistry,
     scope: MetricScope,
     name: String,
-    meter: OtelMeter[F],
+    otelMeter: OtelMeter[F],
     f: Endo[Builder]): Resource[F, Histogram[F]] =
     f(
       new Builder(
@@ -134,5 +134,5 @@ object Histogram {
         reservoir = None,
         description = None,
         boundaries = None))
-      .build[F](scope, name, mr, meter)
+      .build[F](scope, name, mr, otelMeter)
 }
