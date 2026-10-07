@@ -5,7 +5,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
-import com.github.chenharryhua.nanjin.guard.translator.Attribute
+import com.github.chenharryhua.nanjin.guard.translator.Labelled
 import fs2.{Chunk, Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum}
 
@@ -69,9 +69,9 @@ final private class CloudWatchObserverImpl[F[_]: Temporal](client: Resource[F, C
       Stream.resource(client).flatMap { cwc =>
         mcs.mapChunks(_.flatMap(mc => Chunk.from(mc.counts.map((_, _, mc.timestamp))))).map {
           case (mid, count, timestamp) =>
-            val label = Attribute(mid.scope.label).textEntry
-            val domain = Attribute(mid.scope.domain).textEntry
-            val service = Attribute(mid.scope.service).textEntry
+            val label = Labelled(mid.scope.label).textEntry
+            val domain = Labelled(mid.scope.domain).textEntry
+            val service = Labelled(mid.scope.service).textEntry
 
             val dimensions = java.util.List.of(
               Dimension.builder().name(service.tag).value(service.text).build(),

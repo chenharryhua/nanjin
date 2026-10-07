@@ -11,54 +11,54 @@ object PrettyJsonTranslator {
   // events handlers
   private def service_start(evt: ServiceStart): Json =
     Json.obj(
-      Attribute(evt).map(_.tick.index).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-      Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-      Attribute(evt.brief).snakeJsonEntry
+      Labelled(evt).map(_.tick.index).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.service).snakeJsonEntry,
+      Labelled(evt.upTime).map(_.show).snakeJsonEntry,
+      Labelled(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(evt.brief).snakeJsonEntry
     )
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
-      Attribute(evt).map(_.tick.index).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-      Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
-      Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-      Attribute(evt.stackTrace).snakeJsonEntry
+      Labelled(evt).map(_.tick.index).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.service).snakeJsonEntry,
+      Labelled(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
+      Labelled(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
+      Labelled(evt.upTime).map(_.show).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(evt.stackTrace).snakeJsonEntry
     )
 
   private def service_stop(evt: ServiceStop): Json =
     Json.obj(
-      Attribute(evt).map(_.cause).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).map(_.show).snakeJsonEntry
+      Labelled(evt).map(_.cause).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.service).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(evt.upTime).map(_.show).snakeJsonEntry
     )
 
   private def metrics_snapshot(evt: MetricsSnapshot): Json =
     Json.obj(
-      Attribute(evt).map(_.index.show).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-      Attribute(evt.took).map(_.show).snakeJsonEntry,
-      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-      Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
+      Labelled(evt).map(_.index.show).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.service).snakeJsonEntry,
+      Labelled(evt.took).map(_.show).snakeJsonEntry,
+      Labelled(evt.upTime).map(_.show).snakeJsonEntry,
+      Labelled(evt.serviceIdentity.serviceId).snakeJsonEntry,
+      Labelled(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 
   private def reported_event(evt: ReportedEvent): Json =
     Json
       .obj(
-        Attribute(evt.correlation).snakeJsonEntry,
-        Attribute(evt.domain).snakeJsonEntry,
-        Attribute(evt).map(_.logRecord.level.show).snakeJsonEntry,
-        Attribute(evt.serviceIdentity.service).snakeJsonEntry,
-        Attribute(evt.serviceIdentity.serviceId).snakeJsonEntry,
-        Attribute(evt.upTime).map(_.show).snakeJsonEntry,
-        Attribute(evt.logRecord.message).snakeJsonEntry,
-        Attribute(evt.logRecord.stackTrace).snakeJsonEntry
+        Labelled(evt.correlation).snakeJsonEntry,
+        Labelled(evt.domain).snakeJsonEntry,
+        Labelled(evt).map(_.logRecord.level.show).snakeJsonEntry,
+        Labelled(evt.serviceIdentity.service).snakeJsonEntry,
+        Labelled(evt.serviceIdentity.serviceId).snakeJsonEntry,
+        Labelled(evt.upTime).map(_.show).snakeJsonEntry,
+        Labelled(evt.logRecord.message).snakeJsonEntry,
+        Labelled(evt.logRecord.stackTrace).snakeJsonEntry
       )
       .dropNullValues
 
