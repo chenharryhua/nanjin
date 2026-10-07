@@ -74,6 +74,25 @@ import java.time.ZoneId
   * The JSON `gauge` (and gauges derived from it, e.g. healthCheck/ratio/idle/active/frequency) is
   * Dropwizard-only: an arbitrary encoded value cannot satisfy otel4s's numeric `MeasurementValue`. Use
   * `numericGauge` when the value is a `Long` and should also reach OpenTelemetry.
+  *
+  * ===Point attributes===
+  * Every otel point is stamped with the framework dimensions `nj.label`, `nj.domain`, `nj.service` and
+  * `nj.task`, derived from the instrument's `MetricScope`. The otel-exporting instruments (counter, meter,
+  * histogram, timer, numericGauge) additionally accept caller-supplied string attributes via
+  * `withAttributes(attributes: (String, String)*)` on their builder:
+  *
+  * {{ agent.metricsHub("requests").counter("total", _.withAttributes("endpoint" -> "/orders")) }}
+  *
+  * These attributes are '''static''': fixed when the instrument is built and applied to every measurement,
+  * which departs from OpenTelemetry's own model where attributes are supplied per record. For a dimension
+  * that varies per event, create a separate instrument rather than threading the value through here. Keep
+  * them low-cardinality (known at construction), since each distinct attribute set is a separate otel series.
+  * On a key conflict the user attribute '''wins''' — a caller may deliberately override an `nj.*` dimension —
+  * and the first value wins over a later duplicate key. Attributes affect only the OpenTelemetry export, not
+  * the Dropwizard snapshot. Repeated `withAttributes` calls accumulate.
+  *
+  * The non-numeric gauges (`gauge`/`healthCheck`/`ratio`/`idle`/`active`/`frequency`) expose no
+  * `withAttributes`: they do not reach OpenTelemetry (see above), so point attributes would have no effect.
   */
 sealed trait MetricsHub[F[_]] {
 
