@@ -63,7 +63,7 @@ object Timer {
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
     name: MetricToken,
-    userAttributes: List[Attribute[?]],
+    userAttributes: List[Attribute[String]],
     otel: OtelHistogram[F, Double],
     timeunit: squants.time.TimeUnit
   )(implicit F: Sync[F])
@@ -72,7 +72,7 @@ object Timer {
     private val id: MetricId =
       MetricId(scope, name, MetricCategory.Timer(MetricKind.Timer.Default))
 
-    private val attributes: List[Attribute[?]] = id.scope.attributesWith(userAttributes)
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {
@@ -103,7 +103,7 @@ object Timer {
     description: Option[String],
     boundaries: Option[BucketBoundaries],
     timeunit: squants.time.TimeUnit,
-    userAttributes: List[Attribute[?]]
+    userAttributes: List[Attribute[String]]
   ) extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain timing observations. */
@@ -124,21 +124,22 @@ object Timer {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir, description, boundaries, timeunit, userAttributes)
 
-    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every timing in addition to the
-      * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every timing in addition to
+      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
       * measurement — for a dimension that varies per event, create a separate instrument. Keep them
       * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
-      * conflict the user attribute wins, including over the framework `nj.*` dimensions. Attributes affect
-      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      * conflict the user attribute wins (over the framework `nj.*` dimensions, and the first wins over a
+      * later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard snapshot.
+      * Repeated calls accumulate.
       */
-    def withAttributes(attributes: Attribute[?]*): Builder =
+    def withAttributes(attributes: (String, String)*): Builder =
       new Builder(
         isEnabled,
         reservoir,
         description,
         boundaries,
         timeunit,
-        userAttributes ::: attributes.toList)
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Timer] def build[F[_]](
       scope: MetricScope,

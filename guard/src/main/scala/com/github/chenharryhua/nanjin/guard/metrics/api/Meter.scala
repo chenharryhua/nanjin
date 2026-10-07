@@ -37,7 +37,7 @@ object Meter {
     metricRegistry: MetricRegistry,
     squants: Squants,
     name: MetricToken,
-    userAttributes: List[Attribute[?]],
+    userAttributes: List[Attribute[String]],
     otel: OtelCounter[F, Long])(using F: Sync[F])
       extends Meter[F] {
 
@@ -48,7 +48,7 @@ object Meter {
         MetricCategory.Meter(kind = MetricKind.Meter.Default, squants = squants)
       )
 
-    private val attributes: List[Attribute[?]] = id.scope.attributesWith(userAttributes)
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     private val meter: CodahaleMeter = metricRegistry.meter(id.identifier)
 
@@ -65,7 +65,7 @@ object Meter {
     isEnabled: Boolean,
     squants: Squants,
     description: Option[String],
-    userAttributes: List[Attribute[?]])
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Enable or disable metric registration; disabled meters become no-ops. */
@@ -80,16 +80,16 @@ object Meter {
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
       new Builder(isEnabled, Squants(um), description, userAttributes)
 
-    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every measurement in addition to
-      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument and
-      * applied to every `mark`, not per measurement — for a dimension that varies per event, create a
-      * separate instrument. Keep them low-cardinality (known at construction), since each distinct attribute
-      * set is a separate OpenTelemetry series. On a key conflict the user attribute wins, including over the
-      * framework `nj.*` dimensions. Attributes affect only the OpenTelemetry export, not the Dropwizard
-      * snapshot. Repeated calls accumulate.
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every measurement in
+      * addition to the framework `nj.*` attributes. They are '''static''': fixed for the life of the
+      * instrument and applied to every `mark`, not per measurement — for a dimension that varies per event,
+      * create a separate instrument. Keep them low-cardinality (known at construction), since each distinct
+      * attribute set is a separate OpenTelemetry series. On a key conflict the user attribute wins (over the
+      * framework `nj.*` dimensions, and the first wins over a later duplicate key). Attributes affect only
+      * the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
       */
-    def withAttributes(attributes: Attribute[?]*): Builder =
-      new Builder(isEnabled, squants, description, userAttributes ::: attributes.toList)
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(isEnabled, squants, description, userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Meter] def build[F[_]](
       scope: MetricScope,

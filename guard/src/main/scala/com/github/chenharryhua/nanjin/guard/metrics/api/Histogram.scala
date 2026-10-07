@@ -44,7 +44,7 @@ object Histogram {
     squants: Squants,
     reservoir: Option[Reservoir],
     name: MetricToken,
-    userAttributes: List[Attribute[?]],
+    userAttributes: List[Attribute[String]],
     otel: OtelHistogram[F, Long])(using F: Sync[F])
       extends Histogram[F] {
 
@@ -63,7 +63,7 @@ object Histogram {
 
     private val histogram: CodahaleHistogram = metricRegistry.histogram(id.identifier, supplier)
 
-    private val attributes: List[Attribute[?]] = id.scope.attributesWith(userAttributes)
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
     // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
@@ -80,7 +80,7 @@ object Histogram {
     reservoir: Option[Reservoir],
     description: Option[String],
     boundaries: Option[BucketBoundaries],
-    userAttributes: List[Attribute[?]])
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain observations. */
@@ -103,17 +103,18 @@ object Histogram {
       * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
       * measurement — for a dimension that varies per event, create a separate instrument. Keep them
       * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
-      * conflict the user attribute wins, including over the framework `nj.*` dimensions. Attributes affect
-      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      * conflict the user attribute wins (over the framework `nj.*` dimensions, and the first wins over a
+      * later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard snapshot.
+      * Repeated calls accumulate.
       */
-    def withAttributes(attributes: Attribute[?]*): Builder =
+    def withAttributes(attributes: (String, String)*): Builder =
       new Builder(
         isEnabled,
         squants,
         reservoir,
         description,
         boundaries,
-        userAttributes ::: attributes.toList)
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Histogram] def build[F[_]](
       scope: MetricScope,

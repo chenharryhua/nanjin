@@ -87,7 +87,7 @@ final case class MetricScope(label: MetricScope.Label, domain: Domain, service: 
     * the first occurrence of each key, so the merge is deterministic rather than relying on the otel
     * backend's handling of duplicate keys.
     */
-  def attributesWith(userAttributes: List[Attribute[?]]): List[Attribute[?]] =
+  def attributesWith(userAttributes: List[Attribute[String]]): List[Attribute[String]] =
     // distinctBy keeps the first occurrence per key, so listing user attributes first lets them win on a
     // conflict, including over the framework nj.* dimensions
     (userAttributes ::: attributes).distinctBy(_.key.name)

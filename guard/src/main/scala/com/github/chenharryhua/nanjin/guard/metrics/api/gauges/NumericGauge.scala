@@ -45,7 +45,7 @@ object NumericGauge {
     private[NumericGauge] val timeout: FiniteDuration,
     private[NumericGauge] val squants: Squants,
     private[NumericGauge] val description: Option[String],
-    private[NumericGauge] val userAttributes: List[Attribute[?]])
+    private[NumericGauge] val userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Enable or disable gauge registration; disabled gauges become no-ops. */
@@ -64,14 +64,20 @@ object NumericGauge {
     def withDescription(description: String): Builder =
       new Builder(isEnabled, timeout, squants, Some(description), userAttributes)
 
-    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every observation in addition to
-      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument. Keep
-      * them low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
-      * conflict the user attribute wins, including over the framework `nj.*` dimensions. Attributes affect
-      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every observation in
+      * addition to the framework `nj.*` attributes. They are '''static''': fixed for the life of the
+      * instrument. Keep them low-cardinality, since each distinct attribute set is a separate OpenTelemetry
+      * series. On a key conflict the user attribute wins (over the framework `nj.*` dimensions, and the first
+      * wins over a later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard
+      * snapshot. Repeated calls accumulate.
       */
-    def withAttributes(attributes: Attribute[?]*): Builder =
-      new Builder(isEnabled, timeout, squants, description, userAttributes ::: attributes.toList)
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(
+        isEnabled,
+        timeout,
+        squants,
+        description,
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[NumericGauge] def build[F[_]](
       metricRegistry: MetricRegistry,

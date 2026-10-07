@@ -36,7 +36,7 @@ object Counter {
     metricRegistry: MetricRegistry,
     isRisk: Boolean,
     name: MetricToken,
-    userAttributes: List[Attribute[?]],
+    userAttributes: List[Attribute[String]],
     upDown: UpDownCounter[F, Long])(using F: Sync[F])
       extends Counter[F] {
     private val id: MetricId =
@@ -50,7 +50,7 @@ object Counter {
     // ones. Note: risk and normal counters are NOT separated by a point attribute here, so under the same
     // metric name they aggregate into a single OpenTelemetry series. Distinguish them via the metric name or
     // a user attribute if separate series are needed.
-    private val attributes: List[Attribute[?]] = id.scope.attributesWith(userAttributes)
+    private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     // Records to Dropwizard and to the otel4s UpDownCounter (a no-op when the configured MeterProvider is
     // MeterProvider.noop). nanjin's Counter maps to UpDownCounter because inc accepts negative deltas.
@@ -89,7 +89,7 @@ object Counter {
     isRisk: Boolean,
     policy: Policy,
     description: Option[String],
-    userAttributes: List[Attribute[?]])
+    userAttributes: List[Attribute[String]])
       extends EnableConfig[Builder] {
 
     /** Classify the counter as a risk counter in reported metrics. */
@@ -108,15 +108,21 @@ object Counter {
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(isEnabled, isRisk, f(Policy), description, userAttributes)
 
-    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every `inc` in addition to the
-      * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
+    /** Attach caller-supplied OpenTelemetry string point attributes, recorded on every `inc` in addition to
+      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
       * measurement — for a dimension that varies per event, create a separate instrument. Keep them
       * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
-      * conflict the user attribute wins, including over the framework `nj.*` dimensions. Attributes affect
-      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      * conflict the user attribute wins (over the framework `nj.*` dimensions, and the first wins over a
+      * later duplicate key). Attributes affect only the OpenTelemetry export, not the Dropwizard snapshot.
+      * Repeated calls accumulate.
       */
-    def withAttributes(attributes: Attribute[?]*): Builder =
-      new Builder(isEnabled, isRisk, policy, description, userAttributes ::: attributes.toList)
+    def withAttributes(attributes: (String, String)*): Builder =
+      new Builder(
+        isEnabled,
+        isRisk,
+        policy,
+        description,
+        userAttributes ::: attributes.toList.map(Attribute(_, _)))
 
     private[Counter] def build[F[_]: Async](
       scope: MetricScope,

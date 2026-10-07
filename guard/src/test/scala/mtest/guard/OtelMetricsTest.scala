@@ -250,7 +250,8 @@ class OtelMetricsTest extends CatsEffectSuite {
           .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
       service
         .eventStream(agent =>
-          agent.facilitate("hub")(_.counter("requests", _.withAttributes(endpoint))).use(_.inc(5)))
+          agent.facilitate("hub")(_.counter("requests", _.withAttributes("endpoint" -> "/orders")))
+            .use(_.inc(5)))
         .compile
         .drain >> testkit.collectMetrics
     }.map { metrics =>
@@ -276,7 +277,7 @@ class OtelMetricsTest extends CatsEffectSuite {
       service
         .eventStream(agent =>
           agent
-            .facilitate("hub")(_.counter("requests", _.withAttributes(njLabelOverride)))
+            .facilitate("hub")(_.counter("requests", _.withAttributes("nj.label" -> "override")))
             .use(_.inc(1)))
         .compile
         .drain >> testkit.collectMetrics
