@@ -102,9 +102,9 @@ object Histogram {
     /** Attach caller-supplied OpenTelemetry point attributes, recorded on every `update` in addition to the
       * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
       * measurement — for a dimension that varies per event, create a separate instrument. Keep them
-      * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. Keys starting
-      * with `nj.` are ignored so the framework dimensions cannot be overridden. Attributes affect only the
-      * OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. On a key
+      * conflict the user attribute wins, including over the framework `nj.*` dimensions. Attributes affect
+      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
       */
     def withAttributes(attributes: Attribute[?]*): Builder =
       new Builder(

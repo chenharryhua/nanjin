@@ -264,9 +264,10 @@ class OtelMetricsTest extends CatsEffectSuite {
     }
   }
 
-  test("11.withAttributes ignores a user attribute whose key collides with an nj.* dimension") {
-    // nj.label is a framework identity dimension; a user attempt to override it is dropped, so the point
-    // keeps the framework's nj.label=hub rather than the supplied value.
+  test("11.withAttributes lets a user attribute override a framework nj.* dimension") {
+    // nj.label is a framework identity dimension, but the user is allowed to override it: the point carries
+    // the user's nj.label=override, not the framework's hub.
+    val njLabelOverride: Attribute[String] = Attribute("nj.label", "override")
     MetricsTestkit.inMemory[IO]().use { testkit =>
       val service =
         TaskGuard[IO]("otel")
@@ -275,7 +276,7 @@ class OtelMetricsTest extends CatsEffectSuite {
       service
         .eventStream(agent =>
           agent
-            .facilitate("hub")(_.counter("requests", _.withAttributes(Attribute("nj.label", "hijack"))))
+            .facilitate("hub")(_.counter("requests", _.withAttributes(njLabelOverride)))
             .use(_.inc(1)))
         .compile
         .drain >> testkit.collectMetrics
@@ -285,7 +286,7 @@ class OtelMetricsTest extends CatsEffectSuite {
         MetricExpectation
           .sum[Long]("requests")
           .points(PointSetExpectation.exists(
-            PointExpectation.numeric(1L).attributesExact(njLabel, njDomain, njService, njTask)))
+            PointExpectation.numeric(1L).attributesExact(njLabelOverride, njDomain, njService, njTask)))
       )
     }
   }
