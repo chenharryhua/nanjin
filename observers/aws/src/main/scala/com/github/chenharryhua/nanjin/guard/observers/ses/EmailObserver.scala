@@ -10,7 +10,7 @@ import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{Capacity, ServiceId}
+import com.github.chenharryhua.nanjin.guard.config.{Capacity, ServiceId, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import com.github.chenharryhua.nanjin.guard.translator.{eventLogLevel, Translator}
@@ -180,7 +180,7 @@ final private class EmailObserverImpl[F[_]](params: Params[F])(using F: Async[F]
                 ss.serviceIdentity,
                 None,
                 ss.brief,
-                ss.serviceIdentity.toTimestamp(ts),
+                Timestamp(ss.serviceIdentity.timeZone, ts),
                 StopReason.ByCancellation))
           }
         (cache.get, stop).mapN(_ ++ _)

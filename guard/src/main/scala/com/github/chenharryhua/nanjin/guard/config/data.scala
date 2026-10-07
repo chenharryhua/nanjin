@@ -157,7 +157,7 @@ end Brief
 // ---------------- TimeZone ----------------
 opaque type TimeZone = ZoneId
 object TimeZone:
-  def apply(zoneId: ZoneId): TimeZone = zoneId
+  private[config] def apply(zoneId: ZoneId): TimeZone = zoneId
   extension (tz: TimeZone) inline def value: ZoneId = tz
 
   given Show[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Show]
@@ -208,6 +208,8 @@ end Domain
 opaque type Timestamp = ZonedDateTime
 object Timestamp:
   def apply(value: ZonedDateTime): Timestamp = value
+  def apply(timeZone: TimeZone, ts: Instant): Timestamp = ts.atZone(timeZone)
+
   extension (ts: Timestamp) inline def value: ZonedDateTime = ts
 
   given Show[Timestamp] =

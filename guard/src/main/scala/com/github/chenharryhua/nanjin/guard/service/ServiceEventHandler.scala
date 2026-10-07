@@ -6,7 +6,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.common.logging.LogLocator
-import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, StackTrace}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, StackTrace, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import fs2.Stream
@@ -44,7 +44,7 @@ final private class ServiceEventHandler[F[_]: Sync] private (
 
   def serviceStop(cause: StopReason): F[Unit] =
     for {
-      now <- serviceParams.serviceIdentity.timestamp[F]
+      now <- Sync[F].realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
       event = ServiceStop(
         serviceIdentity = serviceParams.serviceIdentity,
         logLink = logLocator.map(_.locate(now.value.toInstant)),
