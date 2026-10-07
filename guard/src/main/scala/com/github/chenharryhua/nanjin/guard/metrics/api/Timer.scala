@@ -20,6 +20,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   MetricScope,
   MetricToken
 }
+import org.typelevel.otel4s.Attribute
 import org.typelevel.otel4s.metrics.{BucketBoundaries, Histogram as OtelHistogram, Meter as OtelMeter}
 import squants.time.Nanoseconds
 
@@ -62,6 +63,7 @@ object Timer {
     metricRegistry: MetricRegistry,
     reservoir: Option[Reservoir],
     name: MetricToken,
+    userAttributes: List[Attribute[?]],
     otel: OtelHistogram[F, Double],
     timeunit: squants.time.TimeUnit
   )(implicit F: Sync[F])
@@ -69,6 +71,8 @@ object Timer {
 
     private val id: MetricId =
       MetricId(scope, name, MetricCategory.Timer(MetricKind.Timer.Default))
+
+    private val attributes: List[Attribute[?]] = id.scope.attributesWith(userAttributes)
 
     private val supplier: MetricRegistry.MetricSupplier[CodahaleTimer] = () =>
       reservoir match {
@@ -83,7 +87,7 @@ object Timer {
     // to `timeunit`, and the otel instrument carries that unit's symbol.
     override def elapsedNano(num: Long): F[Unit] =
       F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >>
-        otel.record(Nanoseconds(num).in(timeunit).value, id.scope.attributes)
+        otel.record(Nanoseconds(num).in(timeunit).value, attributes*)
 
     // Measure the effect once, then record the same elapsed time to both backends.
     override def timing[A](fa: F[A]): F[A] =
@@ -98,26 +102,43 @@ object Timer {
     reservoir: Option[Reservoir],
     description: Option[String],
     boundaries: Option[BucketBoundaries],
-    timeunit: squants.time.TimeUnit
+    timeunit: squants.time.TimeUnit,
+    userAttributes: List[Attribute[?]]
   ) extends EnableConfig[Builder] {
 
     /** Choose the Dropwizard reservoir used to retain timing observations. */
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, Some(reservoir), description, boundaries, timeunit)
+      new Builder(isEnabled, Some(reservoir), description, boundaries, timeunit, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, reservoir, Some(description), boundaries, timeunit)
+      new Builder(isEnabled, reservoir, Some(description), boundaries, timeunit, userAttributes)
 
     /** Choose the time unit the OpenTelemetry duration histogram records in (default seconds). The elapsed
       * nanoseconds are converted to this unit and the instrument carries its symbol.
       */
     def withTimeUnit(timeunit: squants.time.TimeUnit): Builder =
-      new Builder(isEnabled, reservoir, description, boundaries, timeunit)
+      new Builder(isEnabled, reservoir, description, boundaries, timeunit, userAttributes)
 
     /** Enable or disable metric registration; disabled timers become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, reservoir, description, boundaries, timeunit)
+      new Builder(isEnabled, reservoir, description, boundaries, timeunit, userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every timing in addition to the
+      * framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument, not per
+      * measurement — for a dimension that varies per event, create a separate instrument. Keep them
+      * low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. Keys starting
+      * with `nj.` are ignored so the framework dimensions cannot be overridden. Attributes affect only the
+      * OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      */
+    def withAttributes(attributes: Attribute[?]*): Builder =
+      new Builder(
+        isEnabled,
+        reservoir,
+        description,
+        boundaries,
+        timeunit,
+        userAttributes ::: attributes.toList)
 
     private[Timer] def build[F[_]](
       scope: MetricScope,
@@ -132,7 +153,8 @@ object Timer {
               .map(b => description.fold(b)(b.withDescription))
               .run(_.create))
           t <- Resource.make(
-            MetricToken(name).map(Impl[F](scope, metricRegistry, reservoir, _, otel, timeunit)))(_.unregister)
+            MetricToken(name).map(
+              Impl[F](scope, metricRegistry, reservoir, _, userAttributes, otel, timeunit)))(_.unregister)
         } yield t
 
       if isEnabled then timer else noop.pure
@@ -151,6 +173,7 @@ object Timer {
         reservoir = None,
         description = None,
         boundaries = None,
-        timeunit = squants.Seconds))
+        timeunit = squants.Seconds,
+        userAttributes = Nil))
       .build[F](scope, name, mr, otelMeter)
 }

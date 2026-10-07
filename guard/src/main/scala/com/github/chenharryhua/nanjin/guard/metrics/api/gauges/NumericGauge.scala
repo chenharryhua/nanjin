@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.{
   Squants
 }
 import io.circe.Json
+import org.typelevel.otel4s.Attribute
 import org.typelevel.otel4s.metrics.{Meter as OtelMeter, ObservableGauge}
 import squants.{Each, Quantity, UnitOfMeasure}
 
@@ -43,24 +44,34 @@ object NumericGauge {
     private[NumericGauge] val isEnabled: Boolean,
     private[NumericGauge] val timeout: FiniteDuration,
     private[NumericGauge] val squants: Squants,
-    private[NumericGauge] val description: Option[String])
+    private[NumericGauge] val description: Option[String],
+    private[NumericGauge] val userAttributes: List[Attribute[?]])
       extends EnableConfig[Builder] {
 
     /** Enable or disable gauge registration; disabled gauges become no-ops. */
     override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, timeout, squants, description)
+      new Builder(isEnabled, timeout, squants, description, userAttributes)
 
     /** Bound evaluation time when the Dropwizard registry reads the gauge value. */
     def withTimeout(timeout: FiniteDuration): Builder =
-      new Builder(isEnabled, timeout, squants, description)
+      new Builder(isEnabled, timeout, squants, description, userAttributes)
 
     /** Attach a squants unit whose symbol is carried by the OpenTelemetry instrument (default `Each`). */
     def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
-      new Builder(isEnabled, timeout, Squants(um), description)
+      new Builder(isEnabled, timeout, Squants(um), description, userAttributes)
 
     /** Attach a human-readable description carried by the OpenTelemetry instrument. */
     def withDescription(description: String): Builder =
-      new Builder(isEnabled, timeout, squants, Some(description))
+      new Builder(isEnabled, timeout, squants, Some(description), userAttributes)
+
+    /** Attach caller-supplied OpenTelemetry point attributes, recorded on every observation in addition to
+      * the framework `nj.*` attributes. They are '''static''': fixed for the life of the instrument. Keep
+      * them low-cardinality, since each distinct attribute set is a separate OpenTelemetry series. Keys
+      * starting with `nj.` are ignored so the framework dimensions cannot be overridden. Attributes affect
+      * only the OpenTelemetry export, not the Dropwizard snapshot. Repeated calls accumulate.
+      */
+    def withAttributes(attributes: Attribute[?]*): Builder =
+      new Builder(isEnabled, timeout, squants, description, userAttributes ::: attributes.toList)
 
     private[NumericGauge] def build[F[_]](
       metricRegistry: MetricRegistry,
@@ -94,7 +105,8 @@ object NumericGauge {
           .pure[[X] =>> Resource[F, X], Unit, ObservableGauge.Builder[F, Long]](
             otelMeter.observableGauge[Long](name).withUnit(squants.unitSymbol))
           .map(b => description.fold(b)(b.withDescription))
-          .run(_.createWithCallback(cb => fa.flatMap(a => cb.record(a, id.scope.attributes*))).void)
+          .run(_.createWithCallback(cb =>
+            fa.flatMap(a => cb.record(a, id.scope.attributesWith(userAttributes)*))).void)
 
       def impl: Resource[F, Unit] =
         for {
@@ -116,6 +128,12 @@ object NumericGauge {
     otelMeter: OtelMeter[F],
     fa: F[Long],
     f: Endo[Builder]): Resource[F, Unit] =
-    f(new Builder(isEnabled = true, timeout = 5.seconds, squants = Squants(Each), description = None))
+    f(
+      new Builder(
+        isEnabled = true,
+        timeout = 5.seconds,
+        squants = Squants(Each),
+        description = None,
+        userAttributes = Nil))
       .build[F](metricRegistry, scope, name, dispatcher, otelMeter, fa)
 }

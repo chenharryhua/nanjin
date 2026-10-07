@@ -240,4 +240,53 @@ class OtelMetricsTest extends CatsEffectSuite {
       assert(released == 1)
     }
   }
+
+  test("10.withAttributes adds caller attributes to the exported point alongside the nj.* ones") {
+    val endpoint: Attribute[String] = Attribute("endpoint", "/orders")
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent.facilitate("hub")(_.counter("requests", _.withAttributes(endpoint))).use(_.inc(5)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .sum[Long]("requests")
+          .points(PointSetExpectation.exists(
+            PointExpectation.numeric(5L).attributesExact(endpoint, njLabel, njDomain, njService, njTask)))
+      )
+    }
+  }
+
+  test("11.withAttributes ignores a user attribute whose key collides with an nj.* dimension") {
+    // nj.label is a framework identity dimension; a user attempt to override it is dropped, so the point
+    // keeps the framework's nj.label=hub rather than the supplied value.
+    MetricsTestkit.inMemory[IO]().use { testkit =>
+      val service =
+        TaskGuard[IO]("otel")
+          .service("otel")
+          .updateConfig(_.withMeterProvider(Resource.pure(testkit.meterProvider)))
+      service
+        .eventStream(agent =>
+          agent
+            .facilitate("hub")(_.counter("requests", _.withAttributes(Attribute("nj.label", "hijack"))))
+            .use(_.inc(1)))
+        .compile
+        .drain >> testkit.collectMetrics
+    }.map { metrics =>
+      assertMetrics(
+        metrics,
+        MetricExpectation
+          .sum[Long]("requests")
+          .points(PointSetExpectation.exists(
+            PointExpectation.numeric(1L).attributesExact(njLabel, njDomain, njService, njTask)))
+      )
+    }
+  }
 }

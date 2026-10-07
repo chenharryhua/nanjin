@@ -80,6 +80,14 @@ final case class MetricScope(label: MetricScope.Label, domain: Domain, service: 
       Attribute("nj.service", service.value),
       Attribute("nj.task", task.value)
     )
+
+  /** The framework `nj.*` attributes together with caller-supplied `userAttributes`, used as the otel point
+    * attributes. A user attribute whose key starts with `nj.` is dropped, so the framework's identity
+    * dimensions (`nj.label`/`nj.domain`/`nj.service`/`nj.task`) can never be overridden. Order places user
+    * attributes first and the framework ones last; the `nj.*` keys are already guaranteed unique.
+    */
+  def attributesWith(userAttributes: List[Attribute[?]]): List[Attribute[?]] =
+    userAttributes.filterNot(_.key.name.startsWith("nj.")) ::: attributes
 }
 object MetricScope {
   opaque type Label = String
