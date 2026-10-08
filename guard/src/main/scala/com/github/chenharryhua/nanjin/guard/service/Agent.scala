@@ -222,7 +222,7 @@ final private class GeneralAgent[F[_]: Async](
       batchIdGenerator = batchIdGenerator,
       batchTracer = BatchTracer[F](
         tracer = tracer,
-        parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(scope.attributes))))
+        parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(scope.identityAttributes))))
     )
   }
 

@@ -208,6 +208,8 @@ end Domain
 opaque type Timestamp = ZonedDateTime
 object Timestamp:
   def apply(value: ZonedDateTime): Timestamp = value
+  def apply(timeZone: TimeZone, ts: Instant): Timestamp = ts.atZone(timeZone)
+
   extension (ts: Timestamp) inline def value: ZonedDateTime = ts
 
   given Show[Timestamp] =

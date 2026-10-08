@@ -53,12 +53,14 @@ class Otel4sObserverTest extends CatsEffectSuite {
     }
   }
 
-  test("2.each record body is the translated event JSON string") {
+  test("2.each record body is a structured (map) OpenTelemetry value") {
+    import io.opentelemetry.api.common.ValueType
     run(_ => IO.unit).map { case (_, records) =>
-      // the observer emits AnyValue.string(json.noSpaces); bodies must be non-empty JSON objects
-      val bodies = records.flatMap(r => Option(r.getBodyValue).map(_.asString()))
+      // the observer emits JsonToAnyValue(json); each event's JSON object becomes an AnyValue.map, which the
+      // SDK represents as a KEY_VALUE_LIST value rather than a plain string body
+      val bodies = records.flatMap(r => Option(r.getBodyValue))
       assert(bodies.nonEmpty)
-      assert(bodies.forall(b => b.startsWith("{") && b.endsWith("}")))
+      assert(bodies.forall(_.getType == ValueType.KEY_VALUE_LIST))
     }
   }
 

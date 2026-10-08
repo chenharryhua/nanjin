@@ -5,7 +5,7 @@ import cats.effect.kernel.{Clock, Ref}
 import cats.syntax.applicative.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.config.{ServiceId, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import fs2.Chunk
@@ -40,7 +40,7 @@ final class FinalizeMonitor[F[_]: {Clock, Monad}] private (ref: Ref[F, Map[Servi
             ss.serviceIdentity,
             None,
             ss.brief,
-            ss.serviceIdentity.toTimestamp(ts),
+            Timestamp(ss.serviceIdentity.timeZone, ts),
             StopReason.ByCancellation)
         })
   } yield stops

@@ -5,7 +5,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.json
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.LogThreshold
+import com.github.chenharryhua.nanjin.guard.config.{LogThreshold, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{
   MetricsEventHandler,
@@ -51,14 +51,14 @@ final private class HttpDataRouter[F[_]](
      */
     case GET -> Root / "panics" =>
       val json = for {
-        now <- serviceParams.serviceIdentity.timestamp[F]
+        now <- F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
         panics <- serviceEventHandler.panicHistory
       } yield documents.service_panic_history(serviceParams, panics, now)
       Ok(json)
 
     case GET -> Root / "errors" =>
       val json = for {
-        now <- serviceParams.serviceIdentity.timestamp[F]
+        now <- F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
         panics <- reportedEventHandler.errorHistory
       } yield documents.service_error_history(serviceParams, panics, now)
       Ok(json)
@@ -75,7 +75,7 @@ final private class HttpDataRouter[F[_]](
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory
         snapshots <- metricsEventHandler.snapshotHistory
-        now <- serviceParams.serviceIdentity.timestamp[F]
+        now <- F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
       } yield documents.service_health_check(panics, snapshots, now.value.toInstant)
 
       or.flatMap {
@@ -97,7 +97,7 @@ final private class HttpDataRouter[F[_]](
 
     case GET -> Root / "metrics" / "history" =>
       val text = for {
-        now <- serviceParams.serviceIdentity.timestamp[F]
+        now <- F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
         metrics <- metricsEventHandler.snapshotHistory
       } yield documents.metrics_history(serviceParams, metrics, now.value)
       Ok(text)

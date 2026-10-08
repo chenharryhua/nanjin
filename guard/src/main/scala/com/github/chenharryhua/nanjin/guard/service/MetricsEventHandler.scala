@@ -7,10 +7,9 @@ import cats.syntax.functor.given
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.common.logging.LogLocator
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ServiceParams, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.Index
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot.{Adhoc, Index, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.{MeteredCounts, ScrapeMetrics, ScrapeMode}
 import fs2.Stream
@@ -50,9 +49,10 @@ final private class MetricsEventHandler[F[_]] private (
    * Report
    */
   def httpReport: F[MetricsSnapshot] =
-    serviceParams.serviceIdentity.timestamp[F].flatMap { ts =>
-      buildFullSnapshot(Adhoc(ts))
-    }
+    F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
+      .flatMap { ts =>
+        buildFullSnapshot(Adhoc(ts))
+      }
 
   def reportPeriodically: Stream[F, Nothing] =
     tickStream.tickScheduled[F](
@@ -73,7 +73,7 @@ final private class MetricsEventHandler[F[_]] private (
 
   override def report: F[Unit] =
     for {
-      ts <- serviceParams.serviceIdentity.timestamp[F]
+      ts <- F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
       _ <- publish(Adhoc(ts))
     } yield ()
 
