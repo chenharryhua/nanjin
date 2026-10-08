@@ -6,6 +6,19 @@ import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
 import io.circe.Json
 
+/** Translates events into the "pretty", display-oriented JSON shape.
+  *
+  * "Pretty" is the same distinction `SnapshotPolyglot` draws: the metrics snapshot is rendered with
+  * `toPrettyJson` (unit-formatted string values, null gauges dropped) rather than `toVanillaJson` (the
+  * encoder-derived form kept for persistence). Across the rest of the event, values are likewise rendered
+  * through their `Show` instances and keyed in `snake_case`, and `reportedEvent` drops null fields. The
+  * result favors human readability over a canonical, round-trippable encoding.
+  *
+  * This is the shared event-JSON shape behind the observers that emit JSON (e.g. the otel4s observer, where
+  * `JsonToAnyValue` adapts it into a structured OpenTelemetry log body). Reusing one translator keeps those
+  * outputs consistent with each other and with the normal application logs: a change here moves every
+  * consumer together.
+  */
 object PrettyJsonTranslator {
 
   // events handlers

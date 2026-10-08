@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.otel4s
 
-import cats.Endo
-import cats.Eval
+import cats.{Endo, Eval}
 import cats.effect.kernel.Concurrent
 import cats.syntax.flatMap.given
 import cats.syntax.traverse.given
@@ -15,14 +14,13 @@ import com.github.chenharryhua.nanjin.guard.translator.{
 }
 import fs2.{Pipe, Stream}
 import io.circe.Json
-import org.typelevel.otel4s.AnyValue
 import org.typelevel.otel4s.logs.{LoggerProvider, Severity}
 
 /** Observes service events and emits them as OpenTelemetry log records via otel4s.
   *
-  * Each `Event` is translated to a JSON body and emitted through the supplied `LoggerProvider`, with the
-  * event's log level mapped to an OpenTelemetry severity. Events pass through unchanged so other observers
-  * can consume the same stream.
+  * Each `Event` is translated to JSON and emitted through the supplied `LoggerProvider` as a structured
+  * OpenTelemetry body (via `JsonToAnyValue`), with the event's log level mapped to an OpenTelemetry severity.
+  * Events pass through unchanged so other observers can consume the same stream.
   *
   * Usage:
   * {{{
@@ -77,7 +75,7 @@ final private class Otel4sObserverImpl[F[_], Ctx](
               .withSeverity(severity)
               .withSeverityText(severity.toString)
               .withTimestamp(event.timestamp.value.toInstant)
-              .withBody(AnyValue.string(json.noSpaces))
+              .withBody(JsonToAnyValue(json))
               .emit
           }
         }
