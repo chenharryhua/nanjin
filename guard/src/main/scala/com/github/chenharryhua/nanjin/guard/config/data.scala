@@ -157,7 +157,7 @@ end Brief
 // ---------------- TimeZone ----------------
 opaque type TimeZone = ZoneId
 object TimeZone:
-def apply(zoneId: ZoneId): TimeZone = zoneId
+  def apply(zoneId: ZoneId): TimeZone = zoneId
   extension (tz: TimeZone) inline def value: ZoneId = tz
 
   given Show[TimeZone] = OpaqueLift.lift[TimeZone, ZoneId, Show]
