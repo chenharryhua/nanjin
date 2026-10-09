@@ -103,7 +103,7 @@ private object ReportedEventHandler:
 
     val reh = (history, initial).mapN { (errorHistory, logThreshold) =>
       new ReportedEventHandler(
-        domain = Domain("default"),
+        domain = Domain("main"),
         logThreshold = logThreshold,
         history = errorHistory,
         serviceParams = serviceParams,
