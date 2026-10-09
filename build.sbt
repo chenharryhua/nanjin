@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.55.12"
+val awsV = "2.55.13"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"
