@@ -388,7 +388,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "io.opentelemetry" % "opentelemetry-api" % "1.66.0", // snyk by kafka-client
+      "io.opentelemetry" % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
       "com.github.luben" % "zstd-jni"          % "1.5.7-22" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
