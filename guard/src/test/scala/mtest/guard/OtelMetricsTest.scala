@@ -28,12 +28,12 @@ class OtelMetricsTest extends CatsEffectSuite {
   // Per-metric attributes every instrument carries. These are nanjin's own conceptual grouping keys, so they
   // are namespaced with an "nj." prefix to stay distinct from any OpenTelemetry SDK Resource attributes the
   // caller sets at a higher level. The service is built with TaskGuard[IO]("otel").service("otel"), so both
-  // nj.task and nj.service are "otel"; domain defaults to "default".
+  // nj.task and nj.service are "otel"; domain defaults to "main".
   // All instruments here are acquired via agent.facilitate("hub"), so the metric-group label is "hub". The
   // single service-level meter carries the label as a point attribute (nj.label) rather than as the
   // instrumentation scope name, so every recorded point includes it.
   private val njLabel: Attribute[String] = Attribute("nj.label", "hub")
-  private val njDomain: Attribute[String] = Attribute("nj.domain", "default")
+  private val njDomain: Attribute[String] = Attribute("nj.domain", "main")
   private val njService: Attribute[String] = Attribute("nj.service", "otel")
   private val njTask: Attribute[String] = Attribute("nj.task", "otel")
 
