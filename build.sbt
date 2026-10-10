@@ -438,7 +438,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
       "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
-      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.11" // snyk by hadoop-client
+      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.12" // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
