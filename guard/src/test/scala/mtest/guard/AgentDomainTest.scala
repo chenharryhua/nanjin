@@ -26,7 +26,7 @@ class AgentDomainTest extends CatsEffectSuite {
       }
   }
 
-  test("2.default domain uses default value") {
+  test("2.default domain uses main value") {
     service
       .eventStream { agent =>
         agent.logger.info("hello default")
@@ -37,7 +37,7 @@ class AgentDomainTest extends CatsEffectSuite {
       .map { events =>
         val reported = events.collect { case r: ReportedEvent => r }
         assert(reported.nonEmpty)
-        assert(reported.head.domain.value == "default")
+        assert(reported.head.domain.value == "main")
       }
   }
 
@@ -72,7 +72,7 @@ class AgentDomainTest extends CatsEffectSuite {
         val reported = events.collect { case r: ReportedEvent => r }
         assert(reported.size == 2)
         assert(reported(0).domain.value == "scoped")
-        assert(reported(1).domain.value == "default")
+        assert(reported(1).domain.value == "main")
       }
   }
 }
