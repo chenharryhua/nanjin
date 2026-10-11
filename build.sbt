@@ -388,7 +388,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "at.yawk.lz4"       % "lz4-java"          % "1.11.4", // snyk by kafka-schema-registry-client
+      "at.yawk.lz4"       % "lz4-java"          % "1.12.0", // snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % "1.1.10.12", // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
       "com.github.luben"  % "zstd-jni"          % "1.5.7-23" // snyk by kafka-schema-registry-client
