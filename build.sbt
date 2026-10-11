@@ -42,6 +42,7 @@ val postgresV = "42.7.14"
 val scalapbV = "0.11.21"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.20"
+val snappyV = "1.1.10.12"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -388,8 +389,8 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
-      "at.yawk.lz4"       % "lz4-java"          % "1.12.0", // snyk by kafka-schema-registry-client
-      "org.xerial.snappy" % "snappy-java"       % "1.1.10.12", // snyk by kafka-schema-registry-client
+      "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
+      "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
       "com.github.luben"  % "zstd-jni"          % "1.5.7-23" // snyk by kafka-schema-registry-client
     ) ++ testLib)
@@ -440,7 +441,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
       "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
-      "org.xerial.snappy"    % "snappy-java"            % "1.1.10.12" // snyk by hadoop-client
+      "org.xerial.snappy"    % "snappy-java"            % snappyV // snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
