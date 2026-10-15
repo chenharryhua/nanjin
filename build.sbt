@@ -26,6 +26,7 @@ val doobieV = "1.0.0-RC13"
 val drosteV = "0.10.0"
 val fs2KafkaV = "4.1.3"
 val fs2V = "3.14.0"
+val guavaV = "33.7.2-jre"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.3"
 val jacksonScalaV = "2.22.3.1"
@@ -389,6 +390,7 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
       // snyk
+      "com.google.guava"  % "guava"             % guavaV, // snyk by kafka-avro-serializer
       "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
@@ -432,6 +434,7 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
+      "com.google.guava"     % "guava"                  % guavaV, // snyk by hadoop-client
       "io.airlift"           % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
       "io.netty"             % "netty-all"              % "4.2.19.Final", // snyk by hadoop-client
       "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
