@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.serdes
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
+import com.google.protobuf.DynamicMessage
 import mtest.kafka.objectMapper
 import org.apache.avro.generic.GenericRecord
 import munit.FunSuite
@@ -9,6 +11,9 @@ final case class JsonPerson(name: String, age: Int)
 final case class AvroPerson(name: String, age: Int)
 
 class BiTransformTest extends FunSuite {
+  private def round_trip[A, B](codec: KafkaCodec[A, B], value: B): B =
+    codec.to(codec.from(value))
+
   test("1.integer option conversion preserves values and nulls") {
     val bi = summon[BiTransform[java.lang.Integer, Option[Int]]]
 
@@ -39,5 +44,16 @@ class BiTransformTest extends FunSuite {
     assert(envelope.get("payload").get("name").asText() == person.name)
     assert(envelope.get("payload").get("age").asInt() == person.age)
     assert(bi.to(envelope.get("payload")) == person)
+  }
+
+  test("4.generic Kafka codecs hide different concrete schema types and round-trip values") {
+    val avro_codec: KafkaCodec[GenericRecord, AvroPerson] = KafkaCodec.avro[AvroPerson]
+    val protobuf_codec: KafkaCodec[DynamicMessage, ProtoConsumerRecord] =
+      KafkaCodec.protobuf[ProtoConsumerRecord]
+    val avro_person = AvroPerson("bob", 40)
+    val proto_record = ProtoConsumerRecord("abc")
+
+    assert(round_trip(avro_codec, avro_person) == avro_person)
+    assert(round_trip(protobuf_codec, proto_record) == proto_record)
   }
 }
