@@ -28,3 +28,4 @@ out/*
 storage/*
 /project/tmp-*.scala
 .dccache
+.agents/
