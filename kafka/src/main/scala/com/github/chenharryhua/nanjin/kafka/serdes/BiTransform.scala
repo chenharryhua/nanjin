@@ -143,14 +143,13 @@ end BiTransform
   * inside the companion so their required schema and transformation typeclass instances are captured at
   * construction time.
   *
-  * @tparam S
-  *   the concrete Confluent schema type
   * @tparam A
   *   the Kafka-side representation, such as `GenericRecord`, `DynamicMessage`, or `JsonNode`
   * @tparam B
   *   the application value type
   */
-sealed trait KafkaCodec[S <: ParsedSchema, A, B] extends BiTransform[A, B]:
+sealed trait KafkaCodec[A, B] extends BiTransform[A, B]:
+  protected type S <: ParsedSchema
   def schema: S
 end KafkaCodec
 
@@ -184,8 +183,9 @@ object KafkaCodec:
     schemaFor: SchemaFor[B],
     decoder: Decoder[B],
     encoder: Encoder[B])
-      extends KafkaCodec[AvroSchema, GenericRecord, B]:
+      extends KafkaCodec[GenericRecord, B]:
 
+    override protected type S = AvroSchema
     override val schema: AvroSchema = AvroSchema(schemaFor.schema)
     private val dec: FromRecord[B] = FromRecord[B](schemaFor.schema)(using decoder)
     private val enc: ToRecord[B] = ToRecord[B](schemaFor.schema)(using encoder)
@@ -198,8 +198,9 @@ object KafkaCodec:
   /** A codec between a Protobuf `DynamicMessage` and an application value. */
   final class KafkaProtobufCodec[B <: GeneratedMessage] private[KafkaCodec] (
     gmc: GeneratedMessageCompanion[B])
-      extends KafkaCodec[ProtobufSchema, DynamicMessage, B]:
+      extends KafkaCodec[DynamicMessage, B]:
 
+    override protected type S = ProtobufSchema
     override val schema: ProtobufSchema = ProtobufSchema(gmc.javaDescriptor)
 
     override def to(a: DynamicMessage): B = gmc.parseFrom(a.toByteArray)
@@ -213,7 +214,9 @@ object KafkaCodec:
     mapper: ObjectMapper,
     f: Endo[JsonSchemaConfig.JsonSchemaConfigBuilder])
       extends UpdateConfig[JsonSchemaConfig.JsonSchemaConfigBuilder, KafkaJsonCodec[B]]
-      with KafkaCodec[JsonSchema, JsonNode, B]:
+      with KafkaCodec[JsonNode, B]:
+
+    override protected type S = JsonSchema
 
     /** Generated schema for the runtime class of `B`. */
     override lazy val schema: JsonSchema =
