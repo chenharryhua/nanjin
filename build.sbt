@@ -29,7 +29,7 @@ val fs2V = "3.14.0"
 val guavaV = "33.7.2-jre"
 val hadoopV = "3.5.0"
 val jacksonV = "2.22.4"
-val jacksonScalaV = "2.22.3.1"
+val jacksonScalaV = "2.22.4"
 val jettyV = "12.1.14"
 val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
@@ -394,7 +394,7 @@ lazy val kafka = (project in file("kafka"))
       "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
-      "com.github.luben"  % "zstd-jni"          % "1.5.7-23" // snyk by kafka-schema-registry-client
+      "com.github.luben"  % "zstd-jni"          % "1.5.7-24" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
