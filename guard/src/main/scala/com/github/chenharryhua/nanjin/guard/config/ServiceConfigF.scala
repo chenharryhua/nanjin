@@ -198,7 +198,7 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
-      logThreshold = LogThreshold(LogLevel.Info, LogLevel.Warn),
+      logThreshold = LogThreshold(LogLevel.Error, LogLevel.Error),
       logLocator = None.pure[F],
       meterProvider = Resource.pure(MeterProvider.noop[F]),
       tracerProvider = Resource.pure(TracerProvider.noop[F])

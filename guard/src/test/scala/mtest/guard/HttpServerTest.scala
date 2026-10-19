@@ -3,6 +3,7 @@ package mtest.guard
 import cats.data.Kleisli
 import cats.effect.IO
 import com.comcast.ip4s.port
+import com.github.chenharryhua.nanjin.common.logging.LogLevel
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
@@ -70,33 +71,19 @@ class HttpServerTest extends CatsEffectSuite {
     }
   }
 
-  test("2.log threshold - set both via POST /log/{level}") {
+  test("2.log threshold - aggregate POST route is unavailable") {
     val client = EmberClientBuilder
       .default[IO]
       .build
       .use { c =>
-        val setWarn = Request[IO](method = POST, uri = uri"http://localhost:9998/log/Warn")
-        val getLevel = uri"http://localhost:9998/log/level"
-        for {
-          before <- c.expect[String](getLevel)
-          _ = assert(
-            jawn.parse(before).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Info"))
-          resp <- c.expect[String](setWarn)
-          parsed = jawn.parse(resp).toOption.get
-          _ = assert(
-            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Warn"))
-          _ = assert(
-            parsed.hcursor.downField("current").downField("channel").as[String].toOption.contains("Warn"))
-          after <- c.expect[String](getLevel)
-          _ = assert(
-            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Warn"))
-          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9998/stop"))
-        } yield stop
+        val removed_route = Request[IO](method = POST, uri = uri"http://localhost:9998/log/Warn")
+        c.status(removed_route).map(status => assertEquals(status, org.http4s.Status.NotFound)) >>
+          c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9998/stop"))
       }
       .delayBy(3.seconds)
 
     guard
-      .service("log-both")
+      .service("log-aggregate-unavailable")
       .updateConfig(_.withHttpServer(_.withPort(port"9998")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)
@@ -170,26 +157,28 @@ class HttpServerTest extends CatsEffectSuite {
       .drain <& client
   }
 
-  test("5.log threshold - POST /log/logger/Disabled disables logging") {
+  test("5.log threshold - Disabled logger level returns BadRequest") {
     val client = EmberClientBuilder
       .default[IO]
       .build
       .use { c =>
-        val disable = Request[IO](method = POST, uri = uri"http://localhost:9994/log/logger/Disabled")
-        val getLevel = uri"http://localhost:9994/log/level"
-        for {
-          resp <- c.expect[String](disable)
-          parsed = jawn.parse(resp).toOption.get
-          _ = assert(parsed.hcursor.downField("current").as[String].toOption.contains("Disabled"))
-          after <- c.expect[String](getLevel)
-          _ = assert(jawn.parse(after).toOption.get.as[String].toOption.contains("Disabled"))
-          stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9994/stop"))
-        } yield stop
+        val disabled_level = Request[IO](method = POST, uri = uri"http://localhost:9994/log/logger/Disabled")
+        c.run(disabled_level).use { response =>
+          response.as[String].map { body =>
+            val parsed = jawn.parse(body).toOption.get
+            assertEquals(response.status, org.http4s.Status.BadRequest)
+            assertEquals(parsed.hcursor.downField("invalid_log_level").as[String].toOption, Some("Disabled"))
+            assertEquals(
+              parsed.hcursor.downField("valid").as[List[String]].toOption,
+              Some(LogLevel.values.map(_.toString).toList))
+          }
+        } >>
+          c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9994/stop"))
       }
       .delayBy(3.seconds)
 
     guard
-      .service("log-disable")
+      .service("log-disabled-invalid")
       .updateConfig(_.withHttpServer(_.withPort(port"9994")))
       .eventStream(_ => IO.sleep(10.hours))
       .map(checkJson)

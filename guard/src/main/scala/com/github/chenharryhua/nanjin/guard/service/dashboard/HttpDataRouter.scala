@@ -5,7 +5,7 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import com.github.chenharryhua.nanjin.common.json
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.config.{LogThreshold, Timestamp}
+import com.github.chenharryhua.nanjin.guard.config.Timestamp
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{
   MetricsEventHandler,
@@ -40,10 +40,6 @@ final private class HttpDataRouter[F[_]](
     extends Http4sDsl[F] {
   private val serviceParams = metricsEventHandler.serviceParams
 
-  private val DISABLED = "Disabled"
-  private def toJson(level: Option[LogThreshold]): Json =
-    level.fold(DISABLED.asJson)(_.asJson)
-
   val router: HttpRoutes[F] = HttpRoutes.of[F] {
 
     /*
@@ -66,7 +62,7 @@ final private class HttpDataRouter[F[_]](
     case GET -> Root / "params" =>
       Ok(
         reportedEventHandler.logThreshold.get
-          .map(logThreshold => interpretServiceParams(serviceParams, toJson(logThreshold))))
+          .map(logThreshold => interpretServiceParams(serviceParams, logThreshold.asJson)))
 
     case POST -> Root / "stop" =>
       Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
@@ -107,88 +103,42 @@ final private class HttpDataRouter[F[_]](
      */
 
     case GET -> Root / "log" / "level" =>
-      Ok(reportedEventHandler.logThreshold.get.map(toJson))
-
-    case POST -> Root / "log" / level =>
-      if level.equalsIgnoreCase(DISABLED) then
-        reportedEventHandler.logThreshold.getAndSet(None)
-          .flatMap(prev =>
-            Ok(
-              Json.obj(
-                "previous" -> toJson(prev),
-                "current" -> toJson(None)
-              )))
-      else
-        LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
-          case Some(lvl) =>
-            val threshold = Some(LogThreshold(lvl, lvl))
-            reportedEventHandler.logThreshold.getAndSet(threshold)
-              .flatMap(prev =>
-                Ok(
-                  Json.obj(
-                    "previous" -> toJson(prev),
-                    "current" -> toJson(threshold)
-                  )))
-          case None =>
-            BadRequest(
-              Json.obj(
-                "invalid_log_level" -> level.asJson,
-                "valid" -> (DISABLED :: LogLevel.values.map(_.toString).toList).asJson
-              ))
-        }
+      Ok(reportedEventHandler.logThreshold.get.map(_.asJson))
 
     case POST -> Root / "log" / "logger" / level =>
-      if level.equalsIgnoreCase(DISABLED) then
-        reportedEventHandler.logThreshold.getAndSet(None)
-          .flatMap(prev =>
-            Ok(
-              Json.obj(
-                "previous" -> toJson(prev),
-                "current" -> toJson(None)
-              )))
-      else
-        LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
-          case Some(lvl) =>
-            reportedEventHandler.logThreshold.getAndUpdate(_.map(_.copy(logger = lvl)))
-              .flatMap(prev =>
-                Ok(
-                  Json.obj(
-                    "previous" -> toJson(prev),
-                    "current" -> toJson(prev.map(_.copy(logger = lvl)))
-                  )))
-          case None =>
-            BadRequest(
-              Json.obj(
-                "invalid_log_level" -> level.asJson,
-                "valid" -> (DISABLED :: LogLevel.values.map(_.toString).toList).asJson
-              ))
-        }
+      LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
+        case Some(lvl) =>
+          reportedEventHandler.logThreshold.getAndUpdate(_.copy(logger = lvl))
+            .flatMap(prev =>
+              Ok(
+                Json.obj(
+                  "previous" -> prev.asJson,
+                  "current" -> prev.copy(logger = lvl).asJson
+                )))
+        case None =>
+          BadRequest(
+            Json.obj(
+              "invalid_log_level" -> level.asJson,
+              "valid" -> LogLevel.values.map(_.toString).toList.asJson
+            ))
+      }
 
     case POST -> Root / "log" / "channel" / level =>
-      if level.equalsIgnoreCase(DISABLED) then
-        reportedEventHandler.logThreshold.getAndSet(None)
-          .flatMap(prev =>
-            Ok(
-              Json.obj(
-                "previous" -> toJson(prev),
-                "current" -> toJson(None)
-              )))
-      else
-        LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
-          case Some(lvl) =>
-            reportedEventHandler.logThreshold.getAndUpdate(_.map(_.copy(channel = lvl)))
-              .flatMap(prev =>
-                Ok(
-                  Json.obj(
-                    "previous" -> toJson(prev),
-                    "current" -> toJson(prev.map(_.copy(channel = lvl)))
-                  )))
-          case None =>
-            BadRequest(
-              Json.obj(
-                "invalid_log_level" -> level.asJson,
-                "valid" -> (DISABLED :: LogLevel.values.map(_.toString).toList).asJson
-              ))
-        }
+      LogLevel.values.find(_.toString.equalsIgnoreCase(level)) match {
+        case Some(lvl) =>
+          reportedEventHandler.logThreshold.getAndUpdate(_.copy(channel = lvl))
+            .flatMap(prev =>
+              Ok(
+                Json.obj(
+                  "previous" -> prev.asJson,
+                  "current" -> prev.copy(channel = lvl).asJson
+                )))
+        case None =>
+          BadRequest(
+            Json.obj(
+              "invalid_log_level" -> level.asJson,
+              "valid" -> LogLevel.values.map(_.toString).toList.asJson
+            ))
+      }
   }
 }

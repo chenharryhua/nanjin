@@ -24,7 +24,7 @@ import io.circe.Encoder
 
 final private class ReportedEventHandler[F[_]: Sync](
   val domain: Domain,
-  val logThreshold: Ref[F, Option[LogThreshold]],
+  val logThreshold: Ref[F, LogThreshold],
   history: History[F, ReportedEvent],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
@@ -75,13 +75,13 @@ final private class ReportedEventHandler[F[_]: Sync](
 
     override protected def publish(event: ReportedEvent): F[Unit] =
       logThreshold.get.flatMap { threshold =>
-        logSink.write(event).whenA(threshold.exists(_.logger <= event.logRecord.level)) >>
-          channel.send(event).whenA(threshold.exists(_.channel <= event.logRecord.level)) >>
+        logSink.write(event).whenA(threshold.logger <= event.logRecord.level) >>
+          channel.send(event).whenA(threshold.channel <= event.logRecord.level) >>
           history.add(event).whenA(event.logRecord.level === LogLevel.Error)
       }
 
     override protected def enabled(level: LogLevel): F[Boolean] =
-      logThreshold.get.map(_.exists(_.min <= level))
+      logThreshold.get.map(_.min <= level)
   }
 
   def errorHistory: F[Vector[ReportedEvent]] = history.value
@@ -98,8 +98,8 @@ private object ReportedEventHandler:
     val history: F[History[F, ReportedEvent]] =
       History[F, ReportedEvent](serviceParams.history.map(_.errors))
 
-    val initial: F[Ref[F, Option[LogThreshold]]] =
-      Ref.of[F, Option[LogThreshold]](Some(logThreshold))
+    val initial: F[Ref[F, LogThreshold]] =
+      Ref.of[F, LogThreshold](logThreshold)
 
     val reh = (history, initial).mapN { (errorHistory, logThreshold) =>
       new ReportedEventHandler(
