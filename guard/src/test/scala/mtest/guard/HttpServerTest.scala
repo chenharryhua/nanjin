@@ -24,7 +24,7 @@ class HttpServerTest extends CatsEffectSuite {
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
       .withDashboard(100, _.crontab(_.secondly).repeat)
       .withHistoryCapacity(32, 32, 32)
-      .withLogThreshold(_.Info, _.Info))
+      .withReportedEventThreshold(_.Info))
 
   test("1.stop service") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/stop")
@@ -137,12 +137,12 @@ class HttpServerTest extends CatsEffectSuite {
           _ = assert(
             parsed.hcursor.downField("current").downField("channel").as[String].toOption.contains("Error"))
           _ = assert(
-            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Info"))
+            parsed.hcursor.downField("current").downField("logger").as[String].toOption.contains("Error"))
           after <- c.expect[String](getLevel)
           _ = assert(
             jawn.parse(after).toOption.get.hcursor.downField("channel").as[String].toOption.contains("Error"))
           _ = assert(
-            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Info"))
+            jawn.parse(after).toOption.get.hcursor.downField("logger").as[String].toOption.contains("Error"))
           stop <- c.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9995/stop"))
         } yield stop
       }

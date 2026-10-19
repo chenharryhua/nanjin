@@ -26,7 +26,7 @@ class SlackTranslatorTest extends CatsEffectSuite {
   // fixture so the service is only run once.
   private val allEvents: IO[List[Event]] = service
     .updateConfig(
-      _.withLogThreshold(_.Info, _.Info)
+      _.withReportedEventThreshold(_.Info)
         .withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
     .eventStream { agent =>
       agent.logger.info("info-msg") >>
@@ -61,7 +61,7 @@ class SlackTranslatorTest extends CatsEffectSuite {
       val text = json.noSpaces
       assert(text.contains(":rocket: Start Service"))
       assert(text.contains("slack-translator-test"))
-      // ServiceStart is logged at Info level, which colors the attachment blue
+      // ServiceStart has Info level, which colors the attachment blue
       assert(text.contains("#b3d1ff"))
     }
   }

@@ -23,7 +23,7 @@ class ServiceTest extends CatsEffectSuite {
     _.withHomepage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds).repeat)
-      .withLogThreshold(_.Debug, _.Debug)
+      .withReportedEventThreshold(_.Debug)
       .withHistoryCapacity(32, 32, 32)
       .addBrief(Json.fromString("test")))
 

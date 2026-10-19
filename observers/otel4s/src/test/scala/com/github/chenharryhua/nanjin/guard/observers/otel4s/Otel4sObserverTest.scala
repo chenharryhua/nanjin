@@ -19,7 +19,7 @@ class Otel4sObserverTest extends CatsEffectSuite {
   private val service = TaskGuard[IO]("otel4s-test")
     .service("otel4s-observer-test")
     .updateConfig(
-      _.withLogThreshold(_.Info, _.Info)
+      _.withReportedEventThreshold(_.Info)
         .withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
 
   /** Run the given service actions through the observer and return both the events that flowed through the

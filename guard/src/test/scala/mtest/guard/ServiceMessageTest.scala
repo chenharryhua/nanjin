@@ -43,7 +43,7 @@ class ServiceMessageTest extends CatsEffectSuite {
 
   test("1.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJsonMultiLine))
       .eventStream(info)
       .compile
       .drain
@@ -51,7 +51,7 @@ class ServiceMessageTest extends CatsEffectSuite {
 
   test("2.info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJson))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJson))
       .eventStream(info)
       .compile
       .drain
@@ -59,21 +59,21 @@ class ServiceMessageTest extends CatsEffectSuite {
 
   test("3.warn json no spaces") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJson))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJson))
       .eventStream(warn)
       .compile
       .drain
   }
 
   test("4.warn console plain text") {
-    service.updateConfig(_.withLogFormat(_.ConsolePlainText))
+    service.updateConfig(_.withLog(_.Error, _.ConsolePlainText))
       .eventStream(warn)
       .compile.drain
   }
 
   test("5.mix") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJsonMultiLine))
       .eventStream(mix)
       .compile
       .drain

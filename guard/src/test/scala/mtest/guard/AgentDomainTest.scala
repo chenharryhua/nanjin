@@ -8,7 +8,7 @@ import munit.CatsEffectSuite
 class AgentDomainTest extends CatsEffectSuite {
 
   private val service =
-    TaskGuard[IO]("domain").service("domain").updateConfig(_.withLogThreshold(_.Info, _.Info))
+    TaskGuard[IO]("domain").service("domain").updateConfig(_.withReportedEventThreshold(_.Info))
 
   test("1.withDomain propagates domain to ReportedEvent") {
     service

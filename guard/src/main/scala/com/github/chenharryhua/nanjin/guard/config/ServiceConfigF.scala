@@ -43,19 +43,23 @@ sealed trait ServiceConfig[F[_]] {
     */
   def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F]
 
-  /** Set the log output format (console plain text, JSON, SLF4J, etc.). */
-  def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F]
-
-  /** Set the minimum log levels for the two logging paths.
+  /** Configure the local logger threshold and output format.
     *
-    * @param logger
-    *   threshold for the local log sink (e.g. console/file). Messages below this level are not written.
-    * @param channel
-    *   threshold for the event channel (observers, alerts). Messages below this level are not published.
+    * @param loggerThreshold
+    *   builder selecting the local logger threshold
+    * @param format
+    *   builder selecting the local logger output format (console plain text, JSON, SLF4J, etc.)
     */
-  def withLogThreshold(
-    logger: LogLevel.type => LogLevel,
-    channel: LogLevel.type => LogLevel): ServiceConfig[F]
+  def withLog(
+    loggerThreshold: LogLevel.type => LogLevel,
+    format: LogFormat.type => LogFormat): ServiceConfig[F]
+
+  /** Configure the threshold for the single `ReportedEvent` channel.
+    *
+    * @param reportedEventThreshold
+    *   builder selecting the `ReportedEvent` channel threshold
+    */
+  def withReportedEventThreshold(reportedEventThreshold: LogLevel.type => LogLevel): ServiceConfig[F]
 
   def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F]
 
@@ -243,13 +247,16 @@ private[guard] object ServiceConfig {
     override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
       copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
 
-    override def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
-      copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
+    override def withLog(
+      loggerThreshold: LogLevel.type => LogLevel,
+      format: LogFormat.type => LogFormat): ServiceConfig[F] =
+      copy(
+        cont = Fix(WithLogFormat(format(LogFormat), cont)),
+        logThreshold = logThreshold.copy(logger = loggerThreshold(LogLevel)))
 
-    override def withLogThreshold(
-      logger: LogLevel.type => LogLevel,
-      channel: LogLevel.type => LogLevel): ServiceConfig[F] =
-      copy(logThreshold = LogThreshold(logger(LogLevel), channel(LogLevel)))
+    override def withReportedEventThreshold(
+      reportedEventThreshold: LogLevel.type => LogLevel): ServiceConfig[F] =
+      copy(logThreshold = logThreshold.copy(channel = reportedEventThreshold(LogLevel)))
 
     override def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F] =
       copy(logLocator = logLocator)
