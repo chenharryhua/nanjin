@@ -15,7 +15,7 @@ import scala.concurrent.duration.DurationInt
 class BatchMonadicTest extends CatsEffectSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("monadic")
-    // .updateConfig(_.withLogFormat(_.ConsolePlainText).withLogThreshold(_.Info, _.Info))
+    // .updateConfig(_.withLog(_.Info, _.ConsolePlainText).withReportedEventThreshold(_.Info))
 
   test("1.good") {
     service.eventStreamR { agent =>
@@ -486,8 +486,9 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
-  test("16.attempt logs the finalized handled state on the next transition") {
+  test("16.attempt emits the finalized handled state on the next transition") {
     service
+      .updateConfig(_.withReportedEventThreshold(_.Warn))
       .eventStream { agent =>
         agent
           .batchMetered("attempt-lifecycle")
@@ -521,7 +522,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   }
 
   /* ---- monadic lifecycle emission -----------------------------------------------------------------
-   * Every tracked job that logs a kickoff must log exactly one completion. `flatMap` emits the head it
+   * Every tracked job that emits a kickoff must emit exactly one completion. `flatMap` emits the head it
    * leaves behind and `monadicBatch` emits the run's final head, so the last job of a chain and the job
    * that short-circuits one are each emitted once, from different places.
    */
@@ -529,7 +530,7 @@ class BatchMonadicTest extends CatsEffectSuite {
   private val verboseService: ServiceGuard[IO] =
     TaskGuard[IO]("batch")
       .service("monadic-lifecycle")
-      .updateConfig(_.withLogThreshold(_.Debug, _.Debug))
+      .updateConfig(_.withReportedEventThreshold(_.Debug))
 
   private val outcomeTags: Set[String] = Set("succeeded", "unsatisfied", "nonfatal", "critical")
 
@@ -553,7 +554,7 @@ class BatchMonadicTest extends CatsEffectSuite {
       tagged.collect { case (tag, name) if outcomeTags(tag) => name })
   }
 
-  test("17.every monadic job that logs a kickoff logs exactly one completion") {
+  test("17.every monadic job that emits a kickoff emits exactly one completion") {
     verboseService
       .eventStream { agent =>
         agent
@@ -579,7 +580,7 @@ class BatchMonadicTest extends CatsEffectSuite {
       }
   }
 
-  test("18.a short-circuited monadic chain logs one completion per started job") {
+  test("18.a short-circuited monadic chain emits one completion per started job") {
     verboseService
       .eventStream { agent =>
         agent

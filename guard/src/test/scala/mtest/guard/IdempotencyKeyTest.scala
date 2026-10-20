@@ -93,10 +93,11 @@ class IdempotencyKeyTest extends CatsEffectSuite {
   }
 
   test("8.ReportedEvent keys carry the reported tag and correlation") {
-    // Info logs are filtered by default; lower the threshold so the log becomes a ReportedEvent
+    // Info reported events are filtered by default; lower the threshold so the logger message
+    // produces a ReportedEvent
     TaskGuard[IO]("idem")
       .service("idem-reported")
-      .updateConfig(_.withLogThreshold(_.Info, _.Info))
+      .updateConfig(_.withReportedEventThreshold(_.Info))
       .eventStream(_.logger.info("hello"))
       .compile
       .toList

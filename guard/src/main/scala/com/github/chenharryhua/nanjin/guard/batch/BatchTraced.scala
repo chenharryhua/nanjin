@@ -53,6 +53,9 @@ object BatchTraced:
 
     protected def batchTracer: BatchTracer[F]
 
+    /** Set the post-condition for successful jobs. Quasi-batches retain rejected values as unmet;
+      * value-batches fail with `PostConditionUnsatisfied`.
+      */
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
 
     /** Static metadata for a traced job of the given `kind`. */
@@ -192,50 +195,37 @@ object BatchTraced:
     final class Monadic[A] private[BatchTraced] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
-      /** Sequence a dependent monadic job when the previous job succeeds. */
+      /** Run the next segment only if this one succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] =
         new Monadic[B](MonadicOps.flatMap(kleisli, a => f(a).kleisli))
 
-      /** Transform a successful monadic job value without adding a job. */
+      /** Transform a successful value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
-      /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
+      /** Reject a value that does not satisfy `f`, failing the chain with `PostConditionUnsatisfied`. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](MonadicOps.withFilter(kleisli, f))
 
-      /** Capture a job-chain failure as an inner `Left` and continue the chain.
-        *
-        * The returned batch result is `Right(Left(error))` when the chain has failed. The error is therefore
-        * surfaced as data and must be inspected or rethrown by the caller.
+      /** Capture a chain failure as a value so later segments can run; inspect or rethrow the captured error.
         */
       def attempt: Monadic[Either[Throwable, A]] =
         new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
-      /** Record whether the current tracked step satisfies `f` without short-circuiting the chain.
-        *
-        * If the current step is untracked, there is no job outcome to update and this has no effect.
-        */
+      /** Mark the current tracked job accepted or unmet without stopping the chain. */
       def predicate(f: A => Boolean): Monadic[A] =
         new Monadic[A](MonadicOps.predicate(kleisli, f))
 
-      /** Attach a JSON representation of the current tracked step's value to its outcome without changing the
-        * value passed along the chain. An untracked step has no outcome to update, so this has no effect.
+      /** Attach a JSON representation of the current tracked job's result without changing the chain value.
         */
       def renderOutcome(f: A => Json): Monadic[A] =
         new Monadic[A](MonadicOps.renderOutcome(kleisli, f))
 
-      /** Encode the current tracked step's value as JSON for its outcome without changing the chain value. */
+      /** Encode the current tracked job's result as JSON without changing the chain value. */
       def render(using ev: Encoder[A]): Monadic[A] =
         renderOutcome(ev.apply)
 
-      /** Execute the traced monadic batch inside the batch's parent span and return its result in `F`.
-        *
-        * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
-        * throws, and a `withFilter` rejection are all captured and surface as `Left` in the returned
-        * `MonadicBatch.result`, short-circuiting the chain. Read `result` to observe success or failure of
-        * the work. Like `Batch`, and unlike `BatchMetered`, this does no lifecycle logging and keeps no
-        * metrics panel or resource scope, so there is no batch machinery around the jobs that could fail this
-        * effect.
+      /** Run the chain and return its final `Either` and recorded job outcomes. Job and filter failures are
+        * captured in the result; they do not fail the surrounding effect.
         */
       def monadicBatch: F[MonadicBatch[A]] =
         for {
@@ -262,17 +252,14 @@ object BatchTraced:
       end given
     end Monadic
 
-    /** Add a pure value to the monadic batch without creating a job or a span. */
+    /** Add a value to the chain without recording a job or creating a span. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor => (cursor -> ExecutionState(Right(a), NonEmptyList.one(None))).pure[F])
       })
 
-    /** Add an effectful value to the monadic batch without creating a job or a span.
-      *
-      * The effect is not tracked, timed, or reported. If it fails, the failure short-circuits the chain: no
-      * further jobs run and the failure surfaces as `Left` in the batch `result`. The original exception is
-      * wrapped in `UntrackedStepException` so it is distinguishable there from a tracked job's failure.
+    /** Add an untracked effect without creating a span. Its failure stops the chain and is captured in the
+      * batch result.
       */
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
@@ -306,53 +293,30 @@ object BatchTraced:
         }
       )
 
-    /** Add a named effect-backed job that runs in its own child span but ignores it.
-      *
-      * A job that throws short-circuits the chain, so the remainder of the monadic chain stops at the first
-      * failure and the error surfaces as `Left` in the batch `result`.
-      *
-      * @param name
-      *   name of the job, also the name of its span
-      * @param fa
-      *   the effect to run
-      */
+    /** Add a named job that runs in its own child span. A failure stops later segments. */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       create[A](name, _ => fa)
 
-    /** Add a named job that receives its own child span, so it can attach attributes or nest further spans.
-      *
-      * @param name
-      *   name of the job, also the name of its span
-      * @param f
-      *   builds the job's effect from its span
-      */
+    /** Add a named job whose effect receives its child span. */
     def apply[A](name: String, f: Span[F] => F[A]): Monadic[A] =
       create[A](name, f)
 
   end JobBuilder
 end BatchTraced
 
-/** Traced batch façade: each job runs in its own OpenTelemetry span.
+/** Batch API that runs each job in its own OpenTelemetry span.
   *
-  * Obtain a `BatchTraced` from `Agent.batchTraced(label, f)`. It offers the same sequential, parallel, and
-  * monadic shapes as `Batch` and `BatchMetered` and, like `Batch`, returns its results directly in `F`. Each
-  * job's effect is written as `Span[F] => F[A]` so it can attach attributes to its own span or open further
-  * spans beneath it; a job that does not care about tracing can ignore the argument.
-  *
-  * Every job span is a child of the batch's parent span, which `Agent.batchTraced`'s function builds and
-  * which brackets the whole run. Each job's `JobRecord` carries its span context, so the per-job report
-  * entries include a `traceparent`.
-  *
-  * Unlike `BatchMetered` this façade emits '''no''' per-job lifecycle logs and keeps '''no''' metrics panel:
-  * spans are the only observability it adds. Use `quasiBatch` to retain per-job failures or `valueBatch` to
-  * raise them.
+  * Use sequential or parallel execution for independent jobs, and monadic execution when later jobs depend on
+  * earlier results. Each effect receives its child span and may use it to add attributes or create nested
+  * spans. Results are returned directly in `F`; use `quasiBatch` to retain job failures or `valueBatch` to
+  * raise them. This API creates spans but does not add lifecycle logs or progress metrics.
   */
 final class BatchTraced[F[_]: Async] private[guard] (
   scope: MetricScope,
   batchIdGenerator: F[BatchId],
   batchTracer: BatchTracer[F]):
 
-  /** Create a sequential traced batch from named span-taking effects. */
+  /** Create a batch that runs the named span-aware effects in order. */
   def sequential[A](fas: (String, Span[F] => F[A])*): BatchTraced.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, f), idx) =>
       BatchTraced.SpanJob[F, A](name, idx + 1, f)
@@ -360,10 +324,9 @@ final class BatchTraced[F[_]: Async] private[guard] (
     new BatchTraced.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator, batchTracer)
   }
 
-  /** Create a parallel traced batch from named span-taking effects using the given parallelism.
+  /** Create a batch that runs named span-aware effects concurrently up to `parallelism`.
     *
-    * `parallelism` must be greater than zero; it is validated when this builder is called, so a non-positive
-    * value raises `IllegalArgumentException` at construction rather than failing the batch effect.
+    * Requires `parallelism > 0`; otherwise this method throws `IllegalArgumentException`.
     */
   def parallel[A](parallelism: Int)(fas: (String, Span[F] => F[A])*): BatchTraced.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
@@ -373,11 +336,11 @@ final class BatchTraced[F[_]: Async] private[guard] (
     new BatchTraced.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator, batchTracer)
   }
 
-  /** Create a parallel traced batch with parallelism inferred from the job count, at least one. */
+  /** Create a parallel batch with concurrency set to the number of jobs, or one when the list is empty. */
   def parallel[A](fas: (String, Span[F] => F[A])*): BatchTraced.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 
-  /** Build a traced monadic batch using a fluent job builder for dependent steps. */
+  /** Build a chain of traced jobs whose later steps may depend on earlier results. */
   def monadic[A](f: BatchTraced.JobBuilder[F] => A): A = {
     val builder = new BatchTraced.JobBuilder[F](scope, batchIdGenerator, batchTracer)
     f(builder)

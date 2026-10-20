@@ -16,12 +16,7 @@ import io.circe.{Encoder, Json}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-/** Low-overhead batch construction API for short-lived jobs.
-  *
-  * Obtain a `Batch` from `Agent.batch(label)`. It has the same sequential, parallel, and monadic shapes as
-  * `BatchMetered`, but returns `F` values directly and omits the metrics-backed progress machinery. Use
-  * `quasiBatch` to retain per-job failures or `valueBatch` to raise them.
-  */
+/** Constructors for lightweight, untraced batch execution. */
 object Batch:
 
   /*
@@ -49,10 +44,12 @@ object Batch:
     /** Run `f` over every job, in this runner's traversal order (parallel vs sequential). */
     protected def traverseJobs[B](f: JobNameIndex[F, A] => F[B]): F[List[B]]
 
-    /** Reject successful values that do not satisfy `f`. */
+    /** Set the post-condition applied to each successful job. Quasi-batches retain rejected values as unmet;
+      * value-batches fail with `PostConditionUnsatisfied`.
+      */
     def withPostCondition(f: A => Boolean): BatchRunner[F, A]
 
-    /** Execute while preserving per-job success or failure state. */
+    /** Run every job and retain its result or failure in the returned outcomes. */
     final def quasiBatch: F[QuasiBatch[A]] =
       batchIdGenerator.flatMap { batchId =>
         F.timed(traverseJobs(executor.quasiJob(_, batchId).compute)).map {
@@ -61,7 +58,7 @@ object Batch:
         }
       }
 
-    /** Execute and raise on failure, returning successful values. */
+    /** Run every job and return its values, raising on the first job failure or rejected value. */
     final def valueBatch: F[ValueBatch[A]] =
       batchIdGenerator.flatMap { batchId =>
         F.timed(traverseJobs { jni =>
@@ -136,49 +133,37 @@ object Batch:
     final class Monadic[A] private[Batch] (
       private val kleisli: Kleisli[StateT[F, JobCursor, *], BatchId, ExecutionState[A]]):
 
-      /** Sequence a dependent monadic job when the previous job succeeds. */
+      /** Run the next segment only if this one succeeds. */
       def flatMap[B](f: A => Monadic[B]): Monadic[B] =
         new Monadic[B](MonadicOps.flatMap(kleisli, a => f(a).kleisli))
 
-      /** Transform a successful monadic job value without adding a job. */
+      /** Transform a successful value without adding a job. */
       def map[B](f: A => B): Monadic[B] = new Monadic[B](MonadicOps.map(kleisli, f))
 
-      /** Filter a successful monadic value; a rejected value fails the step and stops the chain. */
+      /** Reject a value that does not satisfy `f`, failing the chain with `PostConditionUnsatisfied`. */
       def withFilter(f: A => Boolean): Monadic[A] =
         new Monadic[A](MonadicOps.withFilter(kleisli, f))
 
-      /** Capture a job-chain failure as an inner `Left` and continue the chain.
-        *
-        * The returned batch result is `Right(Left(error))` when the chain has failed. The error is therefore
-        * surfaced as data and must be inspected or rethrown by the caller.
+      /** Capture a chain failure as a value so later segments can run; inspect or rethrow the captured error.
         */
       def attempt: Monadic[Either[Throwable, A]] =
         new Monadic[Either[Throwable, A]](MonadicOps.attempt(kleisli))
 
-      /** Record whether the current tracked step satisfies `f` without short-circuiting the chain.
-        *
-        * If the current step is untracked, there is no job outcome to update and this has no effect.
-        */
+      /** Mark the current tracked job accepted or unmet without stopping the chain. */
       def predicate(f: A => Boolean): Monadic[A] =
         new Monadic[A](MonadicOps.predicate(kleisli, f))
 
-      /** Attach a JSON representation of the current tracked step's value to its outcome without changing the
-        * value passed along the chain. An untracked step has no outcome to update, so this has no effect.
+      /** Attach a JSON representation of the current tracked job's result without changing the chain value.
         */
       def renderOutcome(f: A => Json): Monadic[A] =
         new Monadic[A](MonadicOps.renderOutcome(kleisli, f))
 
-      /** Encode the current tracked step's value as JSON for its outcome without changing the chain value. */
+      /** Encode the current tracked job's result as JSON without changing the chain value. */
       def render(using ev: Encoder[A]): Monadic[A] =
         renderOutcome(ev.apply)
 
-      /** Execute the monadic batch and return its result in `F`.
-        *
-        * Job outcomes never fail this effect: a job that throws, a lifted `untracked`/`pure` step that
-        * throws, and a `withFilter` rejection are all captured and surface as `Left` in the returned
-        * `MonadicBatch.result`, short-circuiting the chain. Read `result` to observe success or failure of
-        * the work. Unlike `BatchMetered`, `Batch` does no lifecycle logging and keeps no metrics panel or
-        * resource scope, so there is no batch machinery around the jobs that could fail this effect.
+      /** Run the chain and return its final `Either` and recorded job outcomes. Job and filter failures are
+        * captured in the result; they do not fail the surrounding effect.
         */
       def monadicBatch: F[MonadicBatch[A]] =
         for {
@@ -203,17 +188,13 @@ object Batch:
 
     // job constructors
 
-    /** Add a pure value to the monadic batch without creating a job. */
+    /** Add a value to the chain without recording a job. */
     def pure[A](a: A): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
         StateT(cursor => (cursor -> ExecutionState(Right(a), NonEmptyList.one(None))).pure[F])
       })
 
-    /** Add an effectful value to the monadic batch without creating a job.
-      *
-      * The effect is not tracked, timed, or reported. If it fails, the failure short-circuits the chain: no
-      * further jobs run and the failure surfaces as `Left` in the batch `result`. The original exception is
-      * wrapped in `UntrackedStepException` so it is distinguishable there from a tracked job's failure.
+    /** Add an untracked effect to the chain. Its failure stops the chain and is captured in the batch result.
       */
     def untracked[A](fa: F[A]): Monadic[A] =
       new Monadic[A](Kleisli { _ =>
@@ -222,6 +203,8 @@ object Batch:
             cursor -> ExecutionState(a.leftMap(UntrackedStepException(_)), NonEmptyList.one(None))))
       })
 
+    /** Add a named job. A failure is captured in the chain result and prevents later segments from running.
+      */
     def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { (batchId: BatchId) =>
@@ -250,14 +233,15 @@ object Batch:
   end JobBuilder
 end Batch
 
-/** Lightweight batch façade for short-lived jobs, and the default obtained from `Agent.batch`.
+/** Lightweight batch façade for named effects, obtained from `Agent.batch`.
   *
-  * It intentionally avoids the richer lifecycle and progress-tracking machinery of `BatchMetered` and focuses
-  * on straightforward, low-overhead execution.
+  * Choose sequential or parallel execution for independent jobs, or monadic execution for dependent jobs.
+  * Results are returned directly in `F`; use `BatchMetered` for lifecycle logs and progress metrics, or
+  * `BatchTraced` to create job spans.
   */
 final class Batch[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenerator: F[BatchId]):
 
-  /** Create a sequential batch from named effects. */
+  /** Create a batch that runs the named effects in order. */
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
@@ -265,10 +249,9 @@ final class Batch[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenera
     new Batch.Sequential[F, A](_ => true, scope, jobs, batchIdGenerator)
   }
 
-  /** Create a parallel batch from named effects using the given parallelism.
+  /** Create a batch that runs named effects concurrently up to `parallelism`.
     *
-    * `parallelism` must be greater than zero; it is validated when this builder is called, so a non-positive
-    * value raises `IllegalArgumentException` at construction rather than failing the batch effect.
+    * Requires `parallelism > 0`; otherwise this method throws `IllegalArgumentException`.
     */
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     require(parallelism > 0, s"parallelism must be > 0, but was $parallelism")
@@ -278,11 +261,11 @@ final class Batch[F[_]: Async] private[guard] (scope: MetricScope, batchIdGenera
     new Batch.Parallel[F, A](_ => true, scope, parallelism, jobs, batchIdGenerator)
   }
 
-  /** Create a parallel batch with parallelism inferred from the job count, at least one. */
+  /** Create a parallel batch with concurrency set to the number of jobs, or one when the list is empty. */
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](math.max(1, fas.size))(fas*)
 
-  /** Build a monadic batch using a fluent job builder for dependent steps. */
+  /** Build a chain of jobs whose later steps may depend on earlier results. */
   def monadic[A](f: Batch.JobBuilder[F] => A): A = {
     val builder = new Batch.JobBuilder[F](scope, batchIdGenerator)
     f(builder)

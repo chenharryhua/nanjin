@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.21.17-SNAPSHOT"
+ThisBuild / version      := "0.21.18-SNAPSHOT"
 ThisBuild / scalaVersion := "3.9.0" // LTS
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.56.0"
+val awsV = "2.57.0"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"

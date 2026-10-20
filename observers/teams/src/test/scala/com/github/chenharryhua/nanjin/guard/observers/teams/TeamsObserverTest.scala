@@ -89,7 +89,7 @@ class TeamsObserverTest extends CatsEffectSuite {
 
   private val allEvents: IO[List[com.github.chenharryhua.nanjin.guard.event.Event]] = service
     .updateConfig(
-      _.withLogThreshold(_.Info, _.Info)
+      _.withReportedEventThreshold(_.Info)
         .withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
     .eventStream { agent =>
       agent.logger.info("info-msg") >>

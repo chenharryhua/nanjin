@@ -355,14 +355,16 @@ class MetricsTest extends CatsEffectSuite {
   }
 
   test("24.measured.retry - unworthy retry") {
-    service.eventStream { agent =>
-      agent
-        .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
-          IO(ra.giveUp).flatTap(d => agent.logger.warn(d, ra.cause))))
-        .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
-    }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.map { sm =>
-      assert(sm.size == 1)
-    }
+    service
+      .updateConfig(_.withReportedEventThreshold(_.Warn))
+      .eventStream { agent =>
+        agent
+          .retry(_.withPolicy(_.fixedDelay(1000.second).repeat.limited(2)).withDecision(ra =>
+            IO(ra.giveUp).flatTap(d => agent.logger.warn(d, ra.cause))))
+          .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
+      }.map(checkJson).mapFilter(Event.reportedEvent.getOption).compile.toList.map { sm =>
+        assert(sm.size == 1)
+      }
   }
 
   test("25.meter + counter") {

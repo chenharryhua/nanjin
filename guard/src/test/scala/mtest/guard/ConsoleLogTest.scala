@@ -45,7 +45,7 @@ class ConsoleLogTest extends CatsEffectSuite {
 
   test("1.console - verbose json") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJsonVerbose))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJsonVerbose))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
@@ -56,7 +56,7 @@ class ConsoleLogTest extends CatsEffectSuite {
 
   test("2.console - pretty json") {
     service
-      .updateConfig(_.withLogFormat(_.ConsoleJsonMultiLine))
+      .updateConfig(_.withLog(_.Error, _.ConsoleJsonMultiLine))
       .eventStream(action)
       .map(checkJson)
       .compile
@@ -65,7 +65,7 @@ class ConsoleLogTest extends CatsEffectSuite {
 
   test("3.console - simple text") {
     service
-      .updateConfig(_.withLogFormat(_.ConsolePlainText).withHomepage("homepage.com"))
+      .updateConfig(_.withLog(_.Error, _.ConsolePlainText).withHomepage("homepage.com"))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(Event.metricsSnapshot.getOption)
