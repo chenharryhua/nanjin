@@ -27,15 +27,15 @@ final case class PostConditionUnsatisfied(job: Option[Job]) extends Exception(jo
   */
 final case class UntrackedStepException(cause: Throwable) extends Exception(cause) with NoStackTrace
 
-/** Distinguishes the two sequential/parallel batch shapes: quasi-batches expose per-job outcome state, while
-  * value-batches carry the successful result values for each completed job. Monadic jobs have no kind (their
-  * success model — predicate marks, exception/`withFilter` aborts — is neither), so `Job.kind` is optional.
+/** Selects whether a sequential or parallel batch retains job outcomes or raises on failure.
+  *
+  * Monadic jobs do not have a `BatchKind`.
   */
 enum BatchKind:
-  /** Collects each job outcome, including failures, in the resulting quasi-batch. */
+  /** Retain each job's value or failure in the batch outcomes. */
   case Quasi
 
-  /** Propagates a job failure and returns only successful values. */
+  /** Return successful values and raise if a job fails or fails its post-condition. */
   case Value
 end BatchKind
 object BatchKind:
@@ -43,7 +43,7 @@ object BatchKind:
   given Show[BatchKind] = _.productPrefix
 end BatchKind
 
-/** Describes how a batch is executed. */
+/** Execution strategy used by a batch. */
 enum BatchMode:
   case Parallel(parallelism: Int)
   case Sequential
@@ -58,16 +58,10 @@ object BatchMode:
   given Encoder[BatchMode] = Encoder.encodeString.contramap(_.show)
 end BatchMode
 
-/** Identifier for a single batch execution.
+/** Per-service-instance batch identifier.
   *
-  * A monotonic counter, starting at 1, minted from a single `AtomicLong` created per service instance (the
-  * `batchIdGenerator`). Successive batches within the same instance receive 1, 2, 3, … in the order they are
-  * launched, so the latest value also reveals how many batches the instance has run.
-  *
-  * The id is unique '''within a service instance''', not globally: a new instance (a new `serviceId`, e.g. on
-  * redeploy) starts its counter over at 1. Cross-instance correlation therefore relies on the enclosing
-  * event's `serviceId`, which is why the id is a plain counter rather than a random UUID. It is emitted as
-  * the JSON number `id`.
+  * IDs increase from 1 as batches are launched. They are not globally unique; correlate IDs across service
+  * instances using the enclosing service identity.
   */
 opaque type BatchId = Long
 object BatchId:
@@ -87,11 +81,9 @@ private def batchEntry(mode: BatchMode, kind: Option[BatchKind], scope: MetricSc
   kind.fold(show"$mode Batch" -> Json.fromString(scope.label.value))(k =>
     show"$mode $k Batch" -> Json.fromString(scope.label.value))
 
-/** Metadata describing a single batch step and the execution context in which it ran.
+/** Identity and batch metadata for one job.
   *
-  * @param batchId
-  *   identifier of the batch this job belongs to; a per-service-instance monotonic counter starting at 1. See
-  *   `BatchResult.batchId` for the full semantics.
+  * `index` is the job's 1-based position. `kind` is absent for monadic jobs.
   */
 final case class Job(
   name: String,
@@ -110,59 +102,30 @@ object Job {
   }
 }
 
-/** Classification of a completed job, recorded on `JobState.flag` and read together with `JobState.result`.
+/** Classification of a completed job, interpreted together with `JobState.result`.
   *
-  *   - `Accepted`: the job produced a value that satisfied its post-condition (or no predicate applies), or a
-  *     monadic failure was caught by chain-level `attempt`. A caught failure remains a `Left`, so
-  *     `JobState.succeeded` stays false unless a later `renderOutcome` replaces it with the caller's
-  *     rendering of the `Either`; the flag makes the retained failure nonfatal for logging.
-  *   - `Unmet`: a quasi job retained a value rejected by its predicate as a `Right`, or retained a thrown
-  *     effect as a `Left`; monadic `predicate` also uses `Unmet` when it rejects a value retained as a
-  *     `Right` without short-circuiting. Its log case follows the result, not the flag alone:
-  *     `JobLog.Unsatisfied` for a retained `Right`, `JobLog.Nonfatal` for a retained `Left`.
-  *   - `Failed`: the job failed and the failure is fatal to its batch: a value or monadic job that threw, or
-  *     a post-condition miss turned into a `PostConditionUnsatisfied` failure (value jobs and monadic
-  *     `withFilter`). A quasi job that throws is flagged `Unmet` instead, because the quasi batch retains the
-  *     outcome and carries on.
+  *   - `Accepted`: the job met its post-condition, or a monadic failure was caught by `attempt`.
+  *   - `Unmet`: a quasi-batch retained a rejected value or failure, or a monadic `predicate` rejected a
+  *     value.
+  *   - `Failed`: a job or monadic filter failure stopped execution, or a value-batch post-condition failed.
   *
-  * Logging keys on the flag together with the result, and never on the job's `BatchKind`: on a `Left` result,
-  * `Failed` is `Critical` and `Accepted`/`Unmet` are `Nonfatal`; on a `Right` result, `Accepted` is
-  * `Succeeded` and `Unmet`/`Failed` are `Unsatisfied`. See `toLogEntry`.
+  * A caught failure may still have a `Left` result; check both fields or use `succeeded` to determine whether
+  * the job passed.
   */
 enum JobFlag:
   case Accepted, Unmet, Failed
 
-/** A completed job record that captures its identity and timing boundaries. Its classification lives on
-  * `JobState.flag`.
+/** Identity, timing, and optional trace context for a completed job.
   *
-  * `start` and `end` are `monotonic` readings taken around the job's execution; `took` is derived as
-  * `end - start`. What the window brackets beyond the job's own effect differs by front end: in
-  * `BatchMetered` it also covers the job's kickoff log; in `BatchTraced` it also covers opening and closing
-  * the job's child span; in `Batch` there is neither, so `took` is the effect alone. In every case the
-  * completion log (when present) is written after `end` and is therefore not part of `took`. Kickoff and
-  * completion are internal, non-throwing framework log writes, and span start/end are local recording calls,
-  * so this framing is normally a negligible share of `took`: the batch `spent` is at least the sum of the
-  * per-job `took`s, but the difference (completion logging plus batch framing) is tiny in practice, not a
-  * place where meaningful time hides. Apart from which framing each one counts, the three front ends share
-  * the same timing model.
-  *
-  * For monadic batches (all three front ends) each job's `start` is carried over from the previous job's
-  * `end` (threaded through the run as `JobCursor`), so a job's `took` also absorbs the wall-clock spent
-  * before it that belongs to no job of its own — chiefly preceding invisible `untracked`/`pure` steps (and,
-  * negligibly, the previous job's completion log). The first job's `start` is the batch's own start reading.
-  * This keeps the per-job durations contiguous, so they sum to the span from the first job's `start` to the
-  * last job's `end`. That span is slightly shorter than the batch `spent`, which is measured against a fresh
-  * clock reading taken after the whole chain finishes and therefore also covers trailing framing that follows
-  * the last job (final state threading, and in `BatchMetered` the metrics-panel deactivation). The remainder
-  * is tiny in practice; see `MonadicBatch`.
+  * Times use a monotonic clock. In monadic batches, each interval starts at the previous job's end, or at the
+  * batch start for the first job, so it may include untracked work.
   *
   * @param job
   *   the job metadata this record describes
   * @param start
-  *   monotonic clock reading at the start of the job (for monadic batches, the previous job's `end`, or the
-  *   batch's start reading for the first job)
+  *   monotonic clock reading at the start of the interval
   * @param end
-  *   monotonic clock reading at the end of the job
+  *   monotonic clock reading at the end of the interval
   * @param spanContext
   *   the tracing span context of the job's own span, present only for traced batches (`batchTraced`); `None`
   *   for the untraced `batch`/`batchMetered` front ends, which open no span
@@ -195,11 +158,7 @@ final case class JobRecord(
   */
 final case class JobState[A](record: JobRecord, flag: JobFlag, result: Either[Throwable, A]) derives Functor {
 
-  /** Whether the job counts as a pass: `flag` is `JobFlag.Accepted` and `result` is a `Right`. A monadic
-    * failure caught by `attempt` is flagged `Accepted` with its `Left` still recorded, so it is not a pass on
-    * its own. A later `renderOutcome` receives the `Either[Throwable, A]` and records the caller's rendering
-    * as a `Right`, so the rendered job counts as a pass; the flag is unchanged.
-    */
+  /** True only when the job is `Accepted` and its result is a `Right`. */
   val succeeded: Boolean = result.isRight && flag.match {
     case JobFlag.Accepted => true
     case JobFlag.Failed   => false
@@ -214,15 +173,10 @@ sealed trait BatchResult {
   /** Metric scope (label and domain) this batch was run under. */
   def scope: MetricScope
 
-  /** Total elapsed execution time, measured from the first job onward.
+  /** Elapsed time for the batch's execution.
     *
-    * The clock starts when the first job starts, so any work performed before it is not counted: pre-batch
-    * `IO` for sequential and parallel batches, or a leading `untracked`/`pure` step for monadic batches. For
-    * sequential and parallel this is measured directly around job execution. For monadic it is the wall-clock
-    * span from the batch's start reading to a fresh clock reading taken once the whole chain has finished, so
-    * it also covers any invisible `untracked`/`pure` steps between jobs and the trailing framing that follows
-    * the last job (see `MonadicBatch`). Because the reading is taken after the chain rather than at the last
-    * job's `end`, a monadic batch with no tracked jobs still reports the real elapsed time rather than zero.
+    * Sequential and parallel batches time the job traversal. Monadic batches time the whole chain, including
+    * untracked steps, and report elapsed time even when no named jobs run.
     */
   def spent: Duration
 
@@ -232,26 +186,21 @@ sealed trait BatchResult {
   /** Identifier for this batch execution. See `BatchId` for the full semantics. */
   def batchId: BatchId
 
-  /** The per-job outcome of every job that ran: its completion record (identity, timing) paired with its
-    * result-or-failure. `S` is the per-job value type (`A` for quasi/value, `Json` for monadic; untranslated
-    * monadic outcomes use `Json.Null`).
+  /** Recorded outcomes for jobs that ran. Monadic outcomes use JSON, defaulting to `Json.Null` unless
+    * rendered.
     */
   def outcomes: List[JobState[S]]
 
-  /** The batch's aggregate output: `Unit` for a quasi-batch (all detail lives in `outcomes`), the list of
-    * successful values for a value-batch, and the final `Either` for a monadic batch. Each subtype fixes `R`
-    * accordingly.
+  /** Aggregate result: `Unit` for a quasi-batch, successful values for a value-batch, or the final `Either`
+    * for a monadic batch.
     */
   def result: R
 
-  /** Whether every job in the batch succeeded.
-    */
+  /** Whether all recorded jobs succeeded. */
   final def allSucceeded: Boolean = outcomes.forall(_.succeeded)
 }
 
-/** The aggregate result of a quasi-batch execution, where each job contributes a completion record and
-  * outcome state.
-  */
+/** Result of a quasi-batch; per-job values and failures are retained in `outcomes`. */
 final case class QuasiBatch[A](
   scope: MetricScope,
   spent: Duration,
@@ -280,9 +229,7 @@ object QuasiBatch:
     }
 end QuasiBatch
 
-/** The aggregate result of a value-batch execution, where each job contributes a successful value and
-  * completion metadata.
-  */
+/** Result of a value-batch; `result` contains the successful values and `outcomes` their metadata. */
 final case class ValueBatch[A](
   scope: MetricScope,
   spent: Duration,
@@ -307,15 +254,11 @@ object ValueBatch:
     }
 end ValueBatch
 
-/** The aggregate result of a monadic batch execution, including the recorded step history and final result.
+/** Result of a monadic batch, with recorded named-job outcomes and the final chain result.
   *
-  * `spent` is the wall-clock span from the batch's start reading to a fresh clock reading taken once the
-  * chain has finished, so it includes the time consumed by invisible `untracked`/`pure` steps between jobs as
-  * well as the trailing framing that follows the last job (final state threading, and in `Batch` the
-  * metrics-panel deactivation). Each recorded job's `took` is adjusted to absorb the preceding gap (see
-  * `JobRecord`), so the per-job durations sum to the span through the last job's `end`; that sum is `spent`
-  * minus the trailing remainder, which is tiny in practice. A batch with no tracked jobs reports its real
-  * elapsed time rather than zero.
+  * `result` is `Left` when a failure stopped the chain, or `Right(value)` on success. `attempt` can capture a
+  * failure so the chain continues, in which case the error is part of the value. `spent` includes untracked
+  * work and is meaningful even when the chain ran no named jobs.
   */
 final case class MonadicBatch[A](
   scope: MetricScope,

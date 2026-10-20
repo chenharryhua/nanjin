@@ -19,12 +19,15 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+/** Immutable service configuration.
+  *
+  * Each method returns an updated configuration.
+  */
 sealed trait ServiceConfig[F[_]] {
 
-  /** Set the restart policy for the service.
+  /** Set the delay schedule used when restarting after a panic.
     *
-    * When the service crashes, the policy governs retry delays. If the service has been running longer than
-    * `threshold` since the last panic, the policy resets to its initial state.
+    * The schedule resets after the service has run continuously for `threshold`.
     *
     * @param threshold
     *   duration of successful running after which the policy resets
@@ -33,119 +36,111 @@ sealed trait ServiceConfig[F[_]] {
     */
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F]
 
-  /** Set the periodic metrics reporting policy.
+  /** Set the schedule for collecting and publishing metrics snapshots.
     *
-    * The policy drives how often metrics snapshots are collected and published as events. Use `.repeat` to
-    * keep reporting indefinitely.
+    * A finite policy stops after its scheduled runs; use `.repeat` for ongoing reporting.
     *
     * @param f
     *   builder for the reporting schedule
     */
   def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F]
 
-  /** Configure the local logger threshold and output format.
+  /** Configure the local log threshold and output format.
     *
-    * @param loggerThreshold
-    *   builder selecting the local logger threshold
-    * @param format
-    *   builder selecting the local logger output format (console plain text, JSON, SLF4J, etc.)
+    * @param f
+    *   builder selecting which local log messages are emitted
+    * @param g
+    *   builder selecting the output format, such as console text, JSON, or SLF4J
     */
-  def withLog(
-    loggerThreshold: LogLevel.type => LogLevel,
-    format: LogFormat.type => LogFormat): ServiceConfig[F]
+  def withLog(f: LogLevel.type => LogLevel, g: LogFormat.type => LogFormat): ServiceConfig[F]
 
-  /** Configure the threshold for the single `ReportedEvent` channel.
+  /** Set the minimum level for publishing `ReportedEvent`s to the event channel.
     *
-    * @param reportedEventThreshold
-    *   builder selecting the `ReportedEvent` channel threshold
+    * @param f
+    *   builder selecting the event-channel threshold
     */
-  def withReportedEventThreshold(reportedEventThreshold: LogLevel.type => LogLevel): ServiceConfig[F]
+  def withReportedEventThreshold(f: LogLevel.type => LogLevel): ServiceConfig[F]
 
+  /** Supply an optional backend log-link locator for service and metrics events.
+    *
+    * The effect is evaluated when the service starts. When present, the locator creates a link for each event
+    * timestamp.
+    */
   def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F]
 
-  /** Set the time zone used by ticks, policies, and timestamp formatting. */
+  /** Set the time zone used by scheduling and timestamp formatting. */
   def withZoneId(zoneId: ZoneId): ServiceConfig[F]
 
-  /** Set the time zone using a builder function over the predefined `zones` object. */
+  /** Set the time zone using the predefined `zones` values. */
   def withZoneId(f: zones.type => ZoneId): ServiceConfig[F]
 
-  /** Set the service homepage URL, shown in dashboard and observer output.
+  /** Set the service homepage URI shown in dashboard and observer output.
     *
-    * `hp` is parsed as a URI (see `Homepage`) and '''throws''' if it is not a valid URL.
+    * The string is parsed as a URI; an invalid URI throws during configuration.
     */
   def withHomepage(hp: String): ServiceConfig[F]
 
-  /** Attach an effectful brief to the service metadata.
+  /** Add effectful JSON metadata to service lifecycle events.
     *
-    * Briefs are JSON documents that travel with the service lifecycle events (start, panic, stop); they are
-    * not attached to metrics-snapshot or reported events. Use them for deployment context, build info, or
-    * custom annotations.
+    * The value is encoded when the service starts and included with start, panic, and stop events. It is not
+    * included with metrics snapshots or reported events.
     */
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F]
 
-  /** Attach a by-name brief to the service metadata. */
+  /** Add by-name JSON metadata to service lifecycle events. */
   def addBrief[A: Encoder](a: => A): ServiceConfig[F]
 
-  /** Enable the embedded HTTP dashboard server with a custom Ember server builder.
+  /** Enable the embedded HTTP server and configure its Ember server builder.
     *
-    * The server exposes REST endpoints for metrics, params, health checks, log level control, and optionally
-    * a WebSocket-based live chart.
+    * The server provides dashboard and service endpoints; call `withDashboard` to configure the live chart.
     */
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F]
 
-  /** Enable the live WebSocket dashboard with a chart showing metered counts over time.
+  /** Configure the dashboard's live WebSocket chart of metered counts over time.
     *
-    * `maxPoints` bounds how many recent data points the chart holds per series: as new points arrive, the
-    * oldest are dropped, so the chart shows a sliding window of roughly the last `maxPoints` samples. Larger
-    * values show more history at the cost of a denser chart.
+    * The chart retains up to `maxPoints` recent samples per series, dropping older samples as new ones
+    * arrive. The chart is served only when the HTTP server is enabled with `withHttpServer`.
     *
-    * A `maxPoints` of 1 or less disables the live chart: the dashboard and its other routes still serve, but
-    * no WebSocket chart is mounted (a single point is not a meaningful time series).
+    * A value of 1 or less disables the chart but leaves the HTTP server's other routes available.
     *
     * @param maxPoints
-    *   size of the chart's sliding window per series; 1 or less disables the chart.
+    *   maximum number of retained samples per series; 1 or less disables the chart
     * @param f
-    *   policy controlling how often data points are sampled.
+    *   schedule controlling the chart sampling interval
     */
   def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F]
 
-  /** Set the bounded history capacity for panics, errors, and metrics snapshots.
+  /** Set in-memory history capacities for panics, errors, and metrics snapshots.
     *
-    * These histories are accessible via the HTTP dashboard and are kept in-memory as ring buffers. A capacity
-    * of zero or negative disables the corresponding history: it retains nothing and always reports empty.
+    * Each history is a ring buffer exposed through the HTTP dashboard. A capacity of zero or less disables
+    * that history.
     *
     * @param panics
-    *   capacity of the panic history; zero or negative disables it.
+    *   maximum number of retained panics; zero or less disables the history
     * @param errors
-    *   capacity of the error history; zero or negative disables it.
+    *   maximum number of retained errors; zero or less disables the history
     * @param metrics
-    *   capacity of the metrics-snapshot history; zero or negative disables it.
+    *   maximum number of retained metrics snapshots; zero or less disables the history
     */
   def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F]
 
-  /** Supply an OpenTelemetry `org.typelevel.otel4s.metrics.MeterProvider` for recording metrics.
+  /** Supply the OpenTelemetry meter provider used to record metrics.
     *
-    * By default, the provider is a no-op, so otel4s metrics are disabled and incur no cost. Configuring a
-    * real provider opts the service into emitting metrics through the standard metrics hub: instruments
-    * created via `agent.facilitate`/`agent.metricsHub` then record to both Dropwizard and otel4s.
+    * The default provider is no-op. A configured provider records instruments from the metrics hub to
+    * OpenTelemetry as well as Dropwizard.
     *
-    * The provider is supplied as a `Resource`: the SDK-backed `MeterProvider` owns exporters and background
-    * readers, so the service acquires it on start and releases (flushes/shuts down) it on stop.
-    *
-    * ===Resource attributes===
-    * nanjin stamps only per-metric dimensions (`domain`, `category`) onto each measurement. Emitter identity
-    * belongs on the OpenTelemetry Resource, which is owned by the SDK and cannot be set from here. When
-    * building the `MeterProvider`, set these standard Resource attributes so metrics carry the service
-    * identity:
-    *   - `service.name` ← this service's name
-    *   - `service.namespace` ← the task name (the grouping above services)
-    *   - `service.instance.id` ← the service id (a new value per deployment)
+    * The provider is a `Resource`, acquired when the service starts and released when it stops.
     *
     * @param meterProvider
-    *   a resource yielding the otel4s meter provider used to create meters and instruments
+    *   resource yielding the meter provider
     */
   def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F]
 
+  /** Supply the OpenTelemetry tracer provider used to create tracers.
+    *
+    * The default provider is no-op. The resource is acquired when the service starts and released when it
+    * stops.
+    */
   def withTracerProvider(tracerProvider: Resource[F, TracerProvider[F]]): ServiceConfig[F]
 
 }
@@ -247,16 +242,13 @@ private[guard] object ServiceConfig {
     override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
       copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
 
-    override def withLog(
-      loggerThreshold: LogLevel.type => LogLevel,
-      format: LogFormat.type => LogFormat): ServiceConfig[F] =
+    override def withLog(f: LogLevel.type => LogLevel, g: LogFormat.type => LogFormat): ServiceConfig[F] =
       copy(
-        cont = Fix(WithLogFormat(format(LogFormat), cont)),
-        logThreshold = logThreshold.copy(logger = loggerThreshold(LogLevel)))
+        cont = Fix(WithLogFormat(g(LogFormat), cont)),
+        logThreshold = logThreshold.copy(logger = f(LogLevel)))
 
-    override def withReportedEventThreshold(
-      reportedEventThreshold: LogLevel.type => LogLevel): ServiceConfig[F] =
-      copy(logThreshold = logThreshold.copy(channel = reportedEventThreshold(LogLevel)))
+    override def withReportedEventThreshold(f: LogLevel.type => LogLevel): ServiceConfig[F] =
+      copy(logThreshold = logThreshold.copy(channel = f(LogLevel)))
 
     override def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F] =
       copy(logLocator = logLocator)
