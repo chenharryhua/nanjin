@@ -45,10 +45,12 @@ sealed trait ServiceConfig[F[_]] {
     */
   def withReportPolicy(f: Policy.type => Policy): ServiceConfig[F]
 
-  /** Configure the local log threshold and output format.
+  /** Configure the output format for all local event logs and the local `ReportedEvent` threshold.
+    *
+    * Lifecycle and metrics events are not filtered by this threshold.
     *
     * @param f
-    *   builder selecting which local log messages are emitted
+    *   builder selecting the local `ReportedEvent` threshold
     * @param g
     *   builder selecting the output format, such as console text, JSON, or SLF4J
     */
