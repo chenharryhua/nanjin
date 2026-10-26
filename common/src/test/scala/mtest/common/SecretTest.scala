@@ -42,13 +42,20 @@ class SecretTest extends FunSuite {
     assert(Secret("") != Secret("a"))
   }
 
-  test("6.json encoder masks the value") {
+  test("6.equality preserves malformed UTF-16 code units") {
+    val unpairedSurrogate = Secret("\uD800")
+    assert(unpairedSurrogate == Secret("\uD800"))
+    assert(unpairedSurrogate != Secret("?"))
+    assert(Set(unpairedSurrogate, Secret("?")).size == 2)
+  }
+
+  test("7.json encoder masks the value") {
     val json = Secret(secret).asJson
     assert(json == io.circe.Json.fromString("***"))
     assert(!json.noSpaces.contains(secret))
   }
 
-  test("7.enclosing type derives a codec that masks the secret field") {
+  test("8.enclosing type derives a codec that masks the secret field") {
     final case class DbConfig(user: String, password: Secret) derives Encoder.AsObject
 
     val json = DbConfig("alice", Secret(secret)).asJson

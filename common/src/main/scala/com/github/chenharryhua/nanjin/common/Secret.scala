@@ -3,9 +3,6 @@ package com.github.chenharryhua.nanjin.common
 import cats.Show
 import io.circe.{Encoder, Json}
 
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-
 /** A sensitive value (password, client secret, authorization code, token, ...) whose contents are masked in
   * every rendered form.
   *
@@ -31,15 +28,24 @@ final class Secret(val value: String) {
 
   /** Compares secrets in constant time to avoid leaking their contents through a timing side channel.
     *
-    * `String.equals` short-circuits on the first differing byte, so its runtime reveals the length of the
-    * matching prefix. `MessageDigest.isEqual` compares the full byte arrays without early exit, so two
-    * secrets of equal length take the same time to reject regardless of where they diverge.
+    * `String.equals` short-circuits on the first differing code unit, so its runtime reveals the length of the
+    * matching prefix. This comparison checks all UTF-16 code units without early exit or a potentially lossy
+    * character encoding.
     */
   override def equals(other: Any): Boolean = other match {
     case that: Secret =>
-      MessageDigest.isEqual(
-        value.getBytes(StandardCharsets.UTF_8),
-        that.value.getBytes(StandardCharsets.UTF_8))
+      val left = value
+      val right = that.value
+      var difference = left.length ^ right.length
+      var index = 0
+      val length = math.max(left.length, right.length)
+      while index < length do {
+        val leftCodeUnit = if index < left.length then left.charAt(index).toInt else 0
+        val rightCodeUnit = if index < right.length then right.charAt(index).toInt else 0
+        difference |= leftCodeUnit ^ rightCodeUnit
+        index += 1
+      }
+      difference == 0
     case _ => false
   }
   override def hashCode: Int = value.hashCode
