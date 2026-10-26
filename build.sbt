@@ -13,13 +13,13 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.57.0"
+val awsV = "2.57.3"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"
 val circeOpticsV = "0.15.1"
 val confluentV = "8.4.0"
-val kafkaV = "8.3.2-ce"
+val kafkaV = "8.4.0-ce"
 val cron4sV = "0.8.2"
 val docV = "0.1.5"
 val doobieV = "1.0.0-RC13"
@@ -33,7 +33,7 @@ val jacksonScalaV = "2.22.4"
 val jettyV = "12.1.14"
 val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
-val logbackV = "1.6.5"
+val logbackV = "1.6.6"
 val lz4V = "1.12.1"
 val metricsV = "4.2.40"
 val monocleV = "3.3.0"
@@ -442,6 +442,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-client"           % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
       "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
       "org.xerial.snappy"    % "snappy-java"            % snappyV // snyk by hadoop-client
