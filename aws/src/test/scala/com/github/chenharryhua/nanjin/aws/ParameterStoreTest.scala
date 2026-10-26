@@ -120,8 +120,9 @@ class ParameterStoreTest extends CatsEffectSuite {
     val transport = StubAwsHttpClient.queue(Left(failure))
 
     ParameterStore[IO](configure_builder(transport)).use { store =>
-      interceptIO[IllegalStateException](store.fetch("failed/path")).map { error =>
-        assertEquals(error, failure)
+      interceptIO[software.amazon.awssdk.core.exception.SdkClientException](
+        store.fetch("failed/path")).map { error =>
+        assertEquals(error.getCause, failure)
       }
     }
   }
