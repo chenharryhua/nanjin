@@ -112,8 +112,9 @@ class SecretsManagerIOSpec extends CatsEffectSuite {
     val transport = StubAwsHttpClient.queue(Left(failure))
 
     SecretsManager[IO](configure_builder(transport)).use { manager =>
-      interceptIO[IllegalStateException](manager.getString("failed-secret")).map { error =>
-        assertEquals(error, failure)
+      interceptIO[software.amazon.awssdk.core.exception.SdkClientException](
+        manager.getString("failed-secret")).map { error =>
+        assertEquals(error.getCause, failure)
       }
     }
   }
