@@ -33,7 +33,7 @@ val jacksonScalaV = "2.22.4"
 val jettyV = "12.1.14"
 val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
-val logbackV = "1.6.5"
+val logbackV = "1.6.6"
 val lz4V = "1.12.1"
 val metricsV = "4.2.40"
 val monocleV = "3.3.0"
@@ -442,6 +442,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-server"           % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-http"             % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-client"           % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
       "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
       "org.xerial.snappy"    % "snappy-java"            % snappyV // snyk by hadoop-client
