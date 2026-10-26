@@ -29,13 +29,26 @@ class SecretTest extends FunSuite {
     assert(Secret(secret).hashCode == Secret(secret).hashCode)
   }
 
-  test("5.json encoder masks the value") {
+  test("5.equality holds for same-length and differing-length values") {
+    // the constant-time compare still returns the right answer: equal, same-length-but-different, and
+    // different-length secrets all classify correctly
+    val a = Secret("abcdef")
+    assert(a == Secret("abcdef"))
+    assert(a != Secret("abcdeX")) // same length, last byte differs
+    assert(a != Secret("Xbcdef")) // same length, first byte differs
+    assert(a != Secret("abc")) // shorter
+    assert(a != Secret("abcdefg")) // longer
+    assert(Secret("") == Secret("")) // empty secrets are equal
+    assert(Secret("") != Secret("a"))
+  }
+
+  test("6.json encoder masks the value") {
     val json = Secret(secret).asJson
     assert(json == io.circe.Json.fromString("***"))
     assert(!json.noSpaces.contains(secret))
   }
 
-  test("6.enclosing type derives a codec that masks the secret field") {
+  test("7.enclosing type derives a codec that masks the secret field") {
     final case class DbConfig(user: String, password: Secret) derives Encoder.AsObject
 
     val json = DbConfig("alice", Secret(secret)).asJson
