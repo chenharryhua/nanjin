@@ -127,4 +127,18 @@ class JsonTest extends FunSuite {
     val out = json.prettify(in)
     assert(out.hcursor.keys.map(_.toSet).contains(Set("a", "b")))
   }
+
+  test("16.prettify - keeps fractional digits instead of rounding to a whole number") {
+    // the old grouping-only "#,###" pattern rounded these to "2" and "0"; the fraction must survive now
+    val in: Json = Json.obj("rate" -> 1.5.asJson, "ratio" -> 0.25.asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("rate").toOption.contains("1.5"))
+    assert(out.hcursor.get[String]("ratio").toOption.contains("0.25"))
+  }
+
+  test("17.prettify - groups the integer part of a large fractional number") {
+    val in: Json = Json.obj("amount" -> 1234567.89.asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("amount").toOption.contains("1,234,567.89"))
+  }
 }

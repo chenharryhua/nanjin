@@ -10,6 +10,11 @@ import scala.jdk.DurationConverters.JavaDurationOps
 /** Formats a duration into a human-readable string with configurable granularity.
   *
   * Accepts Scala durations, Java durations, instants, zoned date-times, and squants `Time` values.
+  *
+  * A finite `ScalaDuration` is rendered as a breakdown into the largest units (e.g. `"1 hour 5 minutes"`). A
+  * non-finite `ScalaDuration` (`Duration.Inf`, `Duration.MinusInf`, `Duration.Undefined`) has no such
+  * breakdown and is rendered via its own `toString` (`"Duration.Inf"`, etc.) rather than throwing. The
+  * `JavaDuration`, `Instant`, `ZonedDateTime`, and `Time` overloads are always finite by construction.
   */
 trait DurationFormatter {
   def format(duration: ScalaDuration): String
@@ -35,7 +40,11 @@ object DurationFormatter {
       1.nanosecond -> "nano"
     )
 
-    override def format(duration: ScalaDuration): String = {
+    override def format(duration: ScalaDuration): String =
+      if (!duration.isFinite) duration.toString
+      else formatFinite(duration)
+
+    private def formatFinite(duration: ScalaDuration): String = {
       val isNegative = duration < ScalaDuration.Zero
       val dur = if (isNegative) -duration else duration
 

@@ -3,6 +3,9 @@ package com.github.chenharryhua.nanjin.common
 import cats.Show
 import io.circe.{Encoder, Json}
 
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+
 /** A sensitive value (password, client secret, authorization code, token, ...) whose contents are masked in
   * every rendered form.
   *
@@ -25,9 +28,19 @@ import io.circe.{Encoder, Json}
 final class Secret(val value: String) {
   // The single source of the mask; Show and Encoder both derive from this.
   override def toString: String = "***"
+
+  /** Compares secrets in constant time to avoid leaking their contents through a timing side channel.
+    *
+    * `String.equals` short-circuits on the first differing byte, so its runtime reveals the length of the
+    * matching prefix. `MessageDigest.isEqual` compares the full byte arrays without early exit, so two
+    * secrets of equal length take the same time to reject regardless of where they diverge.
+    */
   override def equals(other: Any): Boolean = other match {
-    case that: Secret => value.equals(that.value)
-    case _            => false
+    case that: Secret =>
+      MessageDigest.isEqual(
+        value.getBytes(StandardCharsets.UTF_8),
+        that.value.getBytes(StandardCharsets.UTF_8))
+    case _ => false
   }
   override def hashCode: Int = value.hashCode
 }

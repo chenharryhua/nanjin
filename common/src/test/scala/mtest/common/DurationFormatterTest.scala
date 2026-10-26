@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter
 import munit.FunSuite
 
 import java.time.Duration
+import scala.concurrent.duration.Duration as ScalaDuration
 
 class DurationFormatterTest extends FunSuite {
   private val fmt = DurationFormatter.defaultFormatter
@@ -71,5 +72,20 @@ class DurationFormatterTest extends FunSuite {
   test("14.hour 2") {
     val duration = Duration.ofSeconds(3659)
     assert(fmt.format(duration) == "1 hour 59 seconds")
+  }
+
+  test("15.zero") {
+    assert(fmt.format(Duration.ZERO) == "0 second")
+  }
+
+  test("16.negative") {
+    assert(fmt.format(Duration.ofMillis(-65_900)) == "-1 minute 5 seconds")
+  }
+
+  // non-finite ScalaDurations have no unit breakdown; they must render via their own toString, not throw
+  test("17.infinite durations render via toString rather than throwing") {
+    assert(fmt.format(ScalaDuration.Inf) == ScalaDuration.Inf.toString)
+    assert(fmt.format(ScalaDuration.MinusInf) == ScalaDuration.MinusInf.toString)
+    assert(fmt.format(ScalaDuration.Undefined) == ScalaDuration.Undefined.toString)
   }
 }

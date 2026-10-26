@@ -22,7 +22,10 @@ object json {
   private val REDACTED: String = "redacted(*****)"
 
   private val pretty_json: Json => Json = {
-    val decimalFormatter = new DecimalFormat("#,###")
+    // "#,##0.###" groups the integer part with thousands separators and keeps up to three fractional
+    // digits (dropping trailing zeros), so fractional numbers are no longer silently rounded to whole
+    // values the way the old grouping-only "#,###" pattern did.
+    val decimalFormatter = new DecimalFormat("#,##0.###")
     Plated.transform[Json] { js =>
       js.asNumber match {
         case Some(value) =>

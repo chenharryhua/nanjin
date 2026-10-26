@@ -26,4 +26,13 @@ class PolicyTest extends CatsEffectSuite {
       }
     }
   }
+
+  test("2.fixedRate wire format is a single duration under the fixedRate key") {
+    val policy = Policy.fixedRate(5.seconds)
+    val json = policy.asJson
+    // the encoder emits one scalar Duration (ISO-8601 "PT5S"), not an array; this guards the wire format
+    assert(json.hcursor.get[String]("fixedRate").toOption.contains("PT5S"))
+    // and it still round-trips
+    assert(decode[Policy](json.noSpaces).toOption.contains(policy))
+  }
 }

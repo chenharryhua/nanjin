@@ -26,8 +26,8 @@ private object CodecPolicy {
       Json.obj(CRONTAB -> cronExpr.asJson)
     case FixedDelay(delays) =>
       Json.obj(FIXED_DELAY -> delays.asJson)
-    case FixedRate(delays) =>
-      Json.obj(FIXED_RATE -> delays.asJson)
+    case FixedRate(delay) =>
+      Json.obj(FIXED_RATE -> delay.asJson)
     case Limited(policy, limit) =>
       Json.obj(LIMITED -> limit.asJson, POLICY -> policy)
     case FollowedBy(leader, follower) =>
