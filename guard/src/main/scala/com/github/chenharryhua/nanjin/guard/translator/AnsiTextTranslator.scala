@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.syntax.show.showInterpolator
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, StopReason, Took}
 
 import scala.io.AnsiColor
 
@@ -53,10 +53,19 @@ object AnsiTextTranslator {
         |""".stripMargin
   }
 
-  private def service_stop(evt: ServiceStop): String =
+  private def service_stop(evt: ServiceStop): String = {
+    // StopReason's Show (reused for the cause line) renders ByException as just the "ByException" tag,
+    // dropping the stack trace. For the text sink that is the one place an operator reads why the service
+    // died, so append the trace for ByException, mirroring service_panic. Other reasons carry no trace.
+    val cause: String = Labelled(evt.cause).labelledText
+    val detail: String = evt.cause match {
+      case StopReason.ByException(stackTrace) => s"\n${Labelled(stackTrace).labelledText}"
+      case _                                  => ""
+    }
     s"""|${service_event(evt)}
-        |${Labelled(evt.cause).labelledText}
+        |$cause$detail
         |""".stripMargin
+  }
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
     val idx = Labelled(evt.index).labelledText

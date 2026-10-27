@@ -126,6 +126,81 @@ class TranslatorMonadTest extends DisciplineSuite {
   checkAll("Translator.FunctorFilter", FunctorFilterTests[Translator[Option, *]].functorFilter[Int, Int, Int])
 }
 
+/** Payload-inspecting generators for the Translator law checks (report item M2 / NV2).
+  *
+  * The generators in `gendata` return constants per subtype, so they cannot distinguish a `flatMap` that
+  * mis-threads the event into its continuation (every handler ignores the event). These handlers instead
+  * derive their output from a field of the event, so associativity and left/right identity are exercised
+  * against event-dependent outputs.
+  */
+object payloadGendata {
+  import gendata.{allEvents, exhaustiveCheck}
+
+  // each handler reads a real, non-null field of its event, so the produced value depends on the payload
+  private def intFrom(evt: Event): Int = evt match {
+    case e: ServiceStart    => e.tick.index.toInt
+    case e: ServicePanic    => e.tick.index.toInt + 1
+    case e: ServiceStop     => e.cause.exitCode + 10
+    case e: MetricsSnapshot => e.index.scrapeTime.value.toInstant.getNano
+    case e: ReportedEvent   => e.logRecord.level.value + 100
+  }
+
+  implicit def translatorEq: Eq[Translator[Option, Int]] =
+    Eq.by[Translator[Option, Int], Event => Option[Option[Int]]](_.translate)
+
+  implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
+    Eq.by[Translator[Option, (Int, Int, Int)], Event => Option[Option[(Int, Int, Int)]]](_.translate)
+
+  // the continuation reads the event, so a flatMap that passes the wrong event would be observable
+  implicit val arbiTranslator: Arbitrary[Translator[Option, Int]] =
+    Arbitrary(
+      Gen.const(
+        Translator
+          .empty[Option, Int]
+          .withServiceStart(intFrom)
+          .withServiceStop(intFrom)
+          .withServicePanic(intFrom)
+          .withMetricsSnapshot(intFrom)
+          .withReportedEvent(intFrom)
+      ))
+
+  implicit val arbiAtoB: Arbitrary[Translator[Option, Int => Int]] =
+    Arbitrary(
+      Gen.const(
+        Translator
+          .empty[Option, Int => Int]
+          .withServiceStart(evt => (i: Int) => i + intFrom(evt))
+          .withServiceStop(evt => (i: Int) => i + intFrom(evt))
+          .withServicePanic(evt => (i: Int) => i + intFrom(evt))
+          .withMetricsSnapshot(evt => (i: Int) => i + intFrom(evt))
+          .withReportedEvent(evt => (i: Int) => i + intFrom(evt))
+      ))
+
+  implicit val arbFOA: Arbitrary[Translator[Option, Option[Int]]] =
+    Arbitrary(
+      Gen.const(
+        Translator
+          .empty[Option, Option[Int]]
+          .withServiceStart(evt => Option(intFrom(evt)))
+          .withServiceStop(evt => Option(intFrom(evt)))
+          .withServicePanic(evt => Option(intFrom(evt)))
+          .withMetricsSnapshot(evt => Option(intFrom(evt)))
+          .withReportedEvent(evt => Option(intFrom(evt)))
+      ))
+
+  // keep the exhaustive event space referenced so the import is used
+  val events: List[Event] = allEvents
+}
+
+/** Law checks driven by payload-inspecting translators (M2 / NV2). */
+class TranslatorMonadPayloadTest extends DisciplineSuite {
+  import payloadGendata.*
+  checkAll("Translator.MonadLaws(payload)", MonadTests[Translator[Option, *]].monad[Int, Int, Int])
+  checkAll(
+    "Translator.FunctorFilter(payload)",
+    FunctorFilterTests[Translator[Option, *]].functorFilter[Int, Int, Int])
+}
+
 /** Behavioral coverage of the Translator combinators, complementing the law checks above. */
 class TranslatorBehaviorTest extends FunSuite {
   import gendata.*
