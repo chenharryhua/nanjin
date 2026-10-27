@@ -66,7 +66,9 @@ object Histogram {
     private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
     // Records to Dropwizard and to an otel4s Histogram (no-op when the configured MeterProvider is
-    // MeterProvider.noop). otel4s histograms record Double, so the Long value is widened.
+    // MeterProvider.noop). This is a Long histogram (OtelHistogram[F, Long], built via
+    // otelMeter.histogram[Long]), so the value is recorded as-is with no conversion. Contrast Timer,
+    // which uses a Double histogram and converts its duration to seconds.
     override def update(num: Long): F[Unit] =
       F.delay(histogram.update(num)) >> otel.record(num, attributes*)
 
