@@ -28,11 +28,20 @@ private[service] object HttpServer {
     for {
       topic <- Topic[F, MeteredCounts]
       history <- History[F, MeteredCounts](Some(Capacity(backendConfig.maxPoints.value + 1)))
+      // `updates` is the single publisher to `topic`; closing the topic in its own finalizer is safe
+      // precisely because of that. `topic.close` does not unblock producers parked on a subscriber bound,
+      // so a second publisher to this topic could be left blocked after close -- keep it single-publisher.
       updates = meh.meteredCounts(_.fresh(backendConfig.policy))
         .evalMap(tm => history.add(tm) >> topic.publish1(tm))
         .onFinalize(history.clear <* topic.close)
         .drain
     } yield (HttpWsRouter[F](backendConfig, topic, history), updates)
+
+  /** Serve only the data routes (no WebSocket feed), running the ember server for the life of the stream. */
+  private def dataOnly[F[_]: Async](
+    esb: EmberServerBuilder[F],
+    dataRouter: org.http4s.HttpRoutes[F]): Stream[F, Nothing] =
+    Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
 
   def apply[F[_]: Async](
     emberServerBuilder: Option[EmberServerBuilder[F]],
@@ -45,11 +54,10 @@ private[service] object HttpServer {
       case None      => Stream.empty.covary[F]
       case Some(esb) =>
         metricsEventHandler.serviceParams.policies.dashboard match {
-          case None =>
-            Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
-          case Some(rm) if rm.maxPoints.value <= 1 =>
-            Stream.resource(esb.withHttpApp(dataRouter.orNotFound).build) >> Stream.never
-          case Some(rm) =>
+          // No dashboard policy, or too few points to chart (<= 1): serve the data routes only, no WS feed.
+          case None                                => dataOnly(esb, dataRouter)
+          case Some(rm) if rm.maxPoints.value <= 1 => dataOnly(esb, dataRouter)
+          case Some(rm)                            =>
             val bc = BackendConfig(
               serviceName = metricsEventHandler.serviceParams.serviceIdentity.service.value,
               zoneId = metricsEventHandler.serviceParams.serviceIdentity.launchTime.zoneId,
