@@ -167,6 +167,9 @@ object BatchMetered:
       * A `pure`/`untracked` step records `None` and so emits nothing.
       */
     private def completeHead[X](context: Context[F], state: ExecutionState[X]): F[Unit] =
+      // log-then-update here is the reverse of lifecycle.handleOutcome (update-then-log) used by the
+      // sequential/parallel runners. The order is not load-bearing: each operation is independent, the
+      // panel update is uncancelable in BatchPanel, and nothing reads the gauge off the completion log.
       state.history.head.traverse(js => lifecycle.logCompleted(log, js) >> context.update(js)).void
 
     final class Monadic[A] private[BatchMetered] (
@@ -284,7 +287,12 @@ object BatchMetered:
 
             for {
               _ <- lifecycle.logKickoff(log, job)
-              eoa <- fa.attempt
+              // `fa` is the one cancelable point between the kickoff log and this job's terminal event.
+              // `.attempt` turns a job *failure* into a Right/Left value (handled below, completion is
+              // logged later by `completeHead`), so `onCancel` fires only on genuine cancellation and emits
+              // the `canceled` terminal event. Without it a canceled monadic job would log a `kickoff` with
+              // no terminal event, since cancellation short-circuits the chain before `completeHead` runs.
+              eoa <- fa.attempt.onCancel(lifecycle.logCanceled(log, job))
               end <- F.monotonic
             } yield {
               val flag = if (eoa.isRight) JobFlag.Accepted else JobFlag.Failed

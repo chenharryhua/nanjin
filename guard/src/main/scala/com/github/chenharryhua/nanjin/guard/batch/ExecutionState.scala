@@ -19,11 +19,14 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Each history entry is `Some(JobState[Json])` for a tracked job or `None` for an invisible
   * `pure`/`untracked` step. Tracked outcomes default to `Json.Null`; `renderOutcome` can attach a JSON
-  * representation to the current tracked step. Invisible entries preserve positional history so `attempt` can
-  * flag the most recent tracked job as `Accepted`. `history` is kept in reverse order (most recent step
-  * first) and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left` means the
-  * chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no further jobs
-  * will run.
+  * representation to the current tracked step. Invisible entries preserve positional history. The head-acting
+  * combinators (`attempt`, `predicate`, `renderOutcome`) touch only `history.head`, and only when it is a
+  * tracked job (`Some`); when the head is an invisible `pure`/`untracked` step (`None`) they no-op. They do
+  * not reach past an invisible head to an earlier tracked job (which, across a `flatMap` boundary, lives in a
+  * different `ExecutionState` joined later by `prependHistory`). `history` is kept in reverse order (most
+  * recent step first) and flattened after the run when building the final `MonadicBatch`. An `eoa` of `Left`
+  * means the chain has short-circuited — either a job threw or a `withFilter` rejection happened — and no
+  * further jobs will run.
   *
   * @param eoa
   *   the accumulated result: `Right` while the chain is still succeeding, `Left` once a short-circuiting
@@ -55,9 +58,11 @@ final private case class ExecutionState[A](
 
   private val lens: Lens[JobState[Json], JobFlag] = GenLens[JobState[Json]](_.flag)
 
-  /** Lift the result into `Right(eoa)` so the chain continues. If the chain had failed, the current tracked
-    * step is flagged `JobFlag.Accepted` (its failure was caught, so it is logged as nonfatal) while its
-    * recorded `Left` result is kept; a still-succeeding step keeps its flag.
+  /** Lift the result into `Right(eoa)` so the chain continues. If the chain had failed, the current segment's
+    * head — when it is a tracked job — is flagged `JobFlag.Accepted` (its failure was caught, so it is logged
+    * as nonfatal) while its recorded `Left` result is kept; a still-succeeding step keeps its flag. When the
+    * head is an invisible `pure`/`untracked` step the flag write no-ops (the `head` optic matches only a
+    * `Some` head), so `attempt` does not reach back to an earlier tracked job.
     */
   def attempt: ExecutionState[Either[Throwable, A]] =
     ExecutionState[Either[Throwable, A]](
