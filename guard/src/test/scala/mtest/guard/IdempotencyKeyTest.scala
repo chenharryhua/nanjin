@@ -126,7 +126,7 @@ class IdempotencyKeyTest extends CatsEffectSuite {
       }
   }
 
-  test("10.adhoc MetricsSnapshot keys carry the metrics-adhoc tag and epoch-milli scrape time") {
+  test("10.adhoc MetricsSnapshot keys carry the metrics-adhoc tag and epoch-nano scrape time") {
     // adhoc.report produces an Adhoc-indexed snapshot (the periodic report policy yields Periodic ones)
     TaskGuard[IO]("idem")
       .service("idem-adhoc")
@@ -139,9 +139,11 @@ class IdempotencyKeyTest extends CatsEffectSuite {
         assert(adhoc.nonEmpty)
         adhoc.foreach { e =>
           val ts = e.index.asInstanceOf[MetricsSnapshot.Adhoc].scrapeTime
+          val instant = ts.value.toInstant
+          val epochNanos = instant.getEpochSecond * 1_000_000_000L + instant.getNano
           assert(
             idempotencyKey(e).key ==
-              s"${e.serviceIdentity.serviceId.value}-metrics-adhoc-${ts.value.toInstant.toEpochMilli}")
+              s"${e.serviceIdentity.serviceId.value}-metrics-adhoc-$epochNanos")
         }
       }
   }
