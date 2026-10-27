@@ -179,13 +179,15 @@ final private[guard] class ScrapeMetrics(val metricRegistry: MetricRegistry) {
     val meters: java.util.SortedMap[String, Meter] = metricRegistry.getMeters
     val timers: java.util.SortedMap[String, Timer] = metricRegistry.getTimers
 
-    (meters.asScala ++ timers.asScala).flatMap { case (name, meter) =>
+    // Meter and Timer both implement Dropwizard's Counting (getCount), so this iterator mixes the two
+    // families; the binding is named `metered` rather than `meter` to cover both.
+    (meters.asScala ++ timers.asScala).flatMap { case (name, metered) =>
       decode[MetricId](name).toOption.flatMap { mid =>
         mid.category match {
           case metrics.MetricCategory.Meter(_, squants) =>
-            Some(MeteredId(mid.scope, mid.token, squants) -> meter.getCount)
+            Some(MeteredId(mid.scope, mid.token, squants) -> metered.getCount)
           case metrics.MetricCategory.Timer(_, squants) =>
-            Some(MeteredId(mid.scope, mid.token, squants) -> meter.getCount)
+            Some(MeteredId(mid.scope, mid.token, squants) -> metered.getCount)
           case _ => None
         }
       }

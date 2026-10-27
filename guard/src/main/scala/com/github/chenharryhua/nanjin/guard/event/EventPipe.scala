@@ -27,14 +27,14 @@ trait EventPipe { self =>
     */
   def apply(event: Event): Option[Event]
 
-  /** Boolean view of [[apply]] for use with `Stream.filter` and similar predicate-based APIs: `true` when the
+  /** Boolean view of `apply` for use with `Stream.filter` and similar predicate-based APIs: `true` when the
     * event is kept.
     */
   final def filter(event: Event): Boolean =
     apply(event).isDefined
 
   /** Compose two pipes into one that keeps an event only if both keep it (logical AND). Short-circuits: if
-    * `self` drops the event, `other` is not consulted. [[identity]] is the unit of this operation.
+    * `self` drops the event, `other` is not consulted. `identity` is the unit of this operation.
     */
   final def &&(other: EventPipe): EventPipe =
     new EventPipe {
@@ -49,7 +49,7 @@ object EventPipe {
   def apply(f: Event => Option[Event]): EventPipe =
     new EventPipe { override def apply(e: Event): Option[Event] = f(e) }
 
-  /** Pipe that keeps every event. Acts as the unit of [[EventPipe.&&]], so `identity && p` behaves like `p`.
+  /** Pipe that keeps every event. Acts as the unit of `EventPipe.&&`, so `identity && p` behaves like `p`.
     */
   val identity: EventPipe = new EventPipe {
     override def apply(event: Event): Option[Event] = Some(event)
@@ -163,7 +163,7 @@ object EventPipe {
     * and non-snapshot events always pass through.
     *
     * For each tick, the number of whole `interval`s since `launchTime` picks an expected boundary instant;
-    * the tick is kept when it covers that boundary. Unlike [[indexFilter]] (which counts snapshots), this
+    * the tick is kept when it covers that boundary. Unlike `indexFilter` (which counts snapshots), this
     * filters by elapsed wall-clock time, so it is robust to changes in snapshot frequency.
     *
     * @param interval

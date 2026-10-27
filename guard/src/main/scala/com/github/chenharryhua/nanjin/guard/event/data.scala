@@ -61,8 +61,9 @@ end Active
 
 // ---------------- Snooze ----------------
 
-/** The delay between a panic and the next restart attempt, as determined by the restart policy. Corresponds
-  * to the `snooze` value on a `ServicePanic` event — i.e., how long the service will sleep before retrying.
+/** The delay between a panic and the next restart attempt, as determined by the restart policy. Derived from
+  * the panic tick's `snooze` (`tick.snooze` on a `ServicePanic` event) — i.e., how long the service will
+  * sleep before retrying.
   */
 opaque type Snooze = Duration
 object Snooze:
