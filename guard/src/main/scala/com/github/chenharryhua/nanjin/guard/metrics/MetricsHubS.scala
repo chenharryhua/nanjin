@@ -22,8 +22,8 @@ import fs2.Stream
   *
   * For example:
   *
-  * {{ agent.metricsHubS("requests").counter("total").flatMap { counter => Stream.repeatEval(counter.inc(1)) }
-  * }}
+  * {{{ agent.metricsHubS("requests").counter("total").flatMap { counter => Stream.repeatEval(counter.inc(1))
+  * } }}}
   *
   * `MetricsHubS(hub)` is the bridge used when a resource-based `MetricsHub` is already available.
   */

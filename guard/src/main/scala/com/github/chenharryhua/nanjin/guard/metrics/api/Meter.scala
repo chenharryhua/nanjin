@@ -50,6 +50,9 @@ object Meter {
 
     private val attributes: List[Attribute[String]] = id.scope.attributesWith(userAttributes)
 
+    // `Impl` is only ever constructed inside the `Resource.make` acquire effect in `Builder.build`, so this
+    // registry mutation is sequenced in `F`, and `unregister` (the matching release) always runs. Keep
+    // `Impl` construction inside acquire if this is ever refactored, so registration stays on-effect.
     private val meter: CodahaleMeter = metricRegistry.meter(id.identifier)
 
     // Records to Dropwizard and to an otel4s monotonic Counter (no-op when the configured MeterProvider is

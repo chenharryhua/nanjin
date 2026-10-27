@@ -47,6 +47,47 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
+  test("2a.health check reports false when the check exceeds its timeout") {
+    // the inner fb.timeout(1s) fires before the outer 2x timeout registry read, handleError -> false.
+    service.eventStream { agent =>
+      agent
+        .facilitate("health-slow")(
+          _.healthCheck(
+            "health",
+            _.withTimeout(1.second)
+              .withPolicy(_.crontab(_.secondly).repeat)
+              .enable(true)
+              .register(IO.sleep(10.seconds).as(true)))
+        ) // never resolves within the timeout
+        .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val health: Map[MetricId, Boolean] = retrieve.healthCheck(mr.snapshot.gauges)
+      assert(mr.snapshot.nonEmpty)
+      // a slow check reports unhealthy (false), not dropped and not reported healthy
+      assert(health.values.nonEmpty)
+      assert(!health.values.head)
+    }
+  }
+
+  test("2b.health check reports false when the check raises") {
+    service.eventStream { agent =>
+      agent
+        .facilitate("health-raise")(
+          _.healthCheck(
+            "health",
+            _.withTimeout(1.second)
+              .withPolicy(_.crontab(_.secondly).repeat)
+              .enable(true)
+              .register(IO.raiseError[Boolean](new Exception("unhealthy")))))
+        .surround(IO.sleep(3.seconds) >> agent.adhoc.report.void)
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val health: Map[MetricId, Boolean] = retrieve.healthCheck(mr.snapshot.gauges)
+      assert(mr.snapshot.nonEmpty)
+      assert(health.values.nonEmpty)
+      assert(!health.values.head)
+    }
+  }
+
   test("3.active gauge") {
     service.eventStream { agent =>
       agent.facilitate("active")(_.activeGauge("active")).surround(agent.adhoc.report.void)
