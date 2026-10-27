@@ -174,8 +174,10 @@ final private[guard] class ScrapeMetrics(val metricRegistry: MetricRegistry) {
         }
     }
 
-  // Counts from Meter and Timer metrics only
-  def meteredCounts: Map[MeteredId, Long] = {
+  // Counts from Meter and Timer metrics only. Reading the registry (getMeters/getTimers) takes the
+  // registry's internal locks and copies both sorted maps, so it is suspended in F rather than run inline
+  // on the caller's fiber -- keeping it on the right pool and interruptible, as the snapshot paths do.
+  def meteredCounts[F[_]](using F: Sync[F]): F[Map[MeteredId, Long]] = F.delay {
     val meters: java.util.SortedMap[String, Meter] = metricRegistry.getMeters
     val timers: java.util.SortedMap[String, Timer] = metricRegistry.getTimers
 
