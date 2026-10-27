@@ -105,8 +105,9 @@ final private class HttpDataRouter[F[_]](
      */
 
     case GET -> Root / "metrics" / "jvm" =>
-      val prettified = json.prettify(mxBeans.allJvmGauge.value.asJson)
-      Ok(prettified)
+      // forcing the Eval runs a chain of JMX reads (deadlock detection, per-thread stack capture) that
+      // can be comparatively heavy, so evaluate it on the blocking pool rather than the request fiber
+      Ok(F.blocking(mxBeans.allJvmGauge.value).map(g => json.prettify(g.asJson)))
 
     case GET -> Root / "metrics" / "report" =>
       val text = metricsEventHandler.httpReport.map(documents.snapshot_to_yaml_html("Report", serviceParams))
