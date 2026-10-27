@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
+import cats.effect.std.Queue
 import cats.syntax.applicative.given
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.MeteredCounts
 import com.github.chenharryhua.nanjin.guard.service.History
@@ -64,9 +65,23 @@ final private class HttpWsRouter[F[_]: Async](
         // subscriber eagerly on Resource acquisition (unlike `subscribe`, which registers lazily
         // when the stream is first pulled). A sample straddling the boundary may appear in both the
         // history snapshot and the live stream; a duplicated chart point is harmless, a gap is not.
+        //
+        // Per-client isolation: the shared topic has a single publisher fanning out via `publish1`,
+        // which semantically blocks whenever ANY subscriber's `subscribeAwait` queue is full. If the
+        // live stream fed the socket directly, a slow or stalled client would let its queue fill and
+        // stall the publisher — freezing the feed for every other client. So we drain the subscriber
+        // (history snapshot ++ live) into a per-client `circularBuffer`, whose `offer` never blocks
+        // (it drops the oldest point when full). That drainer keeps the `subscribeAwait` queue empty
+        // regardless of socket speed, so one laggard can never back-pressure the shared publisher; a
+        // slow client simply loses the oldest points, which is the right trade-off for a live chart.
         val send: Stream[F, WebSocketFrame] =
           Stream.resource(topic.subscribeAwait(5)).flatMap { live =>
-            (Stream.evalSeq(history.value) ++ live).map(text)
+            Stream.eval(Queue.circularBuffer[F, MeteredCounts](backendConfig.maxPoints.value)).flatMap {
+              buffer =>
+                val drain: Stream[F, Nothing] =
+                  (Stream.evalSeq(history.value) ++ live).foreach(buffer.offer).drain
+                Stream.fromQueueUnterminated(buffer).map(text).concurrently(drain)
+            }
           }
 
         val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => ().pure[F])
