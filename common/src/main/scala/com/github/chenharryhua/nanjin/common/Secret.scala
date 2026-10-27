@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
+import cats.syntax.eq.given
 import io.circe.{Encoder, Json}
 
 /** A sensitive value (password, client secret, authorization code, token, ...) whose contents are masked in
@@ -28,24 +29,23 @@ final class Secret(val value: String) {
 
   /** Compares secrets in constant time to avoid leaking their contents through a timing side channel.
     *
-    * `String.equals` short-circuits on the first differing code unit, so its runtime reveals the length of the
-    * matching prefix. This comparison checks all UTF-16 code units without early exit or a potentially lossy
-    * character encoding.
+    * `String.equals` short-circuits on the first differing code unit, so its runtime reveals the length of
+    * the matching prefix. This comparison folds over all UTF-16 code units up to the longer length without
+    * early exit, OR-ing per-position differences (plus the length difference) into a single accumulator, so
+    * two secrets of equal length take the same time to reject regardless of where they diverge. It works
+    * directly on `char` code units, avoiding a potentially lossy character-encoding step.
     */
   override def equals(other: Any): Boolean = other match {
     case that: Secret =>
       val left = value
       val right = that.value
-      var difference = left.length ^ right.length
-      var index = 0
       val length = math.max(left.length, right.length)
-      while index < length do {
-        val leftCodeUnit = if index < left.length then left.charAt(index).toInt else 0
-        val rightCodeUnit = if index < right.length then right.charAt(index).toInt else 0
-        difference |= leftCodeUnit ^ rightCodeUnit
-        index += 1
+      val difference = (0 until length).foldLeft(left.length ^ right.length) { (acc, index) =>
+        val leftCodeUnit = if (index < left.length) left.charAt(index).toInt else 0
+        val rightCodeUnit = if (index < right.length) right.charAt(index).toInt else 0
+        acc | (leftCodeUnit ^ rightCodeUnit)
       }
-      difference == 0
+      difference === 0
     case _ => false
   }
   override def hashCode: Int = value.hashCode
