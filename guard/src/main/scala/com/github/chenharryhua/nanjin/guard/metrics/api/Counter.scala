@@ -44,6 +44,9 @@ object Counter {
       then MetricId(scope, name, MetricCategory.Counter(MetricKind.Counter.Risk))
       else MetricId(scope, name, MetricCategory.Counter(MetricKind.Counter.Default))
 
+    // `Impl` is only ever constructed inside the `Resource.make` acquire effect in `Builder.build`, so this
+    // registry mutation is sequenced in `F`, and `unregister` (the matching release) always runs. Keep
+    // `Impl` construction inside acquire if this is ever refactored, so registration stays on-effect.
     private val counter: CodahaleCounter = metricRegistry.counter(id.identifier)
 
     // nanjin's conceptual grouping attributes (nj.domain / nj.service / nj.task) plus any caller-supplied

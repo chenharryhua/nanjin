@@ -24,7 +24,7 @@ import java.time.ZoneId
   * Obtain a hub from `Agent.metricsHub(label)`, acquire an instrument with its `Resource`, and update it
   * inside the resource scope:
   *
-  * {{ agent.metricsHub("requests").counter("total").use(_.inc(1)) }}
+  * {{{agent.metricsHub("requests").counter("total").use(_.inc(1))}}}
   *
   * Releasing the resource unregisters the metric. Use `MetricsHubS` when a stream-based registration API is
   * more convenient.
@@ -81,7 +81,7 @@ import java.time.ZoneId
   * histogram, timer, numericGauge) additionally accept caller-supplied string attributes via
   * `withAttributes(attributes: (String, String)*)` on their builder:
   *
-  * {{ agent.metricsHub("requests").counter("total", _.withAttributes("endpoint" -> "/orders")) }}
+  * {{{agent.metricsHub("requests").counter("total", _.withAttributes("endpoint" -> "/orders"))}}}
   *
   * These attributes are '''static''': fixed when the instrument is built and applied to every measurement,
   * which departs from OpenTelemetry's own model where attributes are supplied per record. For a dimension

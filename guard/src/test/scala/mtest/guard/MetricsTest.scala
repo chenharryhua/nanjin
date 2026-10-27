@@ -57,6 +57,48 @@ class MetricsTest extends CatsEffectSuite {
     }
   }
 
+  test("2c.metric identifier round trip across every category/kind variant") {
+    // Register one of each instrument variant so the snapshot carries a MetricId for each MetricCategory /
+    // MetricKind: Counter(Default), Counter(Risk), Meter, Histogram, Timer, and a Gauge (Default) plus a
+    // HealthCheck gauge. A field that failed to round-trip would make that instrument un-scrapeable, so
+    // assert decode(id.identifier) == Right(id) for every id in every snapshot category.
+    service.eventStream { agent =>
+      agent.facilitate("roundtrip") { fac =>
+        for {
+          c <- fac.counter("c")
+          r <- fac.counter("r", _.asRisk)
+          m <- fac.meter("m", _.withUnit(Bytes))
+          h <- fac.histogram("h", _.withUnit(Bytes))
+          t <- fac.timer("t")
+          _ <- fac.gauge("g", _.register(IO.pure(io.circe.Json.fromInt(1))))
+          _ <- fac.healthCheck("hc", _.withTimeout(1.second).register(IO.pure(true)))
+        } yield (c, r, m, h, t)
+      }.use { case (c, r, m, h, t) =>
+        c.inc(1) >> r.inc(1) >> m.mark(1) >> h.update(1) >>
+          t.elapsedNano(1.second.toNanos) >> agent.adhoc.report.void
+      }
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.map { mr =>
+      val ids: List[MetricId] =
+        mr.snapshot.counters.map(_.metricId) :::
+          mr.snapshot.meters.map(_.metricId) :::
+          mr.snapshot.histograms.map(_.metricId) :::
+          mr.snapshot.timers.map(_.metricId) :::
+          mr.snapshot.gauges.map(_.metricId)
+
+      // sanity: we actually registered a spread of variants (at least the two counters, meter, histogram,
+      // timer, and two gauges)
+      assert(mr.snapshot.counters.size >= 2, s"counters: ${mr.snapshot.counters.size}")
+      assert(mr.snapshot.meters.nonEmpty)
+      assert(mr.snapshot.histograms.nonEmpty)
+      assert(mr.snapshot.timers.nonEmpty)
+      assert(mr.snapshot.gauges.size >= 2, s"gauges: ${mr.snapshot.gauges.size}")
+
+      ids.foreach { id =>
+        assertEquals(decode[MetricId](id.identifier), Right(id), s"round-trip failed for: ${id.identifier}")
+      }
+    }
+  }
+
   test("3.scraper ignores a metric identifier with the wrong registry type") {
     service.eventStream { agent =>
       agent
