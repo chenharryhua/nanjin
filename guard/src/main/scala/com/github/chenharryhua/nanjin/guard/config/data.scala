@@ -33,13 +33,14 @@ inline val NbspChar = '\u00A0'
   */
 opaque type StackTrace = List[String]
 object StackTrace:
-  final private val NbspIndent: String = String.valueOf(NbspChar) * 2
+  // private, shared, constant literal -> SCREAMING_SNAKE_CASE per the project naming convention
+  final private val NBSP_INDENT: String = String.valueOf(NbspChar) * 2
   def apply(ex: Throwable): StackTrace =
     ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList
   extension (st: StackTrace)
     inline def value: List[String] = st
     def headOption: Option[String] = st.headOption
-    def nbspIndented: String = st.mkString(s"\n$NbspIndent")
+    def nbspIndented: String = st.mkString(s"\n$NBSP_INDENT")
 
     /** The first `n` frames. With the root-cause-first ordering (see `StackTrace`), these are the deepest
       * frames; `n` at or below zero yields an empty trace and an `n` larger than the trace keeps every frame.
@@ -212,6 +213,8 @@ object Timestamp:
 
   extension (ts: Timestamp) inline def value: ZonedDateTime = ts
 
+  // Lossy display helper for log prefixes only (drops the date and zone, truncates to seconds); it is NOT a
+  // faithful rendering. Use the Encoder (full ZonedDateTime) for serialization, never `show`.
   given Show[Timestamp] =
     _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 

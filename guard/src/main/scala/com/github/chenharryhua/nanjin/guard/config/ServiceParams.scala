@@ -73,6 +73,10 @@ object ServiceParams {
       ),
       history = None,
       logFormat = None,
+      // Best-effort build metadata: `BuildInfo.toJson` is generated and expected to always parse, so a
+      // parse failure is swallowed to `None` rather than failing service construction. The trade-off is
+      // that malformed build info would silently drop the `nanjin` field from every event with no signal;
+      // this is deliberate, so `nanjin` must be treated as optional by every consumer.
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief
     )
