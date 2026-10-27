@@ -116,13 +116,13 @@ class ParameterStoreTest extends CatsEffectSuite {
   }
 
   test("6.transport failures propagate from the managed adapter") {
-    val failure = new IllegalStateException("transport failed")
+    val failure = new java.io.IOException("transport failed")
     val transport = StubAwsHttpClient.queue(Left(failure))
 
     ParameterStore[IO](configure_builder(transport)).use { store =>
-      interceptIO[software.amazon.awssdk.core.exception.SdkClientException](
-        store.fetch("failed/path")).map { error =>
-        assertEquals(error.getCause, failure)
+      interceptIO[software.amazon.awssdk.core.exception.SdkClientException](store.fetch("failed/path")).map {
+        error =>
+          assertEquals(error.getCause, failure)
       }
     }
   }
