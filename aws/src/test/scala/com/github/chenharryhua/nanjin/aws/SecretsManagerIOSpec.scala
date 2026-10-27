@@ -108,7 +108,7 @@ class SecretsManagerIOSpec extends CatsEffectSuite {
   }
 
   test("6.transport failures propagate from the managed adapter") {
-    val failure = new IllegalStateException("transport failed")
+    val failure = new java.io.IOException("transport failed")
     val transport = StubAwsHttpClient.queue(Left(failure))
 
     SecretsManager[IO](configure_builder(transport)).use { manager =>
