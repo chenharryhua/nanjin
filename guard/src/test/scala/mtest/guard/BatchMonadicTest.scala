@@ -606,4 +606,62 @@ class BatchMonadicTest extends CatsEffectSuite {
         assertEquals(completions, List("a", "b"))
       }
   }
+
+  // `canceled` is a terminal lifecycle event too (emitted by lifecycle.logCanceled). The outcome-tag
+  // extractor above only knows the completion tags; this one also counts a `canceled` tag so the
+  // "kickoff => exactly one terminal event" invariant can be checked on the cancellation path.
+  private val terminalTags: Set[String] = outcomeTags + "canceled"
+
+  private def kickoffsAndTerminals(events: List[ReportedEvent]): (List[String], List[String]) = {
+    def jobName(payload: Json, tag: String): Option[String] =
+      payload.hcursor
+        .downField(tag)
+        .focus
+        .flatMap(_.asObject)
+        .flatMap(_.toList.collectFirst { case (key, value) if key.startsWith("job-") => value })
+        .flatMap(_.asString)
+
+    val tagged: List[(String, String)] = events.flatMap { event =>
+      val payload = event.logRecord.message.value
+      payload.asObject.toList.flatMap(_.keys).flatMap(tag => jobName(payload, tag).map(tag -> _))
+    }
+
+    (
+      tagged.collect { case ("kickoff", name) => name },
+      tagged.collect { case (tag, name) if terminalTags(tag) => name })
+  }
+
+  test("19.a canceled monadic job emits exactly one terminal event (canceled)") {
+    // Job "b" is in flight when the 1.5s timeout cancels the batch. Before the fix it logged a kickoff
+    // with no terminal event (the chain is canceled before completeHead runs); now onCancel emits a
+    // `canceled` event, so every started job still has exactly one terminal event.
+    verboseService
+      .eventStream { agent =>
+        agent
+          .batchMetered("monadic-lifecycle-cancel")
+          .monadic { job =>
+            for {
+              a <- job("a", IO.pure(1))
+              b <- job("b", IO.sleep(5.seconds).as(2)) // canceled mid-flight
+              c <- job("c", IO.pure(3))
+            } yield a + b + c
+          }
+          .monadicBatch
+          .use(_.pure[IO])
+          .timeout(1500.millis)
+          .attempt
+          .void
+      }
+      .collect { case event: ReportedEvent => event }
+      .compile
+      .toList
+      .map { events =>
+        val (kickoffs, terminals) = kickoffsAndTerminals(events)
+        // "a" completes, "b" starts then is canceled, "c" never starts
+        assertEquals(kickoffs, List("a", "b"))
+        // every job that emitted a kickoff emitted exactly one terminal event; "b"'s is `canceled`
+        assertEquals(terminals.sorted, kickoffs.sorted)
+        assert(terminals.contains("b"))
+      }
+  }
 }

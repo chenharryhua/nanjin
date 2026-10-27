@@ -17,6 +17,26 @@ import org.typelevel.cats.time.instances.duration.given
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
+/** The service supervision and restart loop. Despite the name this is the primary run loop, not a passive
+  * liveness watcher: it runs the user's service effect, applies the restart policy on failure, and decides
+  * every terminal `StopReason`.
+  *
+  * Each iteration emits `serviceStart` for the current tick and then runs `theService`. Its outcome drives
+  * the loop:
+  *   - '''success''' — the effect completes: stop with `StopReason.Successfully` and end the loop.
+  *   - '''failure''' — the effect throws: in `panic`, first renew the restart policy when the service ran
+  *     longer than `RestartPolicy.threshold` (so a long-healthy run resets the backoff), then ask the
+  *     `PolicyTick` for the next tick. `None` means the policy is exhausted, so stop with
+  *     `StopReason.ByException`; `Some` means emit a `ServicePanic`, sleep the tick's snooze, and retry.
+  *   - '''cancellation''' — the loop is canceled (e.g. the enclosing `eventStream` is interrupted): the
+  *     `onCancel` finalizer runs `serviceCancel`, which stops with `StopReason.ByCancellation` unless the
+  *     channel is already closed by a terminal stop.
+  *
+  * The seed `PolicyTick` comes from the restart policy; an empty policy (the default) yields no next tick, so
+  * the first failure stops with `ByException` and no restart occurs. The loop runs as a `.concurrently`
+  * producer in `ServiceGuard.eventStream`, so closing the event channel on any terminal stop ends the main
+  * stream and cancels this loop.
+  */
 private def watchdog[F[_]](theService: F[Unit], handler: ServiceEventHandler[F])(using
   F: Async[F]): Stream[F, Nothing] = {
 

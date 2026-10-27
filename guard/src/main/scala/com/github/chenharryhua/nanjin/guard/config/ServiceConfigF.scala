@@ -27,10 +27,12 @@ sealed trait ServiceConfig[F[_]] {
 
   /** Set the delay schedule used when restarting after a panic.
     *
-    * The schedule resets after the service has run continuously for `threshold`.
+    * The schedule resets once the service has run continuously for '''longer than''' `threshold`; a run of
+    * exactly `threshold` does not reset it (the comparison is strict).
     *
     * @param threshold
-    *   duration of successful running after which the policy resets
+    *   the restart schedule resets after the service has run continuously for strictly longer than this
+    *   duration
     * @param f
     *   builder for the restart scheduling policy
     */
