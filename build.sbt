@@ -399,7 +399,7 @@ lazy val kafka = (project in file("kafka"))
       "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
-      "com.github.luben"  % "zstd-jni"          % "1.5.7-24" // snyk by kafka-schema-registry-client
+      "com.github.luben"  % "zstd-jni"          % "1.5.7-25" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
