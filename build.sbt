@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.57.3"
+val awsV = "2.57.5"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"
@@ -44,6 +44,7 @@ val scalapbV = "0.11.21"
 val skunkV = "1.0.0"
 val slf4jV = "2.0.20"
 val snappyV = "1.1.10.12"
+val testcontainersV = "1.21.4"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -294,7 +295,11 @@ lazy val observer_database = (project in file("observers/database"))
     libraryDependencies ++= List(
       "org.tpolecat" %% "skunk-core"                % skunkV,
       "org.tpolecat" %% "skunk-circe"               % skunkV,
-      "org.typelevel" %% "scalac-compat-annotation" % docV // doc
+      "org.typelevel" %% "scalac-compat-annotation" % docV, // doc
+      // test
+      "org.testcontainers" % "postgresql"      % testcontainersV % Test,
+      "org.postgresql"     % "postgresql"      % postgresV       % Test,
+      "ch.qos.logback"     % "logback-classic" % logbackV        % Test
     ) ++ testLib
   ).settings(dependencyOverrides ++= otel4s_override)
 

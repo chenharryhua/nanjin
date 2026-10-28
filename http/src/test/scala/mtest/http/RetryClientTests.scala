@@ -2,11 +2,12 @@ package mtest.http
 
 import cats.effect.*
 import cats.effect.kernel.Ref
+import cats.effect.testkit.TestControl
 import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, httpRetry, recklessHttpRetry}
 import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
-import org.http4s.headers.`Set-Cookie`
+import org.http4s.headers.{`Retry-After`, `Set-Cookie`}
 import org.http4s.implicits.*
 import org.typelevel.ci.CIString
 
@@ -325,6 +326,95 @@ class RetryClientTests extends CatsEffectSuite {
     retryClient.run(req).use(_ => IO.unit).attempt.flatMap {
       case Left(_)  => counter.get.map(n => assertEquals(n, 1))
       case Right(_) => IO(fail("Should have failed"))
+    }
+  }
+
+  test("14.Retry-After as a past HTTP-date clamps the delay to zero") {
+    TestControl.executeEmbed {
+      val counter = Ref.unsafe[IO, Int](0)
+
+      // First attempt responds 503 with Retry-After as an HTTP-date already in the past, exercising the
+      // `Left(date)` branch and its `(date - now).max(0.seconds)` clamp. A negative clamp would make the
+      // subsequent `Temporal.sleep` fail, so a clean success proves the clamp holds.
+      val client = Client[IO] { _ =>
+        Resource.eval(
+          IO.realTime.flatMap { now =>
+            val pastDate = HttpDate.unsafeFromEpochSecond(now.toSeconds - 60L)
+            counter.updateAndGet(_ + 1).map { n =>
+              if (n <= 1)
+                Response[IO](Status.ServiceUnavailable).putHeaders(`Retry-After`(pastDate))
+              else Response[IO](Status.Ok)
+            }
+          }
+        )
+      }
+
+      val retryClient = httpRetry[IO](zoneId, _.fixedDelay(10.millis).repeat.limited(5))(client)
+      val req = Request[IO](Method.GET, uri"/retry-after-date")
+
+      for {
+        r <- retryClient.run(req).use(IO.pure)
+        n <- counter.get
+      } yield {
+        assertEquals(r.status, Status.Ok)
+        assertEquals(n, 2)
+      }
+    }
+  }
+
+  test("15.Retry respects the policy snooze when it exceeds Retry-After") {
+    TestControl.executeEmbed {
+      val counter = Ref.unsafe[IO, Int](0)
+      val timestamps = Ref.unsafe[IO, List[Long]](Nil)
+
+      // Retry-After asks for 1 second, but the policy snoozes for 5 seconds. The effective delay is
+      // max(header, policy), so the policy should win here (the reverse of the header-wins case).
+      val client = Client[IO] { _ =>
+        Resource.eval(
+          for {
+            now <- IO.realTime.map(_.toMillis)
+            _ <- timestamps.update(_ :+ now)
+            n <- counter.updateAndGet(_ + 1)
+          } yield
+            if (n <= 1)
+              Response[IO](Status.ServiceUnavailable).putHeaders(`Retry-After`.unsafeFromDuration(1.second))
+            else Response[IO](Status.Ok)
+        )
+      }
+
+      val retryClient = httpRetry[IO](zoneId, _.fixedDelay(5.seconds).repeat.limited(5))(client)
+      val req = Request[IO](Method.GET, uri"/retry-after-policy-wins")
+
+      for {
+        r <- retryClient.run(req).use(IO.pure)
+        n <- counter.get
+        ts <- timestamps.get
+      } yield {
+        assertEquals(r.status, Status.Ok)
+        assertEquals(n, 2)
+        val delay = ts(1) - ts(0)
+        assertEquals(delay, 5000L) // policy's 5s wins over Retry-After's 1s
+      }
+    }
+  }
+
+  test("16.Default httpRetry does not retry a non-idempotent POST") {
+    val counter = Ref.unsafe[IO, Int](0)
+    // A retriable status that recklessHttpRetry would retry regardless of method (see tests 3 and 12).
+    val client = Client[IO] { _ =>
+      Resource.eval(counter.updateAndGet(_ + 1).map(_ => Response[IO](Status.ServiceUnavailable)))
+    }
+
+    // Default predicate is RetryPolicy.defaultRetriable: idempotent methods only, so POST is not retried.
+    val retryClient = httpRetry[IO](zoneId, _.fixedRate(10.millis).repeat.limited(3))(client)
+    val req = Request[IO](Method.POST, uri"/no-post-retry")
+
+    for {
+      r <- retryClient.run(req).use(IO.pure)
+      n <- counter.get
+    } yield {
+      assertEquals(r.status, Status.ServiceUnavailable)
+      assertEquals(n, 1)
     }
   }
 }
