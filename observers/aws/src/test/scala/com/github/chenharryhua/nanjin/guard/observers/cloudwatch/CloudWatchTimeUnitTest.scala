@@ -64,34 +64,143 @@ class CloudWatchTimeUnitTest extends FunSuite {
         2.0))
   }
 
-  test("8.binary byte units rescale to their decimal CloudWatch counterpart") {
-    // 1 KiB = 1.024 KB, 1 MiB = 1.048576 MB
+  test("8.decimal byte units Gigabytes/Terabytes pass through unchanged") {
+    assert(
+      convert(information.Gigabytes.symbol, information.Information.name, 2.0) == (
+        StandardUnit.GIGABYTES,
+        2.0))
+    assert(
+      convert(information.Terabytes.symbol, information.Information.name, 2.0) == (
+        StandardUnit.TERABYTES,
+        2.0))
+  }
+
+  test("9.binary byte units rescale to their decimal CloudWatch counterpart") {
+    // 1 KiB = 1.024 KB, 1 MiB = 1.048576 MB, 1 GiB = 1.073741824 GB, 1 TiB = 1.099511627776 TB
     assert(
       convert(information.Kibibytes.symbol, information.Information.name, 1.0) == (
         StandardUnit.KILOBYTES,
-        1.024))
+        information.Kibibytes(1.0).to(information.Kilobytes)))
     assert(
       convert(information.Mebibytes.symbol, information.Information.name, 1.0) == (
         StandardUnit.MEGABYTES,
-        1.048576))
+        information.Mebibytes(1.0).to(information.Megabytes)))
+    assert(
+      convert(information.Gibibytes.symbol, information.Information.name, 1.0) == (
+        StandardUnit.GIGABYTES,
+        information.Gibibytes(1.0).to(information.Gigabytes)))
+    assert(
+      convert(information.Tebibytes.symbol, information.Information.name, 1.0) == (
+        StandardUnit.TERABYTES,
+        information.Tebibytes(1.0).to(information.Terabytes)))
   }
 
-  test("9.data-rate: decimal passes through, binary rescales") {
+  // ---- information bits: decimal pass through, binary rescale --------------------------------------
+
+  test("10.Bits and decimal bit units pass through unchanged") {
+    assert(convert(information.Bits.symbol, information.Information.name, 8.0) == (StandardUnit.BITS, 8.0))
+    assert(
+      convert(information.Kilobits.symbol, information.Information.name, 2.0) == (StandardUnit.KILOBITS, 2.0))
+    assert(
+      convert(information.Megabits.symbol, information.Information.name, 2.0) == (StandardUnit.MEGABITS, 2.0))
+    assert(
+      convert(information.Gigabits.symbol, information.Information.name, 2.0) == (StandardUnit.GIGABITS, 2.0))
+    assert(
+      convert(information.Terabits.symbol, information.Information.name, 2.0) == (StandardUnit.TERABITS, 2.0))
+  }
+
+  test("11.binary bit units rescale to their decimal CloudWatch counterpart") {
+    assert(
+      convert(information.Kibibits.symbol, information.Information.name, 1.0) == (
+        StandardUnit.KILOBITS,
+        information.Kibibits(1.0).to(information.Kilobits)))
+    assert(
+      convert(information.Mebibits.symbol, information.Information.name, 1.0) == (
+        StandardUnit.MEGABITS,
+        information.Mebibits(1.0).to(information.Megabits)))
+    assert(
+      convert(information.Gibibits.symbol, information.Information.name, 1.0) == (
+        StandardUnit.GIGABITS,
+        information.Gibibits(1.0).to(information.Gigabits)))
+    assert(
+      convert(information.Tebibits.symbol, information.Information.name, 1.0) == (
+        StandardUnit.TERABITS,
+        information.Tebibits(1.0).to(information.Terabits)))
+  }
+
+  // ---- data-rate bytes/second: decimal pass through, binary rescale --------------------------------
+
+  test("12.decimal byte-rate units pass through unchanged") {
     assert(
       convert(information.BytesPerSecond.symbol, information.DataRate.name, 100.0) ==
         (StandardUnit.BYTES_SECOND, 100.0))
     assert(
-      convert(information.KibibytesPerSecond.symbol, information.DataRate.name, 1.0) ==
-        (StandardUnit.KILOBYTES_SECOND, 1.024))
+      convert(information.KilobytesPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.KILOBYTES_SECOND, 2.0))
+    assert(
+      convert(information.MegabytesPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.MEGABYTES_SECOND, 2.0))
+    assert(
+      convert(information.GigabytesPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.GIGABYTES_SECOND, 2.0))
+    assert(
+      convert(information.TerabytesPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.TERABYTES_SECOND, 2.0))
+  }
+
+  test("13.binary byte-rate units rescale to their decimal CloudWatch counterpart") {
+    assert(convert(information.KibibytesPerSecond.symbol, information.DataRate.name, 1.0) ==
+      (StandardUnit.KILOBYTES_SECOND, information.KibibytesPerSecond(1.0).to(information.KilobytesPerSecond)))
+    assert(convert(information.MebibytesPerSecond.symbol, information.DataRate.name, 1.0) ==
+      (StandardUnit.MEGABYTES_SECOND, information.MebibytesPerSecond(1.0).to(information.MegabytesPerSecond)))
+    assert(convert(information.GibibytesPerSecond.symbol, information.DataRate.name, 1.0) ==
+      (StandardUnit.GIGABYTES_SECOND, information.GibibytesPerSecond(1.0).to(information.GigabytesPerSecond)))
+    assert(convert(information.TebibytesPerSecond.symbol, information.DataRate.name, 1.0) ==
+      (StandardUnit.TERABYTES_SECOND, information.TebibytesPerSecond(1.0).to(information.TerabytesPerSecond)))
+  }
+
+  // ---- data-rate bits/second: decimal pass through, binary rescale ---------------------------------
+
+  test("14.decimal bit-rate units pass through unchanged") {
+    assert(
+      convert(information.BitsPerSecond.symbol, information.DataRate.name, 100.0) ==
+        (StandardUnit.BITS_SECOND, 100.0))
+    assert(
+      convert(information.KilobitsPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.KILOBITS_SECOND, 2.0))
+    assert(
+      convert(information.MegabitsPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.MEGABITS_SECOND, 2.0))
+    assert(
+      convert(information.GigabitsPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.GIGABITS_SECOND, 2.0))
+    assert(
+      convert(information.TerabitsPerSecond.symbol, information.DataRate.name, 2.0) ==
+        (StandardUnit.TERABITS_SECOND, 2.0))
+  }
+
+  test("15.binary bit-rate units rescale to their decimal CloudWatch counterpart") {
+    assert(
+      convert(information.KibibitsPerSecond.symbol, information.DataRate.name, 1.0) ==
+        (StandardUnit.KILOBITS_SECOND, information.KibibitsPerSecond(1.0).to(information.KilobitsPerSecond)))
+    assert(
+      convert(information.MebibitsPerSecond.symbol, information.DataRate.name, 1.0) ==
+        (StandardUnit.MEGABITS_SECOND, information.MebibitsPerSecond(1.0).to(information.MegabitsPerSecond)))
+    assert(
+      convert(information.GibibitsPerSecond.symbol, information.DataRate.name, 1.0) ==
+        (StandardUnit.GIGABITS_SECOND, information.GibibitsPerSecond(1.0).to(information.GigabitsPerSecond)))
+    assert(
+      convert(information.TebibitsPerSecond.symbol, information.DataRate.name, 1.0) ==
+        (StandardUnit.TERABITS_SECOND, information.TebibitsPerSecond(1.0).to(information.TerabitsPerSecond)))
   }
 
   // ---- fallthrough ---------------------------------------------------------------------------------
 
-  test("10.an unknown unit symbol falls through to NONE, value unchanged") {
+  test("16.an unknown unit symbol falls through to NONE, value unchanged") {
     assert(convert("weird", "unknown", 7.0) == (StandardUnit.NONE, 7.0))
   }
 
-  test("11.a known symbol paired with the wrong dimension falls through to NONE") {
+  test("17.a known symbol paired with the wrong dimension falls through to NONE") {
     // `ea` only matches under Dimensionless; under Time the guard fails and it becomes NONE
     assert(convert(Each.symbol, time.Time.name, 5.0) == (StandardUnit.NONE, 5.0))
     // `B` only matches under Information; under DataRate it falls through
