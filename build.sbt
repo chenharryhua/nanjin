@@ -390,16 +390,18 @@ lazy val kafka = (project in file("kafka"))
       "io.confluent"     % "kafka-avro-serializer"        % confluentV,
       "io.confluent"     % "kafka-schema-registry-client" % confluentV,
       "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+      "org.apache.kafka" % "kafka-clients"                % kafkaV,
       "org.apache.kafka" % "kafka-streams"                % kafkaV,
       // test
       "ch.qos.logback"              % "logback-classic" % logbackV % Test,
       "io.circe" %% "circe-generic" % circeV            % Test,
+      ("org.apache.kafka" % "kafka-clients" % kafkaV % Test).classifier("test"), // MockAdminClient
       // snyk
       "com.google.guava"  % "guava"             % guavaV, // snyk by kafka-avro-serializer
       "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
-      "com.github.luben"  % "zstd-jni"          % "1.5.7-24" // snyk by kafka-schema-registry-client
+      "com.github.luben"  % "zstd-jni"          % "1.5.7-25" // snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
