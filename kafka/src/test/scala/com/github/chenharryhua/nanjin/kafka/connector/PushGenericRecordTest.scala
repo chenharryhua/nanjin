@@ -148,4 +148,16 @@ class PushGenericRecordTest extends FunSuite {
     }
     assert(error.getMessage.contains("ARRAY"))
   }
+
+  test("7.RECORD schema migration failures propagate the underlying Avro error") {
+    val incompatible_schema =
+      SchemaBuilder.record("Incompatible").namespace("mtest.kafka").fields().requiredInt("other").endRecord()
+    val incompatible = new Record(incompatible_schema)
+    incompatible.put("other", Integer.valueOf(1))
+
+    intercept[org.apache.avro.AvroTypeException] {
+      push(RECORD_SCHEMA, INT_SCHEMA)
+        .fromGenericRecord(wrapper(RECORD_SCHEMA, INT_SCHEMA, incompatible, Integer.valueOf(1)))
+    }
+  }
 }
