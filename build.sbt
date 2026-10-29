@@ -40,8 +40,10 @@ val monocleV = "3.3.0"
 val otel4sV = "1.1.0"
 val parquetV = "1.18.1"
 val postgresV = "42.7.14"
+val redshiftV = "2.3.0"
 val scalapbV = "0.11.21"
 val skunkV = "1.0.0"
+val sqlServerV = "14.1.0.jre11-preview"
 val slf4jV = "2.0.20"
 val snappyV = "1.1.10.12"
 val testcontainersV = "1.21.4"
@@ -362,8 +364,10 @@ lazy val database = (project in file("database"))
       // java
       "com.zaxxer" % "HikariCP" % "7.1.0",
       // test
-      "org.postgresql" % "postgresql"      % postgresV % Test,
-      "ch.qos.logback" % "logback-classic" % logbackV  % Test
+      "com.amazon.redshift"     % "redshift-jdbc42" % redshiftV  % Test,
+      "com.microsoft.sqlserver" % "mssql-jdbc"      % sqlServerV % Test,
+      "org.postgresql"          % "postgresql"      % postgresV  % Test,
+      "ch.qos.logback"          % "logback-classic" % logbackV   % Test
     ) ++ testLib
   )
 
