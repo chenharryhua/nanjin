@@ -3,7 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.Event.{ReportedEvent, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.config.LogFormat
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
 import munit.CatsEffectSuite
 
@@ -52,5 +53,38 @@ class EventLogSinkTest extends CatsEffectSuite {
       .compile
       .toList
       .map(events => assert(events.exists(_.isInstanceOf[Event.MetricsSnapshot])))
+  }
+
+  test("4.every configured log format preserves all reported log levels") {
+    val formats = List(
+      LogFormat.ConsolePlainText,
+      LogFormat.ConsoleJson,
+      LogFormat.ConsoleJsonMultiLine,
+      LogFormat.ConsoleJsonVerbose,
+      LogFormat.Slf4jJson)
+
+    formats.foldLeft(IO.unit) { (previous, format) =>
+      previous >> base
+        .updateConfig(_.withLog(_.Debug, _ => format)
+          .withReportedEventThreshold(_.Debug))
+        .eventStream { agent =>
+          agent.logger.debug("debug") >>
+            agent.logger.info("info") >>
+            agent.logger.good("good") >>
+            agent.logger.warn("warn") >>
+            agent.logger.error("error")
+        }
+        .map(checkJson)
+        .compile
+        .toList
+        .map { events =>
+          val reported = events.collect { case event: ReportedEvent => event }
+          assertEquals(
+            reported.map(_.logRecord.level).toSet,
+            com.github.chenharryhua.nanjin.common.logging.LogLevel.values.toSet)
+          assert(events.head.isInstanceOf[ServiceStart])
+          assert(events.last.isInstanceOf[ServiceStop])
+        }
+    }
   }
 }
