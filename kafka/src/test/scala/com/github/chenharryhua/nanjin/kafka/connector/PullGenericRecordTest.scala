@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
+import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
 import com.landoop.telecom.telecomitalia.telecommunications.Key
 import fs2.kafka.{ConsumerRecord, Header, Headers}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import org.apache.avro.Schema
+import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.common.serialization.Serdes
 import munit.FunSuite
@@ -100,6 +103,7 @@ class PullGenericRecordTest extends FunSuite {
     val err = res.swap.toOption.get
     assert(err.isKey)
     assert(err.cause.getMessage.contains("magic byte"))
+    assertEquals(err.toJson.asObject.map(_.keys.toSet), Some(Set("key.error")))
   }
 
   test("5.record schema with exactly 5 bytes and valid magic byte attempts decode") {
@@ -144,5 +148,104 @@ class PullGenericRecordTest extends FunSuite {
     val err = res.swap.toOption.get
     assert(!err.isKey) // error is on value side
     assert(err.cause.getMessage.contains("magic byte"))
+    assertEquals(err.toJson.asObject.map(_.keys.toSet), Some(Set("value.error")))
+  }
+
+  test("7.BYTES, LONG, FLOAT, DOUBLE, and BOOLEAN decode with matching Kafka Serdes") {
+    val bytes_schema = Schema.create(Schema.Type.BYTES)
+    val long_schema = Schema.create(Schema.Type.LONG)
+    val float_schema = Schema.create(Schema.Type.FLOAT)
+    val double_schema = Schema.create(Schema.Type.DOUBLE)
+    val boolean_schema = Schema.create(Schema.Type.BOOLEAN)
+    val string_schema = Schema.create(Schema.Type.STRING)
+
+    val bytes = Array[Byte](1, 2, 3)
+    val bytes_long = new PullGenericRecord(AvroSchemaPair(AvroSchema(bytes_schema), AvroSchema(long_schema)))
+      .toGenericRecord(
+        ConsumerRecord(
+          topic,
+          0,
+          7L,
+          Serdes.ByteArray().serializer().serialize(topic, bytes),
+          Serdes.Long().serializer().serialize(topic, java.lang.Long.valueOf(42L))))
+      .toOption
+      .get
+
+    bytes_long.get("key") match {
+      case decoded: Array[Byte] => assert(decoded.sameElements(bytes))
+      case other                => fail(s"expected Array[Byte], got $other")
+    }
+    assertEquals(bytes_long.get("value"), java.lang.Long.valueOf(42L))
+
+    val float_double =
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(float_schema), AvroSchema(double_schema)))
+        .toGenericRecord(ConsumerRecord(
+          topic,
+          0,
+          8L,
+          Serdes.Float().serializer().serialize(topic, java.lang.Float.valueOf(1.5f)),
+          Serdes.Double().serializer().serialize(topic, java.lang.Double.valueOf(2.5d))
+        ))
+        .toOption
+        .get
+
+    assertEquals(float_double.get("key"), java.lang.Float.valueOf(1.5f))
+    assertEquals(float_double.get("value"), java.lang.Double.valueOf(2.5d))
+
+    val boolean_string =
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(boolean_schema), AvroSchema(string_schema)))
+        .toGenericRecord(
+          ConsumerRecord(
+            topic,
+            0,
+            9L,
+            Serdes.Boolean().serializer().serialize(topic, java.lang.Boolean.TRUE),
+            Serdes.String().serializer().serialize(topic, "value")))
+        .toOption
+        .get
+
+    assertEquals(boolean_string.get("key"), java.lang.Boolean.TRUE)
+    assertEquals(boolean_string.get("value"), "value")
+  }
+
+  test("8.RECORD payload produced in Confluent wire format decodes successfully") {
+    val record_schema =
+      SchemaBuilder.record("Payload").namespace("mtest.kafka").fields().requiredString("name").endRecord()
+    val string_schema = Schema.create(Schema.Type.STRING)
+    val pair = AvroSchemaPair(AvroSchema(record_schema), AvroSchema(string_schema))
+    val client = new MockSchemaRegistryClient
+    val push = new PushGenericRecord(
+      client,
+      SerdeSettings(
+        Map(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> "mock://pull-generic-record")),
+      TopicName(topic),
+      pair)
+
+    val payload = new Record(record_schema)
+    payload.put("name", "decoded")
+    val envelope = new Record(pair.consumerSchema)
+    envelope.put("key", payload)
+    envelope.put("value", "value")
+    val produced = push.fromGenericRecord(envelope)
+
+    val decoded = new PullGenericRecord(pair)
+      .toGenericRecord(ConsumerRecord(topic, 0, 10L, produced.key, produced.value))
+      .toOption
+      .get
+
+    decoded.get("key") match {
+      case record: Record => assertEquals(record.get("name").toString, "decoded")
+      case other          => fail(s"expected GenericData.Record, got $other")
+    }
+    assertEquals(decoded.get("value"), "value")
+  }
+
+  test("9.unsupported schema type is rejected while constructing the decoder") {
+    val array_schema = Schema.createArray(Schema.create(Schema.Type.INT))
+    val error = intercept[UnsupportedOperationException] {
+      new PullGenericRecord(
+        AvroSchemaPair(AvroSchema(array_schema), AvroSchema(Schema.create(Schema.Type.INT))))
+    }
+    assert(error.getMessage.contains("ARRAY"))
   }
 }

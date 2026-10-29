@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.Serdes
 import munit.FunSuite
 
 import java.time.Duration
+import scala.concurrent.duration.DurationInt
 
 class StateStoresTest extends FunSuite {
 
@@ -65,5 +66,42 @@ class StateStoresTest extends FunSuite {
     assert(stores.queries.windowStore.storeName() == topicName.value)
     assert(stores.queries.timestampedWindowStore.storeName() == topicName.value)
     assert(stores.queries.sessionStore.storeName() == topicName.value)
+  }
+
+  test("7.timestamped key-value stores expose builders and Materialized") {
+    val helper = stores.persistentTimestampedKeyValueStore
+    assertEquals(helper.supplier.name(), topicName.value)
+    assertEquals(helper.keyValueStoreBuilder.name(), topicName.value)
+    assertEquals(helper.timestampedKeyValueStoreBuilder.name(), topicName.value)
+    assert(helper.materialized != null)
+  }
+
+  test("8.window and session helpers expose Materialized views") {
+    val window = stores.persistentWindowStore(Duration.ofHours(1), Duration.ofMinutes(5), false)
+    val session = stores.persistentSessionStore(Duration.ofHours(1))
+
+    assert(window.materialized != null)
+    assert(session.materialized != null)
+  }
+
+  test("9.FiniteDuration overloads build every supported window and session store") {
+    val persistent = stores.persistentWindowStore(1.hour, 5.minutes, false)
+    val timestamped = stores.persistentTimestampedWindowStore(1.hour, 5.minutes, false)
+    val in_memory = stores.inMemoryWindowStore(1.hour, 5.minutes, false)
+    val in_memory_session = stores.inMemorySessionStore(1.hour)
+
+    assertEquals(persistent.supplier.name(), topicName.value)
+    assertEquals(timestamped.supplier.name(), topicName.value)
+    assertEquals(in_memory.supplier.name(), topicName.value)
+    assertEquals(in_memory_session.supplier.name(), topicName.value)
+  }
+
+  test("10.persistent timestamped window store supports the Java Duration overload") {
+    val helper =
+      stores.persistentTimestampedWindowStore(Duration.ofHours(1), Duration.ofMinutes(5), false)
+
+    assertEquals(helper.supplier.name(), topicName.value)
+    assertEquals(helper.timestampedWindowStoreBuilder.name(), topicName.value)
+    assert(helper.materialized != null)
   }
 }

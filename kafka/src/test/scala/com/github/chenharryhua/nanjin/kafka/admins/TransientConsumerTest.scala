@@ -5,10 +5,10 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.admins.SnapshotConsumer
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
-import com.github.chenharryhua.nanjin.kafka.{buildConsumer, Offset, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{buildConsumer, Offset, Partition, TopicPartitionMap}
 import fs2.kafka.consumer.MkConsumer
-import org.apache.kafka.clients.consumer.OffsetAndTimestamp
-import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
+import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 import munit.CatsEffectSuite
 
 import java.time.{Instant, LocalDate}
@@ -231,5 +231,94 @@ class TransientConsumerTest extends CatsEffectSuite {
     val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, Map.empty)
     val consumer = mkConsumer(pcs).map(SnapshotConsumer[IO](topicName, _))
     consumer.flatMap(_.resetOffsetsToEnd)
+  }
+
+  test("16.retrieveRecord assigns, seeks, and returns the record at the requested offset") {
+    val expected = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 0, 5L, Array(1), Array(2))
+    val mk_consumer =
+      buildConsumer(Map.empty, Map.empty, Map.empty, records = Map((tp0, 5L) -> List(expected)))
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    consumer.flatMap(_.retrieveRecord(Partition(0), Offset(5L))).map { result =>
+      assertEquals(result, Some(expected))
+    }
+  }
+
+  test("17.retrieveFirstRecords skips unavailable offsets and sorts by partition") {
+    val first_0 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 0, 5L, Array(1), Array(2))
+    val first_2 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 2, 8L, Array(3), Array(4))
+    val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 5L, tp1 -> null, tp2 -> 8L)
+    val mk_consumer = buildConsumer(
+      begin,
+      Map.empty,
+      Map.empty,
+      records = Map((tp2, 8L) -> List(first_2), (tp0, 5L) -> List(first_0)))
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    consumer.flatMap(_.retrieveFirstRecords).map(result => assertEquals(result, List(first_0, first_2)))
+  }
+
+  test("18.retrieveLastRecords seeks to end minus one and skips empty partitions") {
+    val last_0 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 0, 5L, Array(1), Array(2))
+    val last_2 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 2, 9L, Array(3), Array(4))
+    val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 6L, tp1 -> 0L, tp2 -> 10L)
+    val mk_consumer = buildConsumer(
+      Map.empty,
+      end,
+      Map.empty,
+      records = Map((tp2, 9L) -> List(last_2), (tp0, 5L) -> List(last_0)))
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    consumer.flatMap(_.retrieveLastRecords).map(result => assertEquals(result, List(last_0, last_2)))
+  }
+
+  test("19.retrieveRecordsForTimes skips missing offsets") {
+    val record_0 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 0, 4L, Array(1), Array(2))
+    val record_2 = new ConsumerRecord[Array[Byte], Array[Byte]](topicName.value, 2, 8L, Array(3), Array(4))
+    val for_time: Map[TopicPartition, OffsetAndTimestamp] =
+      Map(tp0 -> new OffsetAndTimestamp(4L, 100L), tp1 -> null, tp2 -> new OffsetAndTimestamp(8L, 100L))
+    val mk_consumer = buildConsumer(
+      Map.empty,
+      Map.empty,
+      for_time,
+      records = Map((tp2, 8L) -> List(record_2), (tp0, 4L) -> List(record_0)))
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    consumer.flatMap(_.retrieveRecordsForTimes(Instant.ofEpochMilli(100L))).map { result =>
+      assertEquals(result, List(record_0, record_2))
+    }
+  }
+
+  test("20.retrieval helpers return empty lists when no partition has a readable offset") {
+    val unavailable: Map[TopicPartition, java.lang.Long] = Map(tp0 -> null, tp1 -> null, tp2 -> null)
+    val zero: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0L, tp2 -> 0L)
+    val for_time: Map[TopicPartition, OffsetAndTimestamp] = Map(tp0 -> null, tp1 -> null, tp2 -> null)
+    val mk_consumer = buildConsumer(unavailable, zero, for_time)
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    for {
+      first <- consumer.flatMap(_.retrieveFirstRecords)
+      last <- consumer.flatMap(_.retrieveLastRecords)
+      timed <- consumer.flatMap(_.retrieveRecordsForTimes(Instant.EPOCH))
+    } yield {
+      assertEquals(first, Nil)
+      assertEquals(last, Nil)
+      assertEquals(timed, Nil)
+    }
+  }
+
+  test("21.metrics returns the consumer metrics map") {
+    val metric_name = new MetricName("records", "consumer", "records", java.util.Map.of())
+    val metric = new Metric {
+      override def metricName(): MetricName = metric_name
+      override def metricValue(): Object = java.lang.Long.valueOf(42L)
+    }
+    val mk_consumer =
+      buildConsumer(Map.empty, Map.empty, Map.empty, consumerMetrics = Map(metric_name -> metric))
+    val consumer = mk_consumer(pcs).map(SnapshotConsumer[IO](topicName, _))
+
+    consumer.flatMap(_.metrics).map { result =>
+      assertEquals(result, Map(metric_name -> metric))
+    }
   }
 }
