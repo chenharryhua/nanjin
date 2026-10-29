@@ -56,4 +56,12 @@ class JsonFTest extends FunSuite {
         ))
     assert(JsonView.yml("name", json, space).nonEmpty)
   }
+
+  test("8.top-level null renders no lines") {
+    assertEquals(JsonView.yml("name", Json.Null, space), Nil)
+  }
+
+  test("9.empty object renders only its name header") {
+    assertEquals(JsonView.yml("name", Json.obj(), space), List("name:"))
+  }
 }
