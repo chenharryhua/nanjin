@@ -248,4 +248,21 @@ class PullGenericRecordTest extends FunSuite {
     }
     assert(error.getMessage.contains("ARRAY"))
   }
+
+  test("10.null RECORD bytes decode to a null field without attempting Avro decoding") {
+    val record_schema =
+      SchemaBuilder.record("NullablePayload").namespace("mtest.kafka").fields().requiredString(
+        "name").endRecord()
+    val string_schema = Schema.create(Schema.Type.STRING)
+    val pull = new PullGenericRecord(AvroSchemaPair(AvroSchema(record_schema), AvroSchema(string_schema)))
+    val value_bytes = Serdes.String().serializer().serialize(topic, "value")
+
+    val decoded = pull
+      .toGenericRecord(ConsumerRecord(topic, 0, 11L, null: Array[Byte], value_bytes))
+      .toOption
+      .get
+
+    assertEquals(decoded.get("key"), null)
+    assertEquals(decoded.get("value"), "value")
+  }
 }
