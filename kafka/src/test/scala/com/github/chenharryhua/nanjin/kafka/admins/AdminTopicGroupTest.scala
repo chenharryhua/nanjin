@@ -34,8 +34,8 @@ import scala.jdk.CollectionConverters.*
   * the admin client, the topic filter, and `calculate.admin_lagBehind` — runs offline. The pure computation
   * also has dedicated coverage in `CalculateLagBehindTest`.
   *
-  * `deleteConsumerGroupOffsets` still needs a broker (it calls `partitionsFor` on the consumer then deletes
-  * via the admin client); it remains out of scope here.
+  * `deleteConsumerGroupOffsets` needs a broker because `MockAdminClient` leaves that operation unimplemented;
+  * it is covered by the broker-backed `AdminApiTest`.
   *
   * The commit/reset tests build a real but never-connected `KafkaAdminClient`: `AdminClient.create` validates
   * `bootstrap.servers` at construction, so the address is a syntactically valid host:port even though nothing

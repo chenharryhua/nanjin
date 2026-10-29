@@ -9,6 +9,7 @@ import org.apache.kafka.common.*
 
 import java.time.Duration
 import java.util.OptionalLong
+import java.util.concurrent.{atomic, ConcurrentHashMap}
 import java.util.regex.Pattern
 import java.{lang, util}
 import scala.jdk.CollectionConverters.*
@@ -28,19 +29,25 @@ object buildConsumer {
   def apply(
     begin: Map[TopicPartition, java.lang.Long],
     end: Map[TopicPartition, java.lang.Long],
-    forTime: Map[TopicPartition, OffsetAndTimestamp]): MkConsumer[IO] = new MkConsumer[IO] {
+    forTime: Map[TopicPartition, OffsetAndTimestamp],
+    records: Map[(TopicPartition, Long), List[ConsumerRecord[Array[Byte], Array[Byte]]]] = Map.empty,
+    consumerMetrics: Map[MetricName, Metric] = Map.empty): MkConsumer[IO] = new MkConsumer[IO] {
     override def apply[G[_]](settings: ConsumerSettings[G, ?, ?]): IO[KafkaByteConsumer] = IO(
       new KafkaByteConsumer {
 
+        private val assigned = new atomic.AtomicReference[List[TopicPartition]](Nil)
+        private val positions = new ConcurrentHashMap[TopicPartition, java.lang.Long]()
+
         override def close(option: CloseOptions): Unit = ()
 
-        override def assignment(): util.Set[TopicPartition] = ???
+        override def assignment(): util.Set[TopicPartition] = assigned.get().toSet.asJava
         override def subscription(): util.Set[String] = ???
         override def subscribe(collection: util.Collection[String]): Unit = ()
         override def subscribe(
           collection: util.Collection[String],
           consumerRebalanceListener: ConsumerRebalanceListener): Unit = ()
-        override def assign(collection: util.Collection[TopicPartition]): Unit = ()
+        override def assign(collection: util.Collection[TopicPartition]): Unit =
+          assigned.set(collection.asScala.toList)
         override def subscribe(pattern: Pattern, consumerRebalanceListener: ConsumerRebalanceListener): Unit =
           ()
         override def subscribe(pattern: Pattern): Unit = ()
@@ -57,12 +64,16 @@ object buildConsumer {
         override def commitAsync(
           map: util.Map[TopicPartition, OffsetAndMetadata],
           offsetCommitCallback: OffsetCommitCallback): Unit = ()
-        override def seek(topicPartition: TopicPartition, l: Long): Unit = ()
+        override def seek(topicPartition: TopicPartition, l: Long): Unit = {
+          val _ = positions.put(topicPartition, java.lang.Long.valueOf(l))
+        }
         override def seek(topicPartition: TopicPartition, offsetAndMetadata: OffsetAndMetadata): Unit = ()
         override def seekToBeginning(collection: util.Collection[TopicPartition]): Unit = ()
         override def seekToEnd(collection: util.Collection[TopicPartition]): Unit = ()
-        override def position(topicPartition: TopicPartition): Long = 0
-        override def position(topicPartition: TopicPartition, duration: Duration): Long = 0
+        override def position(topicPartition: TopicPartition): Long =
+          Option(positions.get(topicPartition)).fold(0L)(_.longValue)
+        override def position(topicPartition: TopicPartition, duration: Duration): Long =
+          position(topicPartition)
 
         override def committed(set: util.Set[TopicPartition]): util.Map[TopicPartition, OffsetAndMetadata] =
           set.asScala.toList.map(tp => tp -> committed(tp)).toMap.asJava
@@ -72,7 +83,7 @@ object buildConsumer {
           set.asScala.toList.map(tp => tp -> committed(tp, duration)).toMap.asJava
 
         override def clientInstanceId(duration: Duration): Uuid = ???
-        override def metrics(): util.Map[MetricName, ? <: Metric] = ???
+        override def metrics(): util.Map[MetricName, ? <: Metric] = consumerMetrics.asJava
         override def partitionsFor(s: String): util.List[PartitionInfo] = partitionInfos
         override def partitionsFor(s: String, duration: Duration): util.List[PartitionInfo] =
           partitionInfos
@@ -109,7 +120,15 @@ object buildConsumer {
         override def close(duration: Duration): Unit = ()
         override def wakeup(): Unit = ()
 
-        def poll(l: Long): ConsumerRecords[Array[Byte], Array[Byte]] = null
+        def poll(_l: Long): ConsumerRecords[Array[Byte], Array[Byte]] = {
+          val _ = _l
+          val selected: Map[TopicPartition, util.List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+            assigned.get().flatMap { tp =>
+              Option(positions.get(tp)).flatMap(offset =>
+                records.get(tp -> offset.longValue).map(tp -> _.asJava))
+            }.toMap
+          new ConsumerRecords(selected.asJava, Map.empty[TopicPartition, OffsetAndMetadata].asJava)
+        }
         def committed(topicPartition: TopicPartition): OffsetAndMetadata = null
         def committed(topicPartition: TopicPartition, duration: Duration): OffsetAndMetadata = null
         def registerMetricForSubscription(metric: org.apache.kafka.common.metrics.KafkaMetric): Unit = ???

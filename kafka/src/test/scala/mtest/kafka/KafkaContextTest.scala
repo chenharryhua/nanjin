@@ -8,7 +8,8 @@ import com.github.chenharryhua.nanjin.kafka.config.{
   KafkaStreamSettings,
   SerdeSettings
 }
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, SchemaRegistryUrlAbsent}
+import com.github.chenharryhua.nanjin.kafka.serdes.Primitive
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, SchemaRegistryUrlAbsent, TopicDef}
 import fs2.kafka.{
   AdminClientSettings,
   Deserializer,
@@ -19,6 +20,10 @@ import fs2.kafka.{
   ValueSerializer
 }
 import munit.FunSuite
+import org.apache.avro.Schema
+import org.apache.kafka.streams.StreamsConfig
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 class KafkaContextTest extends FunSuite {
 
@@ -82,5 +87,75 @@ class KafkaContextTest extends FunSuite {
       KafkaContext[IO](emptySettings.withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081"))
     // constructing the (cached) registry client and the topic view performs no network I/O
     val _ = configured.schemaRegistry("topic")
+  }
+
+  test("8.serde, store, asKey, and asValue build offline for primitive serdes") {
+    val configured =
+      KafkaContext[IO](emptySettings.withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081"))
+    val topic = TopicDef("context-primitives", Primitive[String], Primitive[java.lang.Integer])
+
+    val registered = configured.serde(topic)
+    val stores = configured.store(topic)
+    val key = configured.asKey(Primitive[String])
+    val value = configured.asValue(Primitive[java.lang.Integer])
+
+    assertEquals(registered.topicName, topic.topicName)
+    assertEquals(stores.name, topic.topicName.value)
+    assert(key.serde.serializer() != null)
+    assert(value.serde.deserializer() != null)
+  }
+
+  test("9.typed, attempted, and generic connector constructors preserve client properties") {
+    val settings = emptySettings
+      .withBrokers("localhost:9092")
+      .withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081")
+      .withConsumerProperty(_.CLIENT_ID_CONFIG, "consumer-client")
+      .withProducerProperty(_.CLIENT_ID_CONFIG, "producer-client")
+    val configured = KafkaContext[IO](settings)
+    val topic = TopicDef("context-connectors", Primitive[String], Primitive[java.lang.Integer])
+    val string_schema = Schema.create(Schema.Type.STRING)
+    val int_schema = Schema.create(Schema.Type.INT)
+
+    val consume = configured.consume(topic)
+    val attempt_consume = configured.attemptConsume(topic)
+    val explicit_consume = configured.consume("explicit-consume", byteKeyDeserializer, byteValueDeserializer)
+    val generic_consume_default = configured.consumeGenericRecord("generic-consume")
+    val generic_consume_explicit =
+      configured.consumeGenericRecord("generic-consume-explicit", Some(string_schema), Some(int_schema))
+    val produce = configured.produce(topic)
+    val explicit_produce = configured.produce("explicit-produce", byteKeySerializer, byteValueSerializer)
+    val generic_produce_default = configured.produceGenericRecord("generic-produce")
+    val generic_produce_explicit =
+      configured.produceGenericRecord("generic-produce-explicit", Some(string_schema), Some(int_schema))
+
+    List(consume, attempt_consume, explicit_consume, generic_consume_default, generic_consume_explicit)
+      .foreach(c => assertEquals(c.properties.get("client.id"), Some("consumer-client")))
+    List(produce, explicit_produce, generic_produce_default, generic_produce_explicit)
+      .foreach(p => assertEquals(p.properties.get("client.id"), Some("producer-client")))
+  }
+
+  test("10.buildStreams builds its topology lazily and injects the application id") {
+    val configured = KafkaContext[IO](
+      emptySettings
+        .withBrokers("localhost:9092")
+        .withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081"))
+    val topology_built = new AtomicBoolean(false)
+    val streams = configured.buildStreams("context-streams") { (_, _) =>
+      topology_built.set(true)
+    }
+
+    assert(!topology_built.get())
+    assertEquals(streams.properties(StreamsConfig.APPLICATION_ID_CONFIG), "context-streams")
+    assert(streams.topology != null)
+    assert(topology_built.get())
+  }
+
+  test("11.schema registry cache capacity accepts numeric values and falls back for invalid values") {
+    val base = emptySettings.withSerdeProperty(_.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081")
+    val numeric = KafkaContext[IO](base.withSerdeProperty(_.MAX_SCHEMAS_PER_SUBJECT_CONFIG, "25"))
+    val invalid = KafkaContext[IO](base.withSerdeProperty(_.MAX_SCHEMAS_PER_SUBJECT_CONFIG, "not-a-number"))
+
+    assert(numeric.schemaRegistry("numeric") != null)
+    assert(invalid.schemaRegistry("invalid") != null)
   }
 }

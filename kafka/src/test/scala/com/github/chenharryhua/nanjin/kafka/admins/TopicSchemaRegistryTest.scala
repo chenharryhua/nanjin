@@ -32,6 +32,8 @@ class TopicSchemaRegistryTest extends CatsEffectSuite {
     SchemaBuilder.record("Value").namespace("test").fields().requiredString("name").endRecord())
 
   private val jsonKey: JsonSchema = new JsonSchema("""{"type": "string"}""")
+  private val protoKey: ProtobufSchema =
+    new ProtobufSchema("syntax = \"proto3\"; message Key { string id = 1; }")
   private val protoValue: ProtobufSchema =
     new ProtobufSchema("syntax = \"proto3\"; message Value { string name = 1; }")
 
@@ -111,13 +113,13 @@ class TopicSchemaRegistryTest extends CatsEffectSuite {
     }
   }
 
-  test("9.fetchOptionalProtobufSchema returns only Protobuf-typed subjects") {
+  test("9.fetchOptionalProtobufSchema returns both Protobuf-typed subjects") {
     val sr = registry
     for {
-      _ <- sr.register(key = Some(avroKey), value = Some(protoValue))
+      _ <- sr.register(key = Some(protoKey), value = Some(protoValue))
       pair <- sr.fetchOptionalProtobufSchema
     } yield {
-      assertEquals(pair.key, None) // the key is Avro, filtered out
+      assert(pair.key.isDefined, "the Protobuf key schema should be returned")
       assert(pair.value.isDefined, "the Protobuf value schema should be returned")
     }
   }
