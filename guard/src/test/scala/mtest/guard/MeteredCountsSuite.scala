@@ -207,4 +207,8 @@ class MeteredCountsSuite extends FunSuite {
     assertEquals(Map(a -> 1L, aReacquired -> 2L).size, 2)
   }
 
+  test("13.timestamp is the current tick conclusion") {
+    assertEquals(mc(123L).timestamp, Instant.ofEpochMilli(123L))
+  }
+
 }
