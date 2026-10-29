@@ -26,6 +26,12 @@ class HttpServerTest extends CatsEffectSuite {
       .withHistoryCapacity(32, 32, 32)
       .withReportedEventThreshold(_.Info))
 
+  private def retry[A](attempts: Int)(action: IO[A]): IO[A] =
+    action.handleErrorWith { error =>
+      if attempts <= 1 then IO.raiseError(error)
+      else IO.sleep(200.millis) >> retry(attempts - 1)(action)
+    }
+
   test("1.stop service") {
     val stop = Request[IO](method = POST, uri = uri"http://localhost:9999/stop")
     val client = EmberClientBuilder
@@ -231,5 +237,40 @@ class HttpServerTest extends CatsEffectSuite {
       .map(checkJson)
       .compile
       .drain &> client
+  }
+
+  test("8.dashboard routes serve HTML/static content, histories, JVM data, and 404s") {
+    val requests = EmberClientBuilder
+      .default[IO]
+      .build
+      .use { client =>
+        for {
+          home <- client.expect[String]("http://localhost:9992/dashboard")
+          javascript <- client.expect[String]("http://localhost:9992/dashboard/nj-frontend.js")
+          missing <- client.status(Request[IO](uri = uri"http://localhost:9992/dashboard/missing.js"))
+          errors <- client.expect[String]("http://localhost:9992/errors")
+          jvm <- client.expect[String]("http://localhost:9992/metrics/jvm")
+          _ <- client.expect[String](Request[IO](method = POST, uri = uri"http://localhost:9992/stop"))
+        } yield {
+          assert(home.contains("id=\"dashboard\""), home)
+          assert(javascript.nonEmpty)
+          assertEquals(missing, org.http4s.Status.NotFound)
+          assert(
+            jawn.parse(errors).toOption.get.hcursor.downField("history").as[List[Json]].toOption.exists(
+              _.nonEmpty),
+            errors)
+          assert(jawn.parse(jvm).toOption.flatMap(_.asObject).exists(_.nonEmpty), jvm)
+        }
+      }
+
+    val server = guard
+      .service("dashboard-routes")
+      .updateConfig(_.withHttpServer(_.withPort(port"9992")))
+      .eventStream(agent => agent.logger.error("dashboard-error") >> IO.sleep(10.hours))
+      .map(checkJson)
+      .compile
+      .drain
+
+    server <& retry(30)(requests)
   }
 }
