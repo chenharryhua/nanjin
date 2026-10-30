@@ -3,6 +3,9 @@ package com.github.chenharryhua.nanjin.kafka.serdes
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.record.ProtoConsumerRecord.ProtoConsumerRecord
 import com.google.protobuf.DynamicMessage
+import io.circe.Json
+import io.scalaland.chimney.Iso as ChimneyIso
+import monocle.Iso as MonocleIso
 import mtest.kafka.objectMapper
 import org.apache.avro.generic.GenericRecord
 import munit.FunSuite
@@ -55,5 +58,32 @@ class BiTransformTest extends FunSuite {
 
     assert(round_trip(avro_codec, avro_person) == avro_person)
     assert(round_trip(protobuf_codec, proto_record) == proto_record)
+  }
+
+  test("5.Json BiTransform.to throws when the JSON does not decode to the target type") {
+    val bi = summon[BiTransform[Json, Int]]
+    // a JSON string cannot decode as an Int, so the decode-failure arm throws
+    intercept[io.circe.DecodingFailure](bi.to(Json.fromString("not an int")))
+  }
+
+  test("6.chimney Iso derives a BiTransform that round-trips in both directions") {
+    given ChimneyIso[String, List[Char]] =
+      ChimneyIso(
+        first = (src: String) => src.toList,
+        second = (src: List[Char]) => src.mkString
+      )
+    val bi = summon[BiTransform[String, List[Char]]]
+
+    assertEquals(bi.to("abc"), List('a', 'b', 'c'))
+    assertEquals(bi.from(List('x', 'y')), "xy")
+  }
+
+  test("7.monocle Iso derives a BiTransform that round-trips in both directions") {
+    given MonocleIso[String, List[Char]] =
+      MonocleIso[String, List[Char]](_.toList)(_.mkString)
+    val bi = summon[BiTransform[String, List[Char]]]
+
+    assertEquals(bi.to("abc"), List('a', 'b', 'c'))
+    assertEquals(bi.from(List('x', 'y')), "xy")
   }
 }

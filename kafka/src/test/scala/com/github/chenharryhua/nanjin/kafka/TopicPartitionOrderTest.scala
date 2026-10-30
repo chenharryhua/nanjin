@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.implicits.catsSyntaxPartialOrder
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
@@ -53,5 +54,10 @@ class TopicPartitionOrderTest extends FunSuite {
   test("5.group id") {
     val gid = GroupId("abc")
     assert(decode[GroupId](gid.asJson.noSpaces).toOption.get == gid)
+  }
+
+  test("6.Show[TopicPartition] delegates to toString") {
+    val tp = new TopicPartition("a", 1)
+    assertEquals(Show[TopicPartition].show(tp), tp.toString)
   }
 }

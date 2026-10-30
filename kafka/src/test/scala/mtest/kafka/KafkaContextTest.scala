@@ -158,4 +158,10 @@ class KafkaContextTest extends FunSuite {
     assert(numeric.schemaRegistry("numeric") != null)
     assert(invalid.schemaRegistry("invalid") != null)
   }
+
+  test("12.admin builds the KafkaAdminClient Resource offline without using it") {
+    // constructing the Resource performs no network I/O; .use (which needs a broker) is not called
+    val adminResource = ctx.admin
+    assert(adminResource != null)
+  }
 }

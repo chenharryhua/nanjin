@@ -2,6 +2,8 @@ package mtest.kafka
 
 import cats.kernel.PartialOrder
 import com.github.chenharryhua.nanjin.kafka.{
+  given_Decoder_TopicPartition,
+  given_Ordering_TopicPartition,
   GroupId,
   LagBehind,
   Offset,
@@ -133,5 +135,33 @@ class KafkaTypesSuite extends CatsEffectSuite {
     val json = tpMap.asJson.noSpaces
     val decoded = decode[TopicPartitionMap[Offset]](json)
     assertEquals(decoded, Right(tpMap))
+  }
+
+  test("13.TopicPartitionMap from a TreeMap and keySet extension") {
+    val tp1 = new TopicPartition("t1", 1)
+    val tp2 = new TopicPartition("t1", 0)
+    val treeMap =
+      scala.collection.immutable.TreeMap.from(List(tp1 -> Offset(5), tp2 -> Offset(10)))
+    val tpMap = TopicPartitionMap(treeMap)
+
+    assertEquals(tpMap.get(tp1).map(_.value), Some(5L))
+    assertEquals(tpMap.get(tp2).map(_.value), Some(10L))
+    // keySet is sorted by (topic, partition)
+    assertEquals(tpMap.keySet.toList, List(tp2, tp1))
+  }
+
+  test("14.TopicPartitionList circe codec round-trips and sorts by (topic, partition)") {
+    val tp1 = new TopicPartition("a", 1)
+    val tp2 = new TopicPartition("a", 0)
+    val tp3 = new TopicPartition("b", 0)
+    val tpl = TopicPartitionList(List(tp3, tp1, tp2))
+
+    val decoded = decode[TopicPartitionList](tpl.asJson.noSpaces)
+    // decode yields the same (sorted) partitions
+    assertEquals(decoded.map(_.value.toSet), Right(Set(tp1, tp2, tp3)))
+
+    // the encoded form is sorted by (topic, partition)
+    val encodedList = decode[List[TopicPartition]](tpl.asJson.noSpaces)
+    assertEquals(encodedList, Right(List(tp2, tp1, tp3)))
   }
 }

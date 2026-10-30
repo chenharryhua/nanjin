@@ -92,6 +92,12 @@ class KafkaStreamsBuilderTest extends CatsEffectSuite {
     assert(updated.ne(builder))
   }
 
+  test("4b.withCloseTimeout should return a distinct builder instance") {
+    val updated = builder.withCloseTimeout(FiniteDuration(5678, TimeUnit.MILLISECONDS))
+
+    assert(updated.ne(builder))
+  }
+
   test("5.topology should evaluate the top closure lazily and build a Kafka topology") {
     var executed = false
     val lazyBuilder = KafkaStreamsBuilder[IO](
