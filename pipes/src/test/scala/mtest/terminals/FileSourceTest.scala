@@ -162,7 +162,11 @@ class FileSourceTest extends CatsEffectSuite {
       _ <- hdp.delete(path)
       _ <- Stream.emit("{not-json").covary[IO].through(hdp.sink(path).text).compile.drain
       result <- hdp.source(path).circe(1).compile.drain.attempt
-    } yield assert(result.isLeft, "malformed JSON should fail the Circe source")
+      deleted <- hdp.delete(path)
+    } yield {
+      assert(result.isLeft, "malformed JSON should fail the Circe source")
+      assert(deleted, "failed source must release the file so it can be deleted")
+    }
   }
 
   test("10.an empty file produces empty text and byte streams") {
