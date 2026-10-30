@@ -252,4 +252,59 @@ final class SingleFlightSuite extends CatsEffectSuite {
       }
     }
   }
+
+  test("14.a resubmitting follower receives the replacement flight's result") {
+    // Cancel the sole waiter so the worker loses the race and publishes Retry; a follower that joined during
+    // teardown observes Retry and resubmits via apply(fa), receiving the replacement flight's result.
+    TestControl.executeEmbed {
+      for {
+        single_flight <- SingleFlight[IO, Int]
+        started <- Deferred[IO, Unit]
+        cleanup_started <- Deferred[IO, Unit]
+        allow_cleanup <- Deferred[IO, Unit]
+        shared = (started.complete(()).void *> IO.never[Int]).onCancel(
+          cleanup_started.complete(()).void *> allow_cleanup.get)
+        only_waiter <- single_flight(shared).start
+        _ <- started.get
+        cancellation <- only_waiter.cancel.start
+        _ <- cleanup_started.get.timeout(1.second)
+        // this follower joins while the first flight is tearing down; after cleanup it resubmits
+        follower <- single_flight(IO.pure(7)).start
+        _ <- IO.sleep(1.second)
+        _ <- allow_cleanup.complete(())
+        _ <- cancellation.joinWithNever.timeout(1.second)
+        result <- follower.joinWithNever.timeout(1.second)
+      } yield assertEquals(result, 7)
+    }
+  }
+
+  test("15.a caller that joins during teardown is served by the replacement flight") {
+    // The sole waiter cancels, tearing flight 1 down; a caller that arrives during teardown resubmits and is
+    // served by the replacement flight once cleanup completes.
+    TestControl.executeEmbed {
+      for {
+        single_flight <- SingleFlight[IO, Int]
+        started <- Deferred[IO, Unit]
+        cleanup_started <- Deferred[IO, Unit]
+        allow_cleanup <- Deferred[IO, Unit]
+        shared = (started.complete(()).void *> IO.never[Int]).onCancel(
+          cleanup_started.complete(()).void *> allow_cleanup.get)
+        only_waiter <- single_flight(shared).start
+        _ <- started.get
+        cancellation <- only_waiter.cancel.start
+        _ <- cleanup_started.get.timeout(1.second)
+        replacement_started <- Deferred[IO, Unit]
+        replacement_release <- Deferred[IO, Unit]
+        replacement <- single_flight(
+          replacement_started.complete(()).void *> replacement_release.get.as(99)).start
+        _ <- IO.sleep(1.second)
+        // release flight 1's cleanup only after the replacement already owns the slot
+        _ <- allow_cleanup.complete(())
+        _ <- cancellation.joinWithNever.timeout(1.second)
+        _ <- replacement_started.get.timeout(1.second)
+        _ <- replacement_release.complete(())
+        result <- replacement.joinWithNever.timeout(1.second)
+      } yield assertEquals(result, 99)
+    }
+  }
 }

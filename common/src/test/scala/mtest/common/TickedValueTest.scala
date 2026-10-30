@@ -1,5 +1,6 @@
 package mtest.common
 
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -52,6 +53,30 @@ class TickedValueTest extends FunSuite {
 
     assertEquals(decoded.value, tv.value)
     assertEquals(decoded.tick, tv.tick)
+  }
+
+  test("6.TickedValue withNextTick advances the tick and keeps the value") {
+    val now = Instant.parse("2026-02-14T00:00:00Z")
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), now)
+    val tv = TickedValue(tick, "payload")
+    val acquires = now.plusSeconds(3)
+    val conclude = now.plusSeconds(8)
+    val next = tv.withNextTick(acquires, conclude)
+
+    assertEquals(next.value, "payload")
+    assertEquals(next.tick.index, tick.index + 1)
+    assertEquals(next.tick.commence, tick.conclude)
+    assertEquals(next.tick.acquires, acquires)
+    assertEquals(next.tick.conclude, conclude)
+  }
+
+  test("7.TickedValue Functor instance maps the value and preserves the tick") {
+    val tick = Tick.seed(UUID.randomUUID(), ZoneId.of("UTC"), Instant.now())
+    val tv = TickedValue(tick, 21)
+    val mapped = Functor[TickedValue].map(tv)(_ + 1)
+
+    assertEquals(mapped.value, 22)
+    assertEquals(mapped.tick, tick)
   }
 
 }
