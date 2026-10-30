@@ -1,7 +1,8 @@
 package mtest.common
 
+import cats.Functor
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogEntry, LogLevel}
 import io.circe.Encoder
 import io.circe.syntax.given
 import munit.CatsEffectSuite
@@ -77,5 +78,58 @@ class LogTest extends CatsEffectSuite {
     assert(LogLevel.Warn.value > LogLevel.Info.value)
     assert(LogLevel.Info.value > LogLevel.Debug.value)
     assert(LogLevel.Good.value > LogLevel.Info.value)
+  }
+
+  private val allLevels: Set[LogLevel] =
+    Set(LogLevel.Error, LogLevel.Warn, LogLevel.Good, LogLevel.Info, LogLevel.Debug)
+
+  test("7.emit at an enabled level creates and publishes the record") {
+    val log = new RecordingLog(allLevels)
+    log.emit("payload", LogLevel.Info, None).map { _ =>
+      assertEquals(log.snapshot, Vector((LogLevel.Info, "\"payload\"", None)))
+    }
+  }
+
+  test("8.named helpers pin the expected level and cause") {
+    val log = new RecordingLog(allLevels)
+    val boom = new IllegalStateException("boom")
+    for {
+      _ <- log.error("e")
+      _ <- log.error("e2", boom)
+      _ <- log.warn("w")
+      _ <- log.warn("w2", boom)
+      _ <- log.good("g")
+      _ <- log.info("i")
+      _ <- log.debug("d")
+    } yield assertEquals(
+      log.snapshot,
+      Vector(
+        (LogLevel.Error, "\"e\"", None),
+        (LogLevel.Error, "\"e2\"", Some(boom)),
+        (LogLevel.Warn, "\"w\"", None),
+        (LogLevel.Warn, "\"w2\"", Some(boom)),
+        (LogLevel.Good, "\"g\"", None),
+        (LogLevel.Info, "\"i\"", None),
+        (LogLevel.Debug, "\"d\"", None)
+      )
+    )
+  }
+
+  test("9.emit(LogEntry) delegates using the entry level and cause") {
+    val log = new RecordingLog(allLevels)
+    val boom = new RuntimeException("cause")
+    val entry = LogEntry("msg", LogLevel.Warn, Some(boom))
+    log.emit(entry).map { _ =>
+      assertEquals(log.snapshot, Vector((LogLevel.Warn, "\"msg\"", Some(boom))))
+    }
+  }
+
+  test("10.LogEntry derives a Functor that maps the message and keeps level and cause") {
+    val boom = new RuntimeException("cause")
+    val entry = LogEntry(3, LogLevel.Good, Some(boom))
+    val mapped = Functor[LogEntry].map(entry)(_ * 2)
+    assertEquals(mapped.message, 6)
+    assertEquals(mapped.level, LogLevel.Good)
+    assertEquals(mapped.cause, Some(boom))
   }
 }

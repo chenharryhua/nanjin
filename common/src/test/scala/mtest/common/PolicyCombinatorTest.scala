@@ -281,4 +281,29 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     }
   }
 
+  test("19.a finite meet side terminates the combined stream") {
+    // the finite side (limited, no repeat) yields a bounded stepper list; once the zip reaches the end of the
+    // shorter side the meet stops, so the stream terminates rather than running forever.
+    val policy = Policy.crontab(_.hourly).repeat.meet(_.crontab(_.hourly).limited(1))
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(10).compile.toList.map { ticks =>
+      assert(ticks.sizeIs <= 1)
+    }
+  }
+
+  test("20.except skips the excepted local time and stretches the snooze") {
+    // an hourly tick concluding at midnight is the excepted time, so the except arm re-steps and the midnight
+    // wakeup never appears while every other hour does.
+    val policy = Policy.crontab(_.hourly).repeat.except(_.midnight)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(48).compile.toList.map { ticks =>
+      val wakeups = ticks.map(_.local(_.conclude).toLocalTime).distinct
+      assert(!wakeups.contains(localTimes.midnight))
+      assert(wakeups.contains(localTimes.oneAM))
+      assert(ticks.forall(t => t.acquires.plus(t.snooze) == t.conclude))
+    }
+  }
+
+  test("21.offset rejects a negative duration") {
+    intercept[IllegalArgumentException](Policy.crontab(_.hourly).offset((-1).seconds))
+  }
+
 }

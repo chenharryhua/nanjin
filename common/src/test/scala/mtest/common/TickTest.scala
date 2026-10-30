@@ -1,5 +1,7 @@
 package mtest.common
 
+import cats.Show
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -93,5 +95,11 @@ class TickTest extends FunSuite {
     assertEquals(decoded.local(_.commence), t.local(_.commence))
     assertEquals(decoded.local(_.acquires), t.local(_.acquires))
     assertEquals(decoded.local(_.conclude), t.local(_.conclude))
+  }
+
+  test("9.Show[Tick] renders the toString form") {
+    val t = Tick.seed(uuid, zoneId, now)
+    assertEquals(t.show, t.toString)
+    assertEquals(Show[Tick].show(t), t.toString)
   }
 }

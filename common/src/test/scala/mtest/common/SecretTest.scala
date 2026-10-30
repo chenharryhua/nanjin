@@ -49,6 +49,11 @@ class SecretTest extends FunSuite {
     assert(Set(unpairedSurrogate, Secret("?")).size == 2)
   }
 
+  test("9.equals against a non-Secret is false") {
+    assert(!Secret(secret).equals("x": Any))
+    assert(Secret(secret) != ("x": Any))
+  }
+
   test("7.json encoder masks the value") {
     val json = Secret(secret).asJson
     assert(json == io.circe.Json.fromString("***"))
