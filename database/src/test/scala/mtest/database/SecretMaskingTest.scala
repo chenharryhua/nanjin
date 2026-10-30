@@ -1,5 +1,7 @@
 package mtest.database
 
+import cats.Show
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.Secret
 import com.github.chenharryhua.nanjin.database.*
 import munit.FunSuite
@@ -16,6 +18,9 @@ class SecretMaskingTest extends FunSuite {
     // non-secret fields are still visible
     assert(rendered.contains("user"))
     assert(rendered.contains("host"))
+    // the Show instance masks the password the same way as toString
+    assert(!pg.show.contains(secret))
+    assertEquals(Show[Postgres].show(pg), rendered)
   }
 
   test("2.Redshift and SqlServer toString also mask the password") {
