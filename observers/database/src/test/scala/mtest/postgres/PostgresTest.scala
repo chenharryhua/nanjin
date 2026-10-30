@@ -65,9 +65,24 @@ class PostgresTest extends CatsEffectSuite {
   private val selectAll: Query[Void, Json] =
     sql"SELECT info FROM event_stream".query(json)
 
+  // A table whose column types match the observer's INSERT (so prepare/Describe succeeds) but whose
+  // always-false CHECK constraint makes every row insertion fail at execution time. This drives the
+  // per-event recoverWith arm without a non-existent table (which would instead fail at prepare, before the
+  // stream starts observing).
+  private val createRejectTable: Command[Void] =
+    sql"""CREATE TABLE IF NOT EXISTS reject_stream (
+            info json NULL,
+            "timestamp" timestamptz NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT reject_all CHECK (false)
+          )""".command
+
   /** Prepare a clean `event_stream` table, then hand back a fresh session resource for the observer. */
   private def freshDb(c: PostgreSQLContainer[Nothing]): IO[Unit] =
     session(c).use(s => s.execute(createTable) *> s.execute(truncateTable).void)
+
+  /** Prepare the always-rejecting table so the observer's INSERTs fail at execution. */
+  private def rejectDb(c: PostgreSQLContainer[Nothing]): IO[Unit] =
+    session(c).use(_.execute(createRejectTable).void)
 
   private def readRows(c: PostgreSQLContainer[Nothing]): IO[List[Json]] =
     session(c).use(_.execute(selectAll))
@@ -144,6 +159,24 @@ class PostgresTest extends CatsEffectSuite {
       assert(events.head.isInstanceOf[ServiceStart])
       // ServiceStart (1) + synthesized ServiceStop flushed in the finalizer (1)
       assertEquals(rows.size, 2)
+    }
+  }
+
+  test("5.a failing insert is logged and swallowed; events still pass through") {
+    val c = containerFixture()
+    for {
+      _ <- rejectDb(c)
+      // every INSERT into reject_stream violates the CHECK constraint and raises at execution. The observer's
+      // recoverWith logs the failure instead of raising, so the stream still drains and every event passes
+      // through unchanged even though nothing is persisted.
+      events <- service
+        .eventStream(_ => IO.unit)
+        .through(PostgresObserver[IO](session(c)).observe("reject_stream"))
+        .compile
+        .toList
+    } yield {
+      assert(events.exists(_.isInstanceOf[ServiceStart]))
+      assert(events.exists(_.isInstanceOf[ServiceStop]))
     }
   }
 }

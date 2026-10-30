@@ -62,6 +62,57 @@ class SqsSnsObserverTest extends CatsEffectSuite {
     }
   }
 
+  // A service whose body never completes, so only ServiceStart is emitted and the service is still "running"
+  // at finalize. take(1) cancels after the start event; the observer's onFinalize then asks the
+  // FinalizeMonitor for still-open services and synthesizes a ByCancellation ServiceStop for the open one.
+  private val never_ending_service: fs2.Stream[IO, Event] =
+    TaskGuard[IO]("aws")
+      .service("observer-test")
+      .eventStream(_ => IO.never)
+
+  test("5.SqsObserver finalizer sends a synthesized ServiceStop for a still-running service") {
+    Ref.of[IO, List[String]](Nil).flatMap { sent =>
+      val sqs = SqsObserver(recording_sqs(sent))
+      never_ending_service
+        .through(sqs.observe(SqsUrl.Fifo("https://q.example.com/test.fifo"), "group"))
+        .take(1)
+        .compile
+        .toList *> sent.get
+    }.map { bodies =>
+      // the idTranslator forwards the synthesized ServiceStop verbatim; Event derives Codec.AsObject, so its
+      // JSON is wrapped under the "ServiceStop" constructor key.
+      assert(bodies.exists(_.contains("ServiceStop")))
+    }
+  }
+
+  test("6.SnsObserver finalizer publishes a synthesized ServiceStop for a still-running service") {
+    Ref.of[IO, List[String]](Nil).flatMap { sent =>
+      val sns = SnsObserver(recording_sns(sent))
+      never_ending_service
+        .through(sns.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
+        .take(1)
+        .compile
+        .toList *> sent.get
+    }.map { messages =>
+      // the PrettyJsonTranslator renders the synthesized stop under the snake_case "service_stop" key.
+      assert(messages.exists(_.contains("service_stop")))
+    }
+  }
+
+  test("7.SqsObserver non-FIFO overload sends a message per translated event") {
+    Ref.of[IO, List[String]](Nil).flatMap { sent =>
+      val sqs = SqsObserver(recording_sqs(sent))
+      val builder = SendMessageRequest.builder().queueUrl("https://q.example.com/test")
+      service
+        .through(sqs.observe(builder))
+        .compile
+        .drain *> sent.get
+    }.map { bodies =>
+      assert(bodies.nonEmpty)
+      assert(bodies.exists(_.contains("ServiceStart")))
+    }
+  }
+
   // --- SNS recording fake ---
 
   private def recording_sns(sent: Ref[IO, List[String]]): Resource[IO, SimpleNotificationService[IO]] =
