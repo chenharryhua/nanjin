@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.IO
 import munit.CatsEffectSuite
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.SdkBytes
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.appconfigdata.AppConfigDataClient
 import software.amazon.awssdk.services.appconfigdata.model.{
   GetLatestConfigurationRequest,
@@ -11,6 +13,7 @@ import software.amazon.awssdk.services.appconfigdata.model.{
   StartConfigurationSessionResponse
 }
 
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.concurrent.duration.*
@@ -97,6 +100,32 @@ class AppConfigStubTest extends CatsEffectSuite {
         }.flatMap { first =>
           IO.sleep(1500.millis).map(_ => assertEquals(stub.seenTokens.size, first))
         }
+    }
+  }
+
+  test("4.latest(Endo) builds the session request from the builder function") {
+    val stub = new StubClient
+    AppConfig.fromClient[IO](stub).use { ac =>
+      ac.latest(
+        _.applicationIdentifier("app").environmentIdentifier("env").configurationProfileIdentifier("profile"))
+        .use { get =>
+          get.map { resp =>
+            assertEquals(resp.configuration().asString(StandardCharsets.UTF_8), "config-1")
+            assertEquals(stub.seenTokens.asScala.headOption, Some("token-0"))
+          }
+        }
+    }
+  }
+
+  test("5.public apply builds and closes a transport-managed client exactly once") {
+    val transport = StubAwsHttpClient.queue()
+
+    AppConfig[IO](
+      _.httpClientBuilder(transport.builder)
+        .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("access", "secret")))
+        .region(Region.US_EAST_1)
+        .endpointOverride(URI.create("https://appconfig.test"))).use(_ => IO.unit).map { _ =>
+      assertEquals(transport.closeCalls, 1)
     }
   }
 }
