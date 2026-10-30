@@ -14,6 +14,7 @@ import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.ZoneId
+import scala.concurrent.duration.DurationInt
 
 class SimpleQueueServiceStubTest extends CatsEffectSuite {
 
@@ -78,6 +79,23 @@ class SimpleQueueServiceStubTest extends CatsEffectSuite {
 
     service(transport).use { sqs =>
       sqs.receive(_.queueUrl(QUEUE_URL)).compile.toList.map(messages => assertEquals(messages, Nil))
+    }
+  }
+
+  test("2b.receive re-polls after an empty batch while the Policy still has a tick") {
+    // First poll is EMPTY, so with a one-tick fixed-delay policy the stream sleeps the tiny snooze and
+    // re-polls; the second poll yields a message, proving the Some(ts) retry arm ran.
+    val transport = StubAwsHttpClient.queue(
+      Right(response("""{"Messages":[]}""")),
+      Right(response(s"""{"Messages":[{"MessageId":"m1","ReceiptHandle":"r1","Body":"b1","MD5OfBody":"${md5(
+          "b1")}"}]}""")),
+      Right(response("""{"Messages":[]}"""))
+    )
+
+    service(transport, _ => Policy.fixedDelay(1.millis)).use { sqs =>
+      sqs.receive(_.queueUrl(QUEUE_URL)).take(1).compile.toList.map { messages =>
+        assertEquals(messages.map(_.response.messageId()), List("m1"))
+      }
     }
   }
 

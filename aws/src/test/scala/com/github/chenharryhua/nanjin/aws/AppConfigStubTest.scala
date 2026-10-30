@@ -117,6 +117,37 @@ class AppConfigStubTest extends CatsEffectSuite {
     }
   }
 
+  test("5b.nextInterval falls back to the default when the server omits the poll interval") {
+    // A response without nextPollIntervalInSeconds forces nextInterval down its getOrElse(60.seconds) arm
+    // when the background poller computes the first sleep from the initial fetch.
+    val stub = new AppConfigDataClient {
+      override def startConfigurationSession(
+        request: StartConfigurationSessionRequest): StartConfigurationSessionResponse =
+        StartConfigurationSessionResponse.builder().initialConfigurationToken("token-0").build()
+
+      override def getLatestConfiguration(
+        request: GetLatestConfigurationRequest): GetLatestConfigurationResponse =
+        // no nextPollIntervalInSeconds set -> Option(...) is None -> getOrElse(60.seconds)
+        GetLatestConfigurationResponse
+          .builder()
+          .configuration(SdkBytes.fromString("only", StandardCharsets.UTF_8))
+          .nextPollConfigurationToken("token-1")
+          .build()
+
+      override def close(): Unit = ()
+      override def serviceName(): String = "appconfigdata"
+    }
+
+    AppConfig.fromClient[IO](stub).use { ac =>
+      ac.latest(sessionRequest).use { get =>
+        // let the background poller spin up and compute its first interval from the initial response
+        IO.sleep(200.millis) >> get.map { resp =>
+          assertEquals(resp.configuration().asString(StandardCharsets.UTF_8), "only")
+        }
+      }
+    }
+  }
+
   test("5.public apply builds and closes a transport-managed client exactly once") {
     val transport = StubAwsHttpClient.queue()
 

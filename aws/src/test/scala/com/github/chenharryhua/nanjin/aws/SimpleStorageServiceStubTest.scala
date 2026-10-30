@@ -143,6 +143,45 @@ class SimpleStorageServiceStubTest extends CatsEffectSuite {
     }
   }
 
+  test("8b.presignGetObject(url) uses the default duration and targets the url's bucket/key") {
+    val transport = StubAwsHttpClient.queue()
+
+    service(transport).use { s3 =>
+      // the single-argument overload exercises the 30.minutes default-argument path
+      s3.presignGetObject("s3://bucket-name/path/to/key").map { presigned =>
+        assertEquals(presigned.httpRequest().method().name(), "GET")
+        assert(presigned.url().toString.contains("bucket-name"), presigned.url().toString)
+        assert(presigned.url().toString.contains("path/to/key"), presigned.url().toString)
+        assertEquals(transport.recordedRequests, Nil)
+      }
+    }
+  }
+
+  test("8c.renameObject marshals the rename and decodes the response") {
+    // S3 rename returns an empty RenameObjectResult body on success.
+    val transport = StubAwsHttpClient.queue(Right(xml("").copy(statusCode = 200)))
+
+    service(transport).use { s3 =>
+      s3.renameObject(_.bucket("bucket").key("new-key").renameSource("/bucket/old-key")).map { resp =>
+        assert(resp != null)
+        val recorded = transport.recordedRequests.head
+        assert(recorded.request.httpRequest().encodedPath().contains("new-key"))
+      }
+    }
+  }
+
+  test("8d.getObject failure during acquire triggers the onError logging branch") {
+    val failure = new java.io.IOException("transport failed")
+    val transport = StubAwsHttpClient.queue(Left(failure))
+
+    service(transport).use { s3 =>
+      interceptIO[software.amazon.awssdk.core.exception.SdkClientException](
+        s3.getObject(_.bucket("bucket").key("key")).use_).map { error =>
+        assertEquals(error.getCause, failure)
+      }
+    }
+  }
+
   test("9.managed resource release closes its owned transport exactly once") {
     val transport = StubAwsHttpClient.queue()
 
