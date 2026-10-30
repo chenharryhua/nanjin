@@ -224,4 +224,61 @@ class SchemaOpsTest extends FunSuite {
 
     val _ = replaceNamespace(simple, "new.ns")
   }
+
+  // reader adds an optional field with a default: backward compatible with the one-field writer
+  private val readerWithDefault =
+    new Schema.Parser().parse(
+      """
+        |{
+        |  "type": "record",
+        |  "name": "Compat",
+        |  "fields": [
+        |    { "name": "id", "type": "string" },
+        |    { "name": "nickname", "type": "string", "default": "anon" }
+        |  ]
+        |}
+        |""".stripMargin
+    )
+
+  private val writerNoDefault =
+    new Schema.Parser().parse(
+      """
+        |{
+        |  "type": "record",
+        |  "name": "Compat",
+        |  "fields": [
+        |    { "name": "id", "type": "string" }
+        |  ]
+        |}
+        |""".stripMargin
+    )
+
+  // reader requires a field the writer lacks, with no default: not backward compatible
+  private val readerNoDefault =
+    new Schema.Parser().parse(
+      """
+        |{
+        |  "type": "record",
+        |  "name": "Compat",
+        |  "fields": [
+        |    { "name": "id", "type": "string" },
+        |    { "name": "nickname", "type": "string" }
+        |  ]
+        |}
+        |""".stripMargin
+    )
+
+  test("11.backwardCompatibility is empty when the reader adds a field with a default") {
+    assert(backwardCompatibility(readerWithDefault, writerNoDefault).isEmpty)
+  }
+
+  test("12.backwardCompatibility is non-empty when the reader adds a field without a default") {
+    assert(backwardCompatibility(readerNoDefault, writerNoDefault).nonEmpty)
+  }
+
+  test("13.forwardCompatibility is backwardCompatibility with its arguments swapped") {
+    assertEquals(
+      forwardCompatibility(writerNoDefault, readerWithDefault),
+      backwardCompatibility(readerWithDefault, writerNoDefault))
+  }
 }

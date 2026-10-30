@@ -133,6 +133,57 @@ class SchemaPairsTest extends FunSuite {
     assert(write.value.contains(protoValue))
   }
 
+  test("18.OptionalProtobufSchemaPair - isBackwardCompatible for a compatible pair") {
+    val protoKey = new ProtobufSchema("syntax = \"proto3\"; message Key { string id = 1; }")
+    val protoValue = new ProtobufSchema("syntax = \"proto3\"; message Value { string name = 1; }")
+    val local = OptionalProtobufSchemaPair(Some(protoKey), Some(protoValue))
+    val broker = OptionalProtobufSchemaPair(Some(protoKey), Some(protoValue))
+    assert(local.isBackwardCompatible(broker))
+  }
+
+  test("19.OptionalProtobufSchemaPair - isBackwardCompatible is false for an incompatible pair") {
+    // local value changes field #1's type (string -> int32), which is not backward compatible
+    val protoKey = new ProtobufSchema("syntax = \"proto3\"; message Key { string id = 1; }")
+    val localValue = new ProtobufSchema("syntax = \"proto3\"; message Value { int32 name = 1; }")
+    val brokerValue = new ProtobufSchema("syntax = \"proto3\"; message Value { string name = 1; }")
+    val local = OptionalProtobufSchemaPair(Some(protoKey), Some(localValue))
+    val broker = OptionalProtobufSchemaPair(Some(protoKey), Some(brokerValue))
+    assert(!local.isBackwardCompatible(broker))
+  }
+
+  test("20.OptionalProtobufSchemaPair - toSchemaPair throws when both absent") {
+    val pair = OptionalProtobufSchemaPair(None, None)
+    val ex = intercept[TopicSchemaAbsent](pair.toSchemaPair)
+    assert(ex.getMessage.contains("both key and value schema are absent"))
+  }
+
+  test("21.OptionalProtobufSchemaPair - toSchemaPair throws when value absent") {
+    val protoKey = new ProtobufSchema("syntax = \"proto3\"; message Key { string id = 1; }")
+    val pair = OptionalProtobufSchemaPair(Some(protoKey), None)
+    val ex = intercept[TopicSchemaAbsent](pair.toSchemaPair)
+    assert(ex.getMessage.contains("value schema is absent"))
+  }
+
+  // --- OptionalAvroSchemaPair ---
+
+  test("22.OptionalAvroSchemaPair - toSchemaPair throws when both absent") {
+    val pair = OptionalAvroSchemaPair(None, None)
+    val ex = intercept[TopicSchemaAbsent](pair.toSchemaPair)
+    assert(ex.getMessage.contains("both key and value schema are absent"))
+  }
+
+  test("23.OptionalAvroSchemaPair - toSchemaPair throws when key absent") {
+    val pair = OptionalAvroSchemaPair(None, Some(avroValue))
+    val ex = intercept[TopicSchemaAbsent](pair.toSchemaPair)
+    assert(ex.getMessage.contains("key schema is absent"))
+  }
+
+  test("24.OptionalAvroSchemaPair - toSchemaPair throws when value absent") {
+    val pair = OptionalAvroSchemaPair(Some(avroKey), None)
+    val ex = intercept[TopicSchemaAbsent](pair.toSchemaPair)
+    assert(ex.getMessage.contains("value schema is absent"))
+  }
+
   // --- Exceptions ---
 
   test("14.SchemaRegistryUrlAbsent - has meaningful message") {

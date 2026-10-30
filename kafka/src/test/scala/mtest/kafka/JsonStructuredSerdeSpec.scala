@@ -1,5 +1,6 @@
 package mtest.kafka
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.kafka.serdes.Structured
 import io.circe.Json
 import io.circe.jawn.parse
@@ -59,6 +60,13 @@ class JsonStructuredSerdeSpec extends FunSuite {
     val result = serde.deserializer.deserialize("topic", bytes)
 
     assertEquals(result, Json.Null)
+  }
+
+  test("8.jsonSchema key deserializer configures with JSON_KEY_TYPE and builds offline") {
+    // asKey forces the deserializer, whose lazy configure runs with isKey = true,
+    // exercising the JSON_KEY_TYPE arm of the jsonSchema serde's configure.
+    val keySerde: Serde[JsonNode] = ctx.asKey(Structured[JsonNode]).serde
+    assert(keySerde.deserializer != null)
   }
 
 }
