@@ -99,6 +99,25 @@ class AdhocReportTest extends CatsEffectSuite {
       }
   }
 
+  test("6.configured LogLocator is applied to periodic snapshots") {
+    val locator = new LogLocator {
+      override def locate(timestamp: Instant): LogLink = LogLink(s"snap:${timestamp.toEpochMilli}")
+    }
+
+    service
+      .updateConfig(_.withLogLocator(IO.pure(Some(locator))))
+      .eventStream { agent =>
+        agent.adhoc
+          .snapshots(_.fixedDelay(10.millis).repeat)
+          .take(1)
+          .compile
+          .lastOrError
+          .map(snapshot => assert(snapshot.logLink.exists(_.value.startsWith("snap:"))))
+      }
+      .compile
+      .drain
+  }
+
   test("5.configured LogLocator is applied to panic events") {
     val locator = new LogLocator {
       override def locate(timestamp: Instant): LogLink = LogLink(s"panic:${timestamp.toEpochMilli}")

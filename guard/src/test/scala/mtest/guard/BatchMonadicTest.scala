@@ -486,6 +486,23 @@ class BatchMonadicTest extends CatsEffectSuite {
     }
   }
 
+  test("15b.metered render encodes the tracked job result via its Encoder") {
+    service.eventStreamR { agent =>
+      agent
+        .batchMetered("monadic-metered-render")
+        .monadic(job => job("encoded", IO.pure(7)).render)
+        .monadicBatch
+        .evalTap { mb =>
+          IO {
+            assertEquals(mb.result, Right(7))
+            assertEquals(mb.outcomes.map(_.result), List(Right(Json.fromInt(7))))
+          }
+        }
+    }.compile.lastOrError.map { se =>
+      assertEquals(se.asInstanceOf[ServiceStop].cause.exitCode, 0)
+    }
+  }
+
   test("16.attempt emits the finalized handled state on the next transition") {
     service
       .updateConfig(_.withReportedEventThreshold(_.Warn))

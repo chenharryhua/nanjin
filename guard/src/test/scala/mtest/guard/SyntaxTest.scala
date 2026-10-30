@@ -22,6 +22,9 @@ class SyntaxTest extends FunSuite {
   }
 
   test("4.tick") {
-    service.eventStreamS(_.tickScheduled(_.empty))
+    // `_.empty` yields no ticks and completes at once; draining the event stream actually runs the agent
+    // body, exercising `tickScheduled` rather than only constructing the stream.
+    import cats.effect.unsafe.implicits.global
+    service.eventStreamS(_.tickScheduled(_.empty)).compile.drain.unsafeRunSync()
   }
 }
