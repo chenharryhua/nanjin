@@ -543,4 +543,24 @@ class RetrySpec extends CatsEffectSuite {
 
     prom
   }
+
+  test("23.Retry: cancellation does not invoke decisions and the instance remains reusable") {
+    for {
+      decisions <- Ref.of[IO, Int](0)
+      started <- cats.effect.kernel.Deferred[IO, Unit]
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(1.second).repeat).withDecision { attempt =>
+          decisions.update(_ + 1).as(attempt.followPolicy)
+        })
+      running <- retry(started.complete(()).void >> IO.never[Int]).start
+      _ <- started.get
+      _ <- running.cancel
+      result <- retry(IO.pure(42))
+      decision_count <- decisions.get
+    } yield {
+      assertEquals(result, 42)
+      assertEquals(decision_count, 0)
+    }
+  }
 }

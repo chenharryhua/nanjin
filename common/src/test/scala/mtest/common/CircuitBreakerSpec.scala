@@ -338,4 +338,22 @@ class CircuitBreakerSpec extends CatsEffectSuite {
       } yield assertEquals(state, CircuitBreaker.State.HalfOpen)
     }
   }
+
+  test("21.CircuitBreaker: successful call resets a non-zero closed failure count") {
+    val failure = new RuntimeException("failure")
+
+    breaker(3, Policy.fixedDelay(1.hour).repeat).use { cb =>
+      for {
+        failed <- cb.attempt(IO.raiseError[Int](failure))
+        after_failure <- cb.state
+        success <- cb.protect(IO.pure(42))
+        after_success <- cb.state
+      } yield {
+        assertEquals(failed, Left(failure))
+        assertEquals(after_failure, CircuitBreaker.State.Closed(1))
+        assertEquals(success, 42)
+        assertEquals(after_success, CircuitBreaker.State.Closed(0))
+      }
+    }
+  }
 }
