@@ -1,5 +1,6 @@
 package mtest.terminals
 
+import better.files.File
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.FileSource
 import fs2.Stream
@@ -120,6 +121,61 @@ class FileSourceTest extends CatsEffectSuite {
       assertEquals(kantan_default, rows)
       assertEquals(kantan_configuration, rows)
       assertEquals(kantan_function, rows)
+    }
+  }
+
+  test("6.text honors chunk size and emits a smaller final chunk") {
+    val path = ROOT / "chunks" / "lines.txt"
+    val lines = List("one", "two", "three", "four", "five")
+
+    for {
+      _ <- hdp.delete(path)
+      _ <- Stream.emits(lines).covary[IO].through(hdp.sink(path).text).compile.drain
+      chunks <- hdp.source(path).text(2).chunks.map(_.toList).compile.toList
+    } yield assertEquals(chunks, List(List("one", "two"), List("three", "four"), List("five")))
+  }
+
+  test("7.bytes honors its buffer size including the final partial chunk") {
+    val path = ROOT / "chunks" / "bytes.bin"
+    val bytes = Array[Byte](1, 2, 3, 4, 5)
+
+    for {
+      _ <- hdp.delete(path)
+      _ <- Stream.emits(bytes).covary[IO].through(hdp.sink(path).bytes).compile.drain
+      chunks <- hdp.source(path).bytes(Bytes(2)).chunks.map(_.toArray.toList).compile.toList
+    } yield assertEquals(chunks, List(List[Byte](1, 2), List[Byte](3, 4), List[Byte](5)))
+  }
+
+  test("8.a missing path fails when the lazy stream executes") {
+    val path = ROOT / "missing-execution" / "absent.txt"
+
+    for {
+      _ <- hdp.delete(path)
+      result <- hdp.source(path).text(1).compile.drain.attempt
+    } yield assert(result.isLeft, "executing a source for a missing path should fail")
+  }
+
+  test("9.malformed Circe input fails during stream execution") {
+    val path = ROOT / "invalid" / "circe.json"
+
+    for {
+      _ <- hdp.delete(path)
+      _ <- Stream.emit("{not-json").covary[IO].through(hdp.sink(path).text).compile.drain
+      result <- hdp.source(path).circe(1).compile.drain.attempt
+    } yield assert(result.isLeft, "malformed JSON should fail the Circe source")
+  }
+
+  test("10.an empty file produces empty text and byte streams") {
+    val path = ROOT / "empty" / "empty.txt"
+
+    for {
+      _ <- hdp.delete(path)
+      _ <- IO(File(path.toString).createFileIfNotExists(createParents = true))
+      text <- hdp.source(path).text(1).compile.toList
+      bytes <- hdp.source(path).bytes(Bytes(1)).compile.toList
+    } yield {
+      assertEquals(text, Nil)
+      assertEquals(bytes, Nil)
     }
   }
 }

@@ -166,4 +166,90 @@ final class SingleFlightSuite extends CatsEffectSuite {
       }
     }
   }
+
+  test("10.a follower alternative is not evaluated when the leader succeeds") {
+    TestControl.executeEmbed {
+      for {
+        single_flight <- SingleFlight[IO, Int]
+        started <- Deferred[IO, Unit]
+        release <- Deferred[IO, Unit]
+        alternative_evaluated <- Ref.of[IO, Boolean](false)
+        leader <- single_flight(started.complete(()).void *> release.get.as(42)).start
+        _ <- started.get
+        follower <- single_flight(alternative_evaluated.set(true).as(99)).start
+        _ <- IO.sleep(1.second)
+        _ <- release.complete(())
+        leader_result <- leader.joinWithNever
+        follower_result <- follower.joinWithNever
+        evaluated <- alternative_evaluated.get
+      } yield {
+        assertEquals(leader_result, 42)
+        assertEquals(follower_result, 42)
+        assertEquals(evaluated, false)
+      }
+    }
+  }
+
+  test("11.a follower alternative is not evaluated when the leader fails") {
+    TestControl.executeEmbed {
+      val failure = new RuntimeException("leader-failure")
+      for {
+        single_flight <- SingleFlight[IO, Int]
+        started <- Deferred[IO, Unit]
+        release <- Deferred[IO, Unit]
+        alternative_evaluated <- Ref.of[IO, Boolean](false)
+        leader <- single_flight(
+          started.complete(()).void *> release.get *> IO.raiseError[Int](failure)).attempt.start
+        _ <- started.get
+        follower <- single_flight(alternative_evaluated.set(true).as(99)).attempt.start
+        _ <- IO.sleep(1.second)
+        _ <- release.complete(())
+        leader_result <- leader.joinWithNever
+        follower_result <- follower.joinWithNever
+        evaluated <- alternative_evaluated.get
+      } yield {
+        assertEquals(leader_result, Left(failure))
+        assertEquals(follower_result, Left(failure))
+        assertEquals(evaluated, false)
+      }
+    }
+  }
+
+  test("12.a failed flight clears the slot for a later successful call") {
+    val failure = new RuntimeException("failed-flight")
+    for {
+      single_flight <- SingleFlight[IO, Int]
+      failed <- single_flight(IO.raiseError[Int](failure)).attempt
+      succeeded <- single_flight(IO.pure(42))
+    } yield {
+      assertEquals(failed, Left(failure))
+      assertEquals(succeeded, 42)
+    }
+  }
+
+  test("13.canceling all but one waiter does not cancel the shared worker") {
+    TestControl.executeEmbed {
+      for {
+        single_flight <- SingleFlight[IO, Int]
+        started <- Deferred[IO, Unit]
+        release <- Deferred[IO, Unit]
+        worker_canceled <- Deferred[IO, Unit]
+        shared = (started.complete(()).void *> release.get.as(42))
+          .onCancel(worker_canceled.complete(()).void)
+        first <- single_flight(shared).start
+        _ <- started.get
+        second <- single_flight(IO.pure(2)).start
+        third <- single_flight(IO.pure(3)).start
+        _ <- IO.sleep(1.second)
+        _ <- first.cancel
+        _ <- second.cancel
+        canceled_while_waiter_remains <- worker_canceled.tryGet
+        _ <- release.complete(())
+        result <- third.joinWithNever
+      } yield {
+        assertEquals(canceled_while_waiter_remains, None)
+        assertEquals(result, 42)
+      }
+    }
+  }
 }
