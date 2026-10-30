@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.57.6"
+val awsV = "2.57.8"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"
@@ -455,7 +455,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-client"           % jettyV, // snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
-      "org.apache.zookeeper" % "zookeeper"              % "3.9.6", // snyk by hadoop-client
+      "org.apache.zookeeper" % "zookeeper"              % "3.9.7", // snyk by hadoop-client
       "org.xerial.snappy"    % "snappy-java"            % snappyV // snyk by hadoop-client
     ) ++ testLib
   )
