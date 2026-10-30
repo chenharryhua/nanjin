@@ -1860,4 +1860,97 @@ final class AuthLoginSuite extends CatsEffectSuite {
       authed.expect[String](uri"/hello").map(body => assertEquals(body, "ok"))
     }
   }
+
+  test("44.postAuthorizationCode schedules a refresh that carries credentials in the body") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val refresh_grant_type = Ref.unsafe[IO, Option[String]](None)
+      val auth_client = Resource.pure[IO, Client[IO]](
+        Client.fromHttpApp(HttpApp[IO] {
+          case request @ POST -> Root / "token" =>
+            request.as[UrlForm].flatMap { form =>
+              token_calls.updateAndGet(_ + 1).flatMap {
+                case 1 =>
+                  assertEquals(form.getFirst("grant_type"), Some("authorization_code"))
+                  Ok("""{"access_token":"ac-1","token_type":"Bearer","expires_in":1,"refresh_token":"r-1"}""")
+                case 2 =>
+                  // The PostAuthorizationCode refresh form carries client credentials in the body
+                  // (client-secret-post) and sends no Basic Authorization header.
+                  assertEquals(form.getFirst("grant_type"), Some("refresh_token"))
+                  assertEquals(form.getFirst("refresh_token"), Some("r-1"))
+                  assertEquals(form.getFirst("client_id"), Some("client-id"))
+                  assertEquals(form.getFirst("client_secret"), Some("secret"))
+                  assertEquals(request.headers.get[Authorization], None)
+                  refresh_grant_type.set(form.getFirst("grant_type")) *>
+                    Ok("""{"access_token":"ac-2","token_type":"Bearer","expires_in":0}""")
+                case unexpected =>
+                  InternalServerError(s"unexpected token call: $unexpected")
+              }
+            }
+          case _ => InternalServerError()
+        })
+      )
+      val credential = AuthorizationCode(
+        auth_endpoint = uri"/token",
+        client_id = "client-id",
+        client_secret = Secret("secret"),
+        code = Secret("auth-code"),
+        redirect_uri = "https://example.com/callback"
+      )
+
+      auth.postAuthorizationCode[IO](auth_client, credential).login(protectedResource).use { _ =>
+        // expires_in:1 => renewalDelay = skewed(1) = 500ms, so the scheduled refresh fires at t=500ms.
+        for {
+          _ <- IO.sleep(499.millis)
+          before <- token_calls.get
+          _ <- IO.sleep(2.millis)
+          after <- token_calls.get
+          grant <- refresh_grant_type.get
+        } yield {
+          assertEquals(before, 1)
+          assertEquals(after, 2)
+          assertEquals(grant, Some("refresh_token"))
+        }
+      }
+    }
+  }
+
+  test("45.Salesforce password grant re-authenticates on an unauthorized response") {
+    val token_calls = Ref.unsafe[IO, Int](0)
+    val auth_client = Resource.pure[IO, Client[IO]](
+      Client.fromHttpApp(HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.updateAndGet(_ + 1).flatMap { call =>
+            val access_token = if (call == 1) "sf-old" else "sf-new"
+            Ok(s"""{"access_token":"$access_token","instance_url":"https://example.my.salesforce.com","token_type":"Bearer"}""")
+          }
+        case _ => InternalServerError()
+      })
+    )
+    val resource_client = Client.fromHttpApp(HttpApp[IO] { request =>
+      request.headers.get[Authorization].map(_.value) match {
+        case Some("Bearer sf-old") => IO.pure(Response[IO](Status.Unauthorized))
+        case Some("Bearer sf-new") => Ok("ok")
+        case _                     => Forbidden("missing or incorrect auth")
+      }
+    })
+    val credential = Salesforce.PasswordGrant(
+      auth_endpoint = uri"/token",
+      client_id = "client-id",
+      client_secret = Secret("secret"),
+      username = "user",
+      password = Secret("pass")
+    )
+
+    // A large lifetime keeps the scheduler from interfering; the single 401 drives the reactive
+    // renewOnRejection path, which re-runs the password grant and replays with sf-new.
+    Salesforce[IO](auth_client, credential, 2.hours).login(resource_client).use { authed =>
+      authed.expect[String](uri"/resource").flatMap { body =>
+        token_calls.get.map { calls =>
+          assertEquals(body, "ok")
+          assertEquals(calls, 2)
+        }
+      }
+    }
+  }
 }
