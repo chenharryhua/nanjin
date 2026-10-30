@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.slack
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.logging.LogLink
+import com.github.chenharryhua.nanjin.common.logging.{LogLink, LogLocator}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.*
@@ -10,6 +10,7 @@ import io.circe.syntax.EncoderOps
 import munit.CatsEffectSuite
 
 import scala.concurrent.duration.*
+import java.time.Instant
 
 /** Lives in package `com.github.chenharryhua.nanjin.guard.observers.slack` so it can reach the private
   * `SlackTranslator` object and encode the private `SlackApp` it produces. Mirrors `TeamsObserverTest`: a
@@ -44,10 +45,12 @@ class SlackTranslatorTest extends CatsEffectSuite {
   override def munitFixtures = List(eventsFixture)
 
   private def translate(pf: PartialFunction[Event, Boolean]): IO[Json] = {
-    val translator = SlackTranslator[IO]
     val evt = eventsFixture().find(pf.isDefinedAt).get
-    translator.translate(evt).map(_.get.asJson)
+    render(evt)
   }
+
+  private def render(event: Event): IO[Json] =
+    SlackTranslator[IO].translate(event).map(_.get.asJson)
 
   test("1.every SlackApp carries the task as username and a non-empty attachments list") {
     translate { case _: ServiceStart => true }.map { json =>
@@ -157,5 +160,118 @@ class SlackTranslatorTest extends CatsEffectSuite {
     translate { case _: ServiceStart => true }.map { json =>
       assert(!json.noSpaces.contains(s"<$logUrl|"))
     }
+  }
+
+  test("12.Debug and Good reported events use their color and no-symbol branches") {
+    service
+      .updateConfig(_.withReportedEventThreshold(_.Debug))
+      .eventStream(agent => agent.logger.debug("debug-msg") >> agent.logger.good("good-msg"))
+      .compile
+      .toList
+      .flatMap { events =>
+        val debug = events.collectFirst {
+          case event: ReportedEvent if event.logRecord.message.value.noSpaces.contains("debug-msg") => event
+        }.get
+        val good = events.collectFirst {
+          case event: ReportedEvent if event.logRecord.message.value.noSpaces.contains("good-msg") => event
+        }.get
+        for {
+          debug_json <- render(debug)
+          good_json <- render(good)
+        } yield {
+          assert(debug_json.noSpaces.contains("#FF00FF"), debug_json.spaces2)
+          assert(debug_json.noSpaces.contains("Debug"), debug_json.spaces2)
+          assert(good_json.noSpaces.contains("#36a64f"), good_json.spaces2)
+          assert(good_json.noSpaces.contains(" Good"), good_json.spaces2)
+        }
+      }
+  }
+
+  test("13.restart ServiceStart renders snooze and non-zero index") {
+    val restart = eventsFixture().collect { case event: ServiceStart if event.tick.index > 0L => event }.head
+
+    render(restart).map { json =>
+      val text = json.noSpaces
+      assert(text.contains("Restart Service"), json.spaces2)
+      assert(text.contains("Snooze"), json.spaces2)
+      assert(text.contains(restart.tick.index.toString), json.spaces2)
+    }
+  }
+
+  test("14.homepage links the escaped service name") {
+    TaskGuard[IO]("slack-test")
+      .service("service<&>")
+      .updateConfig(_.withHomepage("https://service.example"))
+      .eventStream(_ => IO.unit)
+      .collectFirst { case event: ServiceStart => event }
+      .compile
+      .lastOrError
+      .flatMap(render)
+      .map { json =>
+        val text = json.noSpaces
+        assert(text.contains("<https://service.example|service&lt;&amp;&gt;>"), json.spaces2)
+      }
+  }
+
+  test("15.non-empty metrics render YAML and hyperlink the snapshot tag") {
+    val locator = new LogLocator {
+      override def locate(timestamp: Instant): LogLink =
+        LogLink(s"https://logs.example/${timestamp.toEpochMilli}")
+    }
+
+    service
+      .updateConfig(_.withLogLocator(IO.pure(Some(locator))))
+      .eventStream { agent =>
+        agent.facilitate("metrics")(_.counter("counter")).use(_.inc(2) >> agent.adhoc.report)
+      }
+      .collectFirst { case event: MetricsSnapshot => event }
+      .compile
+      .lastOrError
+      .flatMap(render)
+      .map { json =>
+        val text = json.noSpaces
+        assert(text.contains("counter"), json.spaces2)
+        assert(text.contains("https://logs.example"), json.spaces2)
+        assert(!text.contains("not available"), json.spaces2)
+      }
+  }
+
+  test("16.reported throwable renders a stack attachment and log-link tag") {
+    val locator = new LogLocator {
+      override def locate(timestamp: Instant): LogLink =
+        LogLink(s"https://logs.example/${timestamp.toEpochMilli}")
+    }
+
+    service
+      .updateConfig(_.withLogLocator(IO.pure(Some(locator)))
+        .withReportedEventThreshold(_.Info))
+      .eventStream(agent => agent.logger.error("message", new RuntimeException("reported-stack")))
+      .collectFirst { case event: ReportedEvent => event }
+      .compile
+      .lastOrError
+      .flatMap(render)
+      .map { json =>
+        val text = json.noSpaces
+        assert(text.contains("reported-stack"), json.spaces2)
+        assert(text.contains("StackTrace"), json.spaces2)
+        assert(text.contains("https://logs.example"), json.spaces2)
+      }
+  }
+
+  test("17.long messages are abbreviated below Slack's block limit") {
+    val original = "x" * 4000
+
+    service
+      .updateConfig(_.withReportedEventThreshold(_.Info))
+      .eventStream(_.logger.info(original))
+      .collectFirst { case event: ReportedEvent => event }
+      .compile
+      .lastOrError
+      .flatMap(render)
+      .map { json =>
+        val text = json.noSpaces
+        assert(!text.contains(original), "full 4000-character message was not abbreviated")
+        assert(text.contains("..."), json.spaces2)
+      }
   }
 }
