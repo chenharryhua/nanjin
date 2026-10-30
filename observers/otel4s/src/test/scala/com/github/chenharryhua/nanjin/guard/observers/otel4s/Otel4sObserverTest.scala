@@ -116,4 +116,74 @@ class Otel4sObserverTest extends CatsEffectSuite {
         assert(records.size < events.size)
       }
   }
+
+  test("8.a Good log event maps to Severity.info") {
+    run(_.logger.good("hello-good")).map { case (_, records) =>
+      val record = records.find(r => Option(r.getBodyValue).exists(_.asString().contains("hello-good")))
+      assert(record.nonEmpty)
+      assertLogs(record.toList, LogRecordExpectation.any.severity(Severity.info))
+    }
+  }
+
+  test("9.a Debug log event maps to Severity.debug") {
+    LogsTestkit
+      .inMemory[IO]()
+      .use { testkit =>
+        val observer = Otel4sObserver(testkit.loggerProvider)
+        for {
+          _ <- service
+            .updateConfig(_.withReportedEventThreshold(_.Debug))
+            .eventStream(_.logger.debug("hello-debug"))
+            .through(observer.observe("debug-scope"))
+            .compile
+            .drain
+          records <- testkit.finishedLogs
+        } yield records
+      }
+      .map { records =>
+        val record = records.find(r => Option(r.getBodyValue).exists(_.asString().contains("hello-debug")))
+        assert(record.nonEmpty)
+        assertLogs(record.toList, LogRecordExpectation.any.severity(Severity.debug))
+      }
+  }
+
+  test("10.records retain event timestamps and the requested instrumentation scope") {
+    run(_.logger.info("timestamped")).map { case (events, records) =>
+      assertEquals(records.size, events.size)
+      events.zip(records).foreach { case (event, record) =>
+        val instant = event.timestamp.value.toInstant
+        val epoch_nanos = instant.getEpochSecond * 1_000_000_000L + instant.getNano
+        assertEquals(record.getTimestampEpochNanos, epoch_nanos)
+        assertEquals(record.getInstrumentationScopeInfo.getName, "otel4s-observer-test")
+      }
+    }
+  }
+
+  test("11.withTranslator returns an independent observer while both pipes preserve events") {
+    LogsTestkit
+      .inMemory[IO]()
+      .use { testkit =>
+        val original = Otel4sObserver(testkit.loggerProvider)
+        val skipped = original.withTranslator(_.skipAll)
+        for {
+          skipped_events <- service
+            .eventStream(_ => IO.unit)
+            .through(skipped.observe("skipped"))
+            .compile
+            .toList
+          after_skipped <- testkit.finishedLogs
+          original_events <- service
+            .eventStream(_ => IO.unit)
+            .through(original.observe("original"))
+            .compile
+            .toList
+          after_original <- testkit.finishedLogs
+        } yield {
+          assert(skipped_events.nonEmpty)
+          assertEquals(after_skipped, Nil)
+          assert(original_events.nonEmpty)
+          assert(after_original.nonEmpty)
+        }
+      }
+  }
 }
