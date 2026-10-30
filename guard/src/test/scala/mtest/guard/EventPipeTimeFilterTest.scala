@@ -3,7 +3,7 @@ package mtest.guard
 import cats.data.NonEmptyList
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.ServiceIdentity
+import com.github.chenharryhua.nanjin.guard.config.{ServiceIdentity, Timestamp}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe, Took}
 import com.github.chenharryhua.nanjin.guard.metrics.snapshot.Snapshot
@@ -47,6 +47,17 @@ class EventPipeTimeFilterTest extends FunSuite {
       took = null.asInstanceOf[Took]
     )
   }
+
+  /** An adhoc-snapshot event timestamped at `scrapeTime` in `zone`; other fields are null, like `periodic`.
+    */
+  private def adhoc(zone: ZoneId, scrapeTime: Instant): Event =
+    MetricsSnapshot(
+      serviceIdentity = null.asInstanceOf[ServiceIdentity],
+      logLink = None,
+      index = MetricsSnapshot.Adhoc(Timestamp(scrapeTime.atZone(zone))),
+      snapshot = null.asInstanceOf[Snapshot],
+      took = null.asInstanceOf[Took]
+    )
 
   // ---------------- cronFilter ----------------
 
@@ -122,5 +133,18 @@ class EventPipeTimeFilterTest extends FunSuite {
     val decided = EventPipe.localTimeFilter(NonEmptyList.of(overlapTime)).filter(evt)
     assert(resolved.toInstant.isAfter(start) && !resolved.toInstant.isAfter(end))
     assert(decided)
+  }
+
+  // ---------------- Adhoc snapshots always pass ----------------
+
+  test("7.cronFilter, localTimeFilter, and indexFilter all pass an Adhoc snapshot through unchanged") {
+    val base = ZonedDateTime.of(2024, 1, 1, 10, 0, 0, 0, sydney).toInstant
+    val evt = adhoc(sydney, base)
+
+    // These schedules/divisors would reject a matching periodic tick, but an Adhoc snapshot bypasses the
+    // periodic decision entirely and is always kept.
+    assert(EventPipe.cronFilter(crontabs.hourly).filter(evt))
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(0, 0))).filter(evt))
+    assert(EventPipe.indexFilter(3).filter(evt))
   }
 }
