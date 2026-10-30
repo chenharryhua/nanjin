@@ -45,4 +45,63 @@ class PeriodParserTest extends FunSuite {
     val p3 = period("2 years 3 month 6 days").toEither.toOption.get
     assert(today.minus(p3) == LocalDate.of(2010, 7, 20))
   }
+
+  test("5.standard ISO periods are preferred and surrounding whitespace is ignored") {
+    val cases = List(
+      "P1Y2M3D" -> Period.of(1, 2, 3),
+      " P2W " -> Period.ofDays(14),
+      "P0D" -> Period.ZERO,
+      "P-1Y2M" -> Period.of(-1, 2, 0))
+
+    cases.foreach { case (input, expected) =>
+      assertEquals(period(input).toOption, Some(expected))
+    }
+  }
+
+  test("6.homebrew grammar supports every ordered field combination") {
+    val cases = List(
+      "1 year 2 months 3 days" -> Period.of(1, 2, 3),
+      "1 year 2 months" -> Period.of(1, 2, 0),
+      "1 year 3 days" -> Period.of(1, 0, 3),
+      "2 months 3 days" -> Period.of(0, 2, 3),
+      "1 year" -> Period.ofYears(1),
+      "2 months" -> Period.ofMonths(2),
+      "3 days" -> Period.ofDays(3)
+    )
+
+    cases.foreach { case (input, expected) =>
+      assertEquals(period(input).toOption, Some(expected))
+    }
+  }
+
+  test("7.homebrew units are case-insensitive and accept singular/plural forms") {
+    val cases = List(
+      "1 YEAR" -> Period.ofYears(1),
+      "2 Months" -> Period.ofMonths(2),
+      "1 DaY" -> Period.ofDays(1),
+      "2 YEARS 3 MONTHS 4 DAYS" -> Period.of(2, 3, 4))
+
+    cases.foreach { case (input, expected) =>
+      assertEquals(period(input).toOption, Some(expected))
+    }
+  }
+
+  test("8.zero and large in-range homebrew values parse") {
+    assertEquals(period("0 years 0 months 0 days").toOption, Some(Period.ZERO))
+    assertEquals(period("2147483647 years").toOption, Some(Period.ofYears(Int.MaxValue)))
+  }
+
+  test("9.malformed homebrew input returns validation errors") {
+    val invalid = List(
+      "",
+      "years",
+      "one year",
+      "1.5 years",
+      "-1 years",
+      "1 day 2 months",
+      "1 month trailing",
+      "1 year 2 years")
+
+    invalid.foreach(input => assert(period(input).isInvalid, s"expected invalid period: $input"))
+  }
 }
