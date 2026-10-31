@@ -73,9 +73,10 @@ abstract private class OAuthTokenAuth[F[_]](authClient: Resource[F, Client[F]])(
   protected def renewalDelay(token: Token): Option[FiniteDuration]
 
   /** The error raised when a refresh is required but the token carries no `refresh_token`. Flows that fall
-    * back to another grant never surface it.
+    * back to another grant never surface it; a flow with specific guidance overrides it.
     */
-  protected def noRefreshToken: Throwable
+  protected def noRefreshToken: Throwable =
+    new IllegalStateException("token has no refresh_token")
 
   /** Wraps `businessClient` with the flow's token lifecycle. */
   final protected def wrapWithToken(businessClient: Client[F]): Resource[F, Client[F]] =
