@@ -238,4 +238,105 @@ class HadoopTest extends CatsEffectSuite {
       hdp.rotateSink(java.time.ZoneId.systemDefault(), -1L)(_ => path)
     }
   }
+
+  test("20.locatedFileStatus on populated directory lists files") {
+    val root = path / "located" / "populated"
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO {
+        File((root / "sub" / "one.txt").toString()).createFileIfNotExists(createParents = true)
+        File((root / "sub" / "two.txt").toString()).createFileIfNotExists(createParents = true)
+      }
+      statuses <- hdp.locatedFileStatus(root)
+    } yield {
+      assert(statuses.nonEmpty)
+      assert(statuses.count(_.isFile) == 2)
+    }
+  }
+
+  test("21.locatedFileStatus on missing path is empty") {
+    val missing = path / "located" / "missing"
+    for {
+      _ <- hdp.delete(missing)
+      statuses <- hdp.locatedFileStatus(missing)
+    } yield assert(statuses.isEmpty)
+  }
+
+  test("22.emptyFolders descends into non-empty directories") {
+    val root = path / "empties" / "tree"
+    val branch = root / "branch"
+    val leafEmpty = branch / "leaf-empty"
+    val leafWithFile = branch / "leaf-with-file"
+
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO {
+        File(leafEmpty.toString()).createDirectories()
+        File(leafWithFile.toString()).createDirectories()
+        File((leafWithFile / "keep.txt").toString()).createFileIfNotExists(createParents = true)
+        // a file sibling of the sub-directories so the non-directory arm is exercised
+        File((branch / "sibling.txt").toString()).createFileIfNotExists(createParents = true)
+      }
+      empties <- hdp.emptyFolders(root).map(_.map(_.toString))
+      // a plain file as the root drives the non-directory arm of the stack walk
+      onFile <- hdp.emptyFolders(branch / "sibling.txt")
+    } yield {
+      assert(empties.exists(_.endsWith("/leaf-empty")))
+      assert(onFile.isEmpty)
+    }
+  }
+
+  test("23.earliestYmd on missing path is None") {
+    val missing = path / "best" / "missing"
+    for {
+      _ <- hdp.delete(missing)
+      earliest <- hdp.earliestYmd(missing)
+      best <- hdp.best(missing, cats.data.NonEmptyList.of(year))
+    } yield {
+      assert(earliest.isEmpty)
+      assert(best.isEmpty)
+    }
+  }
+
+  test("24.dateFolderRetention retains non-date folders") {
+    val root = path / "retention" / "non-date"
+    val dateFolder = root / ymd(LocalDate.of(2025, 8, 10))
+    val nonDateFolder = root / "not-a-date"
+
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO {
+        File((dateFolder / "data.txt").toString()).createFileIfNotExists(createParents = true)
+        File((nonDateFolder / "data.txt").toString()).createFileIfNotExists(createParents = true)
+      }
+      result <- hdp.dateFolderRetention(root, List(LocalDate.of(2025, 8, 10)))
+      nonDateKept <- hdp.exists(nonDateFolder)
+    } yield {
+      assert(nonDateKept)
+      assert(result.exists(r => r.folder.toString().endsWith("/not-a-date") && r.status == Retained))
+    }
+  }
+
+  test("25.dateFolderRetention with backward window keeps recent and removes old") {
+    val root = path / "retention" / "backward"
+    val startFrom = LocalDate.of(2025, 8, 10)
+    val insideWindow = root / ymd(startFrom.minusDays(1))
+    val outsideWindow = root / ymd(startFrom.minusDays(10))
+
+    for {
+      _ <- hdp.delete(root)
+      _ <- IO {
+        File((insideWindow / "data.txt").toString()).createFileIfNotExists(createParents = true)
+        File((outsideWindow / "data.txt").toString()).createFileIfNotExists(createParents = true)
+      }
+      result <- hdp.dateFolderRetention(root, startFrom = startFrom, backwardDays = 3L)
+      insideExists <- hdp.exists(insideWindow)
+      outsideExists <- hdp.exists(outsideWindow)
+    } yield {
+      assert(insideExists)
+      assert(!outsideExists)
+      assert(result.exists(r => r.folder.toString().contains("Day=09") && r.status == Retained))
+      assert(result.exists(r => r.folder.toString().contains("Day=31") && r.status == Removed))
+    }
+  }
 }
