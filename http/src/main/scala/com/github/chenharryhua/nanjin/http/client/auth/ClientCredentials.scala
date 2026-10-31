@@ -42,11 +42,6 @@ sealed abstract private class ClientCredentialsAuth[F[_]: Async](
   override protected def renewalDelay(token: Token): Option[FiniteDuration] =
     token.expires_in.filter(_ > 0L).map(skewed)
 
-  // Client credentials never surface this: a scheduled refresh without a refresh token falls back to a fresh
-  // client-credentials exchange, so `renewals.refreshOrFetch` is the only refresh path used.
-  override protected def noRefreshToken: Throwable =
-    new IllegalStateException("client credentials token has no refresh_token")
-
   final override def login(businessClient: Client[F]): Resource[F, Client[F]] =
     wrapWithToken(businessClient)
 }
