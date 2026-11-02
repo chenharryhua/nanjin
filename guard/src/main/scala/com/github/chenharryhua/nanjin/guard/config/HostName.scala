@@ -2,9 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.effect.kernel.{Resource, Sync}
-import cats.kernel.Eq
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
-import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import io.circe.Codec
@@ -28,7 +26,6 @@ final case class HostName private (ec2: Option[String], local: Option[String]) d
 object HostName {
 
   given Show[HostName] = Show.fromToString
-  given Eq[HostName] = Eq.instance((a, b) => a.value === b.value)
 
   def apply[F[_]](using F: Sync[F]): F[HostName] = {
 
