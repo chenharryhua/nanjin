@@ -109,9 +109,9 @@ val jsonRoundTrip: IO[List[Event]] =
     .toList
 ```
 
-The Avro JSON pipe uses ISO-8859-1 bytes on both sides because that is the charset used by Avro's JSON
-encoder in this path. It inserts the platform line separator between upstream chunks. This differs
-from the terminal text, Circe, and CSV writers, which use UTF-8.
+The Avro JSON pipe passes Avro's UTF-8 JSON bytes through unchanged. It inserts the platform line
+separator between upstream chunks; ISO-8859-1 is used only to encode that separator, whose newline
+characters have the same bytes in UTF-8. Terminal text, Circe, and CSV writers also use UTF-8.
 
 ## Hadoop filesystem
 
