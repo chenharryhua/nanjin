@@ -255,10 +255,11 @@ select 42
 val reachable: IO[Boolean] = configured.testConnection[IO]
 ```
 
-It returns `true` only when pool creation and the scalar query succeed. Every error is collapsed to
-`false`; use an ordinary transactor operation when the caller needs the failure cause. Because each
-call creates a new pool, `testConnection` is suitable for startup checks and diagnostics, not a
-high-frequency health endpoint.
+It returns `true` when pool acquisition, the scalar query, and pool release succeed. Errors during
+those resource operations become `false`, but configuration construction or validation can throw
+synchronously before an `F[Boolean]` is returned. Use an ordinary transactor operation when the caller
+needs the failure cause. Because each call creates a new pool, `testConnection` is suitable for startup
+checks and diagnostics, not a high-frequency health endpoint.
 
 The query is intentionally simple but still assumes that the target database accepts `select 42` and
 that the configured user can execute it.
