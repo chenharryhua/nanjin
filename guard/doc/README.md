@@ -1,21 +1,134 @@
-# Batch execution
+# Guard execution guide
 
-The `batch` package runs a group of named jobs under a shared metric scope, records per-job
-timing and outcomes, and produces a single aggregate `BatchResult`. This document describes how
-the pieces fit together.
+The Guard module runs application effects as supervised services. This guide covers two parts of
+that runtime:
 
-## Entry points
+- **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
+  progress metrics, lifecycle logs, or OpenTelemetry spans.
+- **Watchdog supervision** runs the service effect, applies its restart policy after failures, and
+  emits service lifecycle events.
 
-There are three façades with the same three execution shapes. `Batch[F]` (from `Agent.batch`) is the
-lightweight default: it returns `F` values directly and keeps no metrics panel. `BatchMetered[F]`
-(from `Agent.batchMetered`) adds the metrics-backed progress panel and lifecycle logging and returns
-its results as a `Resource[F, _]`. `BatchTraced[F]` (from `Agent.batchTraced`) opens an OpenTelemetry
-span per job. From any of them you pick one of three execution shapes, then choose how failures are
-handled.
+## Contents
+
+- [Batch execution](#batch-execution)
+  - [Choosing a façade](#choosing-a-façade)
+  - [Usage examples](#usage-examples)
+  - [Execution shapes](#execution-shapes)
+  - [Independent-job failure models](#independent-job-failure-models)
+  - [Metered job lifecycle](#metered-job-lifecycle)
+  - [Execution details](#execution-details)
+  - [Result types](#result-types)
+  - [Report JSON and produced-value privacy](#report-json-and-produced-value-privacy)
+- [Watchdog](#watchdog)
+  - [Configuring restart supervision](#configuring-restart-supervision)
+  - [Supervision loop](#supervision-loop)
+  - [Panic: restart or give up](#panic-restart-or-give-up)
+  - [Events emitted](#events-emitted)
+
+## Batch execution
+
+The `batch` package runs named jobs under a shared metric scope and returns one aggregate
+`BatchResult`. Obtain a batch façade from the `Agent` passed to `ServiceGuard.eventStream`,
+`eventStreamS`, or `eventStreamR`.
+
+### Choosing a façade
+
+All three façades support sequential, bounded-parallel, and monadic execution. They differ in their
+observability and result scope.
+
+| Façade | Construct with | Observability | Batch result |
+| --- | --- | --- | --- |
+| `Batch[F]` | `agent.batch(label)` | None; lightweight execution only | `F[...]` |
+| `BatchMetered[F]` | `agent.batchMetered(label)` | Per-job lifecycle logs and a live progress panel | `Resource[F, ...]` |
+| `BatchTraced[F]` | `agent.batchTraced(label, buildParent)` | One parent OpenTelemetry span and one child span per job | `F[...]` |
+
+`BatchTraced` does not add the lifecycle logs or progress metrics supplied by `BatchMetered`.
+Its sequential and parallel jobs receive their child `Span[F]`; its monadic builder accepts either a
+plain effect or a span-aware function.
+
+### Usage examples
+
+The examples use a `ServiceGuard[IO]` and compile its event stream to run the supervised effect:
+
+```scala
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import org.typelevel.otel4s.trace.Span
+
+val service = TaskGuard[IO]("example").service("worker")
+```
+
+Use `Batch` when only the result matters. A post-condition marks non-positive values as unmet, while
+`quasiBatch` still returns every outcome:
+
+```scala
+val runLightweight: IO[Unit] =
+  service
+    .eventStream { agent =>
+      agent
+        .batch("health-checks")
+        .sequential(
+          "database" -> IO.pure(1),
+          "broker" -> IO.pure(1)
+        )
+        .withPostCondition(_ > 0)
+        .quasiBatch
+        .flatMap(result => IO.println(s"all checks passed: ${result.allSucceeded}"))
+    }
+    .compile
+    .drain
+```
+
+Use `BatchMetered` for lifecycle logs and live progress metrics. Its result is a `Resource`, so run it
+with `use`:
+
+```scala
+val runMetered: IO[Unit] =
+  service
+    .eventStream { agent =>
+      agent
+        .batchMetered("prepare-report")
+        .monadic { job =>
+          for {
+            count <- job("count-records", IO.pure(3))
+            report <- job("build-report", IO.pure(s"records: $count"))
+          } yield report
+        }
+        .monadicBatch
+        .use(result => IO.println(result.result))
+    }
+    .compile
+    .drain
+```
+
+Use `BatchTraced` when each job needs an OpenTelemetry child span. `_.build` opens the preconfigured
+parent span without further customization:
+
+```scala
+val runTraced: IO[Unit] =
+  service
+    .eventStream { agent =>
+      agent
+        .batchTraced("fetch-shards", _.build)
+        .parallel(2)(
+          "shard-a" -> ((_: Span[IO]) => IO.pure(10)),
+          "shard-b" -> ((_: Span[IO]) => IO.pure(20))
+        )
+        .valueBatch
+        .flatMap(result => IO.println(result.result.sum))
+    }
+    .compile
+    .drain
+```
+
+### Execution shapes
+
+Choose the façade first, then choose an execution shape and its failure handling. For
+`BatchMetered`, each terminal operation shown below returns `Resource[F, ...]` rather than `F[...]`.
 
 ```mermaid
 flowchart TD
-    Batch["Batch[F] / BatchMetered[F]"] -->|"sequential(fas*)"| Seq["Sequential[F, A]"]
+    Batch["Batch[F] / BatchMetered[F] / BatchTraced[F]"] -->|"sequential(fas*)"| Seq["Sequential[F, A]"]
     Batch -->|"parallel(n)(fas*)"| Par["Parallel[F, A]"]
     Batch -->|"monadic(build)"| JB["JobBuilder[F] -> Monadic[A]"]
 
@@ -29,23 +142,25 @@ flowchart TD
     classDef note fill:#f6f6f6,stroke:#bbb,color:#333,font-style:italic;
 ```
 
-- **Sequential / Parallel** — independent jobs. `quasiBatch` collects every outcome (failures
-  included); `valueBatch` propagates the first failure and keeps only successful values.
-- **Monadic** — later jobs depend on earlier results, composed with `map`/`flatMap`. Produces a
-  `MonadicBatch` carrying the step history and the final `Either`.
+- **Sequential** runs independent jobs in declaration order.
+- **Parallel** runs independent jobs with bounded concurrency. `parallel(fas*)` uses the number of
+  jobs as the bound, or one for an empty batch; `parallel(n)(fas*)` requires `n > 0`.
+- **Monadic** composes dependent jobs with `map` and `flatMap`. `monadicBatch` returns the recorded
+  history and the final `Either`.
 
-`BatchMetered`'s `quasiBatch`, `valueBatch`, and `monadicBatch` return a `Resource[F, _]`; the batch
-runs when the resource is used, and the active gauge / writers are released on close. The lightweight
-`Batch` returns these results directly in `F` with no gauge or resource scope.
+`BatchMetered` runs a batch when its result resource is used, then releases its active gauge and
+metric writers when the resource closes. `Batch` and `BatchTraced` return their results directly in
+`F`.
 
-## The two failure models
+### Independent-job failure models
 
-The `BatchKind` on each job decides what a failure means. This is the core distinction between
-`quasiBatch` and `valueBatch`.
+For sequential and parallel batches, the terminal operation sets each job's `BatchKind` and
+determines how exceptions and post-condition misses affect the batch. Monadic jobs have no
+`BatchKind`; they short-circuit into `MonadicBatch.result` instead.
 
 ```mermaid
 flowchart TD
-    job["Run one job: (attempt kickoff >> effect)"] --> outcome{"outcome"}
+    job["Run one job: kickoff, then attempt the effect"] --> outcome{"outcome"}
     outcome -->|threw| ex["Left(exception)"]
     outcome -->|value| pred{"predicate(value)?"}
     pred -->|true| ok["Right(value), succeeded = true"]
@@ -69,16 +184,16 @@ flowchart TD
 
 So:
 
-- **Quasi** always runs to completion. `allSucceeded` is `false` if any job threw or was rejected by
-  its predicate.
-- **Value** stops at the first failing or rejected job by raising, so a `ValueBatch` only ever
-  exists when every retained job succeeded (`allSucceeded` is always `true`).
+- **Quasi** runs every job and records each exception or rejected value. `allSucceeded` is `false`
+  when any job throws or misses its post-condition.
+- **Value** raises the first observed exception or rejected value. Sequential execution does not
+  start later jobs; parallel execution cancels outstanding siblings. A `ValueBatch` therefore exists
+  only after all jobs have succeeded, and its `allSucceeded` value is always `true`.
 
-## Per-job lifecycle
+### Metered job lifecycle
 
-Every tracked job (sequential, parallel, or monadic) runs through the same steps. Timing brackets
-the kickoff log plus the effect; the completion log is written after `end` and is not part of
-`took`.
+Sequential and parallel `BatchMetered` jobs follow the lifecycle below. Timing brackets the kickoff
+log and job effect; the completion log is written after `end` and is not part of `took`.
 
 ```mermaid
 sequenceDiagram
@@ -102,12 +217,16 @@ sequenceDiagram
     end
 ```
 
-`handleOutcome` runs in a finalizer (`guaranteeCase`). On `Outcome.Succeeded` it updates progress
-and emits a completion log; on `Outcome.Canceled` it emits only `logCanceled`. If a later step
-(for example a post-condition check after `attempt`) throws, the finalizer receives
-`Outcome.Errored` and raises an internal `shouldNeverHappenException`.
+For sequential and parallel jobs, `handleOutcome` runs in a `guaranteeCase` finalizer. On
+`Outcome.Succeeded` it updates progress and emits a completion log; on `Outcome.Canceled` it emits
+only `logCanceled`. On `Outcome.Errored` it emits an internal "should not happen" error log.
 
-## How the three modes differ
+Monadic metered jobs emit kickoff before running the effect, then defer completion until
+`predicate`, `attempt`, and rendering combinators have finalized the recorded state. Genuine
+cancellation emits `logCanceled`. `Batch` and `BatchTraced` do not use this logging or panel
+lifecycle.
+
+### Execution details
 
 ```mermaid
 flowchart LR
@@ -118,29 +237,31 @@ flowchart LR
         p1["jobs.parTraverseN(parallelism)(runJob)"] --> p2["List[JobState/JobValue]"]
     end
     subgraph M["Monadic"]
-        m1["Kleisli over StateT[Resource[F], JobCursor]"] --> m2["ExecutionState: eoa + reversed history"]
+        m1["Kleisli over StateT[F, JobCursor]"] --> m2["ExecutionState: final Either + reversed history"]
     end
 ```
 
-- **Sequential** threads jobs with `traverse`; **Parallel** with `parTraverseN`. Both time the
-  whole traversal (`spent`) and build the result from the collected `JobState`/`JobValue` list.
-- **Monadic** threads a `JobCursor` (running index + carry-over start time) through a
-  `StateT`/`Kleisli`, so each job's `start` is the previous job's `end`. Its `took` therefore
-  absorbs any invisible `untracked`/`pure` steps between jobs, and the per-job durations sum
-  exactly to `spent`. A `Left` short-circuits the remaining chain; `withFilter` turns a rejected
-  value into a `PostConditionUnsatisfied` `Left`.
+- **Sequential** uses `traverse`; **Parallel** uses `parTraverseN`. Both time the whole traversal as
+  `spent` and build the result from the collected `JobState` or `JobValue` list.
+- **Monadic** threads a `JobCursor` containing the next index and a carry-over start time through
+  `StateT` and `Kleisli`. A tracked job starts from the previous cursor time, so untracked work
+  between jobs is included in the next tracked job's `took`. The aggregate `spent` brackets the
+  whole chain and can also include setup or finalization outside those per-job durations. A `Left`
+  short-circuits the remaining chain; `withFilter` turns a rejected value into a
+  `PostConditionUnsatisfied` `Left`.
 
-## Result types
+### Result types
 
 ```mermaid
 classDiagram
-    class BatchResult~A~ {
+    class BatchResult {
         <<sealed>>
         scope: MetricScope
         spent: Duration
         mode: BatchMode
         batchId: BatchId
-        outcomes: List[JobState[A]]
+        outcomes: List[JobState[S]]
+        result: R
         allSucceeded: Boolean
     }
     BatchResult <|-- QuasiBatch
@@ -149,35 +270,41 @@ classDiagram
 
     class QuasiBatch~A~ {
         outcomes: List[JobState[A]]
-        allSucceeded = outcomes.forall(_.succeeded)
+        result: Unit
     }
     class ValueBatch~A~ {
         outcomes: List[JobState[A]]
-        allSucceeded = true
+        result: List[A]
     }
     class MonadicBatch~A~ {
         outcomes: List[JobState[Json]]
         result: Either[Throwable, A]
-        allSucceeded = outcomes.forall(_.succeeded)
     }
 ```
 
-- `allSucceeded` — did every job satisfy its post-condition and produce a successful result? Quasi and Value batches always run to
-  completion; a Monadic batch completes only when its chain is not short-circuited (`result.isRight`),
-  and `allSucceeded` can be `false` for a completed quasi/monadic batch that had some rejected jobs.
+`allSucceeded` checks only the recorded jobs:
 
-See `../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/data.scala` for the result and job types, and `internal.scala` for `ExecutionState`,
-`JobCursor`, and the log-entry classification.
+- A `QuasiBatch` records every job, so `allSucceeded` is `false` when any recorded outcome failed or
+  missed its post-condition.
+- A `ValueBatch` is returned only after every job succeeds, so its value is always `true`.
+- A `MonadicBatch` records only named jobs that ran before the chain finished or short-circuited.
+  Inspect `result` to determine whether the chain produced its final value. An untracked failure can
+  make `result` a `Left` without adding a failed job, leaving `allSucceeded` as `true`.
 
-## Report JSON and the produced-value privacy rule
+See [`data.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/data.scala) for the
+public result and job types, [`ExecutionState.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/ExecutionState.scala)
+for monadic execution state, and [`JobLog.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/batch/JobLog.scala)
+for outcome classification and report rendering.
+
+### Report JSON and produced-value privacy
 
 Each completed job is classified by `toLogEntry` into a `JobLog` case (`Succeeded`, `Unsatisfied`,
-`Nonfatal`, `Critical`) carrying the log level. A `JobLog[A]` has two renderings, and the split is
-the core privacy decision:
+`Nonfatal`, or `Critical`) carrying the log level. `BatchMetered` automatically emits the
+`standalone` rendering after each job; explicit batch-result serialization uses `inBatch`. The two
+renderings enforce the produced-value privacy boundary:
 
-- `standalone` — the rendering the framework emits **automatically** after each job (via
-  `logCompleted`). It shows only lifecycle facts: the job identity, `took`, and the outcome tag.
-  It omits both the produced value and exception message; failures are carried as the log entry's cause.
+- `standalone` shows only lifecycle facts: the job identity, `took`, and the outcome tag. It omits
+  both the produced value and exception message; failures are carried as the log entry's cause.
 - `inBatch` — the rendering nested under a `BatchResult` when the user **explicitly** serializes
   the returned result. Successful values and abbreviated exception messages are stored under the
   corresponding outcome tag (`succeeded`, `unsatisfied`, `nonfatal`, or `critical`), with `took` as a
@@ -196,24 +323,28 @@ serializing the result. This is enforced by types, not convention:
   `Encoder[A]`) is uncallable for them and `toLogEntry` cannot classify a job into them. The
   "kickoff/cancel never reach a batch-nested render" invariant is a compile-time guarantee.
 
-Keys in the serialized report JSON:
+Keys in serialized batch results:
 
 | Key | Meaning |
 | --- | --- |
-| `job-<index>` | the job's configured name, keyed by its 1-based index |
-| `succeeded` / `unsatisfied` / `nonfatal` / `critical` | per-job outcome tag; in `standalone` its value is job metadata, while in `inBatch` it is the produced value or abbreviated exception message |
+| `Sequential Quasi Batch`, `Parallel-<n> Value Batch`, or `Monadic Batch` | dynamic batch-mode key whose value is the batch label |
+| `id` | batch identifier |
+| `spent` | total batch duration |
+| `failed` | number of unsuccessful jobs; present only on `QuasiBatch` |
+| `jobs` | array of per-job outcome objects |
+| `job-<index>` | configured name of a job, keyed by its 1-based index inside a `jobs` entry |
+| `succeeded`, `unsatisfied`, `nonfatal`, or `critical` | produced value or abbreviated exception message in a serialized result; lifecycle-only metadata in an automatically emitted standalone log |
 | `took` | per-job duration |
-| `result` | successful aggregate value of a `MonadicBatch`; omitted when its chain fails |
-| `passed` / `failed` | `QuasiBatch` integer counts of jobs by outcome |
-| `spent`, `id` | batch-level total duration and identifier |
+| `traceparent` | W3C trace context; present only for traced jobs |
+| `result` | final value of a successful `MonadicBatch`; omitted when the chain fails |
 
-The batch label is keyed by mode and kind (for example `"Sequential Quasi Batch"`,
-`"Parallel-4 Value Batch"`, `"Monadic Batch"`). A monadic batch shows its final result under `result`
-only on success; a failure is omitted from the report body and remains available as the log entry's
-throwable cause. Its per-job outcomes are `JobState[Json]`: `renderOutcome` or `render` can include a
-JSON payload, while untranslated jobs retain `Json.Null` under their outcome tag.
+The exact dynamic batch key includes its mode and, for independent jobs, its kind. A monadic batch
+serializes its final value under `result` only on success. On failure, the throwable remains
+available as the log entry's cause rather than appearing in the report body. Monadic per-job
+outcomes are `JobState[Json]`: `renderOutcome` or `render` can supply a JSON payload, while
+unrendered jobs retain `Json.Null` under their outcome tag.
 
-# Watchdog
+## Watchdog
 
 The watchdog is the supervisor that keeps a service running. It runs the user's service effect,
 and when that effect fails it decides — using the configured restart policy — whether to wait and
@@ -221,10 +352,39 @@ restart, or to give up and stop. It also emits the service lifecycle events (`Se
 `ServicePanic`, `ServiceStop`) that observers see.
 
 `watchdog(theService, handler)` returns a `Stream[F, Nothing]` that `ServiceGuard` runs
-`concurrently` with the main event channel, alongside periodic metric reporting and the HTTP
-server. `theService` is the deferred agent work; `handler` publishes lifecycle events.
+`concurrently` with the main event channel, periodic metric reporting, and the HTTP server.
+`theService` is the deferred agent work; `handler` publishes lifecycle events.
 
-## Supervision loop
+### Configuring restart supervision
+
+The default restart policy is empty, so the first service failure stops the service. Configure
+restarts through `ServiceGuard.updateConfig` before starting the event stream:
+
+```scala
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+
+import scala.concurrent.duration.*
+
+def supervised(worker: IO[Unit]): IO[Unit] =
+  TaskGuard[IO]("billing")
+    .service("invoice-worker")
+    .updateConfig(
+      _.withRestartPolicy(
+        1.minute,
+        _.fixedDelay(5.seconds).repeat.limited(5)
+      )
+    )
+    .eventStream(_ => worker)
+    .compile
+    .drain
+```
+
+This policy waits five seconds between restart attempts. If the service runs continuously for
+strictly longer than one minute before failing, the watchdog resets the policy to its initial
+position before requesting the next restart tick.
+
+### Supervision loop
 
 The loop is an `unfoldEval` over a `PolicyTick` (the restart policy's current position). Each
 iteration starts the service, then branches on how the service effect finished.
@@ -250,7 +410,7 @@ flowchart TD
   channel is not already closed (the check is best-effort and relies on idempotent channel close).
 - **error**: control passes to `panic`, which decides restart vs give-up.
 
-## Panic: restart or give up
+### Panic: restart or give up
 
 `panic` is where the restart policy is consulted. Two things happen: an optional policy reset
 based on the success threshold, then a step of the policy to get the next delay.
@@ -279,7 +439,7 @@ flowchart TD
   tick; the watchdog emits `ServicePanic`, sleeps for that tick's `snooze` delay, then loops to
   restart the service.
 
-## Events emitted
+### Events emitted
 
 | Situation | Event |
 | --- | --- |
@@ -289,6 +449,7 @@ flowchart TD
 | policy exhausted after failure | `ServiceStop(ByException)` |
 | cancellation | `ServiceStop(ByCancellation)` |
 
-See `../src/main/scala/com/github/chenharryhua/nanjin/guard/service/watchdog.scala` for the loop,
-`RestartPolicy` in `config/ServiceParams.scala` for the policy/threshold pair, and `PolicyTick` in
-`common/chrono` for tick stepping and `snooze`.
+See [`watchdog.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/watchdog.scala)
+for the loop, [`ServiceParams.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceParams.scala)
+for `RestartPolicy`, and [`PolicyTick.scala`](../../common/src/main/scala/com/github/chenharryhua/nanjin/common/chrono/PolicyTick.scala)
+for policy stepping and `snooze`.
