@@ -382,7 +382,8 @@ consuming before a longer input stream finishes.
 
 ### Rotation guarantees and edge cases
 
-- Only one writer is open at a time. Opening the next file finalizes the previous writer first.
+- During rotation, the next writer is acquired before the previous writer is released, so two writers
+  can briefly be open. The previous writer is released before its rotation result is emitted.
 - The final partially filled file is finalized and emitted when input completes.
 - `RotateFile.recordCount` values sum to the number of consumed input elements.
 - Size- and policy-based sinks for bytes, JSON, CSV, text, and Protobuf create and report one
