@@ -42,6 +42,7 @@ Add the module:
 
 ```scala
 libraryDependencies += "com.github.chenharryhua" %% "nj-pipes" % "<version>"
+libraryDependencies += "com.sksamuel.avro4s" %% "avro4s-core" % "5.0.15" // Used by the examples below
 ```
 
 The module includes Hadoop client APIs. Access to S3A, HDFS, or another filesystem still requires the
