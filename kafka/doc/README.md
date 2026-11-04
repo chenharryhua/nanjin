@@ -309,7 +309,12 @@ pending commit executes.
 | `assign(Map(partition -> offset))` | Manual assignment and explicit seek | Uses configured auto-commit; forces `AutoOffsetReset.None` | Unbounded |
 | `assign(Instant)` | Manual assignment at the first offset at or after a timestamp | Uses configured consumer settings | Unbounded |
 | `manualCommitStream` | Consumer-group subscription with one stream per partition | Auto-commit disabled; exposes `commitSync` and `commitAsync` | Unbounded |
-| `circumscribedStream` | Manual assignment to resolved offset ranges | Auto-commit disabled | Completes at each range's exclusive end |
+| `circumscribedStream` | Manual assignment to resolved offset ranges | Auto-commit disabled | Record-driven stop; see the boundary caveat below |
+
+Each partition stream stops after emitting the first record whose offset is at least `until - 1`.
+If that terminal offset is missing (for example, after compaction), it can emit a record outside
+`[from, until)` or remain open waiting for a later record. Completion is not guaranteed solely by
+reaching the broker's end offset.
 
 An empty explicit map passed to `assign(Map.empty)` raises `EmptyTopicPartitionMap`. An empty range
 passed to `circumscribedStream` produces no bounded stream. Time assignment seeks a partition to its
