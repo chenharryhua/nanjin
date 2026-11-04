@@ -81,8 +81,10 @@ val kafka: KafkaContext[IO] = settings.context[IO]
 ```
 
 `withBrokers`, `withSaslJaas`, and `withSecurityProtocol` update the consumer, producer, admin, and
-Streams settings together. Schema Registry settings remain separate. Configure any additional SASL,
-TLS, and Schema Registry authentication properties required by the deployment.
+Streams settings together. Schema Registry settings remain separate. Configure any additional Kafka
+SASL and TLS properties required by the deployment. The context's cached Schema Registry client is
+currently constructed without authentication or TLS properties from `serdeSettings`; setting those
+properties does not configure that client's connection to a secured registry.
 
 ### Configuration scope
 
