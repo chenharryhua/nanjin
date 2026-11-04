@@ -46,8 +46,9 @@ business clients.
 ## Authentication
 
 Authentication functions live in `com.github.chenharryhua.nanjin.http.client.auth`. Each function
-returns a `Login[F]`. Calling `login` eagerly obtains the initial token and returns a resource-scoped
-client that attaches that token to outgoing requests.
+returns a `Login[F]`. Calling `login` constructs a `Resource`; acquiring that resource, for example
+with `use`, obtains the initial token and provides a resource-scoped client that attaches the token to
+outgoing requests.
 
 Use separate authentication and business clients when their middleware differs. In particular, the
 authentication client must not log form bodies that contain secrets.
@@ -227,13 +228,14 @@ side effects.
 
 One authenticated client owns one token state and one renewal mutex. Every successful replacement
 increments a generation number. A scheduled renewal and one or more concurrent `401` responses may
-race, but only the first replacement for the current generation performs a token exchange. Later
-contenders observe the newer generation and reuse its token instead of overwriting it.
+race. When a replacement succeeds for the current generation, later contenders observe the newer
+generation and reuse its token. If an exchange fails or is canceled, the generation is unchanged and
+another waiting contender may attempt an exchange for that generation.
 
-When many requests reject the same token concurrently, they share one replacement. A request that
-received a stale `401` after another request already renewed also reuses the current token. Acquire
-one login resource and share its client to preserve this coordination; separate acquisitions create
-separate token caches and renewal fibers.
+When many requests reject the same token concurrently, they share a successful replacement, but failed
+or canceled exchanges are not coalesced. A request that received a stale `401` after another request
+already renewed also reuses the current token. Acquire one login resource and share its client to
+preserve this coordination; separate acquisitions create separate token caches and renewal fibers.
 
 ## Middleware
 
@@ -317,8 +319,8 @@ authentication client when the token server and grant semantics permit it.
 
 ### Cookie management
 
-`cookieBox` reads matching cookies before each request and stores every `Set-Cookie` header after a
-response arrives:
+`cookieBox` reads cookies returned by the cookie store for each request URI before each request and
+stores every `Set-Cookie` header after a response arrives:
 
 ```scala
 import com.github.chenharryhua.nanjin.http.client.middleware.cookieBox
@@ -331,9 +333,12 @@ val cookieClient: Resource[IO, Client[IO]] =
   businessClient.map(cookieBox[IO](cookieManager))
 ```
 
-Reuse the same `CookieManager` for requests that belong to one cookie session. Its store isolates
-cookies by URI and supports multiple cookies. The Java default in-memory cookie manager is safe for
-concurrent fibers, though heavy contention still serializes access internally.
+Reuse the same `CookieManager` for requests that belong to one cookie session. Its store associates
+cookies with URIs and supports multiple cookies, but `cookieBox` calls `CookieStore.get` directly
+without enforcing cookie path restrictions. A cookie set for a narrower path may therefore also be
+sent to other paths on the same host; do not rely on cookie paths for isolation. The Java default
+in-memory cookie manager is safe for concurrent fibers, though heavy contention still serializes
+access internally.
 
 `cookieBox` suspends store reads and writes in `F` and preserves the wrapped client's response
 finalizers. The caller owns the `CookieManager` and decides when to clear or replace its store.
