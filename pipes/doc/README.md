@@ -133,9 +133,9 @@ val root = Url.parse("./data/events")
 val path = root / "plain.txt"
 ```
 
-Relative paths use the configured local filesystem. HDFS and object-store URLs are resolved through
-Hadoop. An `s3://` URL is normalized to `s3a://`; ensure the S3A implementation and credentials are
-available.
+Relative paths use Hadoop's configured default filesystem (`fs.defaultFS`) and its working directory;
+they are not necessarily local. Use an explicit `file:///...` URL to select the local filesystem.
+An `s3://` URL is normalized to `s3a://`; ensure the S3A implementation and credentials are available.
 
 ### Filesystem operations
 
