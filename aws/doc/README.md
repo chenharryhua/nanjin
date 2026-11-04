@@ -310,7 +310,8 @@ files.foreach(file => println(s"${file.path.url} (${file.size} bytes)"))
 
 The parser reads `Records[*].s3.bucket.name`, `Records[*].s3.object.key`, and
 `Records[*].s3.object.size`. Object keys are URL-decoded as UTF-8. Invalid JSON, non-S3 messages,
-missing fields, and malformed individual records are ignored, so the result can be empty.
+missing fields, and records with invalid field types are ignored, so the result can be empty.
+Malformed percent escapes in object keys throw `IllegalArgumentException` instead of being ignored.
 
 The parser expects the S3 event JSON directly in the SQS body. It does not unwrap an SNS notification
 envelope whose `Message` field contains the S3 event.
