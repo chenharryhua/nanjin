@@ -1,15 +1,24 @@
 # Guard execution guide
 
-The Guard module runs application effects as supervised services. This guide covers two parts of
+The Guard module runs application effects as supervised services. This guide covers four parts of
 that runtime:
 
+- **Configuration** defines inherited task defaults and service-specific runtime settings.
 - **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
   progress metrics, lifecycle logs, or OpenTelemetry spans.
+- **Metrics** registers scoped instruments, publishes snapshots, and optionally mirrors numeric
+  measurements to OpenTelemetry.
 - **Watchdog supervision** runs the service effect, applies its restart policy after failures, and
   emits service lifecycle events.
 
 ## Contents
 
+- [Configuration](#configuration)
+  - [Task defaults and service overrides](#task-defaults-and-service-overrides)
+  - [Complete configuration example](#complete-configuration-example)
+  - [Configuration reference](#configuration-reference)
+  - [Defaults and boundaries](#defaults-and-boundaries)
+  - [Resource-backed providers](#resource-backed-providers)
 - [Batch execution](#batch-execution)
   - [Choosing a façade](#choosing-a-façade)
   - [Usage examples](#usage-examples)
@@ -19,11 +28,150 @@ that runtime:
   - [Execution details](#execution-details)
   - [Result types](#result-types)
   - [Report JSON and produced-value privacy](#report-json-and-produced-value-privacy)
+- [Metrics](#metrics)
+  - [Choosing a metrics façade](#choosing-a-metrics-façade)
+  - [Resource-based example](#resource-based-example)
+  - [Stream-based example](#stream-based-example)
+  - [Instrument reference](#instrument-reference)
+  - [Lifecycle and identity](#lifecycle-and-identity)
+  - [Snapshots and reporting](#snapshots-and-reporting)
+  - [OpenTelemetry export and attributes](#opentelemetry-export-and-attributes)
 - [Watchdog](#watchdog)
   - [Configuring restart supervision](#configuring-restart-supervision)
   - [Supervision loop](#supervision-loop)
   - [Panic: restart or give up](#panic-restart-or-give-up)
   - [Events emitted](#events-emitted)
+
+## Configuration
+
+`TaskGuard` and `ServiceGuard` both expose `updateConfig`, which applies an immutable transformation
+to `ServiceConfig`. Configure shared task defaults before creating services, then override only the
+settings that differ for an individual service.
+
+### Task defaults and service overrides
+
+```mermaid
+flowchart LR
+    T["TaskGuard configuration"] --> A["service A inherits defaults"]
+    T --> B["service B inherits defaults"]
+    B --> O["ServiceGuard override"]
+```
+
+`TaskGuard.updateConfig` returns a new task guard. Services created from that value inherit its
+configuration. `ServiceGuard.updateConfig` returns a new service guard with settings applied only to
+that service. Existing task or service values are unchanged, and a later call for the same setting
+replaces the earlier value. `addBrief` is the exception: repeated calls accumulate lifecycle
+metadata.
+
+### Complete configuration example
+
+This example establishes task-wide logging, reporting, identity, and history settings, then adds a
+restart policy and HTTP dashboard only to the invoice worker:
+
+```scala
+import cats.effect.IO
+import com.comcast.ip4s.port
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import io.circe.Json
+
+import java.time.ZoneId
+import scala.concurrent.duration.*
+
+val billing =
+  TaskGuard[IO]("billing")
+    .updateConfig(
+      _.withZoneId(ZoneId.of("UTC"))
+        .withReportPolicy(_.fixedDelay(30.seconds).repeat)
+        .withLog(_.Info, _.ConsoleJson)
+        .withReportedEventThreshold(_.Warn)
+        .withHomepage("https://status.example.com/billing")
+        .withHistoryCapacity(panics = 20, errors = 100, metrics = 60)
+        .addBrief(Json.obj("environment" -> Json.fromString("production")))
+    )
+
+val invoiceWorker =
+  billing
+    .service("invoice-worker")
+    .updateConfig(
+      _.withRestartPolicy(5.minutes, _.fixedDelay(10.seconds).repeat.limited(5))
+        .withHttpServer(_.withPort(port"8080"))
+        .withDashboard(120, _.fixedDelay(5.seconds).repeat)
+    )
+
+val runInvoiceWorker: IO[Unit] =
+  invoiceWorker
+    .eventStream(_ => IO.never)
+    .compile
+    .drain
+```
+
+`withLog(_.Info, _.ConsoleJson)` enables compact JSON output and writes `ReportedEvent`s at `Info`
+or above to that local sink. `withReportedEventThreshold(_.Warn)` independently publishes
+`ReportedEvent`s at `Warn` or above to the service event stream. Service lifecycle and metrics
+snapshot events are not filtered by those `ReportedEvent` thresholds.
+
+### Configuration reference
+
+| Method | Configures | Important behavior |
+| --- | --- | --- |
+| `withRestartPolicy(threshold, policy)` | Watchdog restart schedule | The policy resets after the service runs continuously for strictly longer than `threshold` |
+| `withReportPolicy(policy)` | Periodic metrics snapshots | A finite policy eventually stops reporting; use `repeat` for continuing reports |
+| `withLog(level, format)` | Local event-log sink and local `ReportedEvent` threshold | Formats include console text, compact or multiline JSON, verbose JSON, and SLF4J JSON |
+| `withReportedEventThreshold(level)` | `ReportedEvent` publication to the event channel | Independent of the local log threshold |
+| `withLogLocator(effect)` | Backend links attached to events | The effect is evaluated when the service event stream starts |
+| `withZoneId(zoneId)` | Scheduling and timestamp zone | Accepts a `ZoneId` or a builder over predefined `zones` |
+| `withHomepage(uri)` | Homepage in service identity | Parses the string immediately and throws for an invalid URI |
+| `addBrief(value)` | JSON metadata on service lifecycle events | Accepts an encoded value, by name or in `F`; metadata is absent from metrics snapshots and reported messages |
+| `withHttpServer(builder)` | Embedded Ember HTTP server | Enables service and dashboard routes and customizes the default server builder |
+| `withDashboard(maxPoints, policy)` | Live WebSocket metrics chart | Requires the HTTP server; the policy controls chart sampling |
+| `withHistoryCapacity(panics, errors, metrics)` | In-memory dashboard histories | Each argument controls an independent ring buffer |
+| `withMeterProvider(resource)` | OpenTelemetry metric provider | Enables OpenTelemetry metric recording in addition to Guard snapshots |
+| `withTracerProvider(resource)` | OpenTelemetry trace provider | Supplies the tracer used by `Agent` and `BatchTraced` |
+
+The available `LogFormat` cases are `ConsolePlainText`, `ConsoleJson`, `ConsoleJsonMultiLine`,
+`ConsoleJsonVerbose`, and `Slf4jJson`.
+
+### Defaults and boundaries
+
+| Setting | Default |
+| --- | --- |
+| Time zone | `ZoneId.systemDefault()` |
+| Restart policy | Empty; the first service failure stops with `ByException` |
+| Metrics report policy | Empty; no periodic snapshots |
+| Local log format | None; the local event-log sink is disabled |
+| Local and event-channel `ReportedEvent` thresholds | `Error` |
+| Log locator, homepage, and lifecycle brief | Absent |
+| HTTP server and dashboard | Disabled |
+| Panic, error, and metrics history | Disabled |
+| OpenTelemetry meter and tracer providers | No-op providers |
+
+When `withHttpServer` enables the server, Guard starts from Ember's default builder with host
+`0.0.0.0` and port `1026`, then applies the supplied transformation. Use an explicit host and port
+when those defaults are inappropriate.
+
+`withDashboard` does not enable the HTTP server by itself. A `maxPoints` value of one or less disables
+the live chart while leaving other HTTP routes available. Each `withHistoryCapacity` value of zero
+or less disables that individual history. At service start, `addBrief` values are encoded, JSON nulls
+are removed, and duplicate JSON values are collapsed.
+
+### Resource-backed providers
+
+`withMeterProvider` and `withTracerProvider` accept `Resource` values. Guard acquires both providers
+when the service event stream starts, keeps them alive across watchdog restart attempts, and releases
+them when the event stream terminates. Their acquisition failures fail service startup.
+
+The configured meter provider backs `MetricsHub`'s OpenTelemetry-capable instruments. The configured
+tracer provider supplies `agent.tracer`, `agent.tracerProvider`, and the parent and child spans opened
+by `agent.batchTraced`. The default no-op providers let metrics and tracing calls run without a
+configured exporter.
+
+See [`TaskGuard.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/TaskGuard.scala) and
+[`ServiceGuard.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/ServiceGuard.scala)
+for configuration inheritance and service startup,
+[`ServiceConfigF.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceConfigF.scala)
+for the public configuration API, and
+[`ServiceParams.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceParams.scala)
+for evaluated runtime settings and defaults.
 
 ## Batch execution
 
@@ -343,6 +491,184 @@ serializes its final value under `result` only on success. On failure, the throw
 available as the log entry's cause rather than appearing in the report body. Monadic per-job
 outcomes are `JobState[Json]`: `renderOutcome` or `render` can supply a JSON payload, while
 unrendered jobs retain `Json.Null` under their outcome tag.
+
+## Metrics
+
+The `metrics` package registers instruments under a service-owned `MetricScope`. Each scope combines
+the label supplied by the application with the current agent domain, service, and task. Instruments
+feed Guard's metric snapshots and can also write numeric measurements to OpenTelemetry.
+
+### Choosing a metrics façade
+
+The two façades expose the same instruments with different composition types:
+
+| Façade | Obtain with | Registration type | Use when |
+| --- | --- | --- | --- |
+| `MetricsHub[F]` | `agent.metricsHub(label)` | `Resource[F, A]` | Metrics are used inside an effect or combined with other resources |
+| `MetricsHubS[F]` | `agent.metricsHubS(label)` | `Stream[F, A]` | Metric registration belongs inside an fs2 stream |
+
+`agent.facilitate(label)(f)` applies `f` to a `MetricsHub`, while `facilitateS` does the same for a
+`MetricsHubS`. These helpers only remove the intermediate variable; they do not change registration,
+reporting, or resource lifetime.
+
+### Resource-based example
+
+Acquire all instruments before updating them, and keep the resource open for as long as snapshots
+should include them. This example updates three push instruments, exposes one pull-based gauge, and
+publishes a full snapshot before release:
+
+```scala
+import cats.effect.IO
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import squants.information.Bytes
+
+val metricsService = TaskGuard[IO]("example").service("metrics-worker")
+
+val runResourceMetrics: IO[Unit] =
+  metricsService
+    .eventStream { agent =>
+      agent.facilitate("orders") { hub =>
+        (
+          hub.counter(
+            "requests",
+            _.withDescription("Accepted requests")
+              .withAttributes("endpoint" -> "/orders")
+          ),
+          hub.histogram("payload-size", _.withUnit(Bytes)),
+          hub.timer("latency"),
+          hub.numericGauge("queue-depth", IO.pure(7L))
+        ).tupled.use { case (requests, payloadSize, latency, _) =>
+          requests.inc(1) >>
+            payloadSize.update(2048) >>
+            latency.timing(IO.unit) >>
+            agent.adhoc.report
+        }
+      }
+    }
+    .compile
+    .drain
+```
+
+`agent.adhoc.report` publishes an immediate `MetricsSnapshot`. After `use` completes, Guard
+removes the four Dropwizard registry entries and closes the `numericGauge` OpenTelemetry callback.
+The push-based OpenTelemetry instruments remain owned by the configured `MeterProvider`.
+
+### Stream-based example
+
+`MetricsHubS` wraps each metric resource in a stream. Registration begins when the stream runs and
+ends when that stream scope terminates:
+
+```scala
+import cats.effect.IO
+import fs2.Stream
+
+val records = Stream.emits(List("a", "b", "c")).covary[IO]
+
+val runStreamMetrics: IO[Unit] =
+  metricsService
+    .eventStreamS { agent =>
+      agent.facilitateS("ingest") { hub =>
+        hub
+          .counter("processed", _.withAttributes("source" -> "file"))
+          .flatMap { counter =>
+            records.evalTap(_ => counter.inc(1)).drain ++
+              Stream.eval(agent.adhoc.report)
+          }
+      }
+    }
+    .compile
+    .drain
+```
+
+### Instrument reference
+
+| Instrument | Represents | Update or registration | Backend |
+| --- | --- | --- | --- |
+| `counter` | Adjustable count, optionally reset by a policy | `inc(n)` | Dropwizard and OpenTelemetry `UpDownCounter` |
+| `meter` | Event count and moving rates | `mark(n)` | Dropwizard and OpenTelemetry monotonic `Counter` |
+| `histogram` | Distribution of observed integer values | `update(n)` | Dropwizard and OpenTelemetry `Histogram` |
+| `timer` | Call rate and duration distribution | `elapsed(duration)`, `elapsedNano(n)`, or `timing(effect)` | Dropwizard and OpenTelemetry duration `Histogram` |
+| `gauge` | Arbitrary effectful value with an `Encoder` | `register(effect)` | Dropwizard only |
+| `numericGauge` | Pull-based `Long` value | supply the effect when registering | Dropwizard and OpenTelemetry `ObservableGauge` |
+| `healthCheck` | Boolean health state; failures and timeouts become `false` | `register(effect)` | Dropwizard only |
+| `ratio` | Accumulated numerator and denominator rendered as JSON | `incNumerator`, `incDenominator`, or `incBoth` | Dropwizard only |
+| `idleGauge` | Time since the last activity | `wakeUp` resets the timer | Dropwizard only |
+| `activeGauge` | Time since acquisition while activity remains active | `deactivate` stops reporting a value | Dropwizard only |
+| `frequencyCounter` | Counts grouped by string tag | `inc(tag)` or `inc(tag, n)` | Dropwizard only |
+
+OpenTelemetry-capable builders support `enable`, descriptions, and type-specific settings. Meters and
+histograms accept Squants units; histograms and timers can customize their Dropwizard reservoirs and
+OpenTelemetry bucket boundaries. Timers record OpenTelemetry durations in seconds unless
+`withTimeUnit` selects another unit. `gauge` and `healthCheck` support timeouts and optional refresh
+policies. Disabled instruments register nothing, so updates have no reported effect.
+
+### Lifecycle and identity
+
+Every enabled acquisition mints a new `MetricToken` and therefore a distinct `MetricId`, even when
+two live instruments use the same name. Guard stores the encoded `MetricId` as the Dropwizard
+registry key, which keeps same-named acquisitions and category variants separate. Releasing the
+resource removes that exact registry entry.
+
+This differs from process-lifetime metric registries:
+
+- A metric appears in Guard snapshots only while its `Resource` or `Stream` scope is active.
+- Reacquiring the same name creates a new metric instance rather than recovering an old value.
+- Two same-named OpenTelemetry instruments can still aggregate into one series when their names and
+  attributes match, because OpenTelemetry does not use Guard's per-acquisition token.
+
+A counter's Dropwizard value can be reset by its configured policy, making it cumulative within the
+current reporting window. Its OpenTelemetry `UpDownCounter` is not reset; the OpenTelemetry backend
+owns cumulative or delta temporality.
+
+### Snapshots and reporting
+
+Guard turns the currently registered Dropwizard metrics into `MetricsSnapshot` events:
+
+| API | Behavior |
+| --- | --- |
+| `ServiceConfig.withReportPolicy` | Schedules full snapshots that are published to the service event channel, written to the log sink, and retained in configured history |
+| `agent.adhoc.report` | Immediately publishes one full snapshot through the same paths |
+| `agent.adhoc.snapshots(policy)` | Returns snapshots on a caller-owned stream; defaults to `ScrapeMode.Cheap` and does not publish them to the service event channel |
+| `agent.adhoc.meteredCounts(policy)` | Streams count deltas for meters and timers |
+
+`ScrapeMode.Cheap` reads counters, meters, histograms, and timers but skips gauges. `ScrapeMode.Full`
+also evaluates gauges and is used for configured periodic reports and `agent.adhoc.report`. Snapshot
+scraping omits zero-valued counters and gauges whose encoded value is `Json.Null`.
+
+The default report policy is empty, so no periodic snapshots are published until
+`withReportPolicy` is configured. On-demand reporting remains available through `agent.adhoc`.
+
+### OpenTelemetry export and attributes
+
+Every enabled instrument records in Guard's Dropwizard snapshot registry. When
+`ServiceConfig.withMeterProvider` supplies a real otel4s `MeterProvider`, `counter`, `meter`,
+`histogram`, `timer`, and `numericGauge` also record through OpenTelemetry. The default provider is a
+no-op.
+
+Every OpenTelemetry point includes these framework attributes:
+
+| Attribute | Source |
+| --- | --- |
+| `nj.label` | label passed to `metricsHub`, `metricsHubS`, `facilitate`, or `facilitateS` |
+| `nj.domain` | current `Agent` domain |
+| `nj.service` | service name |
+| `nj.task` | task name |
+
+The OpenTelemetry-capable builders accept additional string attributes through
+`withAttributes((key, value)*)`. These attributes are fixed for the life of the instrument and do
+not affect Dropwizard snapshots. Keep them low-cardinality. Caller attributes win conflicts with
+framework attributes, and the first value wins when a key is repeated.
+
+Arbitrary JSON gauges and derived gauges are Dropwizard-only because OpenTelemetry gauges require a
+numeric measurement type. Use `numericGauge` when a `Long` value must reach both backends.
+
+See [`MetricsHub.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/metrics/MetricsHub.scala)
+and [`MetricsHubS.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/metrics/MetricsHubS.scala)
+for registration APIs, [`MetricId.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/metrics/MetricId.scala)
+for scope and identity, [`AdhocReport.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/AdhocReport.scala)
+for on-demand reporting, and [`ScrapeMetrics.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/metrics/snapshot/ScrapeMetrics.scala)
+for snapshot interpretation.
 
 ## Watchdog
 
