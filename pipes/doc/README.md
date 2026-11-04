@@ -24,6 +24,14 @@ Kantan CSV, raw bytes, Circe JSON, Jackson `JsonNode`, text, and length-delimite
   - [Copy between formats](#copy-between-formats)
   - [Format reference](#format-reference)
   - [Chunking and lifecycle](#chunking-and-lifecycle)
+- [Format guides](#format-guides)
+  - [Parquet](#parquet)
+  - [Kantan CSV](#kantan-csv)
+  - [Circe JSON](#circe-json)
+  - [Jackson JsonNode](#jackson-jsonnode)
+  - [Text and raw bytes](#text-and-raw-bytes)
+  - [Protobuf](#protobuf)
+  - [Binary Avro and Avro JSON terminals](#binary-avro-and-avro-json-terminals)
 - [Compression and filenames](#compression-and-filenames)
   - [Compression matrix](#compression-matrix)
   - [Filename rules](#filename-rules)
@@ -258,6 +266,276 @@ Most writers flush after each input chunk. Parquet buffers internally and writes
 and its footer when the stream finalizes, so completing or canceling the resource lifecycle is
 required for a valid file.
 
+## Format guides
+
+The examples below build on the `hadoop`, `root`, `events`, `schema`, `toRecord`, and `fromRecord`
+values defined above. Every format except the `inputStream` convenience sink also has a corresponding
+size- and policy-rotation method.
+
+### Parquet
+
+Parquet uses Avro `GenericRecord` values. The writer derives its schema from the first record and
+accepts an `AvroParquetWriter.Builder` transformation. Compression must be configured on that
+builder; the filename does not configure the Parquet codec:
+
+```scala
+import com.github.chenharryhua.nanjin.terminals.ParquetFile
+
+val parquetFile = ParquetFile(_.Snappy)
+val parquetPath = root / parquetFile.fileName
+val parquetRecords = Stream.emits(events).covary[IO].map(toRecord.to)
+
+val writeParquet: IO[Long] =
+  parquetRecords
+    .through(
+      hadoop
+        .sink(parquetPath)
+        .parquet(_.withCompressionCodec(parquetFile.compression.codecName))
+    )
+    .compile
+    .fold(0L)(_ + _)
+
+val readParquet: IO[List[Event]] =
+  hadoop
+    .source(parquetPath)
+    .parquet(chunkSize = 128)
+    .map(fromRecord.from)
+    .compile
+    .toList
+```
+
+The two-argument source overload receives a configured `ParquetReader.Builder`, allowing projection,
+filters, and other Parquet reader options. The default writer uses Hadoop configuration, Avro's
+generic data model, overwrite mode, and no compression before applying the caller's transformation.
+
+Parquet buffers records and writes trailing row groups and the file footer during writer close. Run
+the sink to completion, or otherwise ensure its finalizer executes, before another process reads the
+file. An empty schema-derived stream creates no Parquet file.
+
+### Kantan CSV
+
+CSV values are `Seq[String]`. Start with `CsvConfiguration.rfc`, then configure separators, quoting,
+and headers. `CsvHeaderOf` derives an explicit header from a case class's field names:
+
+```scala
+import com.github.chenharryhua.nanjin.terminals.CsvHeaderOf
+import kantan.csv.CsvConfiguration
+
+val csvPath = root / "kantan.csv"
+val csvConfig =
+  CsvConfiguration.rfc
+    .withHeader(CsvHeaderOf[Event].header)
+
+val rows: List[Seq[String]] =
+  events.map(event => Seq(event.id.toString, event.message))
+
+val writeCsv: IO[Long] =
+  Stream
+    .emits(rows)
+    .covary[IO]
+    .through(hadoop.sink(csvPath).kantan(csvConfig))
+    .compile
+    .fold(0L)(_ + _)
+
+val readCsv: IO[List[Seq[String]]] =
+  hadoop
+    .source(csvPath)
+    .kantan(chunkSize = 128, csvConfiguration = csvConfig)
+    .compile
+    .toList
+```
+
+An explicit header is written once when the sink opens. A source configured with a header drops the
+first row and emits only data. `CsvHeaderOf[A].modify` can rename every derived field, for example
+`CsvHeaderOf[Event].modify(_.toUpperCase)`. The function overloads customize
+`CsvConfiguration.rfc`; the no-argument sink and one-argument source use it unchanged.
+
+The CSV writer uses UTF-8. The current reader constructs its `InputStreamReader` without an explicit
+charset and therefore uses the JVM default; configure the runtime default consistently when files
+contain non-ASCII data.
+
+### Circe JSON
+
+The Circe sink writes compact JSON followed by the platform line separator. The source uses jawn's
+streaming value parser, so it accepts complete top-level JSON values separated by whitespace; the
+input does not need to be one JSON array.
+
+```scala
+import com.github.chenharryhua.nanjin.terminals.CirceFile
+import io.circe.syntax.*
+
+val circePath = root / CirceFile(_.Gzip).fileName
+
+val writeCirce: IO[Long] =
+  Stream
+    .emits(events)
+    .covary[IO]
+    .map(_.asJson)
+    .through(hadoop.sink(circePath).circe)
+    .compile
+    .fold(0L)(_ + _)
+
+val readCirce: IO[List[Event]] =
+  hadoop
+    .source(circePath)
+    .circe(chunkSize = 128)
+    .evalMap(json => IO.fromEither(json.as[Event]))
+    .compile
+    .toList
+```
+
+The `.gz` suffix activates Hadoop Gzip compression for both writer and reader. Malformed JSON fails
+the stream. `Json.Null` is a normal JSON value and is not discarded.
+
+### Jackson JsonNode
+
+The caller supplies the Jackson `ObjectWriter` and `ObjectReader`. The sink writes one UTF-8 JSON
+document followed by `\n`; the source reads UTF-8 lines, skips empty lines, and parses each remaining
+line:
+
+```scala
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
+val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
+val objectWriter = mapper.writer()
+val objectReader = mapper.reader()
+val jsonNodePath = root / "jackson.json"
+val nodes: List[JsonNode] = events.map(mapper.valueToTree[JsonNode])
+
+val writeJsonNodes: IO[Long] =
+  Stream
+    .emits(nodes)
+    .covary[IO]
+    .through(hadoop.sink(jsonNodePath).jsonNode(objectWriter))
+    .compile
+    .fold(0L)(_ + _)
+
+val readJsonNodes: IO[List[JsonNode]] =
+  hadoop
+    .source(jsonNodePath)
+    .jsonNode(chunkSize = 128, objectReader = objectReader)
+    .compile
+    .toList
+```
+
+`jsonNode` is distinct from the `jackson` terminal: `jsonNode` handles ordinary Jackson trees,
+whereas `jackson` handles schema-shaped Avro JSON `GenericRecord`s.
+
+### Text and raw bytes
+
+Text elements are UTF-8 lines. The writer appends the platform line separator to every element, and
+the reader removes line terminators:
+
+```scala
+val textPath = root / "plain.txt"
+
+val writeText =
+  Stream
+    .emits(List("first", "second"))
+    .covary[IO]
+    .through(hadoop.sink(textPath).text)
+    .compile
+    .fold(0L)(_ + _)
+
+val readText = hadoop.source(textPath).text(chunkSize = 128).compile.toList
+```
+
+Raw-byte reads take a Squants buffer size. Every emitted chunk has that size except the final partial
+chunk:
+
+```scala
+import squants.information.InformationConversions.InformationConversions
+
+val sourceBytes = root / "source.bin"
+val targetBytes = root / "target.bin"
+
+val copyBytes: IO[Long] =
+  hadoop
+    .source(sourceBytes)
+    .bytes(64.kb)
+    .through(hadoop.sink(targetBytes).bytes)
+    .compile
+    .fold(0L)(_ + _)
+```
+
+The buffer must contain at least one byte. `FileSink.inputStream(bufferSize)` accepts a stream of Java
+`InputStream`s, reads each with the supplied buffer, and closes each input after consumption. The
+emitted sink counts represent bytes written per upstream chunk.
+
+### Protobuf
+
+The Protobuf terminal writes ScalaPB messages with `writeDelimitedTo`. Each message has a length
+prefix, allowing the source to recover message boundaries with its generated companion:
+
+```scala
+import io.lemonlabs.uri.Url
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+
+def writeProtobuf[A <: GeneratedMessage](
+  path: Url,
+  input: Stream[IO, A]
+): IO[Unit] =
+  input
+    .map(message => message: GeneratedMessage)
+    .through(hadoop.sink(path).protobuf)
+    .compile
+    .drain
+
+def readProtobuf[A <: GeneratedMessage: GeneratedMessageCompanion](
+  path: Url
+): IO[List[A]] =
+  hadoop.source(path).protobuf[A](chunkSize = 128).compile.toList
+```
+
+Keep each serialized message below 2 GiB. A file should contain one message type matching the
+companion selected by the reader. Compression is detected from filename extensions such as `.gz` or
+`.snappy`.
+
+### Binary Avro and Avro JSON terminals
+
+The terminal `binAvro` and `jackson` methods write headerless sequences of `GenericRecord`s. Both
+readers need the writer schema, and optionally a different compatible reader schema:
+
+```scala
+import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, JacksonFile}
+
+val binaryPath = root / BinAvroFile(_.Gzip).fileName
+val avroJsonPath = root / JacksonFile(_.Gzip).fileName
+val genericRecords = Stream.emits(events).covary[IO].map(toRecord.to)
+
+val writeBinary =
+  genericRecords
+    .through(hadoop.sink(binaryPath).binAvro)
+    .compile
+    .drain
+
+val readBinary =
+  hadoop
+    .source(binaryPath)
+    .binAvro(chunkSize = 128, writerSchema = schema, readerSchema = schema)
+    .compile
+    .toList
+
+val writeAvroJson =
+  genericRecords
+    .through(hadoop.sink(avroJsonPath).jackson)
+    .compile
+    .drain
+
+val readAvroJson =
+  hadoop
+    .source(avroJsonPath)
+    .jackson(chunkSize = 128, writerSchema = schema, readerSchema = schema)
+    .compile
+    .toList
+```
+
+Binary Avro uses Avro's compact binary encoding. The `jackson` terminal uses Avro's JSON encoding,
+including Avro's schema-dependent representation for unions and named types; it is not generic
+newline-delimited application JSON. Their compressed path suffixes are interpreted by Hadoop's codec
+factory.
+
 ## Compression and filenames
 
 ### Compression matrix
@@ -448,8 +726,9 @@ planned:
 - Derived `FileKind` JSON uses the subtype names `AvroFile`, `CirceFile`, `BinAvroFile`,
   `JacksonFile`, `KantanFile`, `ParquetFile`, `ProtobufFile`, and `TextFile`.
 - Filenames and partition directory components follow the rules above.
-- Circe and text terminals use UTF-8. Jackson `JsonNode` output is UTF-8 JSON. The CSV writer uses
-  UTF-8, while its reader uses the JVM default charset. The in-memory Avro JSON pipe uses ISO-8859-1.
+- Circe and text terminals use UTF-8. Jackson `JsonNode` output and Avro JSON data bytes are UTF-8.
+  The CSV writer uses UTF-8, while its reader uses the JVM default charset. The in-memory Avro JSON
+  pipe encodes only its line separator as ISO-8859-1; newline bytes are identical in both charsets.
 - Protobuf files use length-delimited message framing.
 - Raw binary Avro and Avro JSON require the writer schema out of band; Avro object-container and
   Parquet files carry schema metadata.
