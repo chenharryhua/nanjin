@@ -376,7 +376,7 @@ Other operations:
 | --- | --- |
 | `headObject` | Reads metadata without downloading the object |
 | `copyObject` | Server-side copy described by the AWS request |
-| `deleteObject` | Permanently deletes an object version selected by the request |
+| `deleteObject` | Deletes according to bucket versioning: without `versionId`, creates a delete marker in versioning-enabled buckets; with `versionId`, permanently deletes that version |
 | `renameObject` | Uses the S3 rename API for S3 Express One Zone directory buckets |
 | `presignGetObject` | Creates a signed GET request locally |
 
