@@ -69,9 +69,10 @@ class ConnectorIntegrationTest extends CatsEffectSuite {
       _ <- recreate_topic(TYPED_TOPIC.topicName.value)
       _ <- recreate_topic(GENERIC_TOPIC.value)
       _ <- ctx.schemaRegistry(GENERIC_TOPIC.value).delete
+      // the generic producer now reads the write schema from the registry, so register it first
       _ <- ctx
         .schemaRegistry(GENERIC_TOPIC.value)
-        .register(key = Some(AvroSchema(INT_SCHEMA)), value = Some(AvroSchema(INT_SCHEMA)))
+        .register(key = Some(GENERIC_PAIR.key), value = Some(GENERIC_PAIR.value))
       _ <- ctx.produce(TYPED_TOPIC).produce(
         List(Integer.valueOf(0) -> "seed-0", Integer.valueOf(1) -> "seed-1", Integer.valueOf(2) -> "seed-2"))
       _ <- ctx

@@ -39,8 +39,13 @@ class PushGenericRecordTest extends FunSuite {
     record
   }
 
-  private def pull(key_schema: Schema, value_schema: Schema): PullGenericRecord =
-    new PullGenericRecord(AvroSchemaPair(new AvroSchema(key_schema), new AvroSchema(value_schema)))
+  private def pull(
+    client: MockSchemaRegistryClient,
+    key_schema: Schema,
+    value_schema: Schema): PullGenericRecord =
+    new PullGenericRecord(
+      AvroSchemaPair(new AvroSchema(key_schema), new AvroSchema(value_schema)),
+      client)
 
   /** Round-trip a single key value through `PushGenericRecord` then `PullGenericRecord`, returning the
     * decoded `key` field. Confluent-framed bytes require a shared registry client across both sides.
@@ -48,7 +53,7 @@ class PushGenericRecordTest extends FunSuite {
   private def roundTripKey(client: MockSchemaRegistryClient, key_schema: Schema, key: AnyRef): Any = {
     val produced = push(client)
       .fromGenericRecord(wrapper(key_schema, key_schema, key, key))
-    pull(key_schema, key_schema)
+    pull(client, key_schema, key_schema)
       .toGenericRecord(fs2.kafka.ConsumerRecord(TOPIC.value, 0, 0L, produced.key, produced.value))
       .toOption
       .get
@@ -65,7 +70,7 @@ class PushGenericRecordTest extends FunSuite {
     assertEquals(produced.key.head, 0.toByte)
     assertEquals(produced.value.head, 0.toByte)
 
-    val decoded = pull(STRING_SCHEMA, INT_SCHEMA)
+    val decoded = pull(client, STRING_SCHEMA, INT_SCHEMA)
       .toGenericRecord(fs2.kafka.ConsumerRecord(TOPIC.value, 0, 0L, produced.key, produced.value))
       .toOption
       .get
