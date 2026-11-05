@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -33,6 +34,7 @@ import java.time.Instant
 final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
   topicName: TopicName,
   fromSchemaRegistry: F[OptionalAvroSchemaPair],
+  srClient: SchemaRegistryClient,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
 ) extends ConsumerService[F, Unit, Either[PullError, Record]]
     with UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeGenericRecord[F]]
@@ -45,7 +47,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
 
   /** Return a copy with the underlying byte consumer settings transformed by `f`. */
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](topicName, fromSchemaRegistry, f(consumerSettings))
+    new ConsumeGenericRecord[F](topicName, fromSchemaRegistry, srClient, f(consumerSettings))
 
   /** The effective Avro read schema for decoded records, fetched from the schema registry. */
   lazy val schema: F[Schema] =
@@ -63,7 +65,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
     : Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
       val schema = broker.toSchemaPair
-      val pull: PullGenericRecord = new PullGenericRecord(schema)
+      val pull: PullGenericRecord = new PullGenericRecord(schema, srClient)
       kc.partitionsMapStream.map {
         _.map { case (tp, stream) =>
           tp -> stream.mapChunks(_.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record))))
@@ -122,7 +124,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
   override lazy val manualCommitStream: Stream[F, ManualCommitStream[F, Unit, Either[PullError, Record]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
       val schema = broker.toSchemaPair
-      val pull: PullGenericRecord = new PullGenericRecord(schema)
+      val pull: PullGenericRecord = new PullGenericRecord(schema, srClient)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -159,7 +161,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
         if isAssigned
         then
           Stream.eval(fromSchemaRegistry).map(_.toSchemaPair).flatMap { schema =>
-            val pull = new PullGenericRecord(schema)
+            val pull = new PullGenericRecord(schema, srClient)
             topicUtils.circumscribed_generic_record_stream(kc, ranges, pull)
           }
         else Stream.empty

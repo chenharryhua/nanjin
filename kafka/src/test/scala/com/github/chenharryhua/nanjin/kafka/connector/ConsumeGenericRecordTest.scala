@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName}
 import com.github.chenharryhua.nanjin.kafka.TopicSchemaAbsent
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
+import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
 import org.apache.avro.Schema
 import munit.CatsEffectSuite
 
@@ -24,6 +25,7 @@ class ConsumeGenericRecordTest extends CatsEffectSuite {
     new ConsumeGenericRecord[IO](
       topicName = topic,
       fromSchemaRegistry = IO.pure(broker),
+      srClient = new MockSchemaRegistryClient,
       consumerSettings = baseSettings)
 
   private val bothSides: OptionalAvroSchemaPair =
