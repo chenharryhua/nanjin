@@ -271,7 +271,6 @@ object KafkaContext {
       ConsumeGenericRecord[F](
         topicName = tn,
         fromSchemaRegistry = schemaRegistry(topicName).fetchOptionalAvroSchema,
-        srClient = schema_registry_internal,
         ConsumerSettings[F, Array[Byte], Array[Byte]](
           Deserializer[F, Array[Byte]],
           Deserializer[F, Array[Byte]])
