@@ -11,11 +11,13 @@ import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import munit.CatsEffectSuite
 
+import java.util.UUID
 import scala.concurrent.duration.*
 
 object Fs2ChannelTestData {
@@ -259,18 +261,25 @@ class Fs2ChannelTest extends CatsEffectSuite {
   }
 
   test("14.generic record decoded via the schema registry") {
-    ctx
-      .consumeGenericRecord(avroTopic.topicName.value)
-      .subscribe
-      .take(1)
-      .map(_.record)
-      .timeout(3.seconds)
-      .compile
-      .toList
-      .map { ret =>
-        assert(ret.size == 1)
-        assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
-      }
+    val topic = s"${avroTopic.topicName.value}.generic-${UUID.randomUUID()}"
+    val keySchema = AvroSchema(Schema.create(Schema.Type.INT))
+    val valueSchema = AvroSchema(SchemaFor[Fs2Kafka].schema)
+
+    for {
+      _ <- ctx.schemaRegistry(topic).register(key = Some(keySchema), value = Some(valueSchema))
+      _ <- ctx.produceGenericRecord(topic).jackson(json)
+      ret <- ctx
+        .consumeGenericRecord(topic)
+        .subscribe
+        .take(1)
+        .map(_.record)
+        .timeout(3.seconds)
+        .compile
+        .toList
+    } yield {
+      assert(ret.size == 1)
+      assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
+    }
   }
 
   test("15.attempt consume") {
