@@ -19,12 +19,11 @@ import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.serdes.{Registered, Unregistered}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import fs2.kafka.*
-import io.confluent.kafka.schemaregistry.avro.{AvroSchema, AvroSchemaProvider}
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaRegistryClient}
 import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.apache.avro.Schema
 import org.apache.kafka.streams.StreamsBuilder
 
 import scala.jdk.CollectionConverters.given
@@ -117,13 +116,8 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     *
     * @param topicName
     *   the topic to consume
-    * @param key
-    *   optional key reader schema; when absent the registry schema is used
-    * @param value
-    *   optional value reader schema; when absent the registry schema is used
     */
-  def consumeGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
-    F: Async[F]): ConsumeGenericRecord[F]
+  def consumeGenericRecord(topicName: String)(using F: Async[F]): ConsumeGenericRecord[F]
 
   /** Create a typed producer for a topic, serializing keys and values via its registered Serdes.
     *
@@ -150,14 +144,8 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     *
     * @param topicName
     *   the topic to produce to
-    * @param key
-    *   optional key schema override
-    * @param value
-    *   optional value schema override
     */
-  def produceGenericRecord(topicName: String, key: Option[Schema] = None, value: Option[Schema] = None)(using
-    F: Async[F],
-    ev: Parallel[F]): ProduceGenericRecord[F]
+  def produceGenericRecord(topicName: String)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F]
 
   /** Build a Kafka Streams topology under the given application id.
     *
@@ -278,14 +266,10 @@ object KafkaContext {
         Resource.pure[F, ValueDeserializer[F, Array[Byte]]](Deserializer[F, Array[Byte]])
       )
 
-    override def consumeGenericRecord(
-      topicName: String,
-      key: Option[Schema] = None,
-      value: Option[Schema] = None)(using F: Async[F]): ConsumeGenericRecord[F] = {
+    override def consumeGenericRecord(topicName: String)(using F: Async[F]): ConsumeGenericRecord[F] = {
       val tn: TopicName = TopicName(topicName)
       ConsumeGenericRecord[F](
         topicName = tn,
-        schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
         fromSchemaRegistry = schemaRegistry(topicName).fetchOptionalAvroSchema,
         ConsumerSettings[F, Array[Byte], Array[Byte]](
           Deserializer[F, Array[Byte]],
@@ -312,12 +296,9 @@ object KafkaContext {
         ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
     override def produceGenericRecord(
-      topicName: String,
-      key: Option[Schema] = None,
-      value: Option[Schema] = None)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F] =
+      topicName: String)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F] =
       ProduceGenericRecord[F](
         topicName = TopicName(topicName),
-        schemaPair = OptionalAvroSchemaPair(key.map(AvroSchema(_)), value.map(AvroSchema(_))),
         srClient = schema_registry_internal,
         serdeSettings = settings.serdeSettings,
         producerSettings = ProducerSettings[F, Array[Byte], Array[Byte]](

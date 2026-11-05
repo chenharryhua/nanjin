@@ -69,10 +69,13 @@ class ConnectorIntegrationTest extends CatsEffectSuite {
       _ <- recreate_topic(TYPED_TOPIC.topicName.value)
       _ <- recreate_topic(GENERIC_TOPIC.value)
       _ <- ctx.schemaRegistry(GENERIC_TOPIC.value).delete
+      _ <- ctx
+        .schemaRegistry(GENERIC_TOPIC.value)
+        .register(key = Some(AvroSchema(INT_SCHEMA)), value = Some(AvroSchema(INT_SCHEMA)))
       _ <- ctx.produce(TYPED_TOPIC).produce(
         List(Integer.valueOf(0) -> "seed-0", Integer.valueOf(1) -> "seed-1", Integer.valueOf(2) -> "seed-2"))
       _ <- ctx
-        .produceGenericRecord(GENERIC_TOPIC.value, Some(INT_SCHEMA), Some(INT_SCHEMA))
+        .produceGenericRecord(GENERIC_TOPIC.value)
         .produceOne(generic_record(0, 0))
     } yield ()
 
@@ -127,7 +130,7 @@ class ConnectorIntegrationTest extends CatsEffectSuite {
 
   test("2.ProduceGenericRecord supports both sinks, produceOne, and Jackson input") {
     val producer =
-      ctx.produceGenericRecord(GENERIC_TOPIC.value, Some(INT_SCHEMA), Some(INT_SCHEMA))
+      ctx.produceGenericRecord(GENERIC_TOPIC.value)
     val first = generic_record(1, 1)
     val second = generic_record(2, 2)
     val jackson = genericRecord2Jackson(generic_record(3, 3)).get
@@ -204,7 +207,7 @@ class ConnectorIntegrationTest extends CatsEffectSuite {
 
   test("5.ConsumeGenericRecord supports partition maps, subscription, and all assignment modes") {
     val consumer = ctx
-      .consumeGenericRecord(GENERIC_TOPIC.value, Some(INT_SCHEMA), Some(INT_SCHEMA))
+      .consumeGenericRecord(GENERIC_TOPIC.value)
       .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
 
     for {
@@ -230,7 +233,7 @@ class ConnectorIntegrationTest extends CatsEffectSuite {
 
   test("6.ConsumeGenericRecord exposes manual commits and both bounded-stream overloads") {
     val consumer = ctx
-      .consumeGenericRecord(GENERIC_TOPIC.value, Some(INT_SCHEMA), Some(INT_SCHEMA))
+      .consumeGenericRecord(GENERIC_TOPIC.value)
       .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
 
     val manual = consumer

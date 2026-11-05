@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName}
+import com.github.chenharryhua.nanjin.kafka.TopicSchemaAbsent
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.Schema
@@ -19,29 +20,23 @@ class ConsumeGenericRecordTest extends CatsEffectSuite {
       Deserializer[IO, Array[Byte]],
       Deserializer[IO, Array[Byte]])
 
-  private def consumer(
-    caller: OptionalAvroSchemaPair,
-    broker: OptionalAvroSchemaPair): ConsumeGenericRecord[IO] =
+  private def consumer(broker: OptionalAvroSchemaPair): ConsumeGenericRecord[IO] =
     new ConsumeGenericRecord[IO](
       topicName = topic,
-      schemaPair = caller,
       fromSchemaRegistry = IO.pure(broker),
       consumerSettings = baseSettings)
 
+  private val bothSides: OptionalAvroSchemaPair =
+    OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema)))
+
   test("1.updateConfig transforms the underlying consumer settings") {
-    val c = consumer(
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema))),
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema)))
-    ).updateConfig(_.withGroupId("nanjin-test"))
+    val c = consumer(bothSides).updateConfig(_.withGroupId("nanjin-test"))
 
     assert(c.properties.get("group.id").contains("nanjin-test"))
   }
 
   test("2.updateConfig returns a distinct instance, leaving the original unchanged") {
-    val original = consumer(
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema))),
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema)))
-    )
+    val original = consumer(bothSides)
     val updated = original.updateConfig(_.withGroupId("group-x"))
 
     assert(!original.properties.contains("group.id"))
@@ -50,38 +45,19 @@ class ConsumeGenericRecordTest extends CatsEffectSuite {
   }
 
   test("3.schema resolves the effective consumer schema from the registry") {
-    // caller supplies nothing; the broker (registry) provides both schemas
-    val c = consumer(
-      OptionalAvroSchemaPair(None, None),
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(intSchema)))
-    )
+    val c = consumer(bothSides)
     c.schema.map { resolved =>
       // the consumer schema is the wrapper record; its value field carries the resolved value schema
       assert(resolved.getType == Schema.Type.RECORD)
     }
   }
 
-  test("4.caller-supplied schema takes precedence over the broker schema") {
-    // caller value schema is STRING, broker value schema is INT; read() prefers the caller's
-    val callerValue = Schema.create(Schema.Type.STRING)
-    val brokerValue = Schema.create(Schema.Type.INT)
-    val c = consumer(
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(callerValue))),
-      OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), Some(AvroSchema(brokerValue)))
-    )
-    c.schema.map { resolved =>
-      val valueField = resolved.getField("value")
-      assert(valueField != null)
-      // the value field is a nullable union; it should carry the caller's STRING, not the broker's INT
-      val memberTypes: Set[Schema.Type] = {
-        import scala.jdk.CollectionConverters.*
-        valueField.schema().getType match {
-          case Schema.Type.UNION => valueField.schema().getTypes.asScala.map(_.getType).toSet
-          case other             => Set(other)
-        }
-      }
-      assert(memberTypes.contains(Schema.Type.STRING))
-      assert(!memberTypes.contains(Schema.Type.INT))
+  test("4.schema fails when the registry is missing a side") {
+    // the value subject is absent from the registry; toSchemaPair cannot build a pair
+    val c = consumer(OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), None))
+    c.schema.attempt.map { result =>
+      assert(result.isLeft)
+      assert(result.swap.toOption.exists(_.isInstanceOf[TopicSchemaAbsent]))
     }
   }
 }
