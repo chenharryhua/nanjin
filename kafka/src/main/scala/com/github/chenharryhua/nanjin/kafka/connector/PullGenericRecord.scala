@@ -4,8 +4,6 @@ import cats.syntax.eq.given
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.kafka.record.{MetaInfo, NJHeader, given}
 import com.sksamuel.avro4s.SchemaFor
-import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.circe.Json
 import io.circe.syntax.given
@@ -46,15 +44,15 @@ final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable)
   * `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side yields a
   * `Left(PullError)` rather than throwing.
   */
-final private class PullGenericRecord(pair: AvroSchemaPair, srClient: SchemaRegistryClient) {
+final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
 
   /** Build a byte-to-value decoder for one Avro schema. `null` bytes decode to `null`. The Confluent wire
     * format is validated (length >= 5 and magic byte `0x00`) before the payload after the 5-byte prefix is
-    * Avro-decoded with the writer schema identified by the wire-format schema ID and `skm` as the reader
-    * schema. This holds for record and primitive schemas alike.
+    * Avro-decoded against `skm`. This holds for record and primitive schemas alike.
     */
   private def getDecoder(skm: Schema): Array[Byte] => Any = {
+    val reader = GenericDatumReader(skm)
     (data: Array[Byte]) =>
       if data eq null then null
       else if data.length < 5 then
@@ -64,11 +62,8 @@ final private class PullGenericRecord(pair: AvroSchemaPair, srClient: SchemaRegi
         throw new IllegalArgumentException( // scalafix:ok
           s"Invalid Confluent wire format: expected magic byte 0x00 but got 0x${String.format("%02X", data(0))}")
       else
-        // Confluent wire format: 1-byte magic (0x00) + 4-byte schema ID prefix, then payload
-        val schemaId = ByteBuffer.wrap(data, 1, 4).getInt
-        val writerSchema = srClient.getSchemaById(schemaId).asInstanceOf[AvroSchema].rawSchema()
         val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
-        new GenericDatumReader[Record](writerSchema, skm).read(null, decoder)
+        reader.read(null, decoder)
   }
 
   private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())
