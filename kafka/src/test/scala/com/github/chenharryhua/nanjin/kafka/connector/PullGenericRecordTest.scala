@@ -12,6 +12,8 @@ import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.generic.GenericData.Record
 import munit.FunSuite
 
+import java.nio.ByteBuffer
+
 class PullGenericRecordTest extends FunSuite {
   private val topic = "pull.generic.record.test"
 
@@ -39,7 +41,7 @@ class PullGenericRecordTest extends FunSuite {
     val valBytes = frame(client, valSchema, Integer.valueOf(42))
 
     val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valSchema))
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, client)
 
     val cr = ConsumerRecord(topic, 0, 1L, keyBytes, valBytes)
       .withHeaders(Headers.fromSeq(Seq(Header("h1", Array(1.toByte, 2.toByte)))))
@@ -68,7 +70,7 @@ class PullGenericRecordTest extends FunSuite {
     val valSchema = Schema.create(Schema.Type.STRING)
     val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valSchema))
 
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, new MockSchemaRegistryClient)
 
     val cr = ConsumerRecord(topic, 0, 2L, null.asInstanceOf[Array[Byte]], null.asInstanceOf[Array[Byte]])
 
@@ -85,7 +87,7 @@ class PullGenericRecordTest extends FunSuite {
     val client = new MockSchemaRegistryClient
     val pair = AvroSchemaPair(AvroSchema(keyRecordSchema), AvroSchema(valSchema))
 
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, client)
 
     // too short: fewer than the 5-byte Confluent prefix
     val badKeyBytes = Array(1.toByte, 2.toByte)
@@ -106,7 +108,7 @@ class PullGenericRecordTest extends FunSuite {
     val client = new MockSchemaRegistryClient
     val pair = AvroSchemaPair(AvroSchema(keyRecordSchema), AvroSchema(valSchema))
 
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, client)
 
     // 5+ bytes but wrong magic byte (0x01 instead of 0x00)
     val badMagic = Array[Byte](0x01, 0, 0, 0, 1, 0, 0)
@@ -123,15 +125,16 @@ class PullGenericRecordTest extends FunSuite {
   }
 
   test("5.exactly 5 bytes with valid magic byte fails deeper in Avro decode, not wire-format validation") {
-    val keyRecordSchema = new Schema.Parser().parse(Key.schema)
+    val keySchema = Schema.create(Schema.Type.STRING)
     val valSchema = Schema.create(Schema.Type.STRING)
     val client = new MockSchemaRegistryClient
-    val pair = AvroSchemaPair(AvroSchema(keyRecordSchema), AvroSchema(valSchema))
+    val keySchemaId = client.register(s"$topic-key", AvroSchema(keySchema))
+    val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valSchema))
 
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, client)
 
     // Valid magic byte, 4-byte schema ID, but no payload — should fail during Avro decode, not wire format check
-    val minimalWireFormat = Array[Byte](0x00, 0, 0, 0, 1)
+    val minimalWireFormat = ByteBuffer.allocate(5).put(0x00.toByte).putInt(keySchemaId).array()
     val valBytes = frame(client, valSchema, "v")
 
     val cr = ConsumerRecord(topic, 0, 5L, minimalWireFormat, valBytes)
@@ -153,7 +156,7 @@ class PullGenericRecordTest extends FunSuite {
     val client = new MockSchemaRegistryClient
     val pair = AvroSchemaPair(AvroSchema(keySchema), AvroSchema(valRecordSchema))
 
-    val pull = new PullGenericRecord(pair)
+    val pull = new PullGenericRecord(pair, client)
 
     val keyBytes = frame(client, keySchema, "k")
     val badValBytes = Array[Byte](0x01, 0, 0, 0, 1, 0) // wrong magic byte
@@ -177,7 +180,7 @@ class PullGenericRecordTest extends FunSuite {
 
     val client1 = new MockSchemaRegistryClient
     val long_float =
-      new PullGenericRecord(AvroSchemaPair(AvroSchema(long_schema), AvroSchema(float_schema)))
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(long_schema), AvroSchema(float_schema)), client1)
         .toGenericRecord(
           ConsumerRecord(
             topic,
@@ -194,7 +197,7 @@ class PullGenericRecordTest extends FunSuite {
 
     val client2 = new MockSchemaRegistryClient
     val double_boolean =
-      new PullGenericRecord(AvroSchemaPair(AvroSchema(double_schema), AvroSchema(boolean_schema)))
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(double_schema), AvroSchema(boolean_schema)), client2)
         .toGenericRecord(
           ConsumerRecord(
             topic,
@@ -211,7 +214,7 @@ class PullGenericRecordTest extends FunSuite {
 
     val client3 = new MockSchemaRegistryClient
     val boolean_string =
-      new PullGenericRecord(AvroSchemaPair(AvroSchema(boolean_schema), AvroSchema(string_schema)))
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(boolean_schema), AvroSchema(string_schema)), client3)
         .toGenericRecord(
           ConsumerRecord(
             topic,
@@ -226,7 +229,27 @@ class PullGenericRecordTest extends FunSuite {
     assertEquals(boolean_string.get("value").toString, "value")
   }
 
-  test("8.RECORD payload produced in Confluent wire format decodes successfully") {
+  test("8.primitive decoding resolves the writer schema ID across schema versions") {
+    val int_schema = Schema.create(Schema.Type.INT)
+    val double_schema = Schema.create(Schema.Type.DOUBLE)
+    val client = new MockSchemaRegistryClient
+    val old_bytes = frame(client, int_schema, Integer.valueOf(42))
+    val current_bytes = frame(client, double_schema, java.lang.Double.valueOf(2.5d))
+    val latest_schema = AvroSchema(client.getLatestSchemaMetadata(s"$topic-key").getSchema)
+    val pull = new PullGenericRecord(
+      AvroSchemaPair(latest_schema, latest_schema),
+      client)
+
+    val decoded = pull
+      .toGenericRecord(ConsumerRecord(topic, 0, 10L, old_bytes, current_bytes))
+      .toOption
+      .get
+
+    assertEquals(decoded.get("key"), java.lang.Double.valueOf(42.0d))
+    assertEquals(decoded.get("value"), java.lang.Double.valueOf(2.5d))
+  }
+
+  test("9.RECORD payload produced in Confluent wire format decodes successfully") {
     val record_schema =
       SchemaBuilder.record("Payload").namespace("mtest.kafka").fields().requiredString("name").endRecord()
     val string_schema = Schema.create(Schema.Type.STRING)
@@ -241,7 +264,7 @@ class PullGenericRecordTest extends FunSuite {
     envelope.put("value", "value")
     val produced = push.fromGenericRecord(envelope)
 
-    val decoded = new PullGenericRecord(pair)
+    val decoded = new PullGenericRecord(pair, client)
       .toGenericRecord(ConsumerRecord(topic, 0, 10L, produced.key, produced.value))
       .toOption
       .get
@@ -253,13 +276,13 @@ class PullGenericRecordTest extends FunSuite {
     assertEquals(decoded.get("value").toString, "value")
   }
 
-  test("9.null bytes decode to a null field without attempting Avro decoding") {
+  test("10.null bytes decode to a null field without attempting Avro decoding") {
     val record_schema =
       SchemaBuilder.record("NullablePayload").namespace("mtest.kafka").fields().requiredString(
         "name").endRecord()
     val string_schema = Schema.create(Schema.Type.STRING)
     val client = new MockSchemaRegistryClient
-    val pull = new PullGenericRecord(AvroSchemaPair(AvroSchema(record_schema), AvroSchema(string_schema)))
+    val pull = new PullGenericRecord(AvroSchemaPair(AvroSchema(record_schema), AvroSchema(string_schema)), client)
     val value_bytes = frame(client, string_schema, "value")
 
     val decoded = pull
