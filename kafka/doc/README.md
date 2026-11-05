@@ -350,29 +350,22 @@ Serde decoding only; broker errors, user effects, and other stream failures stil
 ## Generic Avro records
 
 The generic connector reads and writes raw Kafka bytes around Avro `GenericRecord` values shaped as
-`NJConsumerRecord`:
+`NJConsumerRecord`. Both the key and value use the Confluent wire format (a `0x00` magic byte plus a
+4-byte schema id, then the Avro payload), uniformly for record and primitive schema types. Both sides
+depend entirely on Schema Registry: there is no caller-supplied schema override.
 
-- `consumeGenericRecord(topic, keySchema, valueSchema)` returns values as
-  `Either[PullError, GenericData.Record]`. A malformed key or value becomes a per-record `PullError`
-  rather than terminating the stream.
-- `produceGenericRecord(topic, keySchema, valueSchema)` checks the requested pair against registered
-  schemas before producing. Incompatible schemas raise `SchemaIncompatible`.
-- Omitting an override resolves that side from Schema Registry.
-- `ProduceGenericRecord.jackson` parses Avro's JSON representation against the resolved schema before
+- `consumeGenericRecord(topic)` returns values as `Either[PullError, GenericData.Record]`. Each side's
+  bytes are decoded against the latest registered schema for its subject. A malformed or
+  non-conforming record (including one written under an older, now-incompatible schema) becomes a
+  per-record `PullError` rather than terminating the stream.
+- `produceGenericRecord(topic)` fetches the write schema from Schema Registry before producing. If the
+  `<topic>-key` or `<topic>-value` subject is not registered, it raises `TopicSchemaAbsent`; register
+  the schema first.
+- `ProduceGenericRecord.jackson` parses Avro's JSON representation against the fetched schema before
   producing.
 
 ```scala
-import org.apache.avro.Schema
-
-val stringSchema = Schema.create(Schema.Type.STRING)
-val intSchema = Schema.create(Schema.Type.INT)
-
-val genericConsumer =
-  kafka.consumeGenericRecord(
-    "legacy-events",
-    key = Some(stringSchema),
-    value = Some(intSchema)
-  )
+val genericConsumer = kafka.consumeGenericRecord("legacy-events")
 
 val decoded =
   genericConsumer
@@ -383,9 +376,11 @@ val decoded =
     .drain
 ```
 
-For record-shaped Avro payloads, bytes use Confluent's magic byte plus schema-id prefix. Primitive
-Avro schema types use the matching Kafka primitive Serde in the generic connector. Unsupported schema
-types and runtime values that do not match their schema fail explicitly.
+The generic connector handles only registry-backed topics. A topic whose values were written with
+plain Kafka primitive Serdes (no Confluent prefix, nothing registered) is not readable here; use the
+typed `consume(topic)` with the matching deserializers instead. One registry-backed primitive type is
+also unsupported: `BYTES` is written by Confluent's serializer without an Avro length prefix and so
+does not round-trip through the generic connector.
 
 ## Record model
 
@@ -529,9 +524,9 @@ The Avro record names are `nanjin.kafka.NJProducerRecord`, `nanjin.kafka.NJConsu
 `nanjin.kafka.header`. A Scala identifier rename is wire-safe only when it does not alter these
 serialized names, field keys, topic/subject names, headers, application ids, or store names.
 
-Schema compatibility for structured formats is governed primarily by Schema Registry. The generic
-Avro producer additionally checks that its local schema pair is backward-compatible with the
-registered pair before writing.
+Schema compatibility for structured formats is governed by Schema Registry. The generic Avro
+connector derives its schema entirely from the registry: the producer fetches the registered write
+schema, and the consumer decodes against the latest registered schema for each subject.
 
 ## Resource and operational guidance
 
