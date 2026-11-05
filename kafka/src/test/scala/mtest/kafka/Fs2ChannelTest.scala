@@ -258,9 +258,9 @@ class Fs2ChannelTest extends CatsEffectSuite {
       .map(res => assert(res))
   }
 
-  test("14.generic record without schema registry") {
+  test("14.generic record decoded via the schema registry") {
     ctx
-      .consumeGenericRecord(avroTopic.topicName.value, Some(SchemaFor[Int].schema))
+      .consumeGenericRecord(avroTopic.topicName.value)
       .subscribe
       .take(1)
       .map(_.record)

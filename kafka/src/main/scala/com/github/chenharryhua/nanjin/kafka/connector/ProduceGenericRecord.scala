@@ -8,12 +8,7 @@ import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.admins.TopicSchemaRegistry
 import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
 import com.github.chenharryhua.nanjin.kafka.utils.jackson2GenericRecord
-import com.github.chenharryhua.nanjin.kafka.{
-  AvroSchemaPair,
-  OptionalAvroSchemaPair,
-  SchemaIncompatible,
-  TopicName
-}
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, TopicName}
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient
@@ -25,13 +20,11 @@ import org.apache.kafka.clients.producer.RecordMetadata
   *
   * The producer counterpart of `ConsumeGenericRecord`: it takes Avro `GenericRecord`s, encodes the key and
   * value to `Array[Byte]` (Confluent wire format, via `PushGenericRecord`), and produces them. Before the
-  * first produce it resolves and validates the write schema against the schema registry, raising
-  * `SchemaIncompatible` if the caller's `schemaPair` is not backward-compatible with the registered schema.
-  * Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
+  * first produce it fetches the write schema from the schema registry (raising `TopicSchemaAbsent` if the key
+  * or value subject is not registered). Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
   */
 final class ProduceGenericRecord[F[_]] private[kafka] (
   topicName: TopicName,
-  schemaPair: OptionalAvroSchemaPair,
   srClient: SchemaRegistryClient,
   serdeSettings: SerdeSettings,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(using F: Async[F])
@@ -45,32 +38,26 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
 
   /** Return a copy with the underlying byte producer settings transformed by `f`. */
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F] =
-    new ProduceGenericRecord[F](topicName, schemaPair, srClient, serdeSettings, f(producerSettings))
+    new ProduceGenericRecord[F](topicName, srClient, serdeSettings, f(producerSettings))
 
-  /** Resolve the effective write schema: fetch the registered schema, check the caller's `schemaPair` is
-    * backward-compatible with it, and return the merged pair (preferring the broker's schema). Raises
-    * `SchemaIncompatible` if the check fails.
+  /** Fetch the write schema from the schema registry. Raises `TopicSchemaAbsent` if the key or value subject
+    * is not registered.
     */
-  private lazy val validateSchema: F[AvroSchemaPair] =
+  private lazy val fetchSchema: F[AvroSchemaPair] =
     TopicSchemaRegistry[F](srClient, topicName)
-      .fetchOptionalAvroSchema
-      .flatMap { skm =>
-        if (schemaPair.isBackwardCompatible(skm))
-          F.pure(schemaPair.write(skm).toSchemaPair)
-        else F.raiseError(SchemaIncompatible(topicName))
-      }
+      .fetchOptionalAvroSchema.map(_.toSchemaPair)
 
-  /** The effective Avro schema records will be encoded against, validated against the registry. */
-  lazy val schema: F[Schema] = validateSchema.map(_.consumerSchema)
+  /** The effective Avro schema records will be encoded against, fetched from the registry. */
+  lazy val schema: F[Schema] = fetchSchema.map(_.consumerSchema)
 
   /** Chunk-oriented producer pipe: for each chunk of records, encode and produce the whole chunk, running the
-    * produce effects in parallel. Validates the schema once before producing.
+    * produce effects in parallel. Fetches the schema once before producing.
     */
   lazy val chunkSink: Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (grStream: Stream[F, Chunk[GenericRecord]]) =>
       for {
-        pair <- Stream.eval(validateSchema)
-        push = new PushGenericRecord(srClient, serdeSettings, topicName, pair)
+        _ <- Stream.eval(fetchSchema)
+        push = new PushGenericRecord(srClient, serdeSettings, topicName)
         producer <- KafkaProducer.stream(producerSettings)
         prs <- grStream
           .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
@@ -82,13 +69,13 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
   lazy val sink: Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] =
     _.chunks.through(chunkSink)
 
-  /** Encode and produce a single record, returning its `RecordMetadata`. Validates the schema and opens a
+  /** Encode and produce a single record, returning its `RecordMetadata`. Fetches the schema and opens a
     * short-lived producer for the one send.
     */
   def produceOne(record: GenericRecord): F[RecordMetadata] =
     for {
-      pair <- validateSchema
-      push = new PushGenericRecord(srClient, serdeSettings, topicName, pair)
+      _ <- fetchSchema
+      push = new PushGenericRecord(srClient, serdeSettings, topicName)
       res <- KafkaProducer
         .resource(producerSettings)
         .use(_.produceOne_(push.fromGenericRecord(record)).flatten)
@@ -102,7 +89,7 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
     */
   def jackson(jackson: String): F[RecordMetadata] =
     for {
-      pair <- validateSchema
+      pair <- fetchSchema
       gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
       res <- produceOne(gr)
     } yield res

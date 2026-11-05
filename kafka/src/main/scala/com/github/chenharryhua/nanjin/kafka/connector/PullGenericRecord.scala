@@ -12,7 +12,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData.Record
 import org.apache.avro.generic.GenericDatumReader
 import org.apache.avro.io.DecoderFactory
-import org.apache.kafka.common.serialization.Serdes
 
 import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, SeqHasAsJava}
@@ -26,7 +25,7 @@ import scala.util.Try
   * @param metaInfo
   *   topic/partition/offset metadata of the offending record, for diagnostics.
   * @param cause
-  *   the underlying decode failure, as thrown (wire-format validation, Avro decode, or `Serdes`). Its
+  *   the underlying decode failure, as thrown (Confluent wire-format validation or Avro decode). Its
   *   `getMessage` may be `null`, e.g. for some Avro/EOF exceptions.
   */
 final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable) {
@@ -38,67 +37,35 @@ final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable)
 
 /** Decodes raw Kafka byte records into Avro `GenericRecord`s, given the key/value schema `pair`.
   *
-  * The inverse of `PushGenericRecord`. Key and value bytes are decoded according to their Avro schema type:
-  * primitives via the matching Kafka `Serdes`, and `RECORD` types via the Confluent wire format (a 1-byte
-  * `0x00` magic byte plus a 4-byte schema id, then the Avro payload), which is validated before decoding. The
-  * result wraps the decoded key/value plus the record metadata (topic, partition, offset, timestamp, headers,
-  * etc.) into a single `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side
-  * yields a `Left(PullError)` rather than throwing.
+  * The inverse of `PushGenericRecord`. Both the key and value bytes are decoded as Confluent wire format (a
+  * 1-byte `0x00` magic byte plus a 4-byte schema id, then the Avro payload), which is validated before
+  * decoding. This applies uniformly to record and primitive schema types alike. The result wraps the decoded
+  * key/value plus the record metadata (topic, partition, offset, timestamp, headers, etc.) into a single
+  * `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side yields a
+  * `Left(PullError)` rather than throwing.
   */
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
-  private val topic: String = ""
 
-  private def unsupportedSchema(skm: Schema): Nothing =
-    throw new UnsupportedOperationException(s"unsupported schema: ${skm.getType}") // scalafix:ok
-
-  /** Build a byte-to-value decoder for one Avro schema type. `null` bytes decode to `null`. For `RECORD` the
-    * Confluent wire format is validated (length >= 5 and magic byte `0x00`) before the payload after the
-    * 5-byte prefix is Avro-decoded; primitives use the matching Kafka `Serdes`. Unsupported types throw.
+  /** Build a byte-to-value decoder for one Avro schema. `null` bytes decode to `null`. The Confluent wire
+    * format is validated (length >= 5 and magic byte `0x00`) before the payload after the 5-byte prefix is
+    * Avro-decoded against `skm`. This holds for record and primitive schemas alike.
     */
-  private def getDecoder(skm: Schema): Array[Byte] => Any =
-    skm.getType match {
-      case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[Record](skm)
-        (data: Array[Byte]) =>
-          if data eq null then null
-          else if data.length < 5 then
-            throw new IllegalArgumentException( // scalafix:ok
-              s"Record payload too short: expected at least 5 bytes (Confluent wire format) but got ${data.length}")
-          else if data(0) =!= 0.toByte then
-            throw new IllegalArgumentException( // scalafix:ok
-              s"Invalid Confluent wire format: expected magic byte 0x00 but got 0x${String.format("%02X", data(0))}")
-          else
-            // Confluent wire format: 1-byte magic (0x00) + 4-byte schema ID prefix, then payload
-            val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
-            reader.read(null, decoder)
-
-      case Schema.Type.STRING =>
-        val deSer = Serdes.String().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.BYTES =>
-        val deSer = Serdes.ByteArray().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.INT =>
-        val deSer = Serdes.Integer().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.LONG =>
-        val deSer = Serdes.Long().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.FLOAT =>
-        val deSer = Serdes.Float().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.DOUBLE =>
-        val deSer = Serdes.Double().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.BOOLEAN =>
-        val deSer = Serdes.Boolean().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case Schema.Type.NULL =>
-        val deSer = Serdes.Void().deserializer()
-        (data: Array[Byte]) => deSer.deserialize(topic, data)
-      case _ => unsupportedSchema(skm)
-    }
+  private def getDecoder(skm: Schema): Array[Byte] => Any = {
+    val reader = new GenericDatumReader[Record](skm)
+    (data: Array[Byte]) =>
+      if data eq null then null
+      else if data.length < 5 then
+        throw new IllegalArgumentException( // scalafix:ok
+          s"Record payload too short: expected at least 5 bytes (Confluent wire format) but got ${data.length}")
+      else if data(0) =!= 0.toByte then
+        throw new IllegalArgumentException( // scalafix:ok
+          s"Invalid Confluent wire format: expected magic byte 0x00 but got 0x${String.format("%02X", data(0))}")
+      else
+        // Confluent wire format: 1-byte magic (0x00) + 4-byte schema ID prefix, then payload
+        val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+        reader.read(null, decoder)
+  }
 
   private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())
   private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())

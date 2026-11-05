@@ -20,7 +20,6 @@ import fs2.kafka.{
   ValueSerializer
 }
 import munit.FunSuite
-import org.apache.avro.Schema
 import org.apache.kafka.streams.StreamsConfig
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -113,20 +112,16 @@ class KafkaContextTest extends FunSuite {
       .withProducerProperty(_.CLIENT_ID_CONFIG, "producer-client")
     val configured = KafkaContext[IO](settings)
     val topic = TopicDef("context-connectors", Primitive[String], Primitive[java.lang.Integer])
-    val string_schema = Schema.create(Schema.Type.STRING)
-    val int_schema = Schema.create(Schema.Type.INT)
 
     val consume = configured.consume(topic)
     val attempt_consume = configured.attemptConsume(topic)
     val explicit_consume = configured.consume("explicit-consume", byteKeyDeserializer, byteValueDeserializer)
     val generic_consume_default = configured.consumeGenericRecord("generic-consume")
-    val generic_consume_explicit =
-      configured.consumeGenericRecord("generic-consume-explicit", Some(string_schema), Some(int_schema))
+    val generic_consume_explicit = configured.consumeGenericRecord("generic-consume-explicit")
     val produce = configured.produce(topic)
     val explicit_produce = configured.produce("explicit-produce", byteKeySerializer, byteValueSerializer)
     val generic_produce_default = configured.produceGenericRecord("generic-produce")
-    val generic_produce_explicit =
-      configured.produceGenericRecord("generic-produce-explicit", Some(string_schema), Some(int_schema))
+    val generic_produce_explicit = configured.produceGenericRecord("generic-produce-explicit")
 
     List(consume, attempt_consume, explicit_consume, generic_consume_default, generic_consume_explicit)
       .foreach(c => assertEquals(c.properties.get("client.id"), Some("consumer-client")))

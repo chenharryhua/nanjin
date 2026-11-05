@@ -19,11 +19,11 @@ import java.time.Instant
 
 /** A `ConsumerService` that reads raw Kafka bytes and decodes each record into an Avro `GenericData.Record`.
   *
-  * The consumer is byte-based (`Array[Byte]` key and value). For each record it resolves the read schema
-  * (reconciling any caller-supplied `schemaPair` with the schema fetched from the registry) and decodes the
-  * bytes via `PullGenericRecord`. The element type is `Either[PullError, Record]`: a per-record decode
-  * failure becomes a `Left(PullError)` carrying the offending key/value metadata, so one bad record does not
-  * tear down the stream. The commit key is `Unit` (this connector does not project a typed key).
+  * The consumer is byte-based (`Array[Byte]` key and value). For each record it fetches the read schema from
+  * the schema registry and decodes the bytes via `PullGenericRecord`. The element type is
+  * `Either[PullError, Record]`: a per-record decode failure becomes a `Left(PullError)` carrying the
+  * offending key/value metadata, so one bad record does not tear down the stream. The commit key is `Unit`
+  * (this connector does not project a typed key).
   *
   * It inherits all consumption modes from `ConsumerService`, subscribe, assign (by nothing, by
   * partition/offset map, or by time), manual-commit, and bounded ("circumscribed") streams, each producing
@@ -32,7 +32,6 @@ import java.time.Instant
   */
 final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
   topicName: TopicName,
-  schemaPair: OptionalAvroSchemaPair,
   fromSchemaRegistry: F[OptionalAvroSchemaPair],
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
 ) extends ConsumerService[F, Unit, Either[PullError, Record]]
@@ -46,13 +45,11 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
 
   /** Return a copy with the underlying byte consumer settings transformed by `f`. */
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](topicName, schemaPair, fromSchemaRegistry, f(consumerSettings))
+    new ConsumeGenericRecord[F](topicName, fromSchemaRegistry, f(consumerSettings))
 
-  /** The effective Avro read schema for decoded records: the registry schema reconciled with any
-    * caller-supplied `schemaPair`. Evaluated against the schema registry.
-    */
+  /** The effective Avro read schema for decoded records, fetched from the schema registry. */
   lazy val schema: F[Schema] =
-    fromSchemaRegistry.map(schemaPair.read(_).toSchemaPair.consumerSchema)
+    fromSchemaRegistry.map(_.toSchemaPair.consumerSchema)
 
   /*
    * Generic Record
@@ -65,7 +62,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
   private def partitions_map_stream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])
     : Stream[F, TopicPartitionMap[Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
-      val schema = schemaPair.read(broker).toSchemaPair
+      val schema = broker.toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
       kc.partitionsMapStream.map {
         _.map { case (tp, stream) =>
@@ -124,7 +121,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
 
   override lazy val manualCommitStream: Stream[F, ManualCommitStream[F, Unit, Either[PullError, Record]]] =
     Stream.eval(fromSchemaRegistry).flatMap { broker =>
-      val schema = schemaPair.read(broker).toSchemaPair
+      val schema = broker.toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
@@ -161,7 +158,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
       stream <-
         if isAssigned
         then
-          Stream.eval(fromSchemaRegistry).map(schemaPair.read(_).toSchemaPair).flatMap { schema =>
+          Stream.eval(fromSchemaRegistry).map(_.toSchemaPair).flatMap { schema =>
             val pull = new PullGenericRecord(schema)
             topicUtils.circumscribed_generic_record_stream(kc, ranges, pull)
           }
