@@ -70,7 +70,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val key_decode: Array[Byte] => Any = getDecoder(pair.key.rawSchema())
   private val val_decode: Array[Byte] => Any = getDecoder(pair.value.rawSchema())
 
-  private val headerSchema = SchemaFor[NJHeader].schema
+  private val headerSchema: Schema = SchemaFor[NJHeader].schema
 
   /** Decode a raw byte consumer record into a `GenericRecord`, or a `Left(PullError)` if the key or value
     * fails to decode. The result carries the decoded key/value alongside the record's metadata and headers.

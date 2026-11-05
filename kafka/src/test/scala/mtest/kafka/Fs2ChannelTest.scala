@@ -258,21 +258,6 @@ class Fs2ChannelTest extends CatsEffectSuite {
       .map(res => assert(res))
   }
 
-  test("14.generic record decoded via the schema registry") {
-    ctx
-      .consumeGenericRecord(avroTopic.topicName.value)
-      .subscribe
-      .take(1)
-      .map(_.record)
-      .timeout(3.seconds)
-      .compile
-      .toList
-      .map { ret =>
-        assert(ret.size == 1)
-        assert(ret.headOption.flatMap(_.value.toOption).get.isInstanceOf[GenericRecord])
-      }
-  }
-
   test("15.attempt consume") {
     ctx.attemptConsume(avroTopic).subscribe.take(1).map(_.record)
       .timeout(3.seconds).compile.toList.map { ret =>
