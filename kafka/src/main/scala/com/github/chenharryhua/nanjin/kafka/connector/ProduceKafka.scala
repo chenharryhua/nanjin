@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.flatMap.given
 import cats.syntax.foldable.given
-import cats.{Endo, Foldable, Parallel}
+import cats.{Endo, Foldable}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.kafka.*
@@ -17,7 +17,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
   * both streaming sinks (`pairSink`/`sink`/`chunkSink`) and one-shot sends (`produce`/`produceOne`), all
   * targeting the configured topic. Obtain an instance via `KafkaContext.produce(topic)`.
   */
-final class ProduceKafka[F[_]: Parallel, K, V] private[kafka] (
+final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V])(using F: Async[F])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties

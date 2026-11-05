@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.{Endo, Parallel}
+import cats.Endo
 import cats.effect.kernel.Async
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
@@ -29,7 +29,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
   * `SchemaIncompatible` if the caller's `schemaPair` is not backward-compatible with the registered schema.
   * Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
   */
-final class ProduceGenericRecord[F[_]: Parallel] private[kafka] (
+final class ProduceGenericRecord[F[_]] private[kafka] (
   topicName: TopicName,
   schemaPair: OptionalAvroSchemaPair,
   srClient: SchemaRegistryClient,
