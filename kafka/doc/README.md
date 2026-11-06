@@ -141,6 +141,8 @@ which matters for Confluent subject naming.
 | Family | Kafka-side type | Schema Registry | Wire representation |
 | --- | --- | --- | --- |
 | `Primitive` | `String`, `Array[Byte]`, boxed numeric/boolean types, `ByteBuffer`, `UUID` | No | Kafka built-in serializer format |
+| `ConfluentAvroPrimitive` | `String`, boxed numeric/boolean types | Yes | Confluent envelope and Avro primitive payload |
+| `ConfluentJsonPrimitive` | `String`, boxed numeric/boolean types | Yes | Confluent envelope and JSON scalar payload |
 | `Structured[GenericRecord]` | Avro `GenericRecord` | Yes | Confluent envelope and Avro payload |
 | `Structured[JsonNode]` | Jackson `JsonNode` | Yes | Confluent envelope and JSON payload |
 | `Structured[DynamicMessage]` | Protobuf `DynamicMessage` | Yes | Confluent Protobuf wire format |
