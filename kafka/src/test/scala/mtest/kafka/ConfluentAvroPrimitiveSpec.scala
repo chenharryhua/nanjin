@@ -3,6 +3,7 @@ package mtest.kafka
 import com.github.chenharryhua.nanjin.kafka.serdes.ConfluentAvroPrimitive
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serde
 import munit.FunSuite
 
@@ -80,5 +81,22 @@ class ConfluentAvroPrimitiveSpec extends FunSuite {
     val client = new MockSchemaRegistryClient
     val s = ConfluentAvroPrimitive[java.lang.Integer].asKey(client, props).serde
     assertEquals(s.deserializer.deserialize(TOPIC, s.serializer.serialize(TOPIC, Int.box(7))), Int.box(7))
+  }
+
+  test("11.a wrong-typed payload is rejected with a SerializationException") {
+    // Share one registry so the int-framed bytes carry a schema id the string serde can resolve,
+    // reaching its decode, which rejects the non-string runtime value.
+    val client = new MockSchemaRegistryClient
+    val intSerde = ConfluentAvroPrimitive[java.lang.Integer].asValue(client, props).serde
+    val stringSerde = ConfluentAvroPrimitive[String].asValue(client, props).serde
+
+    val intBytes = intSerde.serializer.serialize(TOPIC, Int.box(1))
+    intercept[SerializationException](stringSerde.deserializer.deserialize(TOPIC, intBytes))
+  }
+
+  test("12.serializer and deserializer close") {
+    val s = serde(ConfluentAvroPrimitive[String])
+    s.serializer.close()
+    s.deserializer.close()
   }
 }

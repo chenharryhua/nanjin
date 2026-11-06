@@ -3,6 +3,7 @@ package mtest.kafka
 import com.github.chenharryhua.nanjin.kafka.serdes.ConfluentJsonPrimitive
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.serialization.Serde
 import munit.FunSuite
 
@@ -85,5 +86,22 @@ class ConfluentJsonPrimitiveSpec extends FunSuite {
   test("11.a whole-number payload still decodes as the requested long") {
     // JSON has one number type; the deserializer target type pins it back to Long even for a small value.
     assertEquals(roundTrip(ConfluentJsonPrimitive[java.lang.Long], Long.box(5L)), Long.box(5L))
+  }
+
+  test("12.a wrong-typed payload is rejected with a SerializationException") {
+    // Share one registry so the boolean-framed bytes carry a schema id the long serde can resolve.
+    // The boolean value is neither null nor a Number, so the long decode's catch-all rejects it.
+    val client = new MockSchemaRegistryClient
+    val boolSerde = ConfluentJsonPrimitive[java.lang.Boolean].asValue(client, props).serde
+    val longSerde = ConfluentJsonPrimitive[java.lang.Long].asValue(client, props).serde
+
+    val boolBytes = boolSerde.serializer.serialize(TOPIC, Boolean.box(true))
+    intercept[SerializationException](longSerde.deserializer.deserialize(TOPIC, boolBytes))
+  }
+
+  test("13.serializer and deserializer close") {
+    val s = serde(ConfluentJsonPrimitive[String])
+    s.serializer.close()
+    s.deserializer.close()
   }
 }
