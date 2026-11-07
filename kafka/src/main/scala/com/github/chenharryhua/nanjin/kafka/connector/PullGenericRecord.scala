@@ -30,29 +30,21 @@ import scala.util.Try
   */
 final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable) {
 
-  /** Render this error as a single-field JSON object keyed `key.error` or `value.error`. */
   def toJson: Json =
     Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
 }
 
 /** Decodes raw Kafka byte records into Avro `GenericRecord`s, given the key/value schema `pair`.
-  *
-  * The inverse of `PushGenericRecord`. Both the key and value bytes are decoded as Confluent wire format (a
-  * 1-byte `0x00` magic byte plus a 4-byte schema id, then the Avro payload), which is validated before
-  * decoding. This applies uniformly to record and primitive schema types alike. The result wraps the decoded
-  * key/value plus the record metadata (topic, partition, offset, timestamp, headers, etc.) into a single
-  * `GenericRecord` matching `NJConsumerRecord`'s schema. A decode failure on either side yields a
-  * `Left(PullError)` rather than throwing.
   */
 final private class PullGenericRecord(pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
 
   /** Build a byte-to-value decoder for one Avro schema. `null` bytes decode to `null`. The Confluent wire
     * format is validated (length >= 5 and magic byte `0x00`) before the payload after the 5-byte prefix is
-    * Avro-decoded against `skm`. This holds for record and primitive schemas alike.
+    * Avro-decoded against `schema`. This holds for record and primitive schemas alike.
     */
-  private def getDecoder(skm: Schema): Array[Byte] => Any = {
-    val reader = GenericDatumReader(skm)
+  private def getDecoder(schema: Schema): Array[Byte] => Any = {
+    val reader = GenericDatumReader(schema)
     (data: Array[Byte]) =>
       if data eq null then null
       else if data.length < 5 then
@@ -102,9 +94,6 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       record
     }
 
-  /** Convenience overload accepting an fs2-kafka `ConsumerRecord`; converts it to the raw byte record and
-    * decodes as above.
-    */
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[PullError, Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }
