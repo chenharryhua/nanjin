@@ -13,7 +13,7 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.57.10"
+val awsV = "2.57.11"
 val catsCoreV = "2.13.0"
 val chimneyV = "2.1.0"
 val circeV = "0.14.17"
@@ -401,11 +401,11 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeV            % Test,
       ("org.apache.kafka" % "kafka-clients" % kafkaV % Test).classifier("test"), // MockAdminClient
       // snyk
-      "com.google.guava"  % "guava"             % guavaV, // snyk by kafka-avro-serializer
-      "at.yawk.lz4"       % "lz4-java"          % lz4V, // snyk by kafka-schema-registry-client
-      "org.xerial.snappy" % "snappy-java"       % snappyV, // snyk by kafka-schema-registry-client
-      "io.opentelemetry"  % "opentelemetry-api" % "1.67.0", // snyk by kafka-client
-      "com.github.luben"  % "zstd-jni"          % "1.5.7-25" // snyk by kafka-schema-registry-client
+      "com.google.guava"  % "guava"             % guavaV, // Snyk by kafka-avro-serializer
+      "at.yawk.lz4"       % "lz4-java"          % lz4V, // Snyk by kafka-schema-registry-client
+      "org.xerial.snappy" % "snappy-java"       % snappyV, // Snyk by kafka-schema-registry-client
+      "io.opentelemetry"  % "opentelemetry-api" % "1.68.0", // Snyk by kafka-client
+      "com.github.luben"  % "zstd-jni"          % "1.5.7-25" // Snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
@@ -445,18 +445,18 @@ lazy val pipes = (project in file("pipes"))
       "org.typelevel" %% "jawn-fs2"          % "2.6.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core" % avro4sV % Test,
       // snyk
-      "com.google.guava"     % "guava"                  % guavaV, // snyk by hadoop-client
-      "io.airlift"           % "aircompressor"          % "2.0.3", // snyk by parquet-hadoop
-      "io.netty"             % "netty-all"              % "4.2.20.Final", // snyk by hadoop-client
-      "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // snyk by hadoop-client
-      "org.apache.commons"   % "commons-configuration2" % "2.15.1", // snyk by hadoop-client
-      "org.eclipse.jetty"    % "jetty-server"           % jettyV, // snyk by hadoop-client
-      "org.eclipse.jetty"    % "jetty-http"             % jettyV, // snyk by hadoop-client
-      "org.eclipse.jetty"    % "jetty-security"         % jettyV, // snyk by hadoop-client
-      "org.eclipse.jetty"    % "jetty-client"           % jettyV, // snyk by hadoop-client
-      "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // snyk by hadoop-client
-      "org.apache.zookeeper" % "zookeeper"              % "3.9.7", // snyk by hadoop-client
-      "org.xerial.snappy"    % "snappy-java"            % snappyV // snyk by hadoop-client
+      "com.google.guava"     % "guava"                  % guavaV, // Snyk by hadoop-client
+      "io.airlift"           % "aircompressor"          % "2.0.3", // Snyk by parquet-hadoop
+      "io.netty"             % "netty-all"              % "4.2.20.Final", // Snyk by hadoop-client
+      "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // Snyk by hadoop-client
+      "org.apache.commons"   % "commons-configuration2" % "2.15.1", // Snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-server"           % jettyV, // Snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-http"             % jettyV, // Snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-security"         % jettyV, // Snyk by hadoop-client
+      "org.eclipse.jetty"    % "jetty-client"           % jettyV, // Snyk by hadoop-client
+      "org.bouncycastle"     % "bcprov-jdk18on"         % "1.86", // Snyk by hadoop-client
+      "org.apache.zookeeper" % "zookeeper"              % "3.9.7", // Snyk by hadoop-client
+      "org.xerial.snappy"    % "snappy-java"            % snappyV // Snyk by hadoop-client
     ) ++ testLib
   )
   .settings(dependencyOverrides ++= jackson_override)
