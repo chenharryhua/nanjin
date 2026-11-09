@@ -135,12 +135,18 @@ object Tick {
       conclude = now
     )
 
+  /** Mint a seed tick, building a `SecureRandom` for its sequence id.
+    *
+    * Prefer the overload taking a generator when the caller already holds one, so a second is not built.
+    */
   def seed[F[_]](zoneId: ZoneId)(using F: Sync[F]): F[Tick] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap { sr =>
-      UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
-        F.realTimeInstant.map { now =>
-          seed(uuid, zoneId, now)
-        }
+    SecureRandom.javaSecuritySecureRandom[F].flatMap(seed[F](zoneId, _))
+
+  /** Mint a seed tick, drawing its sequence id from `sr`. */
+  def seed[F[_]](zoneId: ZoneId, sr: SecureRandom[F])(using F: Sync[F]): F[Tick] =
+    UUIDGen.fromSecureRandom[F](using F, sr).randomUUID.flatMap { uuid =>
+      F.realTimeInstant.map { now =>
+        seed(uuid, zoneId, now)
       }
     }
 
