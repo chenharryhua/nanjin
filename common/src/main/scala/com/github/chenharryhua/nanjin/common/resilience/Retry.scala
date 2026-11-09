@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, Tick}
 import io.circe.syntax.given
 import io.circe.{Encoder, Json}
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -44,6 +45,9 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
   *   - `retryAfter(delay)` — override the next delay while keeping the current policy
   *   - `giveUp` — stop retrying and propagate the failure
   *
+  * A decision function that fails instead of returning one of these stops the retry and raises
+  * `DecisionFailure`, which carries both the decision failure and the operation failure.
+  *
   * ===Design===
   *
   * `Retry` is a coordination mechanism only: it does not impose semantics on the effect itself, but
@@ -56,7 +60,9 @@ trait Retry[F[_]] {
   /** Executes the given effect, retrying failures according to the configured policy and decision function.
     *
     * The decision function is not invoked when the policy supplies no retry tick, including the terminal
-    * failure after policy exhaustion. Only the last failure is propagated if execution ultimately fails.
+    * failure after policy exhaustion. Only the last failure is propagated if execution ultimately fails. A
+    * failure in the decision function itself instead surfaces as `Retry.DecisionFailure`, which carries both
+    * that failure and the operation's.
     */
   def apply[A](fa: F[A]): F[A]
 }
@@ -65,6 +71,39 @@ object Retry {
   def noop[F[_]]: Retry[F] = new Retry[F] {
     override def apply[A](fa: F[A]): F[A] = fa
   }
+
+  /** Raised when the decision function fails, in place of the operation's own failure.
+    *
+    * Both failures are preserved and nothing is mutated, this exception included. The decision failure is its
+    * `cause`, because that is what stopped the retry loop, and the operation failure is its
+    * `operationFailure` and is named in its message.
+    *
+    * The message is what carries the operation failure into logs, because the `cause` slot holds the decision
+    * failure and nothing else refers to it. Renderers differ in how much they follow:
+    * `ExceptionUtils.getRootCauseStackTraceList`, behind guard's `StackTrace`, walks only the cause chain,
+    * while `printStackTrace` would also print suppressed exceptions if there were any. Since neither failure
+    * is attached to the other, the operation failure's own '''stack trace''' is printed nowhere; read
+    * `operationFailure` when the trace matters and not just the message.
+    *
+    * Nothing is attached deliberately. `Throwable.addSuppressed` has no counterpart that removes an entry,
+    * and a throwable can outlive the call that raised it: a Scala `case object` such as
+    * `CircuitBreaker.RejectedException` is a single instance for the life of the JVM, so attaching to the
+    * operation failure on each decision failure would grow that shared instance without bound. Composing into
+    * a new exception avoids touching a throwable `Retry` did not create.
+    *
+    * A decision function that raises the attempt's own cause still produces a `DecisionFailure`. To stop
+    * retrying and propagate the operation failure unchanged, return `giveUp` instead of raising.
+    *
+    * @param operationFailure
+    *   the failure raised by the retried operation; named in this exception's message, and the only place its
+    *   stack trace remains reachable
+    * @param decisionFailure
+    *   the failure raised by the decision function; also this exception's `cause`
+    */
+  final class DecisionFailure private[Retry] (val operationFailure: Throwable, val decisionFailure: Throwable)
+      extends Exception(
+        s"retry decision failed; operation failed with ${ExceptionUtils.getMessage(operationFailure)}",
+        decisionFailure)
 
   final private case class AttemptData(
     tick: Tick,
@@ -182,8 +221,7 @@ object Retry {
               val attempt = Attempt(next.tick, ex, state.previousCause, firstFailure)
               F.defer(decide.run(attempt)).attempt.flatMap {
                 case Left(decision_error) =>
-                  if (decision_error ne ex) ex.addSuppressed(decision_error)
-                  F.raiseError(ex)
+                  F.raiseError(new DecisionFailure(ex, decision_error))
                 case Right(decision) =>
                   if (decision.accepted)
                     val nextState = next.withTick(decision.tick)
@@ -211,9 +249,10 @@ object Retry {
       * Return a decision created from the `Attempt` passed to the current invocation. Decisions are
       * attempt-bound; retaining or reusing one across attempts is unsupported.
       *
-      * Failures returned in `F`, or thrown while constructing it, stop retrying while the operation failure
-      * remains primary. A distinct decision failure is passed to `Throwable.addSuppressed`; throwables
-      * created with suppression disabled retain no suppressed exceptions.
+      * Failures returned in `F`, or thrown while constructing it, stop retrying and surface as a
+      * `DecisionFailure` carrying both errors: the decision failure as its `cause`, the operation failure as
+      * `operationFailure`. Neither original throwable is modified. To stop retrying and propagate the
+      * operation failure unchanged, return `giveUp` rather than raising.
       */
     def withDecision(f: Attempt => F[Decision]): Builder[F] =
       new Builder[F](policy, Kleisli(f))
