@@ -32,6 +32,10 @@ val p4 = Policy.fixedDelay(1.second, 2.seconds, 4.seconds) // escalating delays
 
 // Exclusions and offsets
 val p5 = Policy.crontab(_.hourly).except(localTimes.noon).offset(100.millis)
+
+// An exclusion that can never be satisfied yields an empty policy rather than
+// firing at the excluded time anyway
+val p6 = Policy.crontab(_.daily.midnight).repeat.except(localTimes.midnight) // never ticks
 ```
 
 Drawbacks:
@@ -101,9 +105,9 @@ CircuitBreaker[IO](zoneId, maxFailures = 5, _.fixedDelay(10.seconds)).use { cb =
 ```
 
 Drawbacks:
-- `maxFailures` counts consecutive failures in Closed state only. A single success resets the counter — there's no sliding window or rate-based opening.
+- `maxFailures` counts failures in Closed state only. A success resets the counter — there's no sliding window or rate-based opening.
 - The breaker is scoped to a `Resource` — it can't outlive the resource's lifetime. For long-lived breakers, the enclosing resource must also be long-lived.
-- Failure counting in Closed is per-round, not per-call: a batch of concurrent failures advances the counter by one, so tripping is governed by *consecutive rounds* of failure rather than the raw number of concurrent failures. Half-open admits exactly one probe at a time (single-flight).
+- Failure counting is per-call: concurrent failures each advance the counter, so `maxFailures` calls failing in parallel trip the breaker just as that many successive failures do. A success resets the count only when no other call changed it while that success was running, so a failure overlapping a success is never erased. Half-open admits exactly one probe at a time (single-flight).
 
 ### Retry
 
@@ -132,10 +136,23 @@ The `Attempt` provides:
 - `snooze: FiniteDuration` — the delay the policy proposes
 - `failedAt: ZonedDateTime` — timestamp of the failure
 
+A decision function that *fails* instead of returning a transition stops the retry and raises
+`Retry.DecisionFailure`, which carries both errors and modifies neither:
+
+```scala
+retry(action).recover {
+  case ex: Retry.DecisionFailure =>
+    ex.decisionFailure   // what the decision function raised; also ex.getCause
+    ex.operationFailure  // what the retried operation raised
+}
+```
+
 Drawbacks:
 - Only retries on `Throwable`. For retrying on "bad" successful values (e.g., HTTP 503 response), wrap in an exception or use a domain-specific retry (see `httpRetry`).
 - The `Retry[F]` instance is reusable, but `elapsed` tracks time within a single `retry(fa)` call — not across multiple calls to the same instance.
 - `retryAfter` overrides the current sleep but doesn't change the policy progression. The next attempt still uses the policy's next scheduled delay.
+- A failing decision function replaces the operation's exception with `DecisionFailure`, so code matching on the operation's exception type must unwrap it. Return `giveUp` to stop retrying and propagate the operation failure unchanged.
+- `DecisionFailure` attaches nothing to either original throwable, so logs show the operation failure's class and message (from the `DecisionFailure` message) but not its stack trace. Read `operationFailure` when you need the trace.
 
 ### SingleFlight
 
