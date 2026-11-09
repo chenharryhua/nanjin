@@ -17,7 +17,7 @@ import scala.util.control.NonFatal
   * The decoder enforces the same invariants the `Policy` builder does. The encoder only ever writes policies
   * that came through that builder, so any payload failing these checks was not produced here, and accepting
   * one would build a policy whose steppers misbehave when stepped rather than failing at the decode boundary.
-  * A `fixedRate` of zero, for instance, has no next cadence boundary to compute.
+  * A `fixed_rate` of zero, for instance, has no next cadence boundary to compute.
   */
 private object CodecPolicy {
 
@@ -26,7 +26,7 @@ private object CodecPolicy {
   /*
    * Json Encoder
    */
-  private val encoderAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
+  private val encoder_algebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
     case Empty() =>
       Json.obj(EMPTY -> Json.True)
     case Crontab(cronExpr) =>
@@ -52,22 +52,22 @@ private object CodecPolicy {
   }
 
   val encoder: Encoder[Fix[PolicyF]] =
-    (a: Fix[PolicyF]) => scheme.cata(encoderAlgebra).apply(a)
+    (a: Fix[PolicyF]) => scheme.cata(encoder_algebra).apply(a)
 
   /*
    * Json Decoder
    */
-  private def readField[A: Decoder](hc: HCursor, field: String): Result[A] =
+  private def read_field[A: Decoder](hc: HCursor, field: String): Result[A] =
     hc.get[A](field)
 
-  private def readNestedField[A: Decoder](hc: HCursor, parent: String, child: String): Result[A] =
+  private def read_nested_field[A: Decoder](hc: HCursor, parent: String, child: String): Result[A] =
     hc.downField(parent).downField(child).as[A]
 
-  private def readNestedCursor(hc: HCursor, field: String): Result[HCursor] =
+  private def read_nested_cursor(hc: HCursor, field: String): Result[HCursor] =
     hc.downField(field).as[HCursor]
 
-  private val decoderCoalgebra: Coalgebra[PolicyF, HCursor] = {
-    val variantKeys: Set[String] = Set(
+  private val decoder_coalgebra: Coalgebra[PolicyF, HCursor] = {
+    val variant_keys: Set[String] = Set(
       EMPTY,
       CRONTAB,
       JITTER,
@@ -82,13 +82,13 @@ private object CodecPolicy {
     )
 
     def empty(hc: HCursor): Result[Empty[HCursor]] =
-      readField[Boolean](hc, EMPTY).flatMap {
+      read_field[Boolean](hc, EMPTY).flatMap {
         case true  => Right(Empty[HCursor]())
         case false => Left(DecodingFailure(s"$EMPTY must be true", hc.history))
       }
 
     def crontab(hc: HCursor): Result[Crontab[HCursor]] =
-      readField[CronExpr](hc, CRONTAB).map(Crontab[HCursor])
+      read_field[CronExpr](hc, CRONTAB).map(Crontab[HCursor])
 
     def is_positive(d: Duration): Boolean = !d.isNegative && !d.isZero
 
@@ -96,9 +96,9 @@ private object CodecPolicy {
       Left(DecodingFailure(message, hc.history))
 
     def jitter(hc: HCursor): Result[Jitter[HCursor]] = {
-      val min = readNestedField[Duration](hc, JITTER, JITTER_MIN)
-      val max = readNestedField[Duration](hc, JITTER, JITTER_MAX)
-      val plc = readNestedField[HCursor](hc, JITTER, POLICY)
+      val min = read_nested_field[Duration](hc, JITTER, JITTER_MIN)
+      val max = read_nested_field[Duration](hc, JITTER, JITTER_MAX)
+      val plc = read_nested_field[HCursor](hc, JITTER, POLICY)
 
       (plc, min, max).mapN(Jitter[HCursor]).flatMap { decoded =>
         if (decoded.min.isNegative)
@@ -111,8 +111,8 @@ private object CodecPolicy {
       }
     }
 
-    def fixedDelay(hc: HCursor): Result[FixedDelay[HCursor]] =
-      readField[NonEmptyList[Duration]](hc, FIXED_DELAY).flatMap { delays =>
+    def fixed_delay(hc: HCursor): Result[FixedDelay[HCursor]] =
+      read_field[NonEmptyList[Duration]](hc, FIXED_DELAY).flatMap { delays =>
         if (delays.exists(_.isNegative))
           reject(hc, s"every $FIXED_DELAY must be non-negative, but got ${delays.toList.mkString(",")}")
         else if (!delays.exists(is_positive))
@@ -120,42 +120,42 @@ private object CodecPolicy {
         else Right(FixedDelay[HCursor](delays))
       }
 
-    def fixedRate(hc: HCursor): Result[FixedRate[HCursor]] =
-      readField[Duration](hc, FIXED_RATE).flatMap { delay =>
+    def fixed_rate(hc: HCursor): Result[FixedRate[HCursor]] =
+      read_field[Duration](hc, FIXED_RATE).flatMap { delay =>
         if (is_positive(delay)) Right(FixedRate[HCursor](delay))
         else reject(hc, s"$FIXED_RATE must be positive, but was $delay")
       }
 
     def limited(hc: HCursor): Result[Limited[HCursor]] = {
-      val lmt = readField[Int](hc, LIMITED)
-      val plc = readNestedCursor(hc, POLICY)
+      val lmt = read_field[Int](hc, LIMITED)
+      val plc = read_nested_cursor(hc, POLICY)
       (plc, lmt).mapN(Limited[HCursor])
     }
 
-    def followedBy(hc: HCursor): Result[FollowedBy[HCursor]] = {
-      val leader = readNestedField[HCursor](hc, FOLLOWED_BY, FOLLOWED_BY_LEADER)
-      val follower = readNestedField[HCursor](hc, FOLLOWED_BY, FOLLOWED_BY_FOLLOWER)
+    def followed_by(hc: HCursor): Result[FollowedBy[HCursor]] = {
+      val leader = read_nested_field[HCursor](hc, FOLLOWED_BY, FOLLOWED_BY_LEADER)
+      val follower = read_nested_field[HCursor](hc, FOLLOWED_BY, FOLLOWED_BY_FOLLOWER)
       (leader, follower).mapN(FollowedBy[HCursor])
     }
 
     def meet(hc: HCursor): Result[Meet[HCursor]] = {
-      val first = readNestedField[HCursor](hc, MEET, MEET_FIRST)
-      val second = readNestedField[HCursor](hc, MEET, MEET_SECOND)
+      val first = read_nested_field[HCursor](hc, MEET, MEET_FIRST)
+      val second = read_nested_field[HCursor](hc, MEET, MEET_SECOND)
       (first, second).mapN(Meet[HCursor])
     }
 
     def repeat(hc: HCursor): Result[Repeat[HCursor]] =
-      readNestedCursor(hc, REPEAT).map(Repeat[HCursor])
+      read_nested_cursor(hc, REPEAT).map(Repeat[HCursor])
 
     def except(hc: HCursor): Result[Except[HCursor]] = {
-      val ept = readField[LocalTime](hc, EXCEPT)
-      val plc = readNestedCursor(hc, POLICY)
+      val ept = read_field[LocalTime](hc, EXCEPT)
+      val plc = read_nested_cursor(hc, POLICY)
       (plc, ept).mapN(Except[HCursor])
     }
 
     def offset(hc: HCursor): Result[Offset[HCursor]] = {
-      val ost = readField[Duration](hc, OFFSET)
-      val plc = readNestedCursor(hc, POLICY)
+      val ost = read_field[Duration](hc, OFFSET)
+      val plc = read_nested_cursor(hc, POLICY)
       (plc, ost).mapN(Offset[HCursor]).flatMap { decoded =>
         if (decoded.offset.isNegative)
           reject(hc, s"$OFFSET must be non-negative, but was ${decoded.offset}")
@@ -163,18 +163,18 @@ private object CodecPolicy {
       }
     }
 
-    def decodeVariant(hc: HCursor): Result[PolicyF[HCursor]] = {
-      val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variantKeys)
+    def decode_variant(hc: HCursor): Result[PolicyF[HCursor]] = {
+      val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variant_keys)
       present.toList match {
         case key :: Nil =>
           key match {
             case EMPTY       => empty(hc)
             case CRONTAB     => crontab(hc)
             case JITTER      => jitter(hc)
-            case FIXED_DELAY => fixedDelay(hc)
-            case FIXED_RATE  => fixedRate(hc)
+            case FIXED_DELAY => fixed_delay(hc)
+            case FIXED_RATE  => fixed_rate(hc)
             case LIMITED     => limited(hc)
-            case FOLLOWED_BY => followedBy(hc)
+            case FOLLOWED_BY => followed_by(hc)
             case MEET        => meet(hc)
             case EXCEPT      => except(hc)
             case OFFSET      => offset(hc)
@@ -185,7 +185,7 @@ private object CodecPolicy {
         case Nil =>
           Left(
             DecodingFailure(
-              s"No policy variant key found. Expected one of: ${variantKeys.toList.sorted.mkString(",")}",
+              s"No policy variant key found. Expected one of: ${variant_keys.toList.sorted.mkString(",")}",
               hc.history))
         case many =>
           Left(
@@ -201,10 +201,10 @@ private object CodecPolicy {
     // it back into a `Left`. The exception never escapes `decoder`, so the resulting `Decoder` stays total.
     //
     // This coalgebra is `private`, so `decoder` below is its only unfold site today. The invariant to keep:
-    // any future `scheme.ana(decoderCoalgebra)` added in this object must run inside the same catch (or use
+    // any future `scheme.ana(decoder_coalgebra)` added in this object must run inside the same catch (or use
     // `scheme.anaM` over the Either monad), otherwise the throw would leak past a total Decoder boundary.
     Coalgebra[PolicyF, HCursor] { hc =>
-      decodeVariant(hc).fold(
+      decode_variant(hc).fold(
         // caught by `decoder`'s try/catch; see note above
         err => throw err, // scalafix:ok
         identity
@@ -214,9 +214,9 @@ private object CodecPolicy {
 
   val decoder: Decoder[Fix[PolicyF]] =
     (hc: HCursor) =>
-      // This try/catch is the other half of decoderCoalgebra's invariant: it confines the DecodingFailure
+      // This try/catch is the other half of decoder_coalgebra's invariant: it confines the DecodingFailure
       // that the coalgebra throws mid-unfold and converts it back to a `Left`, keeping this Decoder total.
-      try Right(scheme.ana(decoderCoalgebra).apply(hc))
+      try Right(scheme.ana(decoder_coalgebra).apply(hc))
       catch
         case ex: DecodingFailure => Left(ex)
         case NonFatal(ex)        => Left(DecodingFailure(ExceptionUtils.getMessage(ex), hc.history))

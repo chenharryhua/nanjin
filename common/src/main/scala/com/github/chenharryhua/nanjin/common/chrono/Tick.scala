@@ -14,7 +14,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.typelevel.cats.time.instances.duration.durationInstances
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
-import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZonedDateTime}
+import java.time.{Duration, Instant, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
@@ -159,35 +159,52 @@ object Tick {
     (a: Tick) =>
       Json.obj(
         "index" -> Json.fromLong(a.index),
-        "commence" -> a.local(_.commence).asJson,
-        "acquires" -> a.local(_.acquires).asJson,
-        "conclude" -> a.local(_.conclude).asJson,
+        "commence" -> a.zoned(_.commence).toOffsetDateTime.asJson,
+        "acquires" -> a.zoned(_.acquires).toOffsetDateTime.asJson,
+        "conclude" -> a.zoned(_.conclude).toOffsetDateTime.asJson,
         "active" -> fmt.format(a.active).asJson,
         "snooze" -> fmt.format(a.snooze).asJson,
         "window" -> fmt.format(a.window).asJson,
         "sequence_id" -> a.sequenceId.asJson,
-        "launch_time" -> a.local(_.launchTime).asJson,
+        "launch_time" -> a.zoned(_.launchTime).toOffsetDateTime.asJson,
         "zone_id" -> a.zoneId.asJson
       )
+
+  /** Read one timestamp back as an instant, accepting either serialized form.
+    *
+    * The current form carries the offset, so the instant is exact. A payload written before that carries only
+    * a wall-clock reading, which a zone cannot always resolve: a zone is a schedule of offsets, and during a
+    * fall-back one reading covers two instants an hour apart. Such a payload is still accepted, resolved as
+    * it always was by `atZone` choosing the earlier offset, so stored events keep decoding with their
+    * original ambiguity rather than failing.
+    *
+    * The two forms cannot be confused: a bare reading fails `ISO_OFFSET_DATE_TIME` and an offset-bearing one
+    * fails `ISO_LOCAL_DATE_TIME`.
+    */
+  private def read_instant(c: HCursor, field: String, zoneId: ZoneId): Decoder.Result[Instant] =
+    c.get[OffsetDateTime](field)
+      .map(_.toInstant)
+      .orElse(c.get[LocalDateTime](field).map(_.atZone(zoneId).toInstant))
 
   given Decoder[Tick] =
     (c: HCursor) =>
       for {
         sequenceId <- c.get[UUID]("sequence_id")
-        launchTime <- c.get[LocalDateTime]("launch_time")
+        // read before the timestamps, which need it to resolve the legacy form
         zoneId <- c.get[ZoneId]("zone_id")
         index <- c.get[Long]("index")
-        commence <- c.get[LocalDateTime]("commence")
-        acquires <- c.get[LocalDateTime]("acquires")
-        conclude <- c.get[LocalDateTime]("conclude")
+        launchTime <- read_instant(c, "launch_time", zoneId)
+        commence <- read_instant(c, "commence", zoneId)
+        acquires <- read_instant(c, "acquires", zoneId)
+        conclude <- read_instant(c, "conclude", zoneId)
       } yield Tick(
         sequenceId = sequenceId,
-        launchTime = launchTime.atZone(zoneId).toInstant,
+        launchTime = launchTime,
         zoneId = zoneId,
         index = index,
-        commence = commence.atZone(zoneId).toInstant,
-        acquires = acquires.atZone(zoneId).toInstant,
-        conclude = conclude.atZone(zoneId).toInstant
+        commence = commence,
+        acquires = acquires,
+        conclude = conclude
       )
 
   given Show[Tick] = Show.fromToString[Tick]

@@ -181,14 +181,14 @@ object Retry {
       */
     given Encoder[Decision] = Encoder.instance { rd =>
       val tick = rd.tick
-      val failed_at = tick.local(_.acquires).asJson
+      val failed_at = tick.zoned(_.acquires).toOffsetDateTime.asJson
       val ordinal = tick.index.asJson
       val zone_id = tick.zoneId.asJson
       if (rd.accepted)
         Json.obj(
           "retry" -> true.asJson,
           "failed_at" -> failed_at,
-          "wakeup_at" -> tick.local(_.conclude).asJson,
+          "wakeup_at" -> tick.zoned(_.conclude).toOffsetDateTime.asJson,
           "snooze" -> DurationFormatter.defaultFormatter.format(tick.snooze).asJson,
           "ordinal" -> ordinal,
           "zone_id" -> zone_id
