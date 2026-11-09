@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cats.derived.derived
 import cats.effect.kernel.Sync
 import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.syntax.eq.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.show.{showInterpolator, given}
@@ -13,7 +12,6 @@ import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.typelevel.cats.time.instances.duration.durationInstances
-import org.typelevel.cats.time.instances.instant.instantInstances
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
 import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZonedDateTime}
@@ -91,15 +89,22 @@ final case class Tick(
   /** Replace the conclude time entirely */
   def withConclude(newConclude: Instant): Tick = copy(conclude = newConclude)
 
-  /** check if an instant is in this tick frame from commence(exclusive) to conclude(inclusive).
+  /** Whether an instant lies in this tick's frame, from `commence` exclusive to `conclude` inclusive.
+    *
+    * An empty frame contains nothing. A seed tick has `commence == conclude`, and the interval
+    * `(commence, conclude]` is then empty, so even that instant is outside it. Stating the bounds as a single
+    * conjunction gets this right; testing the closed end separately reported the instant as inside.
     */
   def isWithinOpenClosed(now: Instant): Boolean =
-    (now.isAfter(commence) && now.isBefore(conclude)) || (now === conclude)
+    now.isAfter(commence) && !now.isAfter(conclude)
 
-  /** check if an instant is in this tick frame from commence(inclusive) to conclude(exclusive).
+  /** Whether an instant lies in this tick's frame, from `commence` inclusive to `conclude` exclusive.
+    *
+    * Empty frames are handled as in `isWithinOpenClosed`: with `commence == conclude` the interval
+    * `[commence, conclude)` is empty and contains nothing.
     */
   def isWithinClosedOpen(now: Instant): Boolean =
-    (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)
+    !now.isBefore(commence) && now.isBefore(conclude)
 
   def nextTick(acquires: Instant, conclude: Instant): Tick =
     copy(

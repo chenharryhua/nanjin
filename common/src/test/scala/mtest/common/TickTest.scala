@@ -51,6 +51,45 @@ class TickTest extends FunSuite {
     assertEquals(t.isWithinOpenClosed(t.conclude), true)
     assertEquals(t.isWithinClosedOpen(now), true)
     assertEquals(t.isWithinClosedOpen(t.conclude), false)
+
+    // interior and outside, for both bound styles
+    val mid = now.plusSeconds(5)
+    assertEquals(t.isWithinOpenClosed(mid), true)
+    assertEquals(t.isWithinClosedOpen(mid), true)
+    assertEquals(t.isWithinOpenClosed(now.minusSeconds(1)), false)
+    assertEquals(t.isWithinClosedOpen(now.minusSeconds(1)), false)
+    assertEquals(t.isWithinOpenClosed(t.conclude.plusSeconds(1)), false)
+    assertEquals(t.isWithinClosedOpen(t.conclude.plusSeconds(1)), false)
+  }
+
+  test("4b.an empty tick frame contains no instant at all") {
+    // A seed tick has commence == acquires == conclude, so both (commence, conclude] and
+    // [commence, conclude) are empty. Testing the inclusive bound on its own used to report that single
+    // instant as inside: isWithinClosedOpen(commence) and isWithinOpenClosed(conclude) both returned true
+    // for an interval containing nothing.
+    val empty = Tick.seed(uuid, zoneId, now)
+    assertEquals(empty.commence, empty.conclude)
+
+    assertEquals(empty.isWithinOpenClosed(now), false)
+    assertEquals(empty.isWithinClosedOpen(now), false)
+    assertEquals(empty.isWithinOpenClosed(now.minusSeconds(1)), false)
+    assertEquals(empty.isWithinClosedOpen(now.minusSeconds(1)), false)
+    assertEquals(empty.isWithinOpenClosed(now.plusSeconds(1)), false)
+    assertEquals(empty.isWithinClosedOpen(now.plusSeconds(1)), false)
+  }
+
+  test("4c.an inverted tick frame contains no instant either") {
+    // Not a valid tick, but reachable: a JSON round trip across a DST fall-back can decode conclude
+    // before acquires. Neither predicate should report a hit for a frame that runs backwards.
+    val inverted = Tick.seed(uuid, zoneId, now).withConclude(now.minusSeconds(10))
+    assert(inverted.conclude.isBefore(inverted.commence))
+
+    assertEquals(inverted.isWithinOpenClosed(now), false)
+    assertEquals(inverted.isWithinClosedOpen(now), false)
+    assertEquals(inverted.isWithinOpenClosed(inverted.conclude), false)
+    assertEquals(inverted.isWithinClosedOpen(inverted.conclude), false)
+    assertEquals(inverted.isWithinOpenClosed(now.minusSeconds(5)), false)
+    assertEquals(inverted.isWithinClosedOpen(now.minusSeconds(5)), false)
   }
 
   test("5.Tick withSnoozeStretch updates conclude") {
