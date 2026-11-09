@@ -55,7 +55,7 @@ object CircuitBreaker {
     */
   case object RejectedException extends Exception("CircuitBreaker rejected") with NoStackTrace
 
-  final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(using F: Async[F]) {
+  final private class Impl[F[_]](max_failures: Int, ticks: Stream[F, Tick])(using F: Async[F]) {
 
     private enum InternalState:
       case Closed(failures: Int)
@@ -67,18 +67,18 @@ object CircuitBreaker {
       *   bumped on every effective state change. It identifies one particular occupancy of a state, and is
       *   the compare key for a half-open probe: a probe's completion applies only while the `HalfOpenRunning`
       *   it created is still the current one.
-      * @param closedEpoch
+      * @param closed_epoch
       *   bumped only when the breaker (re-)enters `Closed` from a non-closed state, so it names one
       *   uninterrupted closed period and is unchanged by failure-count changes within that period. It is the
       *   compare key for a closed-state call: every failure admitted in the same closed period counts, while
       *   a failure left over from an earlier period is discarded.
       */
-    private case class MachineState(state: InternalState, version: Long, closedEpoch: Long)
+    private case class MachineState(state: InternalState, version: Long, closed_epoch: Long)
 
-    private val initClosed: InternalState.Closed = InternalState.Closed(0)
-    private val initOpen: InternalState.Open.type = InternalState.Open
+    private val init_closed: InternalState.Closed = InternalState.Closed(0)
+    private val init_open: InternalState.Open.type = InternalState.Open
 
-    private def toPublicState(state: InternalState): State = state match {
+    private def to_public_state(state: InternalState): State = state match {
       case InternalState.Closed(failures) => State.Closed(failures)
       case InternalState.HalfOpen         => State.HalfOpen
       case InternalState.HalfOpenRunning  => State.HalfOpen
@@ -89,20 +89,20 @@ object CircuitBreaker {
       * otherwise the current one. A failure-count change inside `Closed` stays in the same period, which is
       * what lets overlapping failures accumulate rather than cancel each other out.
       */
-    private def nextClosedEpoch(ms: MachineState, next: InternalState): Long =
+    private def next_closed_epoch(ms: MachineState, next: InternalState): Long =
       (ms.state, next) match {
-        case (InternalState.Closed(_), InternalState.Closed(_)) => ms.closedEpoch
-        case (_, InternalState.Closed(_))                       => ms.closedEpoch + 1
-        case _                                                  => ms.closedEpoch
+        case (InternalState.Closed(_), InternalState.Closed(_)) => ms.closed_epoch
+        case (_, InternalState.Closed(_))                       => ms.closed_epoch + 1
+        case _                                                  => ms.closed_epoch
       }
 
-    private def transitionTo(ms: MachineState, next: InternalState): MachineState =
+    private def transition_to(ms: MachineState, next: InternalState): MachineState =
       (ms.state, next) match {
         case (InternalState.Closed(l), InternalState.Closed(r)) if l === r  => ms
         case (InternalState.HalfOpen, InternalState.HalfOpen)               => ms
         case (InternalState.HalfOpenRunning, InternalState.HalfOpenRunning) => ms
         case (InternalState.Open, InternalState.Open)                       => ms
-        case _ => MachineState(next, ms.version + 1, nextClosedEpoch(ms, next))
+        case _ => MachineState(next, ms.version + 1, next_closed_epoch(ms, next))
       }
 
     /** How a call was admitted, together with the state facts captured at that moment.
@@ -112,8 +112,8 @@ object CircuitBreaker {
       * once per protected call.
       */
     private enum AdmittedFrom:
-      case Closed(failuresAtAdmission: Int, closedEpochAtAdmission: Long)
-      case HalfOpen(versionAtAdmission: Long)
+      case Closed(failures_at_admission: Int, closed_epoch_at_admission: Long)
+      case HalfOpen(version_at_admission: Long)
 
     private enum Decision:
       case Run(from: AdmittedFrom)
@@ -134,9 +134,9 @@ object CircuitBreaker {
           from match {
             case AdmittedFrom.HalfOpen(_) =>
               result match {
-                case Result.Succeeded => transitionTo(ms, initClosed)
-                case Result.Failed    => transitionTo(ms, initOpen)
-                case Result.Canceled  => transitionTo(ms, InternalState.HalfOpen)
+                case Result.Succeeded => transition_to(ms, init_closed)
+                case Result.Failed    => transition_to(ms, init_open)
+                case Result.Canceled  => transition_to(ms, InternalState.HalfOpen)
               }
             case AdmittedFrom.Closed(_, _) => ms
           }
@@ -147,20 +147,20 @@ object CircuitBreaker {
 
         case InternalState.Closed(failures) =>
           from match {
-            case AdmittedFrom.HalfOpen(_)                    => ms
-            case AdmittedFrom.Closed(failuresAtAdmission, _) =>
+            case AdmittedFrom.HalfOpen(_)                      => ms
+            case AdmittedFrom.Closed(failures_at_admission, _) =>
               result match {
                 // A success resets the count only when no other call changed it since admission, so a
                 // success that was already in flight cannot erase failures recorded after it started.
-                case Result.Succeeded if failures === failuresAtAdmission =>
-                  transitionTo(ms, initClosed)
+                case Result.Succeeded if failures === failures_at_admission =>
+                  transition_to(ms, init_closed)
                 // Every failure admitted in this closed period counts, including ones that overlapped
                 // other calls. The caller's `maxFailures` would otherwise be reached only by strictly
                 // sequential failures, leaving the breaker closed under concurrent load.
                 case Result.Failed =>
-                  if (failures + 1 < maxFailures)
-                    transitionTo(ms, InternalState.Closed(failures + 1))
-                  else transitionTo(ms, initOpen)
+                  if (failures + 1 < max_failures)
+                    transition_to(ms, InternalState.Closed(failures + 1))
+                  else transition_to(ms, init_open)
                 case _ => ms
               }
           }
@@ -170,34 +170,34 @@ object CircuitBreaker {
       *
       * If it completes, fails, or is canceled, breaker state is left unchanged.
       */
-    val stateMachine: Resource[F, CircuitBreaker[F]] = for {
-      stateRef <- Resource.eval(F.ref[MachineState](MachineState(initClosed, 0L, 0L)))
+    val state_machine: Resource[F, CircuitBreaker[F]] = for {
+      state_ref <- Resource.eval(F.ref[MachineState](MachineState(init_closed, 0L, 0L)))
       _ <- ticks.evalMap { _ =>
-        stateRef.update { ms =>
+        state_ref.update { ms =>
           ms.state match {
-            case InternalState.Open => transitionTo(ms, InternalState.HalfOpen)
+            case InternalState.Open => transition_to(ms, InternalState.HalfOpen)
             case _                  => ms
           }
         }
       }.compile.drain.background
     } yield new CircuitBreaker[F] {
 
-      override val state: F[State] = stateRef.get.map(ms => toPublicState(ms.state))
+      override val state: F[State] = state_ref.get.map(ms => to_public_state(ms.state))
 
-      /** Admit or reject one call. Built once for the breaker: it reads and transitions `stateRef` and
+      /** Admit or reject one call. Built once for the breaker: it reads and transitions `state_ref` and
         * depends on nothing specific to the protected effect.
         */
       private val admit: F[Decision] =
-        stateRef.modify {
+        state_ref.modify {
           case ms @ MachineState(InternalState.Open, _, _) =>
             ms -> Decision.Reject
           case ms @ MachineState(InternalState.HalfOpen, _, _) =>
-            val next = transitionTo(ms, InternalState.HalfOpenRunning)
+            val next = transition_to(ms, InternalState.HalfOpenRunning)
             next -> Decision.Run(AdmittedFrom.HalfOpen(next.version))
           case ms @ MachineState(InternalState.HalfOpenRunning, _, _) =>
             ms -> Decision.Reject
-          case ms @ MachineState(InternalState.Closed(failures), _, closedEpoch) =>
-            ms -> Decision.Run(AdmittedFrom.Closed(failures, closedEpoch))
+          case ms @ MachineState(InternalState.Closed(failures), _, closed_epoch) =>
+            ms -> Decision.Run(AdmittedFrom.Closed(failures, closed_epoch))
         }
 
       /** Apply `transform` only if the state version still matches admission time, i.e. the `HalfOpenRunning`
@@ -206,10 +206,10 @@ object CircuitBreaker {
         * This prevents a stale probe completion from an older fiber, one whose half-open run was already
         * replaced by a cancellation and a later probe, from overwriting newer state.
         */
-      private def updateIfCurrentVersion(versionAtAdmission: Long)(
+      private def update_if_current_version(version_at_admission: Long)(
         transform: MachineState => MachineState): F[Unit] =
-        stateRef.update { ms =>
-          if (ms.version === versionAtAdmission) transform(ms) else ms
+        state_ref.update { ms =>
+          if (ms.version === version_at_admission) transform(ms) else ms
         }
 
       /** Apply `transform` only if the breaker is still in the same closed period it was admitted in.
@@ -219,10 +219,10 @@ object CircuitBreaker {
         * completion left over from a closed period that has since been interrupted by an open/half-open
         * cycle.
         */
-      private def updateIfSameClosedEpoch(closedEpochAtAdmission: Long)(
+      private def update_if_same_closed_epoch(closed_epoch_at_admission: Long)(
         transform: MachineState => MachineState): F[Unit] =
-        stateRef.update { ms =>
-          if (ms.closedEpoch === closedEpochAtAdmission) transform(ms) else ms
+        state_ref.update { ms =>
+          if (ms.closed_epoch === closed_epoch_at_admission) transform(ms) else ms
         }
 
       /** Record `result` for one call, guarded by the provenance captured at admission: a half-open probe
@@ -230,10 +230,10 @@ object CircuitBreaker {
         * period is current.
         */
       private def record(from: AdmittedFrom, result: Result): F[Unit] = from match {
-        case AdmittedFrom.HalfOpen(versionAtAdmission) =>
-          updateIfCurrentVersion(versionAtAdmission)(evolve(from, result))
-        case AdmittedFrom.Closed(_, closedEpochAtAdmission) =>
-          updateIfSameClosedEpoch(closedEpochAtAdmission)(evolve(from, result))
+        case AdmittedFrom.HalfOpen(version_at_admission) =>
+          update_if_current_version(version_at_admission)(evolve(from, result))
+        case AdmittedFrom.Closed(_, closed_epoch_at_admission) =>
+          update_if_same_closed_epoch(closed_epoch_at_admission)(evolve(from, result))
       }
 
       override def protect[A](fa: F[A]): F[A] =
@@ -282,6 +282,6 @@ object CircuitBreaker {
     maxFailures: Int,
     f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] = {
     require(maxFailures > 0, s"maxFailures must be positive, but was $maxFailures")
-    new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, f)).stateMachine
+    new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, f)).state_machine
   }
 }
