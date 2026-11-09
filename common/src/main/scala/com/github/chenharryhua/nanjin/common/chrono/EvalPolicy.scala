@@ -28,7 +28,7 @@ private object EvalPolicy {
     *
     * `delay` is positive for any policy built through `Policy.fixedRate`, which requires it.
     */
-  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration): Instant = {
+  private def fixed_rate_snooze(wakeup: Instant, now: Instant, delay: Duration): Instant = {
     val elapsed = Duration.between(wakeup, now)
     // `dividedBy` truncates toward zero, which is the floor for a non-negative elapsed. A negative elapsed
     // means `now` precedes `wakeup`, so the first period is already in the future and no periods are past.
@@ -55,7 +55,7 @@ private object EvalPolicy {
         LazyList(TickStepper { case Acquisition(tick, now) =>
           val conclude =
             if (tick.index === 0L) now.plus(delay)
-            else fixedRateSnooze(tick.conclude, now, delay)
+            else fixed_rate_snooze(tick.conclude, now, delay)
           tick.nextTick(now, conclude).some.pure[F]
         })
 

@@ -13,7 +13,9 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object tickStream {
 
-  private def seedPolicyTick[F[_]: Sync](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
+  private def seed_policy_tick[F[_]: Sync](
+    zoneId: ZoneId,
+    f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
     Stream.eval(PolicyTick.seed[F](zoneId, f(Policy)))
 
   /** Stream ticks according to a policy in a **“sleep first, then emit”** pattern.
@@ -22,7 +24,7 @@ object tickStream {
     * duration.
     */
   def tickScheduled[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
-    seedPolicyTick(zoneId, f).flatMap { seed =>
+    seed_policy_tick(zoneId, f).flatMap { seed =>
       Stream.unfoldEval[F, PolicyTick[F], Tick](seed) { policyTick =>
         F.realTimeInstant.flatMap(policyTick.next).flatMap {
           _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
@@ -36,7 +38,7 @@ object tickStream {
     * next tick as soon as it can and then sleeps only for the remaining gap.
     */
   def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
-    seedPolicyTick(zoneId, f).flatMap { seed =>
+    seed_policy_tick(zoneId, f).flatMap { seed =>
       val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
         Pull.loop[F, Tick, PolicyTick[F]] { policyTick =>
           Pull.eval(F.realTimeInstant.flatMap(policyTick.next)).flatMap {

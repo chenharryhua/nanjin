@@ -9,7 +9,7 @@ import org.typelevel.cats.time.instances.localtime.given
 
 private object ShowPolicy {
   import PolicyF.*
-  private val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
+  private val show_policy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case Empty() => show"$EMPTY"
 
     case Crontab(cronExpr) => show"$CRONTAB($cronExpr)"
@@ -28,5 +28,5 @@ private object ShowPolicy {
   }
 
   def apply(policy: Fix[PolicyF]): String =
-    scheme.cata(showPolicy).apply(policy)
+    scheme.cata(show_policy).apply(policy)
 }
