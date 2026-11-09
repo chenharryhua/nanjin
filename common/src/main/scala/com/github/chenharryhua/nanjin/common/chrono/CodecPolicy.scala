@@ -12,6 +12,13 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.{Duration, LocalTime}
 import scala.util.control.NonFatal
 
+/** JSON codec for the policy AST.
+  *
+  * The decoder enforces the same invariants the `Policy` builder does. The encoder only ever writes policies
+  * that came through that builder, so any payload failing these checks was not produced here, and accepting
+  * one would build a policy whose steppers misbehave when stepped rather than failing at the decode boundary.
+  * A `fixedRate` of zero, for instance, has no next cadence boundary to compute.
+  */
 private object CodecPolicy {
 
   import PolicyF.*
@@ -83,19 +90,41 @@ private object CodecPolicy {
     def crontab(hc: HCursor): Result[Crontab[HCursor]] =
       readField[CronExpr](hc, CRONTAB).map(Crontab[HCursor])
 
+    def is_positive(d: Duration): Boolean = !d.isNegative && !d.isZero
+
+    def reject[A](hc: HCursor, message: String): Result[A] =
+      Left(DecodingFailure(message, hc.history))
+
     def jitter(hc: HCursor): Result[Jitter[HCursor]] = {
       val min = readNestedField[Duration](hc, JITTER, JITTER_MIN)
       val max = readNestedField[Duration](hc, JITTER, JITTER_MAX)
       val plc = readNestedField[HCursor](hc, JITTER, POLICY)
 
-      (plc, min, max).mapN(Jitter[HCursor])
+      (plc, min, max).mapN(Jitter[HCursor]).flatMap { decoded =>
+        if (decoded.min.isNegative)
+          reject(hc, s"$JITTER_MIN must be non-negative, but was ${decoded.min}")
+        else if (decoded.max.compareTo(decoded.min) <= 0)
+          reject(
+            hc,
+            s"$JITTER_MAX must be strictly bigger than $JITTER_MIN ${decoded.min}, but was ${decoded.max}")
+        else Right(decoded)
+      }
     }
 
     def fixedDelay(hc: HCursor): Result[FixedDelay[HCursor]] =
-      readField[NonEmptyList[Duration]](hc, FIXED_DELAY).map(FixedDelay[HCursor])
+      readField[NonEmptyList[Duration]](hc, FIXED_DELAY).flatMap { delays =>
+        if (delays.exists(_.isNegative))
+          reject(hc, s"every $FIXED_DELAY must be non-negative, but got ${delays.toList.mkString(",")}")
+        else if (!delays.exists(is_positive))
+          reject(hc, s"at least one $FIXED_DELAY must be positive, but got ${delays.toList.mkString(",")}")
+        else Right(FixedDelay[HCursor](delays))
+      }
 
     def fixedRate(hc: HCursor): Result[FixedRate[HCursor]] =
-      readField[Duration](hc, FIXED_RATE).map(FixedRate[HCursor])
+      readField[Duration](hc, FIXED_RATE).flatMap { delay =>
+        if (is_positive(delay)) Right(FixedRate[HCursor](delay))
+        else reject(hc, s"$FIXED_RATE must be positive, but was $delay")
+      }
 
     def limited(hc: HCursor): Result[Limited[HCursor]] = {
       val lmt = readField[Int](hc, LIMITED)
@@ -127,7 +156,11 @@ private object CodecPolicy {
     def offset(hc: HCursor): Result[Offset[HCursor]] = {
       val ost = readField[Duration](hc, OFFSET)
       val plc = readNestedCursor(hc, POLICY)
-      (plc, ost).mapN(Offset[HCursor])
+      (plc, ost).mapN(Offset[HCursor]).flatMap { decoded =>
+        if (decoded.offset.isNegative)
+          reject(hc, s"$OFFSET must be non-negative, but was ${decoded.offset}")
+        else Right(decoded)
+      }
     }
 
     def decodeVariant(hc: HCursor): Result[PolicyF[HCursor]] = {
