@@ -1,6 +1,7 @@
 package mtest.common
 
 import cats.effect.*
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
 import munit.CatsEffectSuite
@@ -224,7 +225,10 @@ class CircuitBreakerSpec extends CatsEffectSuite {
     }
   }
 
-  test("14.CircuitBreaker: does not let stale failure increment newer closed failures") {
+  test("14.CircuitBreaker: counts an overlapping failure on top of newer closed failures") {
+    // The slow failure is admitted at Closed(0) and completes after another call already moved the count
+    // to 1. It belongs to the same closed period, so it counts: the breaker must reach Closed(2) rather
+    // than discard the overlapping failure.
     breaker(3, Policy.fixedDelay(10.seconds).repeat).use { cb =>
       for {
         gate <- Deferred[IO, Unit]
@@ -237,7 +241,7 @@ class CircuitBreakerSpec extends CatsEffectSuite {
         after <- cb.state
       } yield {
         assertEquals(before, CircuitBreaker.State.Closed(1))
-        assertEquals(after, CircuitBreaker.State.Closed(1))
+        assertEquals(after, CircuitBreaker.State.Closed(2))
       }
     }
   }
@@ -354,6 +358,82 @@ class CircuitBreakerSpec extends CatsEffectSuite {
         assertEquals(success, 42)
         assertEquals(after_success, CircuitBreaker.State.Closed(0))
       }
+    }
+  }
+
+  test("22.CircuitBreaker: opens when maxFailures failures fail concurrently") {
+    // All calls are admitted while the breaker is Closed(0) and fail together, so none of them can observe
+    // the others' counts at admission time. Every one must still count towards maxFailures.
+    val failure = new RuntimeException("concurrent")
+
+    breaker(3, Policy.fixedDelay(1.hour).repeat).use { cb =>
+      for {
+        gate <- Deferred[IO, Unit]
+        fibers <- List.fill(3)(cb.attempt(gate.get >> IO.raiseError[Unit](failure)).start).sequence
+        _ <- IO.sleep(50.millis) // let every call be admitted before any of them completes
+        admitted <- cb.state
+        _ <- gate.complete(())
+        results <- fibers.traverse(_.joinWithNever)
+        after <- cb.state
+      } yield {
+        assertEquals(admitted, CircuitBreaker.State.Closed(0))
+        // every call ran and failed on its own; none was rejected
+        assertEquals(results.count(_ == Left(failure)), 3)
+        assertEquals(after, CircuitBreaker.State.Open)
+      }
+    }
+  }
+
+  test("23.CircuitBreaker: counts every concurrent failure below the threshold") {
+    val failure = new RuntimeException("concurrent")
+
+    breaker(5, Policy.fixedDelay(1.hour).repeat).use { cb =>
+      for {
+        gate <- Deferred[IO, Unit]
+        fibers <- List.fill(3)(cb.attempt(gate.get >> IO.raiseError[Unit](failure)).start).sequence
+        _ <- IO.sleep(50.millis)
+        _ <- gate.complete(())
+        _ <- fibers.traverse_(_.joinWithNever)
+        after <- cb.state
+      } yield assertEquals(after, CircuitBreaker.State.Closed(3))
+    }
+  }
+
+  test("24.CircuitBreaker: surplus concurrent failures leave the breaker open, not miscounted") {
+    // Ten concurrent failures against maxFailures = 3: the breaker opens and the remaining completions,
+    // which arrive while it is already Open, must neither reopen a closed count nor be lost into Closed.
+    val failure = new RuntimeException("concurrent")
+
+    breaker(3, Policy.fixedDelay(1.hour).repeat).use { cb =>
+      for {
+        gate <- Deferred[IO, Unit]
+        fibers <- List.fill(10)(cb.attempt(gate.get >> IO.raiseError[Unit](failure)).start).sequence
+        _ <- IO.sleep(50.millis)
+        _ <- gate.complete(())
+        _ <- fibers.traverse_(_.joinWithNever)
+        after <- cb.state
+        rejected <- cb.attempt(IO.unit)
+      } yield {
+        assertEquals(after, CircuitBreaker.State.Open)
+        assert(isRejected(rejected.swap.toOption.get))
+      }
+    }
+  }
+
+  test("25.CircuitBreaker: a concurrent success still cannot erase failures recorded after it") {
+    // The epoch guard loosens the check for failures only. A success admitted at Closed(0) that completes
+    // after other calls recorded failures must still be ignored, so it cannot mask a failing dependency.
+    breaker(5, Policy.fixedDelay(1.hour).repeat).use { cb =>
+      for {
+        gate <- Deferred[IO, Unit]
+        slowSuccess <- cb.attempt(gate.get).start
+        _ <- IO.sleep(30.millis)
+        _ <- cb.attempt(IO.raiseError(new RuntimeException("f1")))
+        _ <- cb.attempt(IO.raiseError(new RuntimeException("f2")))
+        _ <- gate.complete(())
+        _ <- slowSuccess.joinWithNever
+        after <- cb.state
+      } yield assertEquals(after, CircuitBreaker.State.Closed(2))
     }
   }
 }
