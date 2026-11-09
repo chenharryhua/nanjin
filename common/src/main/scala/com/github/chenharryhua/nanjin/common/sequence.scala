@@ -13,8 +13,16 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
   * ==Caveat: `FiniteDuration` range==
   * A `FiniteDuration` holds at most `Long.MaxValue` nanoseconds (~106,751 days). For coarse units the numeric
   * value can exceed that bound; forcing such an element throws `IllegalArgumentException`. `exponential`
-  * reaches the bound fastest (and its values also overflow to negative around the 63rd element). Keep the
-  * taken prefix small, especially with large time units.
+  * reaches the bound fastest. Keep the taken prefix small, especially with large time units.
+  *
+  * ==Caveat: `Long` range==
+  * `exponential` holds at 2^62 instead of overflowing, so its values stay valid however long a prefix is
+  * taken. `fibonacci` and `primes` do '''not''' saturate: `fibonacci` exceeds `Long` after its first 92
+  * elements and silently goes negative from there. Only `exponential` is safe to take an arbitrary prefix of.
+  *
+  * ==Caveat: memoization==
+  * These are `val`s, so a `LazyList` memoizes every element ever forced and retains it for the life of the
+  * JVM. Forcing a very long prefix therefore costs memory permanently, not just for the duration of the call.
   */
 object sequence {
 
@@ -26,12 +34,21 @@ object sequence {
   def fibonacci(tu: TimeUnit): LazyList[FiniteDuration] =
     fibonacci.map(v => FiniteDuration(v, tu))
 
-  /** Powers of two 1, 2, 4, 8, ... (`1L << x`) as an infinite lazy sequence.
+  /** Powers of two 1, 2, 4, 8, ... as an infinite lazy sequence, holding at 2^62 once it gets there.
     *
-    * Note: values overflow to negative once the shift reaches 63, so only a modest prefix is meaningful.
+    * 2^62 is the largest power of two a `Long` can represent, so the sequence stops doubling at that point
+    * and repeats it rather than shifting past it. A plain `1L << x` does not degrade gracefully here: the JVM
+    * masks a long shift distance to its low six bits, so element 63 came out as `Long.MinValue` and element
+    * 64 wrapped back to `1`, making the whole sequence periodic. For the backoff schedules this is built for,
+    * that wrap is the harmful case, because delays collapse from astronomical back to a single unit and a
+    * retry loop starts hammering again. Holding at the maximum keeps every element a positive power of two
+    * and keeps the sequence monotonically non-decreasing.
+    *
+    * Reaching the cap needs a 62-element prefix, far beyond any sensible backoff schedule, and such a prefix
+    * is unusable as a duration anyway for all but the finest units. See the range caveat on `sequence`.
     */
   val exponential: LazyList[Long] =
-    LazyList.from(0).map(x => 1L << x)
+    LazyList.from(0).map(x => 1L << math.min(x, 62))
 
   /** `exponential` reinterpreted as durations in `tu`. Reaches the `FiniteDuration` bound quickly; see the
     * range caveat on `sequence`.
