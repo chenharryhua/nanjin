@@ -72,12 +72,22 @@ private object EvalPolicy {
         }
 
       case Except(policy, except) =>
+        def concludes_at_excluded(tick: Tick): Boolean =
+          tick.local(_.conclude).toLocalTime === except
+
         policy.map { stepper =>
           TickStepper { (acq: Acquisition) =>
             stepper(acq).flatMap {
               case Some(tick) =>
-                if (tick.local(_.conclude).toLocalTime === except)
-                  stepper.step(tick, tick.conclude).map(_.map(nt => tick.withSnoozeStretch(nt.snooze)))
+                if (concludes_at_excluded(tick))
+                  stepper.step(tick, tick.conclude).map(_.flatMap { nt =>
+                    val stretched = tick.withSnoozeStretch(nt.snooze)
+                    // A local time recurs only once a day, so a second consecutive landing on the excluded
+                    // time means this stepper's period is a whole number of days and every later candidate
+                    // lands there too. One retry therefore settles it: the exclusion can never be
+                    // satisfied, so there is no valid tick and the policy is exhausted.
+                    Option.unless(concludes_at_excluded(stretched))(stretched)
+                  })
                 else tick.some.pure[F]
               case None => None.pure[F]
             }

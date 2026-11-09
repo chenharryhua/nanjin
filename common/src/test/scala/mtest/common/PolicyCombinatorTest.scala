@@ -306,4 +306,31 @@ class PolicyCombinatorTest extends CatsEffectSuite {
     intercept[IllegalArgumentException](Policy.crontab(_.hourly).offset((-1).seconds))
   }
 
+  test("22.except exhausts a policy whose every tick lands on the excluded time") {
+    // A daily-midnight schedule excluding midnight asks to fire only at midnight and never at midnight.
+    // No valid tick exists, so the policy is empty rather than firing at midnight anyway.
+    val policy = Policy.crontab(_.daily.midnight).repeat.except(_.midnight)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(5).compile.toList.map { ticks =>
+      assert(ticks.isEmpty, s"expected no ticks, got ${ticks.map(_.local(_.conclude))}")
+    }
+  }
+
+  test("23.except leaves a daily policy alone when the excluded time never matches") {
+    // The counterpart to test 22: exclusion must not exhaust a policy that simply never lands on it.
+    val policy = Policy.crontab(_.daily.midnight).repeat.except(_.oneAM)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(3).compile.toList.map { ticks =>
+      assertEquals(ticks.size, 3)
+      assert(ticks.forall(t => t.local(_.conclude).toLocalTime == localTimes.midnight))
+    }
+  }
+
+  test("24.except needs only one skip when the next tick clears the excluded time") {
+    // Two firing times a day, one of them excluded: the single skip lands on the other and is kept.
+    val policy = Policy.crontab(_.c997).repeat.except(_.ninePM)
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.map { ticks =>
+      val wakeups = ticks.map(_.local(_.conclude).toLocalTime).distinct
+      assertEquals(wakeups, List(localTimes.nineAM))
+    }
+  }
+
 }
