@@ -131,12 +131,14 @@ sealed trait Agent[F[_]] {
     *
     * Use the returned resource around the protected operation:
     * `agent.circuitBreaker(3, _.fixedDelay(1.second)).use(_.protect(action))`. `maxFailures` is the number of
-    * consecutive failures required to transition the breaker from closed to open.
+    * failures required to transition the breaker from closed to open.
     *
-    * A value of `3` opens the breaker after the third consecutive failure while in the closed state.
+    * A value of `3` opens the breaker on the third failure while in the closed state. Failures count whether
+    * they occur sequentially or concurrently, so three calls failing in parallel open the breaker just as
+    * three successive failures do. A success resets the count.
     *
     * @param maxFailures
-    *   Number of consecutive failures required to open the breaker. Must be greater than zero.
+    *   Number of failures required to open the breaker. Must be greater than zero.
     * @param f
     *   Function that builds the policy used for open-to-half-open probe timing.
     *

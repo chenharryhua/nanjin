@@ -102,8 +102,9 @@ object crontabs {
   final val every20Seconds: CronExpr = Cron.unsafeParse("*/20 * * ? * *")
   final val every30Seconds: CronExpr = Cron.unsafeParse("*/30 * * ? * *")
 
-  final val z9w5: CronExpr = Cron.unsafeParse("0 0 9,17 ? * 1,2,3,4,5")
-  final val c996: CronExpr = Cron.unsafeParse("0 0 9,21 ? * 1,2,3,4,5,6")
+  // cron4s numbers days of week from Monday = 0 (see `weekly`), so Monday-Friday is 0-4, Monday-Saturday 0-5
+  final val z9w5: CronExpr = Cron.unsafeParse("0 0 9,17 ? * 0,1,2,3,4")
+  final val c996: CronExpr = Cron.unsafeParse("0 0 9,21 ? * 0,1,2,3,4,5")
   final val c997: CronExpr = Cron.unsafeParse("0 0 9,21 ? * *")
 
   final val businessHour: CronExpr = Cron.unsafeParse("0 0 8,13,18 ? * *")

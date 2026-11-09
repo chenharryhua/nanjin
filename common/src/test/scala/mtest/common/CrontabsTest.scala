@@ -1,11 +1,12 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
+import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
 import munit.FunSuite
 
-import java.time.LocalDateTime
+import java.time.{DayOfWeek, LocalDateTime}
 
 class CrontabsTest extends FunSuite {
   test("1.validate crontabs") {
@@ -64,5 +65,36 @@ class CrontabsTest extends FunSuite {
     assert(crontabs.yearly.october.next(LocalDateTime.now).get.toString.drop(5) == "10-01T00:00")
     assert(crontabs.yearly.november.next(LocalDateTime.now).get.toString.drop(5) == "11-01T00:00")
     assert(crontabs.yearly.december.next(LocalDateTime.now).get.toString.drop(5) == "12-01T00:00")
+  }
+
+  // Fires of `expr` during the 7 days starting at a fixed Monday 00:00, as (day, hour) pairs.
+  private def weekFires(expr: CronExpr): List[(DayOfWeek, Int)] = {
+    val monday = LocalDateTime.of(2026, 11, 9, 0, 0)
+    assertEquals(monday.getDayOfWeek, DayOfWeek.MONDAY)
+    val end = monday.plusDays(7)
+    Iterator
+      .iterate(expr.next(monday))(_.flatMap(expr.next(_)))
+      .takeWhile(_.exists(_.isBefore(end)))
+      .flatten
+      .map(t => (t.getDayOfWeek, t.getHour))
+      .toList
+  }
+
+  private val weekdays: List[DayOfWeek] =
+    List(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY)
+
+  test("3.z9w5 fires 9:00 and 17:00 Monday to Friday only") {
+    assertEquals(weekFires(crontabs.z9w5), weekdays.flatMap(d => List((d, 9), (d, 17))))
+  }
+
+  test("4.c996 fires 9:00 and 21:00 Monday to Saturday only") {
+    assertEquals(
+      weekFires(crontabs.c996),
+      (weekdays :+ DayOfWeek.SATURDAY).flatMap(d => List((d, 9), (d, 21))))
+  }
+
+  test("5.c997 fires 9:00 and 21:00 every day") {
+    assertEquals(weekFires(crontabs.c997).map(_._1).distinct.size, 7)
+    assertEquals(weekFires(crontabs.c997).size, 14)
   }
 }
