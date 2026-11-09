@@ -13,9 +13,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object tickStream {
 
-  private def seedPolicyTick[F[_]: Async](
-    zoneId: ZoneId,
-    f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
+  private def seedPolicyTick[F[_]: Sync](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, PolicyTick[F]] =
     Stream.eval(PolicyTick.seed[F](zoneId, f(Policy)))
 
   /** Stream ticks according to a policy in a **“sleep first, then emit”** pattern.
