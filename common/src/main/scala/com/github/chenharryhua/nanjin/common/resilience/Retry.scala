@@ -108,17 +108,17 @@ object Retry {
   final private case class AttemptData(
     tick: Tick,
     cause: Throwable,
-    previousCause: Option[Throwable],
-    firstFailureAt: Instant)
+    previous_cause: Option[Throwable],
+    first_failure_at: Instant)
 
   opaque type Attempt = AttemptData
   object Attempt:
     private[Retry] def apply(
       tick: Tick,
       cause: Throwable,
-      previousCause: Option[Throwable],
-      firstFailureAt: Instant): Attempt =
-      AttemptData(tick, cause, previousCause, firstFailureAt)
+      previous_cause: Option[Throwable],
+      first_failure_at: Instant): Attempt =
+      AttemptData(tick, cause, previous_cause, first_failure_at)
 
     extension (ra: Attempt)
       // observations
@@ -132,7 +132,7 @@ object Retry {
       def cause: Throwable = ra.cause
       def ordinal: Long = ra.tick.index
       def snooze: FiniteDuration = ra.tick.snooze.toScala
-      def previousCause: Option[Throwable] = ra.previousCause
+      def previousCause: Option[Throwable] = ra.previous_cause
 
       /** Real wall-clock time since the first failure.
         *
@@ -140,7 +140,7 @@ object Retry {
         * operation's own runtime, and coordination and decision-function time. It is not a sum of policy
         * delays and is not measured from the literal throw instant.
         */
-      def elapsed: FiniteDuration = Duration.between(ra.firstFailureAt, ra.tick.acquires).toScala
+      def elapsed: FiniteDuration = Duration.between(ra.first_failure_at, ra.tick.acquires).toScala
 
       // transitions
       def followPolicy: Decision = Decision(ra.tick)
@@ -207,26 +207,26 @@ object Retry {
     F: Async[F]) {
 
     private case class LoopState(
-      policyTick: PolicyTick[F],
-      previousCause: Option[Throwable],
-      firstFailureAt: Option[Instant])
+      policy_tick: PolicyTick[F],
+      previous_cause: Option[Throwable],
+      first_failure_at: Option[Instant])
 
-    def retryLoop[A](fa: F[A]): F[A] =
+    def retry_loop[A](fa: F[A]): F[A] =
       F.tailRecM[LoopState, A](LoopState(seed, None, None)) { state =>
         F.handleErrorWith(fa.map[Either[LoopState, A]](Right(_))) { ex =>
-          state.policyTick.advance.flatMap {
+          state.policy_tick.advance.flatMap {
             case None       => F.raiseError(ex) // run out of policy
             case Some(next) => // respect user's decision
-              val firstFailure = state.firstFailureAt.getOrElse(next.tick.acquires)
-              val attempt = Attempt(next.tick, ex, state.previousCause, firstFailure)
+              val first_failure = state.first_failure_at.getOrElse(next.tick.acquires)
+              val attempt = Attempt(next.tick, ex, state.previous_cause, first_failure)
               F.defer(decide.run(attempt)).attempt.flatMap {
                 case Left(decision_error) =>
                   F.raiseError(new DecisionFailure(ex, decision_error))
                 case Right(decision) =>
                   if (decision.accepted)
-                    val nextState = next.withTick(decision.tick)
+                    val next_state = next.withTick(decision.tick)
                     F.sleep(decision.tick.snooze.toScala.max(0.seconds))
-                      .as(LoopState(nextState, Some(ex), Some(firstFailure)).asLeft[A])
+                      .as(LoopState(next_state, Some(ex), Some(first_failure)).asLeft[A])
                   else F.raiseError(ex)
               }
           }
@@ -264,7 +264,7 @@ object Retry {
       PolicyTick.seed[F](zoneId, policy).map { seed =>
         val impl = new Impl[F](seed, decide)
         new Retry[F] {
-          override def apply[A](fa: F[A]): F[A] = impl.retryLoop(fa)
+          override def apply[A](fa: F[A]): F[A] = impl.retry_loop(fa)
         }
       }
   }
