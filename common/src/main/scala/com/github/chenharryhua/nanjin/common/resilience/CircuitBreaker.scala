@@ -49,9 +49,11 @@ object CircuitBreaker {
         Json.obj("state" -> Json.fromString("Open"))
   end State
 
-  case object RejectedException extends Exception("CircuitBreaker rejected") with NoStackTrace {
-    override def fillInStackTrace(): Throwable = this
-  }
+  /** `NoStackTrace` already suppresses the trace, and deliberately honours
+    * `-Dscala.control.noTraceSuppression=true`, which restores traces when debugging. Overriding
+    * `fillInStackTrace` here would defeat that flag for no gain.
+    */
+  case object RejectedException extends Exception("CircuitBreaker rejected") with NoStackTrace
 
   final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(using F: Async[F]) {
 
