@@ -6,6 +6,7 @@ import io.circe.syntax.EncoderOps
 import munit.FunSuite
 
 import java.time.Duration
+import java.util.concurrent.{Callable, Executors}
 
 class JsonTest extends FunSuite {
   private val redacted = "redacted(*****)"
@@ -140,5 +141,39 @@ class JsonTest extends FunSuite {
     val in: Json = Json.obj("amount" -> 1234567.89.asJson)
     val out = json.prettify(in)
     assert(out.hcursor.get[String]("amount").toOption.contains("1,234,567.89"))
+  }
+
+  test("18.prettify - does not lose precision for longs above 2^53") {
+    // 9007199254740993 (2^53 + 1) is not representable as a double; it must not be rounded to ...992
+    val in: Json = Json.obj("id" -> 9007199254740993L.asJson, "max" -> Long.MaxValue.asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("id").toOption.contains("9,007,199,254,740,993"))
+    assert(out.hcursor.get[String]("max").toOption.contains("9,223,372,036,854,775,807"))
+  }
+
+  test("19.prettify - formats negative and zero values") {
+    val in: Json = Json.obj("neg" -> (-1234567).asJson, "zero" -> 0.asJson, "negFrac" -> (-0.5).asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("neg").toOption.contains("-1,234,567"))
+    assert(out.hcursor.get[String]("zero").toOption.contains("0"))
+    assert(out.hcursor.get[String]("negFrac").toOption.contains("-0.5"))
+  }
+
+  test("20.prettify - is safe under concurrent use") {
+    // DecimalFormat is not thread-safe; a shared instance corrupts output when used from many threads.
+    val values = (0 until 8).map(i => (i + 1) * 1111111L + i)
+    val expected = values.map(v => v -> json.prettify(v.asJson).asString.get).toMap
+    val pool = Executors.newFixedThreadPool(16)
+    try {
+      val tasks = (0 until 64).map { _ =>
+        pool.submit(new Callable[Int] {
+          override def call(): Int =
+            (0 until 500).map { _ =>
+              values.count(v => json.prettify(v.asJson).asString.get != expected(v))
+            }.sum
+        })
+      }
+      assertEquals(tasks.map(_.get()).sum, 0)
+    } finally pool.shutdown()
   }
 }

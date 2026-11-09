@@ -2,11 +2,12 @@ package com.github.chenharryhua.nanjin.common
 
 import io.circe.optics.all.*
 import io.circe.syntax.given
-import io.circe.{Encoder, Json, JsonObject}
+import io.circe.{Encoder, Json, JsonNumber, JsonObject}
 import monocle.function.Plated
 
-import java.text.DecimalFormat
+import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.time.Duration
+import java.util.Locale
 
 /** JSON transformations intended for '''human-facing output''' only — logs and on-screen display.
   *
@@ -21,15 +22,27 @@ import java.time.Duration
 object json {
   private val REDACTED: String = "redacted(*****)"
 
-  private val pretty_json: Json => Json = {
-    // "#,##0.###" groups the integer part with thousands separators and keeps up to three fractional
-    // digits (dropping trailing zeros), so fractional numbers are no longer silently rounded to whole
-    // values the way the old grouping-only "#,###" pattern did.
-    val decimalFormatter = new DecimalFormat("#,##0.###")
+  // "#,##0.###" groups the integer part with thousands separators and keeps up to three fractional
+  // digits (dropping trailing zeros), so fractional numbers are no longer silently rounded to whole
+  // values the way the old grouping-only "#,###" pattern did.
+  //
+  // `DecimalFormat` is mutable and not thread-safe, so a fresh instance is created per number rather than
+  // shared. `Locale.ROOT` symbols pin the separators to `,` and `.` so the output does not depend on the
+  // JVM's default locale.
+  private def format_number(value: JsonNumber): String = {
+    val formatter = new DecimalFormat("#,##0.###", DecimalFormatSymbols.getInstance(Locale.ROOT))
+    // format via BigDecimal when available so integers above 2^53 are not rounded through a double
+    value.toBigDecimal match {
+      case Some(bd) => formatter.format(bd.bigDecimal)
+      case None     => formatter.format(value.toDouble)
+    }
+  }
+
+  private val pretty_json: Json => Json =
     Plated.transform[Json] { js =>
       js.asNumber match {
         case Some(value) =>
-          Json.fromString(decimalFormatter.format(value.toDouble))
+          Json.fromString(format_number(value))
         case None =>
           js.as[Duration] match {
             case Left(_)      => js
@@ -37,7 +50,6 @@ object json {
           }
       }
     }
-  }
 
   /** Rewrite a value's JSON for display: numbers become grouped strings and duration-encoded strings become
     * human-readable phrases, at any nesting depth. For logs and screen output only, not for serialization.
