@@ -81,6 +81,15 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
 
   /** Skip the tick whose conclude time matches the given local time, stretching the snooze to reach the next
     * tick instead.
+    *
+    * The match is exact equality on the conclude time's `LocalTime`, so this only catches a tick landing
+    * precisely on the given time.
+    *
+    * When the replacement tick lands on the excluded time as well, the policy produces '''no''' tick and is
+    * exhausted. A local time recurs only once a day, so a second consecutive landing means the underlying
+    * period is a whole number of days and every later tick would land there too: the exclusion can never be
+    * satisfied. `Policy.crontab(_.daily.midnight).repeat.except(_.midnight)` asks for a schedule that fires
+    * only at midnight and never at midnight, and is therefore empty rather than firing at midnight anyway.
     */
   def except(localTime: LocalTime): Policy = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))

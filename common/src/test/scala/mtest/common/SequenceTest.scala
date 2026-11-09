@@ -55,4 +55,33 @@ class SequenceTest extends FunSuite {
       exponential(SECONDS).take(60).toList
     }
   }
+
+  test("9.exponential doubles up to 2^62 and then holds that value") {
+    val maxPowerOfTwo = 1L << 62
+    assertEquals(exponential(62), maxPowerOfTwo)
+    assertEquals(exponential(61), maxPowerOfTwo / 2)
+    // a plain `1L << x` wrapped here: element 63 was Long.MinValue and element 64 was back to 1
+    assertEquals(exponential(63), maxPowerOfTwo)
+    assertEquals(exponential(64), maxPowerOfTwo)
+    assertEquals(exponential(500), maxPowerOfTwo)
+  }
+
+  test("10.exponential stays positive, powers of two, and non-decreasing") {
+    val prefix = exponential.take(200).toList
+    assert(prefix.forall(_ > 0L), "no element may overflow to a negative value")
+    // a positive power of two has exactly one bit set
+    assert(prefix.forall(v => java.lang.Long.bitCount(v) == 1), "every element must be a power of two")
+    assert(
+      prefix.zip(prefix.tail).forall { case (a, b) => a <= b },
+      "the sequence must never collapse back to smaller delays")
+  }
+
+  test("11.fibonacci exceeds Long after its first 92 elements") {
+    // Unlike exponential, fibonacci does not saturate. This pins where it stops being usable so the
+    // documented limit cannot drift.
+    val valid = fibonacci.take(92).toList
+    assert(valid.forall(_ > 0L))
+    assert(valid.zip(valid.tail).forall { case (a, b) => a <= b })
+    assert(fibonacci(92) < 0L, "F(93) overflows Long and wraps negative")
+  }
 }

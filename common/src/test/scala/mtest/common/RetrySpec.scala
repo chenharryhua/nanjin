@@ -4,10 +4,13 @@ import cats.effect.IO
 import cats.effect.kernel.Ref
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 import munit.CatsEffectSuite
+import org.apache.commons.lang3.exception.ExceptionUtils
 
+import java.io.{PrintWriter, StringWriter}
 import java.time.ZoneId
 import scala.collection.mutable
 import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class RetrySpec extends CatsEffectSuite {
 
@@ -162,26 +165,32 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("8.Retry: decision failure should preserve original operation failure") {
-    val zoneId = ZoneId.systemDefault()
+  test("8.Retry: decision failure surfaces as DecisionFailure carrying both errors") {
+    val operation_failure = new RuntimeException("operation boom")
+    val decision_failure = new RuntimeException("decision boom")
 
-    val retryIO = Retry[IO](
-      zoneId,
-      _.withPolicy(_.fixedDelay(10.millis).repeat.limited(1)).withDecision { _ =>
-        IO.raiseError(new RuntimeException("decision boom"))
-      })
-
-    retryIO.flatMap { retry =>
-      retry(IO.raiseError[String](new RuntimeException("operation boom"))).attempt.map {
-        case Left(ex) =>
-          assertEquals(ex.getMessage, "operation boom")
-          assert(ex.getSuppressed.exists(_.getMessage == "decision boom"))
-        case Right(_) => fail("Expected failure")
-      }
+    for {
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(10.millis).repeat.limited(1)).withDecision(_ =>
+          IO.raiseError(decision_failure)))
+      result <- retry(IO.raiseError[String](operation_failure)).attempt
+    } yield result match {
+      case Left(ex: Retry.DecisionFailure) =>
+        assertEquals(ex.decisionFailure, decision_failure)
+        assertEquals(ex.getCause, decision_failure)
+        assertEquals(ex.operationFailure, operation_failure)
+        // nothing is attached to anything: not the originals, and not the wrapper either
+        assertEquals(ex.getSuppressed.toList, Nil)
+        assertEquals(operation_failure.getSuppressed.toList, Nil)
+        assertEquals(decision_failure.getSuppressed.toList, Nil)
+        // the operation failure reaches a log through the message rather than a suppressed entry
+        assert(ex.getMessage.contains("operation boom"), ex.getMessage)
+      case other => fail(s"expected a DecisionFailure, got $other")
     }
   }
 
-  test("9.Retry: decision failure identical to operation failure avoids self-suppression") {
+  test("9.Retry: a decision failure identical to the operation failure is not duplicated") {
     val failure = new RuntimeException("boom")
 
     for {
@@ -189,13 +198,17 @@ class RetrySpec extends CatsEffectSuite {
         ZoneId.systemDefault(),
         _.withPolicy(_.fixedDelay(10.millis)).withDecision(attempt => IO.raiseError(attempt.cause)))
       result <- retry(IO.raiseError[String](failure)).attempt
-    } yield {
-      assertEquals(result, Left(failure))
-      assertEquals(failure.getSuppressed.toList, Nil)
+    } yield result match {
+      case Left(ex: Retry.DecisionFailure) =>
+        assertEquals(ex.operationFailure, failure)
+        assertEquals(ex.decisionFailure, failure)
+        assertEquals(ex.getSuppressed.toList, Nil)
+        assertEquals(failure.getSuppressed.toList, Nil)
+      case other => fail(s"expected a DecisionFailure, got $other")
     }
   }
 
-  test("10.Retry: synchronous decision failure preserves the operation failure") {
+  test("10.Retry: a synchronous decision failure is wrapped the same way") {
     val operation_failure = new RuntimeException("operation boom")
     val decision_failure = new RuntimeException("decision boom")
 
@@ -204,9 +217,12 @@ class RetrySpec extends CatsEffectSuite {
         ZoneId.systemDefault(),
         _.withPolicy(_.fixedDelay(10.millis)).withDecision(_ => throw decision_failure))
       result <- retry(IO.raiseError[String](operation_failure)).attempt
-    } yield {
-      assertEquals(result, Left(operation_failure))
-      assertEquals(operation_failure.getSuppressed.toList, List(decision_failure))
+    } yield result match {
+      case Left(ex: Retry.DecisionFailure) =>
+        assertEquals(ex.decisionFailure, decision_failure)
+        assertEquals(ex.operationFailure, operation_failure)
+        assertEquals(operation_failure.getSuppressed.toList, Nil)
+      case other => fail(s"expected a DecisionFailure, got $other")
     }
   }
 
@@ -562,5 +578,63 @@ class RetrySpec extends CatsEffectSuite {
       assertEquals(result, 42)
       assertEquals(decision_count, 0)
     }
+  }
+
+  test("24.Retry: both failures survive cause-chain-only and printStackTrace rendering") {
+    // Nothing is attached to anything, so the message is the only route by which the operation failure
+    // reaches a log. Both renderings print the exception's own message line, which is why both see it:
+    // ExceptionUtils.getRootCauseStackTraceList (behind guard's StackTrace) walks the cause chain, and
+    // printStackTrace walks causes and suppressed. Its stack trace reaches neither; only the field has it.
+    val operation_failure = new RuntimeException("operation boom")
+    val decision_failure = new RuntimeException("decision boom")
+
+    for {
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(1.millis)).withDecision(_ => IO.raiseError(decision_failure)))
+      result <- retry(IO.raiseError[String](operation_failure)).attempt
+    } yield {
+      val failure = result.swap.toOption.get match {
+        case df: Retry.DecisionFailure => df
+        case other                     => fail(s"expected a DecisionFailure, got $other")
+      }
+
+      val cause_chain = ExceptionUtils.getRootCauseStackTraceList(failure).asScala.toList
+      assert(cause_chain.exists(_.contains("decision boom")), cause_chain.toString)
+      assert(cause_chain.exists(_.contains("operation boom")), cause_chain.toString)
+
+      val printed = {
+        val writer = new StringWriter()
+        failure.printStackTrace(new PrintWriter(writer))
+        writer.toString
+      }
+      assert(printed.contains("decision boom"), printed)
+      assert(printed.contains("operation boom"), printed)
+
+      // nothing is attached, so no rendering carries the operation failure's own stack trace
+      assert(!printed.contains("Suppressed"), printed)
+      assertEquals(failure.operationFailure, operation_failure)
+      assert(failure.operationFailure.getStackTrace.nonEmpty)
+    }
+  }
+
+  test("25.Retry: repeated decision failures never accumulate on a shared operation failure") {
+    // A singleton throwable, as a Scala `case object` error is, outlives every call. Attaching to it would
+    // grow its suppressed list without bound for the life of the JVM.
+    object shared_failure extends RuntimeException("shared singleton failure")
+
+    val rounds = 25
+
+    def run_rounds(retry: Retry[IO], remaining: Int): IO[Unit] =
+      if (remaining == 0) IO.unit
+      else retry(IO.raiseError[String](shared_failure)).attempt >> run_rounds(retry, remaining - 1)
+
+    for {
+      retry <- Retry[IO](
+        ZoneId.systemDefault(),
+        _.withPolicy(_.fixedDelay(1.millis)).withDecision(_ =>
+          IO.raiseError(new RuntimeException("decision boom"))))
+      _ <- run_rounds(retry, rounds)
+    } yield assertEquals(shared_failure.getSuppressed.toList, Nil)
   }
 }
