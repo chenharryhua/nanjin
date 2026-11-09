@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import munit.CatsEffectSuite
 
-import java.time.ZoneId
+import java.time.{Duration as JavaDuration, ZoneId}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -50,6 +50,33 @@ class PolicyTickTest extends CatsEffectSuite {
     } yield {
       assertEquals(renewed.tick, seed.tick)
       assertEquals(stepped.get.tick.conclude, after.plus(delay.toJava))
+    }
+  }
+
+  test("4.fixedRate catches up across a long gap in a single step") {
+    // The catch-up arm runs from sequence index 1 onwards. It must land on the first cadence boundary
+    // strictly after `now`, however many periods were missed, and stay aligned to the previous conclude
+    // rather than restarting from `now`. A 10 hour gap at a one second rate is 36,000 missed periods,
+    // which the previous implementation walked one at a time.
+    val rate = 1.second
+    val gap = 10.hours
+
+    for {
+      seed <- PolicyTick.seed[IO](zoneId, Policy.fixedRate(rate).repeat)
+      first <- seed.next(seed.tick.conclude)
+      anchor = first.get.tick.conclude
+      now = anchor.plus(gap.toJava)
+      caught <- first.get.next(now)
+    } yield {
+      val conclude = caught.get.tick.conclude
+      assert(conclude.isAfter(now), s"$conclude must be strictly after $now")
+      // lands on the very next boundary, so nothing was skipped past
+      val overshoot = JavaDuration.between(now, conclude)
+      assert(overshoot.compareTo(rate.toJava) <= 0, s"overshoot $overshoot exceeds one period")
+      // and remains on the original cadence: a whole number of periods from the anchor
+      val fromAnchor = JavaDuration.between(anchor, conclude)
+      assertEquals(fromAnchor.toNanos % rate.toJava.toNanos, 0L)
+      assertEquals(fromAnchor.toNanos / rate.toJava.toNanos, gap.toSeconds + 1)
     }
   }
 }
