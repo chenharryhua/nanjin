@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.resilience
 
 import cats.Applicative
-import cats.effect.kernel.{Async, Deferred, Ref}
+import cats.effect.kernel.{Async, Deferred, Poll, Ref}
 import cats.effect.std.Mutex
 import cats.effect.syntax.monadCancel.given
 import cats.syntax.applicative.given
@@ -51,8 +51,11 @@ object SingleFlight {
 
     /** The flight was canceled (its last waiter left, so the worker was canceled) before producing a value.
       * Waiters that observe this resubmit their effect to a fresh flight rather than fail.
+      *
+      * Named for what a waiter does with it. `Retry` would collide with `resilience.Retry`, an unrelated type
+      * in the same package.
       */
-    final case class Retry[A]() extends FlightResult[A]
+    final case class Resubmit[A]() extends FlightResult[A]
   }
 
   /** One in-flight computation shared by its callers, held in the `in_flight` slot while it runs.
@@ -76,7 +79,11 @@ object SingleFlight {
     cancel: Deferred[F, Unit],
     waiters: Long)
 
-  /** The result of a caller trying to enter the single flight, deciding what that caller does next. */
+  /** A caller that has been admitted to a flight, and the role it plays in it.
+    *
+    * A caller that is turned away is not represented here: `tryApply` reports that as `None`, so the two
+    * cases below are the only ways to be admitted and every admitted caller ends up awaiting a result.
+    */
   sealed private trait Admission[F[_], A]
   private object Admission {
 
@@ -87,11 +94,6 @@ object SingleFlight {
       * result.
       */
     final case class Follower[F[_], A](flight: Flight[F, A]) extends Admission[F, A]
-
-    /** A flight was in progress but the caller opted not to wait (`tryApply`); it returns `None` without
-      * running its effect.
-      */
-    final case class Busy[F[_], A]() extends Admission[F, A]
   }
 
   def noop[F[_]: Applicative, A]: SingleFlight[F, A] = new SingleFlight[F, A] {
@@ -131,7 +133,7 @@ object SingleFlight {
     private def run_worker(fa: F[A], flight: Flight[F, A]): F[Unit] =
       F.race(fa.attempt, flight.cancel.get).attempt.flatMap {
         case Right(Left(result)) => publish(flight, FlightResult.Completed(result))
-        case Right(Right(_))     => publish(flight, FlightResult.Retry())
+        case Right(Right(_))     => publish(flight, FlightResult.Resubmit())
         case Left(error)         => publish(flight, FlightResult.Completed(Left(error)))
       }
 
@@ -157,7 +159,7 @@ object SingleFlight {
       flight.result.get
         .flatMap {
           case FlightResult.Completed(result) => result.fold(F.raiseError, F.pure)
-          case FlightResult.Retry()           => apply(fa)
+          case FlightResult.Resubmit()        => apply(fa)
         }
         .onCancel(remove_waiter(flight))
 
@@ -168,43 +170,63 @@ object SingleFlight {
           publish(flight, FlightResult.Completed(Left(error))).flatMap(_ => F.raiseError(error))
       }
 
-    private def admit_existing(wait_if_busy: Boolean): F[Option[Admission[F, A]]] =
+    /** Join the flight already in progress as a counted waiter, or report that there is none.
+      *
+      * The observation and the waiter increment are one atomic `modify`, so a flight cannot be torn down
+      * between being seen and being joined.
+      */
+    private def join_in_flight: F[Option[Admission[F, A]]] =
       in_flight.modify {
-        case Some(current) if wait_if_busy =>
+        case Some(current) =>
           Some(current.copy(waiters = current.waiters + 1L)) -> Some(Admission.Follower(current))
-        case current @ Some(_) => current -> Some(Admission.Busy())
-        case None              => None -> None
+        case None => None -> none[Admission[F, A]]
       }
 
-    private def initialize(wait_if_busy: Boolean): F[Admission[F, A]] =
-      initialization_lock.lock.surround(admit_existing(wait_if_busy).flatMap {
-        case Some(admission) => F.pure(admission)
-        case None            =>
-          new_flight.flatMap { flight =>
-            in_flight.set(Some(flight)).flatMap(_ => Admission.Leader(flight).pure)
-          }
-      })
+    /** Install a new flight and make this caller its leader. Callers hold `initialization_lock`. */
+    private def become_leader: F[Admission[F, A]] =
+      new_flight.flatMap(flight => in_flight.set(Some(flight)).as(Admission.Leader(flight)))
 
-    private def proceed(fa: F[A], poll: cats.effect.kernel.Poll[F]): Admission[F, A] => F[Option[A]] = {
-      case Admission.Leader(flight) =>
-        start_worker(fa, flight).flatMap(_ => poll(await_result(flight, fa)).map(_.some))
-      case Admission.Follower(flight) =>
-        poll(await_result(flight, fa)).map(_.some)
-      case Admission.Busy() => none[A].pure[F]
-    }
+    /** Admission for a caller willing to wait. Such a caller is always admitted: it joins the flight in
+      * progress or creates one, which is why `apply` can return `F[A]` rather than an `Option`.
+      */
+    private def join_or_create: F[Admission[F, A]] =
+      join_in_flight.flatMap {
+        case Some(admission) => admission.pure[F]
+        // Re-check under the lock: another caller may have installed a flight since the first look.
+        case None =>
+          initialization_lock.lock.surround(join_in_flight.flatMap(_.fold(become_leader)(_.pure)))
+      }
 
-    private def run(fa: F[A], wait_if_busy: Boolean): F[Option[A]] =
-      Async[F].uncancelable { poll =>
-        admit_existing(wait_if_busy)
-          .flatMap(_.fold(initialize(wait_if_busy))(_.pure))
-          .flatMap(proceed(fa, poll))
+    /** Admission for a caller unwilling to wait, yielding `None` when a flight is already in progress. Unlike
+      * `join_in_flight` it never increments the waiter count, because such a caller does not wait.
+      */
+    private def create_if_idle: F[Option[Admission[F, A]]] =
+      in_flight.get.flatMap {
+        case Some(_) => none[Admission[F, A]].pure[F]
+        case None    =>
+          initialization_lock.lock.surround(in_flight.get.flatMap {
+            case Some(_) => none[Admission[F, A]].pure[F]
+            case None    => become_leader.map(_.some)
+          })
+      }
+
+    private def proceed(fa: F[A], poll: Poll[F])(admission: Admission[F, A]): F[A] =
+      admission match {
+        case Admission.Leader(flight) =>
+          start_worker(fa, flight).flatMap(_ => poll(await_result(flight, fa)))
+        case Admission.Follower(flight) =>
+          poll(await_result(flight, fa))
       }
 
     override def apply(fa: F[A]): F[A] =
-      run(fa, wait_if_busy = true).flatMap(
-        _.fold(F.raiseError[A](new IllegalStateException("unreachable")))(_.pure))
+      F.uncancelable(poll => join_or_create.flatMap(proceed(fa, poll)))
 
     override def tryApply(fa: F[A]): F[Option[A]] =
-      run(fa, wait_if_busy = false)
+      F.uncancelable { poll =>
+        create_if_idle.flatMap {
+          case Some(admission) => proceed(fa, poll)(admission).map(_.some)
+          case None            => none[A].pure[F]
+        }
+      }
   }
 }
