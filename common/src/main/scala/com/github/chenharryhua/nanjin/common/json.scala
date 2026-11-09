@@ -38,15 +38,33 @@ object json {
     }
   }
 
+  /** Whether `str` could be an ISO-8601 duration: an optional sign, then `P` in either case.
+    *
+    * `java.time.Duration.parse` requires that shape and rejects anything else, so screening on it skips a
+    * parse that would only fail. The parse signals failure by throwing, which made it costly to use as the
+    * test for every string in a payload.
+    */
+  private def may_be_duration(str: String): Boolean = {
+    val start = if (str.startsWith("-") || str.startsWith("+")) 1 else 0
+    // `startsWith` with an offset is false for an out-of-range offset, so a bare sign needs no length check
+    str.startsWith("P", start) || str.startsWith("p", start)
+  }
+
   private val pretty_json: Json => Json =
     Plated.transform[Json] { js =>
       js.asNumber match {
         case Some(value) =>
           Json.fromString(format_number(value))
         case None =>
-          js.as[Duration] match {
-            case Left(_)      => js
-            case Right(value) => Json.fromString(DurationFormatter.defaultFormatter.format(value))
+          // Only a string can decode as a duration, so objects, arrays, booleans and null are left alone
+          // without attempting one, and an ordinary string is ruled out by its first character.
+          js.asString match {
+            case Some(str) if may_be_duration(str) =>
+              js.as[Duration] match {
+                case Left(_)      => js
+                case Right(value) => Json.fromString(DurationFormatter.defaultFormatter.format(value))
+              }
+            case _ => js
           }
       }
     }

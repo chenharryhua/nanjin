@@ -143,6 +143,33 @@ class JsonTest extends FunSuite {
     assert(out.hcursor.get[String]("amount").toOption.contains("1,234,567.89"))
   }
 
+  test("21.prettify - reformats every string shape java.time.Duration accepts") {
+    // Candidate strings are screened on an optional sign followed by P in either case, so the screen must
+    // admit each of these. A duration left unformatted would show as its raw ISO text.
+    val in: Json = Json.obj(
+      "plain" -> "PT1M5S".asJson,
+      "signed" -> "-PT1M5S".asJson,
+      "plussed" -> "+PT1M5S".asJson,
+      "lower" -> "pt1m5s".asJson,
+      "days" -> "P1DT2H".asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("plain").toOption.contains("1 minute 5 seconds"))
+    assert(out.hcursor.get[String]("signed").toOption.contains("-1 minute 5 seconds"))
+    assert(out.hcursor.get[String]("plussed").toOption.contains("1 minute 5 seconds"))
+    assert(out.hcursor.get[String]("lower").toOption.contains("1 minute 5 seconds"))
+    assert(out.hcursor.get[String]("days").toOption.contains("1 day 2 hours"))
+  }
+
+  test("22.prettify - leaves strings that only look like a duration untouched") {
+    val in: Json =
+      Json.obj("city" -> "Paris".asJson, "sign" -> "-".asJson, "word" -> "pending".asJson, "p" -> "P".asJson)
+    val out = json.prettify(in)
+    assert(out.hcursor.get[String]("city").toOption.contains("Paris"))
+    assert(out.hcursor.get[String]("sign").toOption.contains("-"))
+    assert(out.hcursor.get[String]("word").toOption.contains("pending"))
+    assert(out.hcursor.get[String]("p").toOption.contains("P"))
+  }
+
   test("18.prettify - does not lose precision for longs above 2^53") {
     // 9007199254740993 (2^53 + 1) is not representable as a double; it must not be rounded to ...992
     val in: Json = Json.obj("id" -> 9007199254740993L.asJson, "max" -> Long.MaxValue.asJson)

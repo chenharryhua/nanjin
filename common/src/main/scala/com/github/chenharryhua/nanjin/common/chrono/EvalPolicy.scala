@@ -16,17 +16,24 @@ import org.typelevel.cats.time.instances.all.*
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant}
-import scala.annotation.tailrec
 
 private object EvalPolicy {
   import PolicyF.*
 
-  @tailrec
-  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Instant = {
-    val next = wakeup.plus(delay.multipliedBy(count))
-    if (next.isAfter(now)) next
-    else
-      fixedRateSnooze(wakeup, now, delay, count + 1)
+  /** The first `wakeup + n * delay` that is strictly after `now`, for `n >= 1`.
+    *
+    * Computed directly rather than by stepping one period at a time. After a long gap, a suspended machine or
+    * a stop-the-world pause, a small `delay` would otherwise need `elapsed / delay` iterations, each
+    * allocating a `Duration` and an `Instant`, inside a single tick step.
+    *
+    * `delay` is positive for any policy built through `Policy.fixedRate`, which requires it.
+    */
+  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration): Instant = {
+    val elapsed = Duration.between(wakeup, now)
+    // `dividedBy` truncates toward zero, which is the floor for a non-negative elapsed. A negative elapsed
+    // means `now` precedes `wakeup`, so the first period is already in the future and no periods are past.
+    val periods = if (elapsed.isNegative) 0L else elapsed.dividedBy(delay)
+    wakeup.plus(delay.multipliedBy(periods + 1L))
   }
 
   private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[TickStepper[F]]] =
@@ -48,7 +55,7 @@ private object EvalPolicy {
         LazyList(TickStepper { case Acquisition(tick, now) =>
           val conclude =
             if (tick.index === 0L) now.plus(delay)
-            else fixedRateSnooze(tick.conclude, now, delay, 1L)
+            else fixedRateSnooze(tick.conclude, now, delay)
           tick.nextTick(now, conclude).some.pure[F]
         })
 

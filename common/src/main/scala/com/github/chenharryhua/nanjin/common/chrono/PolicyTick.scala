@@ -36,8 +36,22 @@ final class PolicyTick[F[_]: {Random, Monad}] private (val tick: Tick, steppers:
 }
 
 object PolicyTick {
-  def seed[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[PolicyTick[F]] =
-    SecureRandom.of[F].flatMap { implicit sr =>
-      Tick.seed[F](zoneId).map(new PolicyTick(_, EvalPolicy(policy.policy)))
+
+  /** One `SecureRandom` serves both uses here: the jitter source the steppers draw from, and the sequence id
+    * of the seed tick.
+    *
+    * It replaces two generators. `SecureRandom.of` builds one instance per processor to spread contention,
+    * which a single sequential tick stream never encounters, and `Tick.seed[F](zoneId)` would then build a
+    * second of its own. Sharing one instance keeps both uses cryptographically sourced, and leaves nothing to
+    * gain from drawing jitter out of a cheaper non-crypto generator, since the sequence id would still need
+    * this one.
+    *
+    * This removes surplus allocation rather than a measured bottleneck. Seeding is dominated by other work
+    * and the end-to-end difference did not rise above the noise of ad-hoc timing, so treat it as tidier
+    * rather than faster.
+    */
+  def seed[F[_]](zoneId: ZoneId, policy: Policy)(using F: Sync[F]): F[PolicyTick[F]] =
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+      Tick.seed[F](zoneId, sr).map(new PolicyTick(_, EvalPolicy(policy.policy)))
     }
 }
