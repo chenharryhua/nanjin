@@ -29,11 +29,21 @@ private object documents {
    * Json
    */
 
+  /** The panic the service is still recovering from, if any: the most recent panic whose scheduled restart
+    * (`tick.conclude`) is still in the future.
+    *
+    * Shared by `service_panic_history` and `service_health_check` so the `/panics` and `/health_check` routes
+    * cannot disagree about whether the service is down, including at the boundary instant, where
+    * `now == conclude` counts as recovered rather than recovering.
+    */
+  private def recovering_from(panics: Vector[Event.ServicePanic], now: Instant): Option[Event.ServicePanic] =
+    panics.lastOption.filter(_.tick.conclude.isAfter(now))
+
   def service_panic_history(
     serviceParams: ServiceParams,
     panics: Vector[Event.ServicePanic],
     now: Timestamp): Json = {
-    val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.value.toInstant))
+    val active = recovering_from(panics, now.value.toInstant).isEmpty
 
     Json.obj(
       Labelled(serviceParams.serviceIdentity.service).snakeJsonEntry,
@@ -83,6 +93,21 @@ private object documents {
       }.asJson
     )
 
+  /** The `/health_check` verdict: `Left` (served as 503) while the service is recovering from a panic,
+    * otherwise `Right` carrying the dependency verdict.
+    *
+    * ===What the dependency verdict actually covers===
+    * `healthy` is derived from the `healthCheck` gauges of the '''most recent metrics snapshot in history''',
+    * not from a live read, so it is only as current as the last snapshot and reports `true` whenever no
+    * snapshot is available. Two common configurations make it vacuously `true`:
+    *   - the default report policy is empty, so no periodic snapshot is ever taken; unless the service sets
+    *     `withReportPolicy` or calls `agent.adhoc.report`, the history stays empty;
+    *   - a snapshot history capacity of zero or less (`withHistory`) disables the history outright.
+    *
+    * In either case a service whose health checks are all failing still answers `healthy: true` on the
+    * dependency dimension. The panic arm above is unaffected and always reflects live state. Reading the
+    * gauges live instead would mean a full scrape (every gauge, on the blocking pool) per health request.
+    */
   def service_health_check(
     panics: Vector[Event.ServicePanic],
     snapshots: Vector[Event.MetricsSnapshot],
@@ -95,13 +120,11 @@ private object documents {
       Json.obj("healthy" -> Json.fromBoolean(res))
     }
 
-    panics.lastOption match {
+    recovering_from(panics, now) match {
       case None      => Right(deps_health_check)
       case Some(evt) =>
-        if evt.tick.conclude.isAfter(now) then
-          val recover = Duration.between(now, evt.tick.conclude)
-          Left(s"Service panic detected. Restarting in ${defaultFormatter.format(recover)}")
-        else Right(deps_health_check)
+        val recover = Duration.between(now, evt.tick.conclude)
+        Left(s"Service panic detected. Restarting in ${defaultFormatter.format(recover)}")
     }
   }
 

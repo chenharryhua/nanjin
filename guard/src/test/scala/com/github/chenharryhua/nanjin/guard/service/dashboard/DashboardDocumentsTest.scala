@@ -76,6 +76,31 @@ class DashboardDocumentsTest extends FunSuite {
       Right(false))
   }
 
+  // `/panics` and `/health_check` derive "is the service still down" from one shared `recovering_from`, so
+  // pinning the boundary on the health check pins it for both. The instant the restart is scheduled for
+  // counts as recovered, not recovering: the two routes used to disagree on exactly this instant, when
+  // `/panics` read `conclude.isBefore(now)` while `/health_check` read `conclude.isAfter(now)`.
+  test("6.the scheduled restart instant itself counts as recovered") {
+    val result =
+      documents.service_health_check(Vector(servicePanic), Vector.empty, servicePanic.tick.conclude)
+    assertEquals(result.flatMap(json => health(json).toRight("missing healthy field")), Right(true))
+  }
+
+  // Each getHeapMemoryUsage call is a fresh JMX snapshot, so the four fields are projected off ONE read.
+  // Reading per field would mix instants and could report figures that violate the JVM's own
+  // used <= committed invariant. This asserts the invariant, which only a single read can guarantee.
+  test("7.memory figures come from a single consistent reading") {
+    val jvm = mxBeans.allJvmGauge.value
+
+    assert(
+      jvm.heap_memory.used <= jvm.heap_memory.committed,
+      s"heap used ${jvm.heap_memory.used} exceeds committed ${jvm.heap_memory.committed}")
+    assert(
+      jvm.non_heap_memory.used <= jvm.non_heap_memory.committed,
+      s"non-heap used ${jvm.non_heap_memory.used} exceeds committed ${jvm.non_heap_memory.committed}"
+    )
+  }
+
   test("5.mxBeans returns populated runtime, memory, thread, classloader, GC, and OS data") {
     val jvm = mxBeans.allJvmGauge.value
 

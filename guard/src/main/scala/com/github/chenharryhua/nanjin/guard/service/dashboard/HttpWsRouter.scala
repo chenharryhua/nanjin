@@ -38,6 +38,14 @@ final private class HttpWsRouter[F[_]: Async](
         script(`type` := "module", src := "/dashboard/nj-frontend.js"))
     )
 
+  // Two properties of `series` the frontend has to tolerate, both following from `counts` being a Map keyed
+  // by the per-acquisition MetricToken:
+  //   - the order of entries is unspecified and may differ between frames, so a client must key on `label`
+  //     rather than on position;
+  //   - `label` projects away the token, so two live instruments that share a scope label AND a metric name
+  //     render under the SAME label even though they are distinct metrics. That is the condition
+  //     `Snapshot.hasDuplication` detects for snapshots; nothing warns about it on this feed. Give
+  //     same-named sibling instruments distinct names if they must chart separately.
   private def text(mc: MeteredCounts): WebSocketFrame.Text = {
     val series = mc.counts.map { case (mid, count) =>
       Json.obj(
@@ -88,6 +96,13 @@ final private class HttpWsRouter[F[_]: Async](
 
         wsb2.build(send, receive)
 
+      // `file` is one decoded path segment, so a percent-encoded `%2F` lets it carry slashes and `..`, and
+      // http4s's own normalization (`name.split("/").filter(_.nonEmpty).mkString("/")`) drops empty
+      // segments but NOT `..`. This is nevertheless not a traversal: the lookup goes through a
+      // ClassLoader, where a jar loader matches entry names literally, and the JDK's
+      // URLClassPath$FileLoader.getResource rejects a name whose resolved URL escapes the classpath base
+      // ("requested resource had ../..'s in path"). Noted because the defense lives two layers below this
+      // line; keep the lookup on the classloader rather than moving it to a filesystem path.
       case GET -> Root / file =>
         StaticFile.fromResource(s"dashboard/$file").getOrElseF(NotFound())
     }
