@@ -50,7 +50,8 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
   private val space: Char = indentSpace(indent)
   private val space2: String = String.valueOf(space) * 2
   private val space4: String = space2 * 2
-  private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
+  // a def, not a val: see `number_formatter`, which is not thread-safe and so is never shared
+  private def decimal_formatter: DecimalFormat = number_formatter()
 
   /** Renders a per-second rate using the largest time unit that keeps the value above 1, so a slow rate reads
     * as e.g. `"5 x/day"` rather than a tiny per-second figure. Falls through seconds -> minutes -> hours ->
@@ -58,13 +59,13 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     */
   private def adaptable_mean_rate(data: Double, symbol: String): String =
     if (data > 1)
-      s"${decimalFormatter.format(data)} $symbol/${time.Seconds.symbol}"
+      s"${decimal_formatter.format(data)} $symbol/${time.Seconds.symbol}"
     else if (data * 60 > 1)
-      s"${decimalFormatter.format(data * 60)} $symbol/${time.Minutes.symbol}"
+      s"${decimal_formatter.format(data * 60)} $symbol/${time.Minutes.symbol}"
     else if (data * 3600 > 1)
-      s"${decimalFormatter.format(data * 3600)} $symbol/${time.Hours.symbol}"
+      s"${decimal_formatter.format(data * 3600)} $symbol/${time.Hours.symbol}"
     else
-      s"${decimalFormatter.format(data * 86400)} $symbol/${time.Days.symbol}"
+      s"${decimal_formatter.format(data * 86400)} $symbol/${time.Days.symbol}"
 
   /** Formatted label/value rows for each meter: aggregate plus mean and 1/5/15-minute rates, using the
     * meter's own unit symbol.
@@ -73,11 +74,11 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     snapshot.meters.map { m =>
       val unit = m.meter.squants.unitSymbol
       m.metricId -> NonEmptyList.of(
-        "aggregate" -> s"${decimalFormatter.format(m.meter.aggregate)} $unit",
+        "aggregate" -> s"${decimal_formatter.format(m.meter.aggregate)} $unit",
         "mean_rate" -> adaptable_mean_rate(m.meter.mean_rate.toHertz, unit),
-        "m1_rate" -> s"${decimalFormatter.format(m.meter.m1_rate.toHertz)} $unit/s",
-        "m5_rate" -> s"${decimalFormatter.format(m.meter.m5_rate.toHertz)} $unit/s",
-        "m15_rate" -> s"${decimalFormatter.format(m.meter.m15_rate.toHertz)} $unit/s"
+        "m1_rate" -> s"${decimal_formatter.format(m.meter.m1_rate.toHertz)} $unit/s",
+        "m5_rate" -> s"${decimal_formatter.format(m.meter.m5_rate.toHertz)} $unit/s",
+        "m15_rate" -> s"${decimal_formatter.format(m.meter.m15_rate.toHertz)} $unit/s"
       )
     }
 
@@ -88,11 +89,11 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     snapshot.timers.map { t =>
       val unit = s"calls/${time.Seconds.symbol}"
       t.metricId -> NonEmptyList.of(
-        "invocations" -> decimalFormatter.format(t.timer.calls),
+        "invocations" -> decimal_formatter.format(t.timer.calls),
         "mean_rate" -> adaptable_mean_rate(t.timer.mean_rate.toHertz, "calls"),
-        "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
-        "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
-        "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
+        "m1_rate" -> s"${decimal_formatter.format(t.timer.m1_rate.toHertz)} $unit",
+        "m5_rate" -> s"${decimal_formatter.format(t.timer.m5_rate.toHertz)} $unit",
+        "m15_rate" -> s"${decimal_formatter.format(t.timer.m15_rate.toHertz)} $unit",
         "min" -> fmt.format(t.timer.min),
         "max" -> fmt.format(t.timer.max),
         "mean" -> fmt.format(t.timer.mean),
@@ -126,7 +127,7 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
         case unknown                  => s"$unknown - unknown symbol of dimension $dimensionName"
       }
     } else
-      s"${decimalFormatter.format(data)} $unitSymbol"
+      s"${decimal_formatter.format(data)} $unitSymbol"
   }
 
   /** Formatted label/value rows for each histogram: update count plus min/max/mean/stddev and percentiles,
@@ -136,7 +137,7 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
     snapshot.histograms.map { h =>
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
-        "updates" -> decimalFormatter.format(histo.updates),
+        "updates" -> decimal_formatter.format(histo.updates),
         "min" -> interpret_histogram(histo.squants, histo.min),
         "max" -> interpret_histogram(histo.squants, histo.max),
         "mean" -> interpret_histogram(histo.squants, histo.mean),
@@ -228,7 +229,7 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
   private def counter_str: List[(MetricId, List[String])] =
     snapshot.counters
       .map(c =>
-        c.metricId -> List(show"${c.metricId.token.metricName}: ${decimalFormatter.format(c.counter)}"))
+        c.metricId -> List(show"${c.metricId.token.metricName}: ${decimal_formatter.format(c.counter)}"))
 
   /** YAML lines for each gauge, rendered via `JsonView.yml`. Gauges that render to nothing (e.g. null) are
     * dropped.

@@ -4,8 +4,6 @@ import cats.syntax.show.showInterpolator
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.apache.commons.lang3.StringUtils
 
-import java.text.DecimalFormat
-
 /** A presentation-only view of a circe `Json` node, tagging it by its JSON shape.
   *
   * `JsonView` is an intermediate representation produced by folding a `Json` value with the `unfolded`
@@ -40,13 +38,14 @@ private object JsonView {
       def onObject(value: JsonObject): JsonView[Json] = ObjectView(value.toList)
     }
 
-  private val decimalFormatter: DecimalFormat = new DecimalFormat(decimalFormat)
-
-  /** Formats a JSON number with the shared `decimalFormat` grouping pattern, falling back to the number's own
-    * string form when it has no `BigDecimal` representation.
+  /** Formats a JSON number with the shared presentation pattern, falling back to the number's own string form
+    * when it has no `BigDecimal` representation.
+    *
+    * The formatter is built per call rather than held in a field: this is an `object`, so a field would be
+    * one mutable `DecimalFormat` shared by every thread rendering a snapshot.
     */
   private def format_json_number(jn: JsonNumber): String =
-    jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
+    jn.toBigDecimal.map(number_formatter().format).getOrElse(jn.toString)
 
   /** Renders a `Json` value as a list of YAML-ish lines under a given label.
     *

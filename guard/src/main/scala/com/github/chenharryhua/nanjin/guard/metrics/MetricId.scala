@@ -55,7 +55,11 @@ end Squants
   *
   * Uniqueness comes from two stamped fields:
   *   - `age` — the monotonic clock reading (nanos) at construction, so instances have a stable creation order
-  *     within a run.
+  *     within a run. Despite the name it is a '''creation timestamp, not an elapsed duration''': a smaller
+  *     value means an '''older''' instance, which is why the renderers sort ascending by it to list metrics
+  *     oldest-first. The name is kept because it is a serialized field of this `Codec.AsObject` and part of
+  *     the encoded `MetricId.identifier` used as the Dropwizard registry key, so renaming it would change
+  *     both the wire form and the registry key.
   *   - `uniqueToken` — a hash of a fresh `cats.effect.Unique.Token`, so distinct acquisitions never collide
   *     even at the same instant.
   *
