@@ -167,9 +167,14 @@ object EventPipe {
     * filters by elapsed wall-clock time, so it is robust to changes in snapshot frequency.
     *
     * @param interval
-    *   the target spacing between kept snapshots.
+    *   the target spacing between kept snapshots. Must be positive. Validated eagerly, as `indexFilter`
+    *   validates its divisor, so a misconfiguration fails at construction rather than silently dropping every
+    *   periodic snapshot: a zero interval makes the elapsed-interval count `Infinity` (and so `Long.MaxValue`
+    *   once truncated) while a negative one makes it negative, each placing the expected boundary where no
+    *   tick can cover it.
     */
-  def windowFilter(interval: FiniteDuration): EventPipe =
+  def windowFilter(interval: FiniteDuration): EventPipe = {
+    require(interval.toNanos > 0, s"windowFilter interval must be positive, but was $interval")
     new EventPipe {
 
       override def apply(event: Event): Option[Event] =
@@ -187,5 +192,6 @@ object EventPipe {
           case other => Some(other)
         }
     }
+  }
 
 }

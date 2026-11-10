@@ -162,6 +162,28 @@ class EventPipeEdgeCaseTest extends CatsEffectSuite {
     }
   }
 
+  // --- windowFilter interval validation ---
+
+  test("9b.EventPipe.windowFilter(0.seconds) is rejected eagerly at construction") {
+    // a zero interval makes the elapsed-interval count Infinity, so the expected boundary collapses onto
+    // launchTime and every periodic snapshot is dropped; the require guard fails fast instead.
+    intercept[IllegalArgumentException] {
+      EventPipe.windowFilter(0.seconds)
+    }
+  }
+
+  test("9c.EventPipe.windowFilter with a negative interval is rejected eagerly at construction") {
+    // a negative interval puts the expected boundary before launchTime, which no tick can cover.
+    intercept[IllegalArgumentException] {
+      EventPipe.windowFilter((-1).seconds)
+    }
+  }
+
+  test("9d.EventPipe.windowFilter accepts the smallest positive interval") {
+    // the guard must not over-reject: one nanosecond is a legitimate, if useless, spacing.
+    EventPipe.windowFilter(1.nano)
+  }
+
   // --- indexFilter divisor=1 ---
 
   test("10.EventPipe.indexFilter(1) keeps all periodic metrics") {
