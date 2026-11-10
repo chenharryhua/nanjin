@@ -56,8 +56,11 @@ final private class ServiceEventHandler[F[_]: Sync] private (
       _ <- channel.closeWithElement(event)
     } yield ()
 
-  // The isClosed check is best-effort, not atomic with serviceStop's close; correctness relies on
-  // Channel.close being idempotent, so a concurrent close racing this guard is harmless.
+  // The isClosed check is best-effort, not atomic with serviceStop's close. For the channel a racing close
+  // is harmless: closeWithElement on an already-closed channel drops the element, so consumers never see a
+  // second stop. The log sink is not covered by that, because serviceStop writes to it before closing, so
+  // losing the race adds a ByCancellation line for a service that in fact stopped Successfully or
+  // ByException. The log and the event stream then disagree on the reason.
   def serviceCancel: F[Unit] =
     channel.isClosed.ifM(().pure[F], serviceStop(StopReason.ByCancellation))
 

@@ -50,7 +50,9 @@ private object EventLogSink:
   private def consoleLogSink[F[_]: {Monad, Console}](
     service: Service,
     translator: Translator[F, String]): LogSink[F] = {
-    val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    // The offset is part of the prefix because the timestamp is a wall-clock reading in the service's zone:
+    // without it, two lines an hour apart print identically across a daylight-saving fall-back.
+    val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss XXX")
     LogSink { (event: Event) =>
       translator
         .translate(event)

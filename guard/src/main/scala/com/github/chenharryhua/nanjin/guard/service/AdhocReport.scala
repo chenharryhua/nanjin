@@ -28,8 +28,14 @@ trait AdhocReport[F[_]]:
 
   /** Stream metered count deltas (meters and timers) on a custom schedule.
     *
-    * Each emission contains the delta since the previous emission, suitable for feeding into observers like
-    * CloudWatch.
+    * Each emission contains the counts accrued over the window that ends at its tick, suitable for feeding
+    * into observers like CloudWatch.
+    *
+    * Every emission after the first is the difference against the preceding one. The '''first''' has no
+    * preceding emission, so its window opens where the counters did, and it carries everything accumulated up
+    * to the first tick rather than a one-interval difference. For a stream started with the service that
+    * window is about one tick long and reads like any other; for one started well afterwards it is as long as
+    * the wait, so the first value is correspondingly larger.
     *
     * @param f
     *   policy controlling the emission frequency
