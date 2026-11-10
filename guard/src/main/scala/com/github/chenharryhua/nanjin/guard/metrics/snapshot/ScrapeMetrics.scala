@@ -5,6 +5,7 @@ import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.{Counter, Gauge, Histogram, Meter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.metrics
 import com.github.chenharryhua.nanjin.guard.metrics.{MetricCategory, MetricId}
+import io.circe.Json
 import io.circe.jawn.{decode, parse}
 import squants.time.Hertz
 
@@ -125,12 +126,24 @@ final private[guard] class ScrapeMetrics(val metricRegistry: MetricRegistry) {
   /*
    * Gauges
    */
+
+  // Every gauge nanjin registers under a MetricId key stores an `io.circe.Json` directly: both
+  // `gauges.Gauge` and `gauges.NumericGauge` build a `CodahaleGauge[Json]`, and the derived gauges
+  // (healthCheck/ratio/idle/active/frequency) all go through `gauges.Gauge`. The Dropwizard type is only
+  // `Gauge[?]` here, so the value needs a type test; taking it as-is matters because circe's
+  // `Json.toString` is `spaces2`, and rendering then re-parsing every gauge on every Full scrape is pure
+  // waste. The `parse` fallback keeps any other value type readable.
+  private def gaugeJson(gauge: Gauge[?]): Option[Json] =
+    gauge.getValue match {
+      case js: Json => Some(js)
+      case other    => parse(other.toString).toOption
+    }
+
   private def interpretGauges(sm: java.util.SortedMap[String, Gauge[?]]): List[MetricElement.Gauge] =
     sm.asScala.iterator.flatMap { case (name, gauge) =>
       decode[MetricId](name) match {
         case Right(mid @ MetricId(_, _, MetricCategory.Gauge(_, _))) =>
-          parse(gauge.getValue.toString)
-            .toOption
+          gaugeJson(gauge)
             .filterNot(_.isNull)
             .map(js => MetricElement.Gauge(mid, MetricElement.GaugeData(js)))
         case _ => None

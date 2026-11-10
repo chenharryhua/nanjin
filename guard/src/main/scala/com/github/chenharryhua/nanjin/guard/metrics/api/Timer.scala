@@ -42,7 +42,13 @@ trait Timer[F[_]]:
   /** Record an elapsed duration already expressed in nanoseconds. */
   def elapsedNano(num: Long): F[Unit]
 
-  /** Run `fa` and record its elapsed time, preserving its result and error. */
+  /** Run `fa` and record its elapsed time, returning its value unchanged.
+    *
+    * '''Only a successful completion is recorded.''' A failed or canceled `fa` short-circuits before the
+    * timer is updated, and the error is re-raised unchanged, so a timer fed solely through `timing` reports
+    * call counts and percentiles for successes only. To time a failing run as well, measure it yourself and
+    * call `elapsed`/`elapsedNano` on both paths.
+    */
   def timing[A](fa: F[A]): F[A]
 
   final def elapsedNano(num: Int): F[Unit] =
@@ -89,7 +95,9 @@ object Timer {
       F.delay(timer.update(num, TimeUnit.NANOSECONDS)) >>
         otel.record(Nanoseconds(num).in(timeunit).value, attributes*)
 
-    // Measure the effect once, then record the same elapsed time to both backends.
+    // Measure the effect once, then record the same elapsed time to both backends. `F.timed` propagates a
+    // failure or cancellation of `fa`, so the flatMap is skipped and nothing is recorded on those paths; see
+    // the `timing` doc on `Timer` for what that means for the reported statistics.
     override def timing[A](fa: F[A]): F[A] =
       F.timed(fa).flatMap { case (fd, result) => elapsedNano(fd.toNanos).as(result) }
 

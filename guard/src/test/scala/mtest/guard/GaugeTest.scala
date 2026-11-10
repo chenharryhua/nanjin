@@ -249,6 +249,8 @@ class GaugeTest extends CatsEffectSuite {
     }
   }
 
+  // A disabled frequency counter hands back the shared `FrequencyCounter.noop`, so besides registering no
+  // gauge it accumulates nothing and starts no reset-policy fiber. The snapshot is all this can observe.
   test("13.frequency counter - disabled is noop") {
     service.eventStream { agent =>
       agent.facilitate("freq-disabled") { fac =>

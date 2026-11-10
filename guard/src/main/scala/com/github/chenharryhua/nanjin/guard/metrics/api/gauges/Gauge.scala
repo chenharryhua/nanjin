@@ -30,15 +30,31 @@ object Gauge {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy, kind)
 
-    /** Bound evaluation time when the registry reads the gauge value. */
+    /** Bound evaluation time of the gauge effect (default 5 seconds). A timeout renders the error as the
+      * gauge value rather than dropping the gauge.
+      *
+      * Without a policy this bounds the evaluation the Dropwizard registry triggers when it reads the gauge.
+      * With a policy it bounds the initial evaluation at registration and each background refresh instead,
+      * since the registry then reads a cached value.
+      */
     def withTimeout(timeout: FiniteDuration): Builder =
       new Builder(isEnabled, timeout, policy, kind)
 
-    /** Refresh the gauge value according to an optional policy. */
+    /** Refresh the gauge value according to an optional policy, caching it between refreshes.
+      *
+      * With a policy the registry read is a cheap cache read instead of an evaluation of the gauge effect.
+      * The trade-off is at the other end: the first value is computed '''during resource acquisition''', so
+      * acquiring a policy-backed gauge blocks the acquiring fiber for as long as that first evaluation takes,
+      * up to `withTimeout`. Registering several in sequence serializes those waits. This is deliberate — it
+      * guarantees the gauge has a value before the first scrape can see it — but it is a startup cost on the
+      * path that registers the gauge.
+      */
     def withPolicy(op: Option[Policy]): Builder =
       new Builder(isEnabled, timeout, op, kind)
 
-    /** Refresh the gauge value according to a policy builder. */
+    /** Refresh the gauge value according to a policy builder. See the `Option` overload for the acquisition
+      * cost a policy carries.
+      */
     def withPolicy(f: Policy.type => Policy): Builder =
       withPolicy(Some(f(Policy)))
 

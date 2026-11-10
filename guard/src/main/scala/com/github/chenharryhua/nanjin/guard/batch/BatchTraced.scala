@@ -5,6 +5,7 @@ import cats.data.{Kleisli, NonEmptyList, StateT}
 import cats.effect.kernel.Async
 import cats.syntax.applicative.given
 import cats.syntax.applicativeError.given
+import cats.syntax.apply.given
 import cats.syntax.either.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
@@ -12,7 +13,9 @@ import cats.syntax.monadError.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.guard.metrics.MetricScope
 import io.circe.{Encoder, Json}
-import org.typelevel.otel4s.trace.{Span, SpanOps, Tracer}
+import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.otel4s.Attribute
+import org.typelevel.otel4s.trace.{Span, SpanOps, StatusCode, Tracer}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -26,6 +29,40 @@ object BatchTraced:
     * passes it to `run`, and records the span context on the job's `JobRecord`.
     */
   final private[BatchTraced] case class SpanJob[F[_], A](name: String, index: Int, run: Span[F] => F[A])
+
+  /** Open the child span for `job`, named after the job and carrying its point attributes.
+    *
+    * The attributes are the batch's metric scope (`nj.label`, `nj.domain`, `nj.service`, `nj.task`) plus the
+    * batch id and the job's 1-based index. OpenTelemetry does not propagate a parent span's attributes to its
+    * children, so without them a job span carries nothing but its name and could be attributed to a service,
+    * domain, or batch run only by walking up to its parent. The parent span omits `nj.label` because the
+    * parent's own name is the label; a child's name is the job name, so it carries the label.
+    */
+  private def jobSpan[F[_]](tracer: Tracer[F], job: Job): SpanOps[F] = {
+    val attributes: List[Attribute[?]] =
+      List[Attribute[?]](
+        Attribute("nj.batch.id", job.batchId.value),
+        Attribute("nj.job.index", job.index.toLong)) ::: job.scope.attributes
+
+    tracer.spanBuilder(job.name).modifyState(_.addAttributes(attributes)).build
+  }
+
+  /** Mark a job's span as errored when the job failed.
+    *
+    * A job's exception is caught '''inside''' its span's scope — the `attempt` runs within `use`, so that a
+    * quasi batch can retain the failure — which means `use` itself always succeeds and otel4s would close the
+    * span with an unset status and no exception event. The failure would then be invisible in the trace: a
+    * quasi batch whose every job threw would look exactly like one where all succeeded, since its parent span
+    * is not errored either (only `valueBatch` raises past the parent). Recording it here keeps the exported
+    * trace agreeing with the returned `BatchResult`.
+    */
+  private def recordFailure[F[_], A](span: Span[F], eoa: Either[Throwable, A])(using
+    F: Applicative[F]): F[Unit] =
+    eoa match {
+      case Left(ex) =>
+        span.recordException(ex) *> span.setStatus(StatusCode.Error, ExceptionUtils.getMessage(ex))
+      case Right(_) => F.unit
+    }
 
   /*
    * Runners
@@ -67,6 +104,9 @@ object BatchTraced:
       * The classification of `eoa` is left to the caller, matching the quasi/value split; `BatchTraced`
       * carries its own copy of those rules rather than sharing `JobExecutor`'s.
       *
+      * A failure is recorded on the span before being handed back as a `Left`; see `recordFailure` for why
+      * that cannot be left to otel4s here.
+      *
       * The timing window brackets the span, so `took` includes opening and closing it, matching the monadic
       * traced path (whose cursor-threaded `start` cannot exclude it) and the framing that `BatchMetered`
       * already counts for its own jobs. See `JobRecord` for the resulting semantics.
@@ -74,9 +114,8 @@ object BatchTraced:
     private def runTraced(job: Job, sj: SpanJob[F, A]): F[(JobRecord, Either[Throwable, A])] =
       for {
         start <- F.monotonic
-        (ctx, eoa) <- batchTracer.tracer
-          .span(sj.name)
-          .use(span => sj.run(span).attempt.map(span.context -> _))
+        (ctx, eoa) <- jobSpan(batchTracer.tracer, job)
+          .use(span => sj.run(span).attempt.flatTap(recordFailure(span, _)).map(span.context -> _))
         end <- F.monotonic
       } yield (JobRecord(job, start, end, Some(ctx)), eoa)
 
@@ -281,7 +320,8 @@ object BatchTraced:
                 batchId = batchId)
 
             for {
-              (ctx, eoa) <- batchTracer.tracer.span(name).use(span => f(span).attempt.map(span.context -> _))
+              (ctx, eoa) <- jobSpan(batchTracer.tracer, job)
+                .use(span => f(span).attempt.flatTap(recordFailure(span, _)).map(span.context -> _))
               end <- F.monotonic
             } yield {
               val flag = if (eoa.isRight) JobFlag.Accepted else JobFlag.Failed
@@ -309,7 +349,9 @@ end BatchTraced
   * Use sequential or parallel execution for independent jobs, and monadic execution when later jobs depend on
   * earlier results. Each effect receives its child span and may use it to add attributes or create nested
   * spans. Results are returned directly in `F`; use `quasiBatch` to retain job failures or `valueBatch` to
-  * raise them. This API creates spans but does not add lifecycle logs or progress metrics.
+  * raise them. Under either, a failing job has its exception recorded on its own span and that span's status
+  * set to `StatusCode.Error`, so a failure a `quasiBatch` retains rather than raises is still visible in the
+  * trace. This API creates spans but does not add lifecycle logs or progress metrics.
   */
 final class BatchTraced[F[_]: Async] private[guard] (
   scope: MetricScope,
