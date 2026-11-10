@@ -40,6 +40,23 @@ import java.util.Locale
 private def number_formatter(): DecimalFormat =
   new DecimalFormat("#,##0.###", DecimalFormatSymbols.getInstance(Locale.ROOT))
 
+/** The severity a rendered event is reported at, used by `AnsiTextTranslator`'s title colouring and by
+  * `htmlColoring`.
+  *
+  * Most events map straight from their kind: a start is `Info`, a panic is `Error`, and a stop takes its
+  * level from the stop reason (`Successfully` -> `Good`, `ByCancellation` -> `Warn`, `ByException` ->
+  * `Error`, `Maintenance` -> `Info`). A reported event carries its own level.
+  *
+  * A metrics snapshot is the one composite case: it takes the '''maximum''' of three independent signals, so
+  * the worst of them decides the level.
+  *   - any failing `healthCheck` gauge raises it to `Error`;
+  *   - any non-zero risk counter raises it to `Warn`;
+  *   - an '''empty''' snapshot raises it to `Warn`.
+  *
+  * The third is worth knowing about: a service that deliberately registers no metrics reports every periodic
+  * snapshot at `Warn`, since an empty report is treated as a sign that metrics are not wired up rather than
+  * as a clean bill of health.
+  */
 def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
   ContT.pure[F, A, Event](evt).map {
     case _: ServiceStart => LogLevel.Info

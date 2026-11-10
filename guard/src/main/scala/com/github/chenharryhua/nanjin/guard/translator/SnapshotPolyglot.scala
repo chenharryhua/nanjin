@@ -56,9 +56,15 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
   /** Renders a per-second rate using the largest time unit that keeps the value above 1, so a slow rate reads
     * as e.g. `"5 x/day"` rather than a tiny per-second figure. Falls through seconds -> minutes -> hours ->
     * days.
+    *
+    * Zero is special-cased to seconds: scaling it never lifts it above 1, so an idle meter would otherwise
+    * fall through every branch and read `"0 x/day"`, which suggests a daily rate was measured rather than no
+    * activity at all.
     */
   private def adaptable_mean_rate(data: Double, symbol: String): String =
-    if (data > 1)
+    if (data === 0d)
+      s"${decimal_formatter.format(0)} $symbol/${time.Seconds.symbol}"
+    else if (data > 1)
       s"${decimal_formatter.format(data)} $symbol/${time.Seconds.symbol}"
     else if (data * 60 > 1)
       s"${decimal_formatter.format(data * 60)} $symbol/${time.Minutes.symbol}"
@@ -162,8 +168,22 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
 
   /** Assembles per-metric JSON into the final tree: grouped by domain, then by scope within each domain, with
     * metrics ordered by age (oldest first). Each scope becomes an object keyed by its label, and each domain
-    * becomes an array of those scope objects. The overall ordering is driven by the minimum age within each
-    * group.
+    * becomes an array of those scope objects. Ordering is driven by the minimum age within each group, with
+    * the group's own name breaking ties so equal ages still render in a deterministic order rather than in
+    * `groupBy`'s map order.
+    *
+    * ===Same-named metrics in one scope collapse here===
+    * Metrics inside a scope are merged into a single object keyed by `token.metricName`, which projects away
+    * the per-acquisition `MetricToken`. Two live instruments sharing a scope '''and''' a metric name
+    * therefore collide on that key, and the merge keeps the '''oldest''': the fold is left-associative over
+    * an age-ascending list and `b.deepMerge(a)` lets the accumulated `a` win, so the newer sibling does not
+    * appear in this rendering at all.
+    *
+    * The YAML rendering does not collapse — `group_yaml` concatenates line blocks, so it shows both siblings
+    * under two identical `metricName:` headers. The two renderings of one snapshot can therefore report
+    * different metric counts. `Snapshot.hasDuplication` detects exactly this condition; the intended
+    * resolution is to give same-named siblings distinct names, not to disambiguate the key here, since these
+    * keys are the rendered snapshot's wire format.
     */
   private def group_json(pairs: List[(MetricId, Json)]): Json =
     pairs
@@ -181,7 +201,7 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
                 .map { case (mId, js) => Json.obj(mId.token.metricName -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            age -> Json.obj(scope.label.value -> inner.asJson)
+            (age, scope.label.value) -> Json.obj(scope.label.value -> inner.asJson)
           }
           .sortBy(_._1)
           .map(_._2)
@@ -231,15 +251,21 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
       .map(c =>
         c.metricId -> List(show"${c.metricId.token.metricName}: ${decimal_formatter.format(c.counter)}"))
 
-  /** YAML lines for each gauge, rendered via `JsonView.yml`. Gauges that render to nothing (e.g. null) are
-    * dropped.
+  /** YAML lines for each gauge, rendered via `JsonView.yml`. Gauges carrying no information are dropped: a
+    * null value, for which `JsonView.yml` emits no lines at all, and an empty JSON object, for which it emits
+    * only the `metricName:` header with no fields beneath it.
+    *
+    * The empty-object case is tested on the JSON rather than on the rendered line count, because a scalar
+    * gauge also renders to exactly one line — `metricName: value` — and must be kept.
     */
   private def gauge_str: List[(MetricId, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonView.yml(g.metricId.token.metricName, g.gauge.value, space)
-      if (content.isEmpty) None
-      else
-        Some(g.metricId -> content)
+      val value: Json = g.gauge.value
+      if (value.asObject.exists(_.isEmpty)) None
+      else {
+        val content = JsonView.yml(g.metricId.token.metricName, value, space)
+        if (content.isEmpty) None else Some(g.metricId -> content)
+      }
     }
 
   /** Renders label/value rows as `key: value` lines indented four spaces, with keys left-padded to the widest
@@ -268,7 +294,11 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
 
   /** Assembles per-metric YAML lines into the final document: grouped by domain, then by scope (each
     * introduced by a `- label:` bullet), with metrics ordered by age (oldest first) and indentation applied
-    * per level. Ordering within and across groups is driven by minimum age.
+    * per level. Ordering is driven by minimum age with the group's own name breaking ties, matching
+    * `group_json`.
+    *
+    * Unlike `group_json` this path does not merge: two metrics sharing a scope and a name each contribute
+    * their own line block, so both appear under identical headers. See `group_json` for the divergence.
     */
   private def group_yaml(pairs: List[(MetricId, List[String])]): List[String] =
     pairs
@@ -280,11 +310,11 @@ final private[guard] class SnapshotPolyglot(snapshot: Snapshot, indent: IndentSp
           .toList
           .map { case (scope, items) =>
             val age = items.map(_._1.token.age).min
-            (age, scope) -> items.sortBy(_._1.token.age).flatMap(_._2.map(space4 + _))
+            (age, scope.label.value) -> items.sortBy(_._1.token.age).flatMap(_._2.map(space4 + _))
           }
-          .sortBy(_._1._1)
-          .flatMap { case ((_, scope), items) =>
-            s"$space2- ${scope.label}:" :: items
+          .sortBy(_._1)
+          .flatMap { case ((_, label), items) =>
+            s"$space2- $label:" :: items
           }
         val age = domains.map(_._1.token.age).min
         ((age, domain.value), show"[$domain]:" :: arr)
