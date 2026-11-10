@@ -59,6 +59,23 @@ class EventPipeTimeFilterTest extends FunSuite {
       took = null.asInstanceOf[Took]
     )
 
+  /** The decision the previous, date-derived formulation of `localTimeFilter` made: one candidate instant per
+    * target, built from the '''conclude date alone''' and resolved with `LocalDateTime.atZone`.
+    *
+    * Kept here, rather than verified by temporarily reverting the source, so each test below can state
+    * exactly what changed and why. Where this disagrees with the filter, the disagreement is the fix.
+    */
+  private def legacyDecision(event: Event, localTimes: NonEmptyList[LocalTime]): Boolean =
+    event match {
+      case MetricsSnapshot(_, _, MetricsSnapshot.Periodic(tick), _, _) =>
+        localTimes.exists { lt =>
+          val zdt =
+            java.time.LocalDateTime.of(tick.local(_.conclude).toLocalDate, lt).atZone(tick.zoneId)
+          tick.isWithinOpenClosed(zdt.toInstant)
+        }
+      case _ => true
+    }
+
   // ---------------- cronFilter ----------------
 
   test("1.cronFilter keeps a tick whose window covers the next cron firing") {
@@ -96,43 +113,89 @@ class EventPipeTimeFilterTest extends FunSuite {
     assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(10, 5))).filter(evt))
   }
 
-  test("5.localTimeFilter around the spring-forward gap (02:00-03:00 does not exist)") {
-    // On 2024-10-06 Sydney jumps 02:00 -> 03:00. A tick window that spans the jump: local 01:30 -> 03:30.
-    // 01:30 AEST = 2024-10-05T14:30Z ... but build from instants to avoid ambiguity.
+  test("5.localTimeFilter does not fire for a wall-clock time inside the spring-forward gap") {
+    // On 2024-10-06 Sydney jumps 02:00 AEST -> 03:00 AEDT, so 02:30 does not occur at all that day.
+    // Window local 01:30 AEST -> 03:30 AEDT, i.e. (2024-10-05T15:30Z, 2024-10-05T16:30Z].
     val start = ZonedDateTime.of(2024, 10, 6, 1, 30, 0, 0, sydney).toInstant
     val end = ZonedDateTime.of(2024, 10, 6, 3, 30, 0, 0, sydney).toInstant
     val evt = periodic(sydney, start, end)
 
-    // A nonexistent local time (02:30) is resolved by java.time by shifting forward into the gap; whatever
-    // instant that yields, the filter must not throw and must return a stable boolean. We assert it is
-    // handled (no exception) and record the observed decision.
     val gapTime = LocalTime.of(2, 30)
-    val resolved: ZonedDateTime =
-      java.time.LocalDateTime.of(LocalDate.of(2024, 10, 6), gapTime).atZone(sydney)
-    val decided = EventPipe.localTimeFilter(NonEmptyList.of(gapTime)).filter(evt)
-    // java.time shifts 02:30 (nonexistent) to 03:30 AEDT, which equals `end` (inside the open-closed
-    // window), so the tick is kept. This documents the actual, non-throwing behavior.
-    assertEquals(resolved.toInstant, end)
-    assert(decided)
+    // java.time's atZone invents an occurrence by shifting the nonexistent time forward out of the gap, to
+    // 03:30 AEDT, which here is exactly `end` and so used to be reported as covered. getValidOffsets
+    // reports the truth: the time has no occurrence on this date, so the filter does not fire.
+    assertEquals(java.time.LocalDateTime.of(LocalDate.of(2024, 10, 6), gapTime).atZone(sydney).toInstant, end)
+    assert(
+      sydney.getRules.getValidOffsets(java.time.LocalDateTime.of(LocalDate.of(2024, 10, 6), gapTime))
+        .isEmpty)
 
-    // A clearly in-window existing time (03:00) is also kept.
+    assert(legacyDecision(evt, NonEmptyList.of(gapTime)), "the old formulation fired on the shifted instant")
+    assert(!EventPipe.localTimeFilter(NonEmptyList.of(gapTime)).filter(evt))
+
+    // a time that does exist, and falls in the window, still fires
     assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(3, 0))).filter(evt))
   }
 
-  test("6.localTimeFilter around the fall-back overlap (02:00-03:00 occurs twice)") {
-    // On 2024-04-07 Sydney falls back 03:00 -> 02:00, so 02:30 happens twice. java.time's atZone picks the
-    // earlier offset (AEDT). A tick window spanning the overlap: local 01:30 -> 03:30 (by instants).
-    val start = ZonedDateTime.of(2024, 4, 7, 1, 30, 0, 0, sydney).toInstant
-    val end = ZonedDateTime.of(2024, 4, 7, 3, 30, 0, 0, sydney).toInstant
+  test("6.localTimeFilter reaches the later occurrence in the fall-back overlap") {
+    // On 2024-04-07 Sydney falls back 03:00 AEDT -> 02:00 AEST, so 02:30 occurs twice:
+    //   02:30 AEDT (UTC+11) = 2024-04-06T15:30Z, then 02:30 AEST (UTC+10) = 2024-04-06T16:30Z.
+    val overlapTime = LocalTime.of(2, 30)
+    val earlier = Instant.parse("2024-04-06T15:30:00Z")
+    val later = Instant.parse("2024-04-06T16:30:00Z")
+
+    // atZone returns only the earlier one, which is why the later occurrence used to be unreachable
+    assertEquals(
+      java.time.LocalDateTime.of(LocalDate.of(2024, 4, 7), overlapTime).atZone(sydney).toInstant,
+      earlier)
+
+    // a window containing ONLY the later occurrence: (16:00Z, 17:00Z]
+    val lateWindow =
+      periodic(sydney, Instant.parse("2024-04-06T16:00:00Z"), Instant.parse("2024-04-06T17:00:00Z"))
+    assert(
+      !legacyDecision(lateWindow, NonEmptyList.of(overlapTime)),
+      "the old formulation saw only the earlier occurrence, which is outside this window")
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(overlapTime)).filter(lateWindow))
+
+    // and one containing only the earlier occurrence still fires too
+    val earlyWindow =
+      periodic(sydney, Instant.parse("2024-04-06T15:00:00Z"), Instant.parse("2024-04-06T16:00:00Z"))
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(overlapTime)).filter(earlyWindow))
+
+    assert(earlier.isBefore(later))
+  }
+
+  test("8.localTimeFilter covers a target before midnight when the window spans midnight") {
+    // Window local 2024-01-01 23:59 -> 2024-01-02 00:01. Keying off the conclude date alone put the target
+    // on 2024-01-02, where no tick could cover it.
+    val start = ZonedDateTime.of(2024, 1, 1, 23, 59, 0, 0, sydney).toInstant
+    val end = ZonedDateTime.of(2024, 1, 2, 0, 1, 0, 0, sydney).toInstant
     val evt = periodic(sydney, start, end)
 
-    val overlapTime = LocalTime.of(2, 30)
-    val resolved: ZonedDateTime =
-      java.time.LocalDateTime.of(LocalDate.of(2024, 4, 7), overlapTime).atZone(sydney)
-    // the earlier (AEDT) 02:30 is within the window; filter keeps it without throwing.
-    val decided = EventPipe.localTimeFilter(NonEmptyList.of(overlapTime)).filter(evt)
-    assert(resolved.toInstant.isAfter(start) && !resolved.toInstant.isAfter(end))
-    assert(decided)
+    assert(
+      !legacyDecision(evt, NonEmptyList.of(LocalTime.of(23, 59, 30))),
+      "the old formulation moved the pre-midnight target onto the conclude date")
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(23, 59, 30))).filter(evt))
+    // the target on the later date is covered as well
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(0, 0, 30))).filter(evt))
+    // a target outside the window is still dropped
+    assert(!EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(12, 0))).filter(evt))
+  }
+
+  test("9.localTimeFilter covers every date a multi-day window touches") {
+    // A coarse report policy gives a window spanning whole days. Only the conclude date was considered, so
+    // a target that occurred on an earlier date inside the window was missed entirely.
+    val start = ZonedDateTime.of(2024, 1, 1, 0, 0, 0, 0, sydney).toInstant
+    val end = ZonedDateTime.of(2024, 1, 3, 0, 0, 0, 0, sydney).toInstant
+    val evt = periodic(sydney, start, end)
+
+    // 12:00 occurs on 2024-01-01 and 2024-01-02, both inside the window; 2024-01-03T12:00 is past conclude
+    assert(
+      !legacyDecision(evt, NonEmptyList.of(LocalTime.of(12, 0))),
+      "the old formulation only tried the conclude date, whose 12:00 is past conclude")
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(12, 0))).filter(evt))
+    // the commence instant itself is excluded by the open-closed window, so 00:00 is covered only via the
+    // interior dates
+    assert(EventPipe.localTimeFilter(NonEmptyList.of(LocalTime.of(0, 0))).filter(evt))
   }
 
   // ---------------- Adhoc snapshots always pass ----------------

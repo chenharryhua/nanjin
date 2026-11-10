@@ -187,27 +187,22 @@ class EventPipeEdgeCaseTest extends CatsEffectSuite {
   // --- indexFilter divisor=1 ---
 
   test("10.EventPipe.indexFilter(1) keeps all periodic metrics") {
-    val filtered = service
-      .eventStream(_ => IO.sleep(3.seconds))
-      .map(checkJson)
-      .filter(EventPipe.indexFilter(1).filter)
-      .compile
-      .toList
-
-    val all = service
+    // Filter ONE run in memory rather than comparing two runs. Comparing the snapshot counts of two
+    // separate 3-second runs against a per-second report policy was flaky: the two windows can legitimately
+    // contain a different number of snapshots depending on where each run starts within a second.
+    service
       .eventStream(_ => IO.sleep(3.seconds))
       .map(checkJson)
       .compile
       .toList
+      .map { all =>
+        val allMetrics = all.count(_.isInstanceOf[MetricsSnapshot])
+        val filteredMetrics =
+          all.filter(EventPipe.indexFilter(1).filter).count(_.isInstanceOf[MetricsSnapshot])
 
-    for {
-      events <- filtered
-      allEvents <- all
-    } yield {
-      // indexFilter(1) keeps all because every index % 1 == 0
-      val filteredMetrics = events.count(_.isInstanceOf[MetricsSnapshot])
-      val allMetrics = allEvents.count(_.isInstanceOf[MetricsSnapshot])
-      assert(filteredMetrics == allMetrics)
-    }
+        // indexFilter(1) keeps all because every index % 1 == 0
+        assert(allMetrics > 0)
+        assertEquals(filteredMetrics, allMetrics)
+      }
   }
 }
