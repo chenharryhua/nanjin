@@ -243,6 +243,54 @@ class SnapshotPolyglotEdgeTest extends FunSuite {
     } finally pool.shutdown()
   }
 
+  test("7.an empty-object gauge is dropped from YAML while a scalar gauge is kept") {
+    // JsonView.yml renders an empty object as just the `metricName:` header, which carries no information.
+    // The check has to look at the JSON, not the line count: a scalar gauge also renders to one line.
+    val scalar = MetricElement.Gauge(gauge_id("scalar", 1L), MetricElement.GaugeData(Json.fromInt(42)))
+    val empty_object = MetricElement.Gauge(gauge_id("hollow", 2L), MetricElement.GaugeData(Json.obj()))
+    val populated =
+      MetricElement.Gauge(
+        gauge_id("populated", 3L),
+        MetricElement.GaugeData(Json.obj("field" -> Json.fromInt(7))))
+
+    val yaml =
+      new SnapshotPolyglot(Snapshot(Nil, Nil, Nil, Nil, List(scalar, empty_object, populated))).toYaml
+
+    assert(yaml.contains("scalar: 42"), yaml)
+    assert(!yaml.contains("hollow"), yaml)
+    assert(yaml.contains("populated:"), yaml)
+    assert(yaml.contains("field"), yaml)
+  }
+
+  test("8.a zero mean rate renders per second rather than per day") {
+    // Scaling zero never lifts it above 1, so without the zero case it fell through every branch to days
+    // and an idle meter read "mean_rate: 0 ea/d", suggesting a daily rate had been measured.
+    val yaml = new SnapshotPolyglot(Snapshot(Nil, List(meter("idle", 1L, 0.0)), Nil, Nil, Nil)).toYaml
+
+    assert(yaml.contains("mean_rate: 0 ea/s"), yaml)
+    assert(!yaml.contains("ea/d"), yaml)
+  }
+
+  test("9.same-named metrics in one scope collapse in JSON but not in YAML") {
+    // Both renderings key a metric by token.metricName, which projects away the per-acquisition token.
+    // group_json merges on that key and the oldest wins; group_yaml concatenates line blocks and keeps both.
+    // Snapshot.hasDuplication detects exactly this condition.
+    val older = MetricElement.Gauge(gauge_id("twin", 1L), MetricElement.GaugeData(Json.fromInt(111)))
+    val newer = MetricElement.Gauge(gauge_id("twin", 2L), MetricElement.GaugeData(Json.fromInt(222)))
+    val snapshot = Snapshot(Nil, Nil, Nil, Nil, List(older, newer))
+    val polyglot = new SnapshotPolyglot(snapshot)
+
+    assert(snapshot.hasDuplication)
+
+    val pretty = polyglot.toPrettyJson.noSpaces
+    assert(pretty.contains("111"), pretty)
+    assert(!pretty.contains("222"), pretty)
+
+    val yaml = polyglot.toYaml
+    assert(yaml.contains("111"), yaml)
+    assert(yaml.contains("222"), yaml)
+  }
+
   test("4.empty snapshots render empty JSON arrays and empty YAML") {
     val polyglot = new SnapshotPolyglot(Snapshot.empty)
     assertEquals(polyglot.toVanillaJson, List.empty[Json].asJson)
