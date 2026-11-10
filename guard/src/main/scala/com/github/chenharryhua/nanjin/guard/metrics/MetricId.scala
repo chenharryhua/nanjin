@@ -35,6 +35,14 @@ enum MetricCategory derives Encoder, Decoder:
   case Counter(kind: MetricKind.Counter)
   case Meter(kind: MetricKind.Meter, squants: Squants)
   case Histogram(kind: MetricKind.Histogram, squants: Squants)
+
+  /** A timer's `squants` is '''always''' the `Each` default: a timer's own measurements are durations, which
+    * the snapshot reports as `java.time.Duration` and so carry no unit field, and the only place this value
+    * is read is `ScrapeMetrics.meteredCounts`, where the quantity is the timer's call count and `Each` is the
+    * right unit for it. `Timer.Builder.withTimeUnit` chooses the unit of the OpenTelemetry duration histogram
+    * and does not reach here. The field is kept rather than dropped because it is a serialized member of
+    * `MetricId`, which is both the Dropwizard registry key and part of the `Event` wire format.
+    */
   case Timer(kind: MetricKind.Timer, squants: Squants = Squants(Each))
 end MetricCategory
 

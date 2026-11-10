@@ -57,24 +57,32 @@ object FrequencyCounter {
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(isEnabled, f(Policy))
 
-    def build[F[_]: Async](gp: GaugeParams[F], name: String): Resource[F, FrequencyCounter[F]] =
-      for {
-        // TreeMap keeps tags sorted so the gauge JSON emits keys in a stable, deterministic order
-        ref <- Resource.eval(Ref.of[F, TreeMap[String, Long]](TreeMap.empty))
-        _ <- Gauge(
-          gp,
-          name,
-          _.withKind(_.Default).enable(isEnabled).register(ref.get.map { m =>
-            if (m.isEmpty) Json.Null else m.asJson
-          }))
-        _ <- tickStream.tickScheduled(gp.zoneId, _.fresh(policy)).evalMap(_ => ref.set(TreeMap.empty))
-          .compile.drain.background
-      } yield new FrequencyCounter[F] {
-        override def inc(tag: String, num: Long): F[Unit] =
-          ref.update(_.updatedWith(tag) {
-            case Some(value) => Some(value + num)
-            case None        => Some(num)
-          })
-      }
+    def build[F[_]: Async](gp: GaugeParams[F], name: String): Resource[F, FrequencyCounter[F]] = {
+      def impl: Resource[F, FrequencyCounter[F]] =
+        for {
+          // TreeMap keeps tags sorted so the gauge JSON emits keys in a stable, deterministic order
+          ref <- Resource.eval(Ref.of[F, TreeMap[String, Long]](TreeMap.empty))
+          _ <- Gauge(
+            gp,
+            name,
+            _.withKind(_.Default).enable(isEnabled).register(ref.get.map { m =>
+              if (m.isEmpty) Json.Null else m.asJson
+            }))
+          _ <- tickStream.tickScheduled(gp.zoneId, _.fresh(policy)).evalMap(_ => ref.set(TreeMap.empty))
+            .compile.drain.background
+        } yield new FrequencyCounter[F] {
+          override def inc(tag: String, num: Long): F[Unit] =
+            ref.update(_.updatedWith(tag) {
+              case Some(value) => Some(value + num)
+              case None        => Some(num)
+            })
+        }
+
+      // A disabled instrument must be inert, as it is for every sibling instrument. Without this branch the
+      // gauge was correctly left unregistered but `inc` still accumulated into a map nobody could read, and
+      // under the default empty policy nothing ever cleared it, so a disabled counter grew without bound in
+      // the number of distinct tags.
+      if isEnabled then impl else Resource.pure(noop)
+    }
   end Builder
 }

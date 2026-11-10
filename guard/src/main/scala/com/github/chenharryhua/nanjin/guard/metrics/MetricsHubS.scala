@@ -65,7 +65,9 @@ sealed trait MetricsHubS[F[_]] {
   def activeGauge(name: String, f: Endo[ActiveGauge.Builder] = identity): Stream[F, ActiveGauge[F]]
 
   /** Register a tag-based frequency counter and emit its handle. */
-  def frequencyCounter(name: String, f: Endo[FrequencyCounter.Builder]): Stream[F, FrequencyCounter[F]]
+  def frequencyCounter(
+    name: String,
+    f: Endo[FrequencyCounter.Builder] = identity): Stream[F, FrequencyCounter[F]]
 }
 
 object MetricsHubS {

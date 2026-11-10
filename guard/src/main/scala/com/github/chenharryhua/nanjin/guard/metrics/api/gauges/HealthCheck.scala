@@ -19,11 +19,15 @@ object HealthCheck {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, timeout, policy)
 
-    /** Bound the health check effect and report false on timeout or failure. */
+    /** Bound the health check effect and report false on timeout or failure (default 5 seconds). */
     def withTimeout(timeout: FiniteDuration): Builder =
       new Builder(isEnabled, timeout, policy)
 
-    /** Refresh the health check according to a policy. */
+    /** Refresh the health check according to a policy, caching the result between refreshes.
+      *
+      * With a policy the first check runs '''during resource acquisition''', so registering the health check
+      * blocks the acquiring fiber until it answers, up to `withTimeout`. See `Gauge.Builder.withPolicy`.
+      */
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(isEnabled, timeout, Some(f(Policy)))
 

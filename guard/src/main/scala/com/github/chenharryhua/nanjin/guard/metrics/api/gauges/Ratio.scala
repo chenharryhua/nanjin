@@ -67,7 +67,14 @@ object Ratio {
 
   }
 
-  /** Default translator that renders the accumulated ratio as a percentage. */
+  /** Default translator that renders the accumulated ratio as a percentage.
+    *
+    * Note that only the `Ior.Both` case is reachable in practice, here and in any translator passed to
+    * `withTranslator`: the backing ref is seeded `Ior.both(0L, 0L)` and `|+|` never narrows a `Both`, so the
+    * accumulated state is always a `Both`. A ratio with no denominator yet is therefore `Both(a, 0)`, which
+    * this translator renders "n/a". The `Left`/`Right` cases are kept so the function is total over the
+    * declared `Ior` type.
+    */
   val translator: Reader[Ior[Long, Long], Json] = Reader {
     case Ior.Left(_)    => Json.fromString("n/a")
     case Ior.Right(_)   => Json.fromString("0.0%")

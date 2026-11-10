@@ -50,6 +50,8 @@ private object BatchPanel {
       Kleisli((cj: JobState[?]) => F.uncancelable(_ => progress.update(_.appended(cj)))),
       active)
 
+  // Only the `Both` case is reachable: a `Ratio`'s state is seeded `Ior.both(0L, 0L)` and never narrows (see
+  // `Ratio.translator`). The other two are kept so the function is total over the declared `Ior` type.
   private val translator: Reader[Ior[Long, Long], Json] = Reader {
     case Ior.Left(a)    => Json.fromString(s"$a/0")
     case Ior.Right(b)   => Json.fromString(s"0/$b")

@@ -69,9 +69,11 @@ sealed trait Agent[F[_]] {
   /** Create a traced batch for a named operation, running each job in its own OpenTelemetry span.
     *
     * `f` turns the batch's parent span builder into the `SpanOps` that establishes the parent span: it
-    * receives a `SpanBuilder` already named `label` and carrying the metric scope's attributes, so the caller
-    * only chooses how the parent span is opened (for example `_.build` for a plain span, or a modified
-    * builder). Each job then runs in a child span named after the job, nested under that parent.
+    * receives a `SpanBuilder` already named `label` and carrying the metric scope's identity attributes
+    * (`nj.domain`/`nj.service`/`nj.task`), so the caller only chooses how the parent span is opened (for
+    * example `_.build` for a plain span, or a modified builder). Each job then runs in a child span named
+    * after the job and nested under that parent, carrying the scope attributes together with the batch id and
+    * the job's index.
     *
     * @param label
     *   names the batch, used both as the metric-scope label and the parent span name
@@ -192,14 +194,19 @@ final private class GeneralAgent[F[_]: Async](
   override def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickFuture[F](zoneId, f)
 
-  override def metricsHub(label: String): MetricsHub[F] = {
-    val scope = MetricScope(
+  /** The scope stamped on everything created under `label`: metric identities, batch job reports, and batch
+    * span attributes. The domain comes from `reportedEventHandler`, so a `withDomain` agent scopes its
+    * metrics and batches under the derived domain.
+    */
+  private def metricScope(label: String): MetricScope =
+    MetricScope(
       MetricScope.Label(label),
       reportedEventHandler.domain,
       serviceParams.serviceIdentity.service,
       serviceParams.serviceIdentity.task)
-    MetricsHub[F](scope, metricsEventHandler.metricRegistry, dispatcher, zoneId, otelMeter)
-  }
+
+  override def metricsHub(label: String): MetricsHub[F] =
+    MetricsHub[F](metricScope(label), metricsEventHandler.metricRegistry, dispatcher, zoneId, otelMeter)
 
   override def metricsHubS(label: String): MetricsHubS[F] =
     MetricsHubS(metricsHub(label))
@@ -214,28 +221,22 @@ final private class GeneralAgent[F[_]: Async](
     new BatchMetered[F](log = logger, metrics = metricsHub(label), batchIdGenerator = batchIdGenerator)
 
   override def batchTraced(label: String, f: SpanBuilder[F] => SpanOps[F]): BatchTraced[F] = {
-    val scope = MetricScope(
-      MetricScope.Label(label),
-      reportedEventHandler.domain,
-      serviceParams.serviceIdentity.service,
-      serviceParams.serviceIdentity.task)
+    val scope = metricScope(label)
     new BatchTraced[F](
       scope = scope,
       batchIdGenerator = batchIdGenerator,
       batchTracer = BatchTracer[F](
         tracer = tracer,
-        parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(scope.identityAttributes))))
+        // The parent span carries the identity dimensions only, not `nj.label`, because the parent span's
+        // own name already is the label. The per-job child spans do carry it (see `BatchTraced`), since
+        // their names are the job names and OpenTelemetry does not propagate a parent's attributes.
+        parent = f(tracer.spanBuilder(label).modifyState(_.addAttributes(scope.identityAttributes)))
+      )
     )
   }
 
-  override def batch(label: String): Batch[F] = {
-    val scope = MetricScope(
-      MetricScope.Label(label),
-      reportedEventHandler.domain,
-      serviceParams.serviceIdentity.service,
-      serviceParams.serviceIdentity.task)
-    new Batch[F](scope, batchIdGenerator)
-  }
+  override def batch(label: String): Batch[F] =
+    new Batch[F](metricScope(label), batchIdGenerator)
 
   override def circuitBreaker(maxFailures: Int, f: Policy.type => Policy): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, maxFailures, f)
