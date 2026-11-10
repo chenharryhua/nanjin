@@ -48,6 +48,13 @@ final private class MetricsEventHandler[F[_]] private (
   /*
    * Report
    */
+
+  /** Scrape a full snapshot and return it '''without publishing it'''.
+    *
+    * This backs the dashboard's on-demand view, which would otherwise emit a `MetricsSnapshot` event, a log
+    * line and a history entry on every page refresh. Contrast `report`, the `AdhocReport` API, which builds
+    * the same snapshot and does publish it to all three.
+    */
   def httpReport: F[MetricsSnapshot] =
     F.realTimeInstant.map(Timestamp(serviceParams.serviceIdentity.timeZone, _))
       .flatMap { ts =>
