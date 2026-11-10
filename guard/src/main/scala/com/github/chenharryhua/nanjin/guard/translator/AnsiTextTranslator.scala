@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.syntax.show.showInterpolator
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.logging.LogLevel
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, StopReason, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StopReason}
 
 import scala.io.AnsiColor
 
@@ -34,7 +34,9 @@ object AnsiTextTranslator {
 
   private def service_start(evt: ServiceStart): String = {
     val idx = s"index:${evt.tick.index}"
-    val snz = Labelled(Took(evt.tick.snooze)).labelledText
+    // the tick's snooze, so label it Snooze: `Took` means how long an operation ran, and PrettyJsonTranslator
+    // already keys this same value as `snooze`
+    val snz = Labelled(Snooze(evt.tick.snooze)).labelledText
 
     s"""|${service_event(evt)}
         |  $idx, $snz

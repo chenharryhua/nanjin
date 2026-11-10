@@ -54,8 +54,12 @@ final class Labelled[A] @publicInBinary private (value: A, val typeName: String)
       Labelled.camelToSnake2.matcher(s).replaceAll("$1_$2").toLowerCase)
 
   /** `typeName` with its first letter lowercased, i.e. `camelCase` (used as a JSON key by `camelJsonEntry`).
+    *
+    * Total for an empty `typeName`, which `head` would have thrown on. No nominal type yields an empty name,
+    * so this guards a case that should not arise rather than one that does.
     */
-  private lazy val camelName: String = s"${typeName.head.toLower}${typeName.tail}"
+  private lazy val camelName: String =
+    typeName.headOption.fold(typeName)(h => s"${h.toLower}${typeName.tail}")
 
   /** Pairs the `typeName` label with an arbitrary projection of the value. */
   def entry[B](f: A => B): (String, B) = (typeName, f(value))
