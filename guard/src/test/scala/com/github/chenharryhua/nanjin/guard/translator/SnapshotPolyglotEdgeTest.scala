@@ -8,6 +8,8 @@ import io.circe.syntax.EncoderOps
 import munit.FunSuite
 import squants.time.{Days, Hertz, Hours, Microseconds, Milliseconds, Minutes, Nanoseconds, Seconds, Time}
 
+import java.util.concurrent.{Callable, Executors}
+
 class SnapshotPolyglotEdgeTest extends FunSuite {
 
   private def metric_id(name: String, age: Long, category: Json): MetricId =
@@ -177,6 +179,68 @@ class SnapshotPolyglotEdgeTest extends FunSuite {
     assert(yaml.contains("visible"))
     assert(!yaml.contains("absent"))
     assert(yaml.contains(NbspChar))
+  }
+
+  test("5.fractional values keep their fraction instead of rounding to a whole number") {
+    // The shared presentation pattern used to be grouping-only, "#,###", which rounded every fractional
+    // value: a 0.4/s rate read as "0 ea/s", a 0.5 standard deviation as "0", and a 0.85 gauge as "1".
+    val id = meter_id("fractional-meter", 1L)
+    val fractional_meter = MetricElement.Meter(
+      id,
+      MetricElement.MeterData(
+        squants = meter_squants(id),
+        aggregate = 7L,
+        mean_rate = Hertz(2.5),
+        m1_rate = Hertz(0.4),
+        m5_rate = Hertz(0.25),
+        m15_rate = Hertz(0.125))
+    )
+    // the histogram fixture carries mean = 1.5 and stddev = 0.5; "ea"/Dimensionless takes the non-time arm
+    val fractional_histogram = histogram("fractional-histogram", 2L, "ea", "Dimensionless")
+    val fractional_gauge =
+      MetricElement.Gauge(
+        gauge_id("fractional-gauge", 3L),
+        MetricElement.GaugeData(Json.fromDoubleOrNull(0.85)))
+
+    val snapshot =
+      Snapshot(Nil, List(fractional_meter), Nil, List(fractional_histogram), List(fractional_gauge))
+    val yaml = new SnapshotPolyglot(snapshot).toYaml
+
+    // meter rates, which are per-second and so never adaptively rescaled
+    assert(yaml.contains("0.4 ea/s"), yaml)
+    assert(yaml.contains("0.25 ea/s"), yaml)
+    assert(yaml.contains("0.125 ea/s"), yaml)
+    assert(yaml.contains("2.5 ea/s"), yaml)
+    // non-time histogram statistics
+    assert(yaml.contains("1.5 ea"), yaml)
+    assert(yaml.contains("0.5 ea"), yaml)
+    // gauge values, which render through JsonView
+    assert(yaml.contains("0.85"), yaml)
+  }
+
+  test("6.rendering the same snapshot concurrently matches rendering it alone") {
+    // JsonView held its DecimalFormat in a field on an object, so every thread shared one instance.
+    // DecimalFormat is mutable and not thread-safe, and the dashboard and each observer render
+    // independently of one another.
+    val gauges = (1 to 12).toList.map { i =>
+      MetricElement.Gauge(
+        gauge_id(s"gauge-$i", i.toLong),
+        MetricElement.GaugeData(Json.fromDoubleOrNull(i + 0.125)))
+    }
+    val snapshot = Snapshot(Nil, Nil, Nil, Nil, gauges)
+    val expected = new SnapshotPolyglot(snapshot).toYaml
+    assert(expected.contains("0.125"), expected)
+
+    val pool = Executors.newFixedThreadPool(16)
+    try {
+      val tasks = (1 to 64).map { _ =>
+        pool.submit(new Callable[Int] {
+          override def call(): Int =
+            (1 to 40).count(_ => new SnapshotPolyglot(snapshot).toYaml != expected)
+        })
+      }
+      assertEquals(tasks.map(_.get()).sum, 0)
+    } finally pool.shutdown()
   }
 
   test("4.empty snapshots render empty JSON arrays and empty YAML") {

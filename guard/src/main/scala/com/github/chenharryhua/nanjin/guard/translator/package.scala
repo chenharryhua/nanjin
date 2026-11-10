@@ -18,11 +18,27 @@ import com.github.chenharryhua.nanjin.guard.metrics.snapshot.retrieve
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
+import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+import java.util.Locale
 
-// number-formatting pattern shared by the presentation renderers (SnapshotPolyglot, JsonView)
-private val decimalFormat: "#,###" = "#,###"
+/** Number formatter shared by the presentation renderers (`SnapshotPolyglot`, `JsonView`).
+  *
+  * `"#,##0.###"` groups the integer part with thousands separators and keeps up to three fractional digits,
+  * dropping trailing zeros. The earlier grouping-only `"#,###"` rounded every fractional value to a whole
+  * number, so a meter ticking 0.4/s rendered as `0 x/s`, a histogram's 0.5 standard deviation rendered as
+  * `0`, and a ratio gauge of 0.85 rendered as `1`.
+  *
+  * `Locale.ROOT` symbols pin the separators to `,` and `.` instead of taking them from the JVM default, so
+  * rendered output does not vary by host.
+  *
+  * A fresh instance per call, deliberately: `DecimalFormat` is mutable and not thread-safe, and these
+  * renderers run concurrently, since the dashboard and each observer translate snapshots independently of one
+  * another.
+  */
+private def number_formatter(): DecimalFormat =
+  new DecimalFormat("#,##0.###", DecimalFormatSymbols.getInstance(Locale.ROOT))
 
 def eventLogLevel[F[_]: Defer, A](evt: Event): ContT[F, A, LogLevel] =
   ContT.pure[F, A, Event](evt).map {
