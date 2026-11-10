@@ -34,23 +34,29 @@ private object mxBeans {
       }.flatten
     }
 
+  // Read the usage ONCE and project the four fields off it. Every `getHeapMemoryUsage` call is a fresh JMX
+  // snapshot, so calling it per field would report four different instants and the figures could not be
+  // compared with each other -- across a GC that can render `used` above `committed`.
   private val heap_memory: Eval[HeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
+    val usage: MemoryUsage = mxBean.getHeapMemoryUsage
     HeapMemory(
-      init = mxBean.getHeapMemoryUsage.getInit,
-      used = mxBean.getHeapMemoryUsage.getUsed,
-      max = mxBean.getHeapMemoryUsage.getMax,
-      committed = mxBean.getHeapMemoryUsage.getCommitted
+      init = usage.getInit,
+      used = usage.getUsed,
+      max = usage.getMax,
+      committed = usage.getCommitted
     )
   }
 
+  // Same single-read discipline as `heap_memory` above.
   private val non_heap_memory: Eval[NonHeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
+    val usage: MemoryUsage = mxBean.getNonHeapMemoryUsage
     NonHeapMemory(
-      init = mxBean.getNonHeapMemoryUsage.getInit,
-      used = mxBean.getNonHeapMemoryUsage.getUsed,
-      max = mxBean.getNonHeapMemoryUsage.getMax,
-      committed = mxBean.getNonHeapMemoryUsage.getCommitted
+      init = usage.getInit,
+      used = usage.getUsed,
+      max = usage.getMax,
+      committed = usage.getCommitted
     )
   }
 

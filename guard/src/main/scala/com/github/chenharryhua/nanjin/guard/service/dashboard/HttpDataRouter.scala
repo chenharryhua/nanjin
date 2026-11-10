@@ -88,6 +88,10 @@ final private class HttpDataRouter[F[_]](
     case POST -> Root / "stop" =>
       Ok(serviceEventHandler.serviceStop(StopReason.Maintenance).as("Stopping"))
 
+    // 503 while recovering from a panic, otherwise 200 with the dependency verdict. Note that the verdict
+    // reads the health-check gauges of the latest snapshot in history, so it is vacuously healthy when no
+    // snapshot has been taken -- which is the case under the default empty report policy. See
+    // documents.service_health_check.
     case GET -> HealthPath() =>
       val or: F[Either[String, Json]] = for {
         panics <- serviceEventHandler.panicHistory

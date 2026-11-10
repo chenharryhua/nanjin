@@ -97,6 +97,21 @@ sealed trait ServiceConfig[F[_]] {
   /** Enable the embedded HTTP server and configure its Ember server builder.
     *
     * The server provides dashboard and service endpoints; call `withDashboard` to configure the live chart.
+    *
+    * ===Exposure===
+    * `f` receives a builder already bound to '''`0.0.0.0:1026`''' — every interface — and the server applies
+    * '''no authentication or authorization''' of its own. Enabling it therefore grants anyone who can reach
+    * the port:
+    *   - `POST /stop`, which stops the service;
+    *   - `POST /log/logger/{level}` and `POST /log/channel/{level}`, which change the live log thresholds;
+    *   - `GET /params`, which returns the service parameters including the `addBrief` metadata;
+    *   - `GET /metrics/jvm`, which returns the JVM's pid, version and '''full input arguments''' (commonly
+    *     carrying `-D` system properties), plus the names and stack traces of deadlocked threads.
+    *
+    * Pass `_.withHost(ip"127.0.0.1")` when the dashboard is only for local use, or keep the all-interfaces
+    * bind and put an authenticating reverse proxy in front of it. The default is `0.0.0.0` rather than
+    * loopback because a loopback bind is unreachable from outside a container even when the port is
+    * published; it is not an assertion that the endpoints are safe to expose.
     */
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F]
 

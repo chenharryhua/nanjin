@@ -127,6 +127,10 @@ private[guard] object ServiceGuard {
           serviceId <- UUIDGen.randomUUID[F]
           hostName <- HostName[F]
         } yield {
+          // Bound to every interface on 1026 before the caller's Endo runs, so a containerized service's
+          // published port works without extra configuration. These routes carry no authentication and
+          // some of them mutate (POST /stop) or disclose (GET /metrics/jvm, GET /params); the exposure and
+          // how to narrow it are documented on ServiceConfig.withHttpServer.
           val esb: Option[EmberServerBuilder[F]] =
             service_config.httpBuilder.map(
               _(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
