@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka.admins
 
-import cats.Monad
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync}
 import cats.mtl.Ask
@@ -24,13 +23,22 @@ import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 
-import java.time.{Duration, Instant}
+import java.time.Instant
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 /** Low-level read operations on a Kafka consumer for a single topic.
   *
   * Provides partition discovery, offset queries (beginning, end, by timestamp), record retrieval, and
-  * synchronous offset commits. All operations run against a pre-assigned consumer.
+  * synchronous offset commits.
+  *
+  * Every operation is a synchronous Kafka client call, so each runs on the blocking pool and holds the
+  * underlying consumer's monitor while it does: a `KafkaConsumer` is single-threaded and raises
+  * `ConcurrentModificationException` when a second thread touches it, so concurrent callers have to be
+  * serialized. The monitor is held per client call, not per method, so two operations issued concurrently
+  * each complete safely, but a method composed of several client calls is not atomic against another caller's
+  * calls.
   */
 sealed trait KafkaConsumerOps[F[_]] {
 
@@ -46,10 +54,23 @@ sealed trait KafkaConsumerOps[F[_]] {
   /** The earliest offset per partition whose record timestamp is at or after `ts`. */
   def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]]
 
-  /** Fetch the single record at `partition`/`offset`, or `None` if there is none. */
+  /** Fetch the single record at `partition`/`offset`, or `None` if none arrives within `timeout`.
+    *
+    * The call assigns `partition` to the consumer, seeks to `offset`, and polls. The consumer's previous
+    * assignment is restored before returning, but the fetch positions of those partitions are not: they are
+    * unassigned for the duration of the call, which discards them. `None` means the poll returned nothing,
+    * which a `timeout` too short to complete the fetch produces just as an absent record does.
+    */
   def retrieveRecord(
     partition: Partition,
-    offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+    offset: Offset,
+    timeout: FiniteDuration): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  /** As `retrieveRecord`, polling for up to 15 seconds. */
+  final def retrieveRecord(
+    partition: Partition,
+    offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    retrieveRecord(partition, offset, 15.seconds)
 
   /** Synchronously commit the given offsets for this consumer group. */
   def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
@@ -60,15 +81,24 @@ sealed trait KafkaConsumerOps[F[_]] {
 
 private object KafkaConsumerOps {
 
-  def apply[F[_]: Monad](topicName: TopicName)(using F: Ask[F, KafkaByteConsumer]): KafkaConsumerOps[F] =
+  def apply[F[_]](topicName: TopicName)(using Sync[F], Ask[F, KafkaByteConsumer]): KafkaConsumerOps[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
-  final private class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(using
+  final private class KafkaPrimitiveConsumerApiImpl[F[_]](topicName: TopicName)(using
+    F: Sync[F],
     kbc: Ask[F, KafkaByteConsumer]
   ) extends KafkaConsumerOps[F] {
 
+    /** Run one Kafka client call on the blocking pool, holding the consumer's monitor for its duration.
+      *
+      * The monitor is the consumer object itself rather than a field of this class, so instances that wrap
+      * the same consumer (as `KafkaContext.ungroup` creates, one per topic name) exclude each other.
+      */
+    private def on_consumer[A](f: KafkaByteConsumer => A): F[A] =
+      kbc.ask.flatMap(c => F.blocking(c.synchronized(f(c))))
+
     override val partitionsFor: F[TopicPartitionList] =
-      kbc.ask.map { c =>
+      on_consumer { c =>
         val ret: List[TopicPartition] = c
           .partitionsFor(topicName.value)
           .asScala
@@ -81,43 +111,49 @@ private object KafkaConsumerOps {
     override val beginningOffsets: F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
-        ret <- kbc.ask.map(_.beginningOffsets(tps.javaList).asScala)
+        ret <- on_consumer(_.beginningOffsets(tps.javaList).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
-        ret <- kbc.ask.map(_.endOffsets(tps.javaList).asScala)
+        ret <- on_consumer(_.endOffsets(tps.javaList).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override def offsetsForTimes(ts: Instant): F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
-        ret <- kbc.ask.map(_.offsetsForTimes(tps.javaTimed(ts)).asScala)
+        ret <- on_consumer(_.offsetsForTimes(tps.javaTimed(ts)).asScala)
       } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override def retrieveRecord(
       partition: Partition,
-      offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-      kbc.ask.map { consumer =>
+      offset: Offset,
+      timeout: FiniteDuration): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      on_consumer { consumer =>
         val tp = new TopicPartition(topicName.value, partition.value)
-        consumer.assign(List(tp).asJava)
-        consumer.seek(tp, offset.value)
-        consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
+        val previous = consumer.assignment()
+        try {
+          consumer.assign(List(tp).asJava)
+          consumer.seek(tp, offset.value)
+          consumer.poll(timeout.toJava).records(tp).asScala.toList.headOption
+        } finally consumer.assign(previous)
       }
 
     override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
-      kbc.ask.map(_.commitSync(offsets.asJava))
+      on_consumer(_.commitSync(offsets.asJava))
 
     override val metrics: F[Map[MetricName, Metric]] =
-      kbc.ask.map(_.metrics().asScala.toMap)
+      on_consumer(_.metrics().asScala.toMap)
   }
 }
 
 /** Extended consumer operations for point-in-time offset queries, offset range computation, record retrieval
   * at specific positions, and consumer group offset management.
   *
-  * A `SnapshotConsumer` operates on a single topic and is typically obtained from `KafkaContext.admin`.
+  * A `SnapshotConsumer` operates on a single topic and is typically obtained from `KafkaContext.admin`. It
+  * runs every operation against one shared consumer, under the blocking and serialization rules described on
+  * `KafkaConsumerOps`.
   */
 sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
 
@@ -163,8 +199,6 @@ private[kafka] object SnapshotConsumer {
 
   final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)
       extends SnapshotConsumer[F] {
-    def withTopicName(name: TopicName): SnapshotConsumerImpl[F] =
-      new SnapshotConsumerImpl[F](name, consumer)
 
     private val kpc: KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaConsumerOps[Kleisli[F, KafkaByteConsumer, *]](topicName)
@@ -250,8 +284,9 @@ private[kafka] object SnapshotConsumer {
 
     override def retrieveRecord(
       partition: Partition,
-      offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-      execute(kpc.retrieveRecord(partition, offset))
+      offset: Offset,
+      timeout: FiniteDuration): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      execute(kpc.retrieveRecord(partition, offset, timeout))
 
     override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
       execute(kpc.commitSync(offsets))

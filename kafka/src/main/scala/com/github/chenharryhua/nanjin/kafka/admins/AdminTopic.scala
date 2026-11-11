@@ -26,6 +26,8 @@ import org.apache.kafka.common.acl.{
 }
 import org.apache.kafka.common.resource.{PatternType, ResourcePatternFilter, ResourceType}
 
+import scala.concurrent.duration.FiniteDuration
+
 /** Administrative operations for a single Kafka topic: creation, deletion, ACLs, and metadata. */
 trait AdminTopic[F[_]] {
   def adminClient: KafkaAdminClient[F]
@@ -101,16 +103,33 @@ trait AdminTopic[F[_]] {
     */
   def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
 
-  /** Retrieve a record from a specific partition and offset.
+  /** Retrieve a record from a specific partition and offset, polling for up to 15 seconds.
     *
     * @param partition
     *   the partition index
     * @param offset
     *   the offset within the partition
     * @return
-    *   an effect that returns the record if it exists
+    *   an effect that returns the record if one arrives before the poll times out
     */
   def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  /** Retrieve a record from a specific partition and offset, polling for up to `timeout`.
+    *
+    * A `None` means the poll returned nothing, which a `timeout` too short to complete the fetch produces
+    * just as an absent record does.
+    *
+    * @param partition
+    *   the partition index
+    * @param offset
+    *   the offset within the partition
+    * @param timeout
+    *   how long to wait for the record to arrive
+    */
+  def retrieveRecord(
+    partition: Int,
+    offset: Long,
+    timeout: FiniteDuration): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
 
   def acls: F[List[AccessControlEntry]]
 
@@ -178,6 +197,12 @@ private[kafka] object AdminTopic {
       partition: Int,
       offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       consumerClient.retrieveRecord(Partition(partition), Offset(offset))
+
+    override def retrieveRecord(
+      partition: Int,
+      offset: Long,
+      timeout: FiniteDuration): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      consumerClient.retrieveRecord(Partition(partition), Offset(offset), timeout)
 
     override val acls: F[List[AccessControlEntry]] = {
       val filter: AclBindingFilter =
