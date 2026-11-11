@@ -119,7 +119,7 @@ private[kafka] object TopicSchemaRegistry {
         OptionalProtobufSchemaPair(ks, vs)
       }
 
-    def register(
+    override def register(
       key: Option[ParsedSchema] = None,
       value: Option[ParsedSchema] = None): F[RegisteredSchemaId] =
       F.blocking {

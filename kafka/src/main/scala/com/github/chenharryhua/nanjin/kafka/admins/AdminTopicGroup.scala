@@ -73,7 +73,7 @@ sealed trait AdminTopicGroup[F[_]] {
   /** Reset offsets for a consumer group to the specified timestamp.
     *
     * @param ts
-    *   the target `NJTimestamp`
+    *   the instant to reset to; each partition is committed at its first offset at or after it
     * @return
     *   an effect that resets offsets
     */

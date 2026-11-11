@@ -19,8 +19,8 @@ import java.time.Instant
 
 /** A `ConsumerService` that reads raw Kafka bytes and decodes each record into an Avro `GenericData.Record`.
   *
-  * The consumer is byte-based (`Array[Byte]` key and value). For each record it fetches the read schema from
-  * the schema registry and decodes the bytes via `PullGenericRecord`. The element type is
+  * The consumer is byte-based (`Array[Byte]` key and value). It fetches the read schema from the schema
+  * registry once per stream and decodes every record's bytes with `PullGenericRecord`. The element type is
   * `Either[PullError, Record]`: a per-record decode failure becomes a `Left(PullError)` carrying the
   * offending key/value metadata, so one bad record does not tear down the stream. The commit key is `Unit`
   * (this connector does not project a typed key).

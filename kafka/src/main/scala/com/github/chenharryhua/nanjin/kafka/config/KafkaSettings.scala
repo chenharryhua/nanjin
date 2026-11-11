@@ -50,6 +50,17 @@ final case class SerdeSettings(properties: Map[String, String]) extends Settings
     withProperty(f(AbstractKafkaSchemaSerDeConfigKeys), value)
 }
 
+/** Properties for every Kafka client family a `KafkaContext` builds: consumer, producer, admin, Kafka
+  * Streams, and the Confluent Serdes.
+  *
+  * Transformations are immutable; `withBrokers`, `withSaslJaas`, and `withSecurityProtocol` update the
+  * consumer, producer, admin, and Streams settings together, while the Serde properties are addressed on
+  * their own.
+  *
+  * The property maps are carried verbatim, credentials included, and the derived `Show` prints them
+  * unredacted. Keep settings out of logs and out of anything rendered to a user when they hold a SASL JAAS
+  * string, a registry `basic.auth.user.info`, or a keystore password.
+  */
 final case class KafkaSettings(
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
@@ -67,6 +78,11 @@ final case class KafkaSettings(
       serdeSettings
     )
 
+  /** Set `sasl.jaas.config` on the consumer, producer, admin, and Streams settings.
+    *
+    * `sasl` holds credentials, so it belongs in an environment variable or a secret store rather than in
+    * source, and the resulting settings must not be logged or `show`n.
+    */
   def withSaslJaas(sasl: String): KafkaSettings =
     KafkaSettings(
       consumerSettings.withProperty(SaslConfigs.SASL_JAAS_CONFIG, sasl),
