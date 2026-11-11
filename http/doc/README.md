@@ -319,8 +319,8 @@ authentication client when the token server and grant semantics permit it.
 
 ### Cookie management
 
-`cookieBox` reads cookies returned by the cookie store for each request URI before each request and
-stores every `Set-Cookie` header after a response arrives:
+`cookieBox` asks the `CookieManager` which cookies apply to each request URI and attaches them, then
+hands the response headers back to the manager so it can store what its policy accepts:
 
 ```scala
 import com.github.chenharryhua.nanjin.http.client.middleware.cookieBox
@@ -333,15 +333,25 @@ val cookieClient: Resource[IO, Client[IO]] =
   businessClient.map(cookieBox[IO](cookieManager))
 ```
 
-Reuse the same `CookieManager` for requests that belong to one cookie session. Its store associates
-cookies with URIs and supports multiple cookies, but `cookieBox` calls `CookieStore.get` directly
-without enforcing cookie path restrictions. A cookie set for a narrower path may therefore also be
-sent to other paths on the same host; do not rely on cookie paths for isolation. The Java default
-in-memory cookie manager is safe for concurrent fibers, though heavy contention still serializes
-access internally.
+Reuse the same `CookieManager` for requests that belong to one cookie session.
 
-`cookieBox` suspends store reads and writes in `F` and preserves the wrapped client's response
-finalizers. The caller owns the `CookieManager` and decides when to clear or replace its store.
+Both directions go through `CookieManager` rather than its `CookieStore`, so the Java cookie rules
+apply:
+
+| Rule | Effect |
+| --- | --- |
+| `CookiePolicy` on store | `new CookieManager()` is `ACCEPT_ORIGINAL_SERVER`, so a response cannot set a cookie for an unrelated domain. Pass `new CookieManager(null, CookiePolicy.ACCEPT_ALL)` to accept any domain a response names |
+| Domain attribution | A `Set-Cookie` without `Domain` belongs to the request host; a host with no dot, such as `localhost`, is recorded as `<host>.local` and round-trips normally |
+| Path matching | A cookie scoped to `/admin` is not sent to `/public` |
+| `Secure` | A `Secure` cookie is withheld from a plain `http` request |
+| Ordering | Cookies are sent most-specific path first, per RFC 2965 |
+
+An existing `Cookie` header on the request is kept and the store's cookies are appended to it.
+
+`cookieBox` suspends the cookie calls in `F` and preserves the wrapped client's response finalizers;
+cookies are stored when the response is allocated, before its body is read. Those calls run on the
+compute pool, which suits the default in-memory store; a store that performs real I/O needs its own
+blocking wrapper. The caller owns the `CookieManager` and decides when to clear or replace its store.
 
 ## OAuth wire format
 

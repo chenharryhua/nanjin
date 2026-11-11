@@ -76,34 +76,34 @@ object MetaInfo {
 
   // GenericRecord.get returns Object; these read a field with the expected numeric type and, on a mismatch,
   // yield a Failure naming the field and the type actually found, instead of an opaque ClassCastException.
-  private def typeName(o: Any): String = Option(o).fold("null")(_.getClass.getName)
+  private def type_name(o: Any): String = Option(o).fold("null")(_.getClass.getName)
 
   // Avro hands back Utf8 rather than String for a string field, so match the interface.
-  private def getString(gr: GenericRecord, field: String): Try[String] =
+  private def get_string(gr: GenericRecord, field: String): Try[String] =
     gr.get(field) match {
       case cs: CharSequence => Success(cs.toString)
       case other            =>
-        Failure(new IllegalArgumentException(s"$field: expected string, got ${typeName(other)}"))
+        Failure(new IllegalArgumentException(s"$field: expected string, got ${type_name(other)}"))
     }
 
-  private def getInt(gr: GenericRecord, field: String): Try[Int] =
+  private def get_int(gr: GenericRecord, field: String): Try[Int] =
     gr.get(field) match {
       case i: java.lang.Integer => Success(i.intValue)
-      case other => Failure(new IllegalArgumentException(s"$field: expected int, got ${typeName(other)}"))
+      case other => Failure(new IllegalArgumentException(s"$field: expected int, got ${type_name(other)}"))
     }
 
-  private def getLong(gr: GenericRecord, field: String): Try[Long] =
+  private def get_long(gr: GenericRecord, field: String): Try[Long] =
     gr.get(field) match {
       case l: java.lang.Long    => Success(l.longValue)
       case i: java.lang.Integer => Success(i.longValue) // tolerate a writer that used int for a long field
-      case other => Failure(new IllegalArgumentException(s"$field: expected long, got ${typeName(other)}"))
+      case other => Failure(new IllegalArgumentException(s"$field: expected long, got ${type_name(other)}"))
     }
 
   // None when the field is null/absent; otherwise the int value (Failure on a type mismatch).
-  private def getIntOpt(gr: GenericRecord, field: String): Try[Option[Int]] =
+  private def get_int_opt(gr: GenericRecord, field: String): Try[Option[Int]] =
     Option(gr.get(field)).traverse {
       case i: java.lang.Integer => Success(i.intValue)
-      case other => Failure(new IllegalArgumentException(s"$field: expected int, got ${typeName(other)}"))
+      case other => Failure(new IllegalArgumentException(s"$field: expected int, got ${type_name(other)}"))
     }
 
   /** Extract metadata from an Avro `GenericRecord` by reading its metadata fields.
@@ -114,13 +114,13 @@ object MetaInfo {
     */
   def apply(gr: GenericRecord): Try[MetaInfo] =
     for {
-      topic <- getString(gr, "topic")
-      partition <- getInt(gr, "partition")
-      offset <- getLong(gr, "offset")
-      timestamp <- getLong(gr, "timestamp")
-      timestampType <- getIntOpt(gr, "timestampType")
-      serializedKeySize <- getInt(gr, "serializedKeySize")
-      serializedValueSize <- getInt(gr, "serializedValueSize")
+      topic <- get_string(gr, "topic")
+      partition <- get_int(gr, "partition")
+      offset <- get_long(gr, "offset")
+      timestamp <- get_long(gr, "timestamp")
+      timestampType <- get_int_opt(gr, "timestampType")
+      serializedKeySize <- get_int(gr, "serializedKeySize")
+      serializedValueSize <- get_int(gr, "serializedValueSize")
     } yield MetaInfo(
       topic = topic,
       partition = partition,

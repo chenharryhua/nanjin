@@ -27,7 +27,7 @@ private val REDACTED: String = "<redacted>"
 /** Render properties in key order with secret values replaced, so a rendered settings value names every
   * property that is set without disclosing the sensitive ones.
   */
-private def showProperties(properties: Map[String, String]): String =
+private def show_properties(properties: Map[String, String]): String =
   properties.toList
     .sortBy(_._1)
     .map { case (key, value) =>
@@ -45,7 +45,7 @@ final case class KafkaConsumerSettings(properties: Map[String, String])
     withProperty(f(ConsumerConfigKeys), value)
 }
 object KafkaConsumerSettings {
-  given Show[KafkaConsumerSettings] = s => s"KafkaConsumerSettings(${showProperties(s.properties)})"
+  given Show[KafkaConsumerSettings] = s => s"KafkaConsumerSettings(${show_properties(s.properties)})"
 }
 
 final case class KafkaProducerSettings(properties: Map[String, String])
@@ -57,7 +57,7 @@ final case class KafkaProducerSettings(properties: Map[String, String])
     withProperty(f(ProducerConfigKeys), value)
 }
 object KafkaProducerSettings {
-  given Show[KafkaProducerSettings] = s => s"KafkaProducerSettings(${showProperties(s.properties)})"
+  given Show[KafkaProducerSettings] = s => s"KafkaProducerSettings(${show_properties(s.properties)})"
 }
 
 final case class KafkaStreamSettings(properties: Map[String, String]) extends Settings[KafkaStreamSettings] {
@@ -68,7 +68,7 @@ final case class KafkaStreamSettings(properties: Map[String, String]) extends Se
     withProperty(f(StreamsConfigKeys), value)
 }
 object KafkaStreamSettings {
-  given Show[KafkaStreamSettings] = s => s"KafkaStreamSettings(${showProperties(s.properties)})"
+  given Show[KafkaStreamSettings] = s => s"KafkaStreamSettings(${show_properties(s.properties)})"
 }
 
 final case class SerdeSettings(properties: Map[String, String]) extends Settings[SerdeSettings] {
@@ -79,7 +79,7 @@ final case class SerdeSettings(properties: Map[String, String]) extends Settings
     withProperty(f(AbstractKafkaSchemaSerDeConfigKeys), value)
 }
 object SerdeSettings {
-  given Show[SerdeSettings] = s => s"SerdeSettings(${showProperties(s.properties)})"
+  given Show[SerdeSettings] = s => s"SerdeSettings(${show_properties(s.properties)})"
 }
 
 /** Properties for every Kafka client family a `KafkaContext` builds: consumer, producer, admin, Kafka
