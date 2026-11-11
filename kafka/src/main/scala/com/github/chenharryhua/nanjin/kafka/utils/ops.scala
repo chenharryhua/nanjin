@@ -40,13 +40,18 @@ def backwardCompatibility(reader: Schema, writer: Schema): List[SchemaCompatibil
 def forwardCompatibility(writer: Schema, reader: Schema): List[SchemaCompatibility.Incompatibility] =
   backwardCompatibility(reader, writer)
 
+/** Render `schema` as JSON, rewrite that JSON with `f`, and parse the result back.
+  *
+  * Both ends are loud: a rewrite that produces something Avro will not accept raises `SchemaParseException`,
+  * and an unparseable rendering (which would mean Avro emitted JSON it cannot read) raises the parse failure.
+  * Neither is silently returned as the original schema, so a caller that gets a schema back knows the rewrite
+  * was applied.
+  */
 private def update(schema: Schema, f: Json => Json): Schema =
-  jawn
-    .parse(SchemaFormatter.format("json/pretty", schema))
-    .toOption
-    .map(f)
-    .map(js => (new Schema.Parser).parse(js.noSpaces))
-    .getOrElse(schema)
+  jawn.parse(SchemaFormatter.format("json/pretty", schema)) match {
+    case Right(json) => (new Schema.Parser).parse(f(json).noSpaces)
+    case Left(ex)    => throw ex // scalafix:ok
+  }
 
 private def rewriteSchema(schema: Schema, field: String)(f: ACursor => Option[ACursor]): Schema = {
   val rewrite: Json => Json = Plated.transform[Json] { js =>

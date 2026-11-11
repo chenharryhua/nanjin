@@ -16,6 +16,26 @@ sealed trait Settings[A] {
   def withProperty(key: String, value: String): A
 }
 
+/** Substrings marking a property key whose value is a secret. Matched case-insensitively so the whole family
+  * is covered: `sasl.jaas.config`, `ssl.*.password`, `basic.auth.user.info`, OAuth client secrets and tokens.
+  */
+private val SECRET_MARKERS: List[String] =
+  List("password", "secret", "jaas", "user.info", "token", "credential")
+
+private val REDACTED: String = "<redacted>"
+
+/** Render properties in key order with secret values replaced, so a rendered settings value names every
+  * property that is set without disclosing the sensitive ones.
+  */
+private def showProperties(properties: Map[String, String]): String =
+  properties.toList
+    .sortBy(_._1)
+    .map { case (key, value) =>
+      val shown = if (SECRET_MARKERS.exists(key.toLowerCase.contains)) REDACTED else value
+      s"$key = $shown"
+    }
+    .mkString("{", ", ", "}")
+
 final case class KafkaConsumerSettings(properties: Map[String, String])
     extends Settings[KafkaConsumerSettings] {
   override def withProperty(key: String, value: String): KafkaConsumerSettings =
@@ -23,6 +43,9 @@ final case class KafkaConsumerSettings(properties: Map[String, String])
 
   def withProperty(f: ConsumerConfigKeys => String, value: String): KafkaConsumerSettings =
     withProperty(f(ConsumerConfigKeys), value)
+}
+object KafkaConsumerSettings {
+  given Show[KafkaConsumerSettings] = s => s"KafkaConsumerSettings(${showProperties(s.properties)})"
 }
 
 final case class KafkaProducerSettings(properties: Map[String, String])
@@ -33,6 +56,9 @@ final case class KafkaProducerSettings(properties: Map[String, String])
   def withProperty(f: ProducerConfigKeys => String, value: String): KafkaProducerSettings =
     withProperty(f(ProducerConfigKeys), value)
 }
+object KafkaProducerSettings {
+  given Show[KafkaProducerSettings] = s => s"KafkaProducerSettings(${showProperties(s.properties)})"
+}
 
 final case class KafkaStreamSettings(properties: Map[String, String]) extends Settings[KafkaStreamSettings] {
   override def withProperty(key: String, value: String): KafkaStreamSettings =
@@ -40,6 +66,9 @@ final case class KafkaStreamSettings(properties: Map[String, String]) extends Se
 
   def withProperty(f: StreamsConfigKeys => String, value: String): KafkaStreamSettings =
     withProperty(f(StreamsConfigKeys), value)
+}
+object KafkaStreamSettings {
+  given Show[KafkaStreamSettings] = s => s"KafkaStreamSettings(${showProperties(s.properties)})"
 }
 
 final case class SerdeSettings(properties: Map[String, String]) extends Settings[SerdeSettings] {
@@ -49,6 +78,9 @@ final case class SerdeSettings(properties: Map[String, String]) extends Settings
   def withProperty(f: AbstractKafkaSchemaSerDeConfigKeys => String, value: String): SerdeSettings =
     withProperty(f(AbstractKafkaSchemaSerDeConfigKeys), value)
 }
+object SerdeSettings {
+  given Show[SerdeSettings] = s => s"SerdeSettings(${showProperties(s.properties)})"
+}
 
 /** Properties for every Kafka client family a `KafkaContext` builds: consumer, producer, admin, Kafka
   * Streams, and the Confluent Serdes.
@@ -57,9 +89,10 @@ final case class SerdeSettings(properties: Map[String, String]) extends Settings
   * consumer, producer, admin, and Streams settings together, while the Serde properties are addressed on
   * their own.
   *
-  * The property maps are carried verbatim, credentials included, and the derived `Show` prints them
-  * unredacted. Keep settings out of logs and out of anything rendered to a user when they hold a SASL JAAS
-  * string, a registry `basic.auth.user.info`, or a keystore password.
+  * The property maps carry credentials verbatim, since that is what the Kafka clients are handed. `Show`
+  * therefore redacts the value of any property whose key looks sensitive (a JAAS config, a password, a
+  * `user.info`, a token, a secret, a credential) while still naming the key, so a rendered settings value is
+  * safe to log. Reading `properties` yourself bypasses that, so do not print the maps directly.
   */
 final case class KafkaSettings(
   consumerSettings: KafkaConsumerSettings,
@@ -81,7 +114,7 @@ final case class KafkaSettings(
   /** Set `sasl.jaas.config` on the consumer, producer, admin, and Streams settings.
     *
     * `sasl` holds credentials, so it belongs in an environment variable or a secret store rather than in
-    * source, and the resulting settings must not be logged or `show`n.
+    * source. `Show` redacts it, but the value stays readable through `properties`.
     */
   def withSaslJaas(sasl: String): KafkaSettings =
     KafkaSettings(

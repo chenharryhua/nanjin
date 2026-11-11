@@ -11,6 +11,14 @@ import io.scalaland.chimney.Transformer
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeader
 
+/** A Kafka record header: a key and its bytes.
+  *
+  * Kafka permits a header whose value is `null`, which this type does not distinguish from a header whose
+  * value is empty: converting from a Kafka header maps `null` to `Nil`, and converting back produces an empty
+  * array rather than `null`. Round-tripping a null-valued header therefore yields an empty-valued one. The
+  * alternative, an optional `value`, would make the serialized `value` field nullable, so the distinction is
+  * traded away deliberately to keep the wire format stable.
+  */
 @AvroName("header")
 @AvroNamespace("nanjin.kafka")
 final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject, Eq
@@ -20,10 +28,10 @@ object NJHeader {
     (src: NJHeader) => Header(src.key, src.value.toArray)
 
   given Transformer[Header, NJHeader] =
-    (src: Header) => NJHeader(src.key(), src.value().toList)
+    (src: Header) => NJHeader(src.key(), Option(src.value()).fold(List.empty[Byte])(_.toList))
 
   given Transformer[JavaHeader, NJHeader] =
-    (src: JavaHeader) => NJHeader(src.key(), src.value().toList)
+    (src: JavaHeader) => NJHeader(src.key(), Option(src.value()).fold(List.empty[Byte])(_.toList))
 
   given Transformer[NJHeader, JavaHeader] =
     (src: NJHeader) => new RecordHeader(src.key, src.value.toArray)

@@ -121,7 +121,7 @@ private object topicUtils {
     ranges: TopicPartitionMap[OffsetRange]): F[Boolean] =
     ranges.nonEmptyKeySet match {
       case Some(tps) =>
-        client.assign(tps) *> ranges.toList.traverse((tp, or) => client.seek(tp, or.from)).map(_.nonEmpty)
+        client.assign(tps) *> ranges.toList.traverse((tp, or) => client.seek(tp, or.from)).as(true)
       case None => false.pure[F]
     }
 

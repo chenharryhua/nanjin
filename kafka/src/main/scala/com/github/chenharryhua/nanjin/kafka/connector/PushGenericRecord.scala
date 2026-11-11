@@ -39,6 +39,10 @@ final private class PushGenericRecord(
   /** Extract the `key` and `value` fields from `gr`, serialize each to bytes, and build a byte
     * `ProducerRecord` targeting the configured topic.
     *
+    * Only those two fields are read. A record carrying `partition`, `timestamp`, or `headers` (as one decoded
+    * by `PullGenericRecord` does) loses them here, and the broker assigns a fresh partition and timestamp on
+    * produce.
+    *
     * @param gr
     *   a `GenericRecord` shaped like `NJConsumerRecord` (its `key`/`value` fields are encoded).
     */

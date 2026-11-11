@@ -274,4 +274,44 @@ class PullGenericRecordTest extends FunSuite {
     assertEquals(decoded.get("key"), null)
     assertEquals(decoded.get("value").toString, "value")
   }
+
+  test("10.a null header value decodes as empty bytes instead of throwing") {
+    val string_schema = Schema.create(Schema.Type.STRING)
+    val client = new MockSchemaRegistryClient
+    val pull =
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(string_schema), AvroSchema(string_schema)))
+    val bytes = frame(client, string_schema, "v")
+
+    val cr = ConsumerRecord(topic, 0, 12L, bytes, bytes)
+      .withHeaders(Headers.fromSeq(Seq(Header("h-null", null: Array[Byte]))))
+
+    val decoded = pull.toGenericRecord(cr).toOption.get
+    val headers = decoded.get("headers").asInstanceOf[java.util.List[Record]]
+
+    assertEquals(headers.size(), 1)
+    assertEquals(headers.get(0).get("key").toString, "h-null")
+    assertEquals(headers.get(0).get("value").asInstanceOf[ByteBuffer].remaining(), 0)
+  }
+
+  test("11.PullError JSON carries the record metadata and the cause") {
+    val string_schema = Schema.create(Schema.Type.STRING)
+    val client = new MockSchemaRegistryClient
+    val pull =
+      new PullGenericRecord(AvroSchemaPair(AvroSchema(string_schema), AvroSchema(string_schema)))
+
+    val err = pull
+      .toGenericRecord(ConsumerRecord(topic, 3, 13L, Array[Byte](1, 2), frame(client, string_schema, "v")))
+      .swap
+      .toOption
+      .get
+
+    assert(err.isKey)
+    val payload = err.toJson.asObject.flatMap(_.apply("key.error")).flatMap(_.asObject).get
+    assertEquals(payload("partition").flatMap(_.asNumber).flatMap(_.toInt), Some(3))
+    assertEquals(payload("offset").flatMap(_.asNumber).flatMap(_.toLong), Some(13L))
+
+    val cause = payload("cause").flatMap(_.asString).get
+    assert(cause.contains("IllegalArgumentException"), cause)
+    assert(cause.contains("too short"), cause)
+  }
 }

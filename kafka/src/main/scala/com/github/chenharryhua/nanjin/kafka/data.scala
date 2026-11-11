@@ -38,7 +38,7 @@ object Offset:
     def asLast: Offset = Offset(Math.max(0, offset - 1))
     def -(other: Offset): Long = offset - other.value
 
-  given Show[Offset] = OpaqueLift.lift[Offset, String, Show]
+  given Show[Offset] = OpaqueLift.lift[Offset, Long, Show]
   given Encoder[Offset] = OpaqueLift.lift[Offset, Long, Encoder]
   given Decoder[Offset] = OpaqueLift.lift[Offset, Long, Decoder]
   given Ordering[Offset] = OpaqueLift.lift[Offset, Long, Ordering]

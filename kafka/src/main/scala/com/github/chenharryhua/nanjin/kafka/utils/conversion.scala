@@ -53,7 +53,7 @@ def genericRecord2BinAvro(genericRecord: GenericRecord): Try[Array[Byte]] =
   }
 
 def jackson2GenericRecord(schema: Schema, jackson: String): Try[GenericData.Record] =
-  Using(new ByteArrayInputStream(jackson.getBytes)) { bais =>
+  Using(new ByteArrayInputStream(jackson.getBytes(StandardCharsets.UTF_8))) { bais =>
     val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, bais)
     val datumReader = new GenericDatumReader[GenericData.Record](schema)
     datumReader.read(null, jsonDecoder)

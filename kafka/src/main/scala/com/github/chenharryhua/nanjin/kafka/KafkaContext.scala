@@ -6,7 +6,7 @@ import cats.syntax.applicativeError.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import cats.{Endo, Parallel}
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.kafka.admins.{
   AdminTopic,
@@ -127,7 +127,7 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     * @param topic
     *   the topic definition to produce to
     */
-  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V]
+  def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V]
 
   /** Create a typed producer from explicit key/value serializers, bypassing the schema registry.
     *
@@ -141,7 +141,7 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
   def produce[K, V](
     topicName: String,
     k: Resource[F, KeySerializer[F, K]],
-    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V]
+    v: Resource[F, ValueSerializer[F, V]])(using F: Async[F]): ProduceKafka[F, K, V]
 
   /** Produce Avro GenericRecords, encoding each side in Confluent wire format.
     *
@@ -151,7 +151,7 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     * @param topicName
     *   the topic to produce to
     */
-  def produceGenericRecord(topicName: String)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F]
+  def produceGenericRecord(topicName: String)(using F: Async[F]): ProduceGenericRecord[F]
 
   /** Build a Kafka Streams topology under the given application id.
     *
@@ -284,8 +284,7 @@ object KafkaContext {
       )
     }
 
-    override def produce[K, V](
-      topic: TopicDef[K, V])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
+    override def produce[K, V](topic: TopicDef[K, V])(using F: Async[F]): ProduceKafka[F, K, V] =
       new ProduceKafka[F, K, V](
         topic.topicName,
         topic.producerSettings[F](
@@ -296,13 +295,12 @@ object KafkaContext {
     override def produce[K, V](
       topicName: String,
       k: Resource[F, KeySerializer[F, K]],
-      v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V] =
+      v: Resource[F, ValueSerializer[F, V]])(using F: Async[F]): ProduceKafka[F, K, V] =
       new ProduceKafka[F, K, V](
         TopicName(topicName),
         ProducerSettings[F, K, V](using k, v).withProperties(settings.producerSettings.properties))
 
-    override def produceGenericRecord(
-      topicName: String)(using F: Async[F], ev: Parallel[F]): ProduceGenericRecord[F] =
+    override def produceGenericRecord(topicName: String)(using F: Async[F]): ProduceGenericRecord[F] =
       ProduceGenericRecord[F](
         topicName = TopicName(topicName),
         srClient = schema_registry_internal,
