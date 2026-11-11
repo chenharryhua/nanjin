@@ -6,7 +6,7 @@ import cats.syntax.apply.given
 import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
-import cats.{Endo, Parallel}
+import cats.Endo
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
@@ -35,12 +35,12 @@ sealed trait KafkaObserver[F[_]] extends UpdateTranslator[F, Event, KafkaObserve
 }
 
 object KafkaObserver {
-  def apply[F[_]: {Async, Parallel}](ctx: KafkaContext[F]): KafkaObserver[F] =
+  def apply[F[_]: Async](ctx: KafkaContext[F]): KafkaObserver[F] =
     new KafkaObserverImpl[F](ctx, Translator.idTranslator[F])
 }
 
-final private class KafkaObserverImpl[F[_]: Parallel](ctx: KafkaContext[F], translator: Translator[F, Event])(
-  using F: Async[F])
+final private class KafkaObserverImpl[F[_]](ctx: KafkaContext[F], translator: Translator[F, Event])(using
+  F: Async[F])
     extends KafkaObserver[F] {
 
   private val NAME: String = "Kafka Observer"
