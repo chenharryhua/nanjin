@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.kafka.record.NJConsumerRecord
-import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
@@ -15,39 +14,13 @@ final case class ProtobufSchemaPair(key: ProtobufSchema, value: ProtobufSchema)
 
 final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
-sealed trait SchemaCompatibility[A] {
-
-  /** Are local schemas backward compatible with broker schemas? */
-  def isBackwardCompatible(broker: A): Boolean
-
-  /** Merge schemas for reading (prefer local, fallback to broker) */
-  def read(broker: A): A
-
-  /** Merge schemas for writing (prefer broker, fallback to local) */
-  def write(broker: A): A
-}
-
-private def backwardCompatible[S <: ParsedSchema](as: Option[S], bs: Option[S]): Boolean =
-  (as, bs) match {
-    case (Some(a), Some(b)) => a.isBackwardCompatible(b).isEmpty
-    case _                  => true // treat missing as compatible
-  }
-
 private def missingSchema(message: String): Nothing =
   throw TopicSchemaAbsent(message) // scalafix:ok
 
-final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema])
-    extends SchemaCompatibility[OptionalJsonSchemaPair] {
-  override def isBackwardCompatible(broker: OptionalJsonSchemaPair): Boolean =
-    backwardCompatible(key, broker.key) & backwardCompatible(value, broker.value)
+/** The JSON schemas registered for a topic's key and value subjects, either of which may be absent. */
+final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema]) {
 
-  override def read(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
-    OptionalJsonSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
-
-  // write prefer broker's schema
-  override def write(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
-    OptionalJsonSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
-
+  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
   def toSchemaPair: JsonSchemaPair = (key, value) match {
     case (None, None)       => missingSchema("both key and value schema are absent")
     case (None, Some(_))    => missingSchema("key schema is absent")
@@ -56,19 +29,10 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
   }
 }
 
-final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema])
-    extends SchemaCompatibility[OptionalProtobufSchemaPair] {
+/** The Protobuf schemas registered for a topic's key and value subjects, either of which may be absent. */
+final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema]) {
 
-  override def isBackwardCompatible(broker: OptionalProtobufSchemaPair): Boolean =
-    backwardCompatible(key, broker.key) & backwardCompatible(value, broker.value)
-
-  override def read(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
-    OptionalProtobufSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
-
-  // write prefer broker's schema
-  override def write(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
-    OptionalProtobufSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
-
+  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
   def toSchemaPair: ProtobufSchemaPair = (key, value) match {
     case (None, None)       => missingSchema("both key and value schema are absent")
     case (None, Some(_))    => missingSchema("key schema is absent")
@@ -77,19 +41,14 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   }
 }
 
-final case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema])
-    extends SchemaCompatibility[OptionalAvroSchemaPair] {
+/** The Avro schemas registered for a topic's key and value subjects, either of which may be absent.
+  *
+  * Produced by `TopicSchemaRegistry.fetchOptionalAvroSchema` and consumed by the generic connectors, which
+  * require both sides and so call `toSchemaPair`.
+  */
+final case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema]) {
 
-  override def isBackwardCompatible(broker: OptionalAvroSchemaPair): Boolean =
-    backwardCompatible(key, broker.key) & backwardCompatible(value, broker.value)
-
-  override def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
-    OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
-
-  // write prefer broker's schema
-  override def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
-    OptionalAvroSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
-
+  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
   def toSchemaPair: AvroSchemaPair = (key, value) match {
     case (None, None)       => missingSchema("both key and value schema are absent")
     case (None, Some(_))    => missingSchema("key schema is absent")

@@ -63,11 +63,6 @@ sealed trait TopicSchemaRegistry[F[_]] {
   def delete: F[(List[Integer], List[Integer])]
 }
 
-final case class SchemaNotFound(topicName: TopicName, keyOrValue: String, schemaType: String, cause: String)
-    extends Exception(s"$schemaType $keyOrValue schema of $topicName can not be found. cause: $cause")
-final case class DeleteSchemaException(topicName: TopicName, keyOrValue: String, cause: Throwable)
-    extends Exception(cause)
-
 private[kafka] object TopicSchemaRegistry {
   def apply[F[_]: Sync](client: SchemaRegistryClient, topicName: TopicName): TopicSchemaRegistry[F] =
     new TopicSchemaRegistryImpl[F](client, topicName)

@@ -83,11 +83,7 @@ final class ConsumeGenericRecord[F[_]: Async] private[kafka] (
    */
 
   override lazy val subscribe: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullError, Record]]] =
-    KafkaConsumer
-      .stream(consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .flatMap(partitions_map_stream)
-      .flatMap(_.values.parJoinUnbounded)
+    partitionsMapStream.flatMap(_.values.parJoinUnbounded)
 
   /*
    * assign

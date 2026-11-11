@@ -78,6 +78,14 @@ object MetaInfo {
   // yield a Failure naming the field and the type actually found, instead of an opaque ClassCastException.
   private def typeName(o: Any): String = Option(o).fold("null")(_.getClass.getName)
 
+  // Avro hands back Utf8 rather than String for a string field, so match the interface.
+  private def getString(gr: GenericRecord, field: String): Try[String] =
+    gr.get(field) match {
+      case cs: CharSequence => Success(cs.toString)
+      case other            =>
+        Failure(new IllegalArgumentException(s"$field: expected string, got ${typeName(other)}"))
+    }
+
   private def getInt(gr: GenericRecord, field: String): Try[Int] =
     gr.get(field) match {
       case i: java.lang.Integer => Success(i.intValue)
@@ -106,6 +114,7 @@ object MetaInfo {
     */
   def apply(gr: GenericRecord): Try[MetaInfo] =
     for {
+      topic <- getString(gr, "topic")
       partition <- getInt(gr, "partition")
       offset <- getLong(gr, "offset")
       timestamp <- getLong(gr, "timestamp")
@@ -113,7 +122,7 @@ object MetaInfo {
       serializedKeySize <- getInt(gr, "serializedKeySize")
       serializedValueSize <- getInt(gr, "serializedValueSize")
     } yield MetaInfo(
-      topic = gr.get("topic").toString,
+      topic = topic,
       partition = partition,
       offset = offset,
       timestamp = timestamp,

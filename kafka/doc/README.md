@@ -391,7 +391,7 @@ JSON, Avro, and Protobuf forms.
 
 | Type | Purpose |
 | --- | --- |
-| `NJHeader` | Header key and byte value, with fs2/Java/Protobuf conversions |
+| `NJHeader` | Header key and byte value, with fs2/Java/Protobuf conversions; a `null` Kafka header value becomes empty bytes |
 | `NJProducerRecord[K, V]` | Optional partition, offset, timestamp, headers, key, and value for producing or persistence |
 | `NJConsumerRecord[K, V]` | Consumer coordinates, timestamp type, sizes, headers, leader epoch, and optional key/value |
 | `MetaInfo` | Payload-independent topic, partition, offset, timestamp, and serialized-size metadata |
@@ -517,7 +517,7 @@ The built-in record schemas use these stable names:
 | `MetaInfo` | `topic`, `partition`, `offset`, `timestamp`, `timestampType`, `serializedKeySize`, `serializedValueSize` |
 | `TopicPartition` JSON | `topic`, `partition` |
 | `TopicPartitionMap` JSON entries | `topic`, `partition`, `value` |
-| `PullError.toJson` | `key.error` or `value.error` |
+| `PullError.toJson` | `key.error` or `value.error`, holding the `MetaInfo` fields plus `cause` |
 | `StateTransition` JSON | `event`, `applicationId`, `oldState`, `newState` |
 | `ProtoHeader` | `key`, `value` with field numbers 1 and 2 |
 | `ProtoConsumerRecord` | `topic`, `partition`, `offset`, `timestamp`, `timestamp_type`, `headers`, `leader_epoch`, `serialized_key_size`, `serialized_value_size`, `key`, `value` with field numbers 1 through 11 |
@@ -532,8 +532,10 @@ schema, and the consumer decodes against the latest registered schema for each s
 
 ## Resource and operational guidance
 
-- Keep credentials and JAAS strings outside source code, and avoid logging `KafkaSettings` when they
-  contain secrets.
+- Keep credentials and JAAS strings outside source code. `Show[KafkaSettings]` redacts the value of
+  any property whose key looks sensitive (JAAS, password, `user.info`, token, secret, credential) and
+  still names the key, so a rendered settings value is safe to log; reading `properties` directly
+  bypasses that.
 - Configure TLS and Schema Registry authentication explicitly for non-local deployments.
 - Keep producers, consumers, admin clients, and Kafka Streams instances inside their `Resource` or
   `Stream` scopes so close operations and background fibers are finalized.

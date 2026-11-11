@@ -30,8 +30,16 @@ import scala.util.Try
   */
 final case class PullError(isKey: Boolean, metaInfo: MetaInfo, cause: Throwable) {
 
-  def toJson: Json =
-    Json.obj((if isKey then "key.error" else "value.error") -> metaInfo.asJson)
+  /** The failure as one JSON object keyed `key.error` or `value.error`, holding the record's metadata fields
+    * plus a `cause` naming the exception class and, when it has one, its message.
+    */
+  def toJson: Json = {
+    val reason: String =
+      Option(cause.getMessage).fold(cause.getClass.getName)(msg => s"${cause.getClass.getName}: $msg")
+    Json.obj(
+      (if isKey then "key.error" else "value.error") ->
+        metaInfo.asJson.deepMerge(Json.obj("cause" -> Json.fromString(reason))))
+  }
 }
 
 /** Decodes raw Kafka byte records into Avro `GenericRecord`s, given the key/value schema `pair`.
@@ -76,7 +84,8 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
       val headers: Iterator[Record] = ccr.headers().iterator().asScala.map { h =>
         val header = new Record(headerSchema)
         header.put("key", h.key())
-        header.put("value", ByteBuffer.wrap(h.value()))
+        // Kafka allows a null header value; the schema's bytes field does not, so it becomes empty.
+        header.put("value", ByteBuffer.wrap(Option(h.value()).getOrElse(Array.emptyByteArray)))
         header
       }
       val record: Record = new Record(schema)

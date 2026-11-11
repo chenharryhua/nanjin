@@ -134,15 +134,14 @@ private[kafka] object KafkaStreamsBuilder {
     override lazy val properties: Map[String, String] =
       streamSettings.withProperty(StreamsConfig.APPLICATION_ID_CONFIG, applicationId).properties
 
-    override def kafkaStreams: Stream[F, KafkaStreams] = {
-      val sc: StreamsConfig = new StreamsConfig(properties.asJava)
+    override def kafkaStreams: Stream[F, KafkaStreams] =
       for {
         dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
         startup <- Stream.eval(F.deferred[Unit])
         stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
         listener = new StateTransitionListener(dispatcher, startup, stop)
         kafkaStreams <- Stream
-          .bracket(F.blocking(new KafkaStreams(topology, sc))) { ks =>
+          .bracket(F.blocking(new KafkaStreams(topology, new StreamsConfig(properties.asJava)))) { ks =>
             if (ks.state().hasCompletedShutdown)
               F.unit
             else
@@ -161,7 +160,6 @@ private[kafka] object KafkaStreamsBuilder {
           }
           .interruptWhen(stop)
       } yield kafkaStreams
-    }
 
     override def runForever: Stream[F, Nothing] = kafkaStreams >> Stream.never[F]
 

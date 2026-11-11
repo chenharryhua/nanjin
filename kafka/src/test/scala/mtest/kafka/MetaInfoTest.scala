@@ -27,6 +27,7 @@ class MetaInfoTest extends FunSuite {
       .endRecord()
 
   private def record(
+    topic: Any = "test-topic",
     partition: Any = 1,
     offset: Any = 100L,
     timestamp: Any = 1234567890L,
@@ -34,7 +35,7 @@ class MetaInfoTest extends FunSuite {
     serializedKeySize: Any = 10,
     serializedValueSize: Any = 20): GenericData.Record = {
     val r = new GenericData.Record(schema)
-    r.put("topic", "test-topic")
+    r.put("topic", topic)
     r.put("partition", partition)
     r.put("offset", offset)
     r.put("timestamp", timestamp)
@@ -97,6 +98,23 @@ class MetaInfoTest extends FunSuite {
       case Failure(ex) =>
         assert(ex.getMessage.contains("timestamp"))
         assert(ex.getMessage.contains("expected long"))
+    }
+  }
+
+  test("7.an absent topic fails naming the field, not with a bare NullPointerException") {
+    MetaInfo(record(topic = null)) match {
+      case Success(mi) => fail(s"expected failure, got $mi")
+      case Failure(ex) =>
+        assert(ex.isInstanceOf[IllegalArgumentException])
+        assert(ex.getMessage.contains("topic"))
+        assert(ex.getMessage.contains("expected string"))
+    }
+  }
+
+  test("8.a topic held as Avro Utf8 rather than String is accepted") {
+    MetaInfo(record(topic = new org.apache.avro.util.Utf8("utf8-topic"))) match {
+      case Success(mi) => assertEquals(mi.topic, "utf8-topic")
+      case Failure(ex) => fail(s"expected success, got $ex")
     }
   }
 }

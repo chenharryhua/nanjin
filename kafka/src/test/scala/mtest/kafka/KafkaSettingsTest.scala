@@ -1,5 +1,6 @@
 package mtest.kafka
 
+import cats.syntax.show.given
 import com.github.chenharryhua.nanjin.kafka.config.*
 import io.confluent.kafka.serializers.{
   AbstractKafkaSchemaSerDeConfig,
@@ -129,5 +130,21 @@ class KafkaSettingsTest extends FunSuite {
     assertEquals(
       KafkaSettings.local.consumerSettings.properties(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG),
       "localhost:9092")
+  }
+
+  test("6.Show redacts secret-bearing property values and keeps every key visible") {
+    val settings = BASE_SETTINGS
+      .withSaslJaas("org.apache.kafka.common.security.plain.PlainLoginModule required password=\"hunter2\";")
+      .withConsumerProperty(_.CLIENT_ID_CONFIG, "visible-client")
+      .copy(serdeSettings = BASE_SETTINGS.serdeSettings.withProperty("basic.auth.user.info", "user:pa55word"))
+
+    val rendered = settings.show
+
+    assert(!rendered.contains("hunter2"), rendered)
+    assert(!rendered.contains("pa55word"), rendered)
+    assert(rendered.contains(SaslConfigs.SASL_JAAS_CONFIG), rendered)
+    assert(rendered.contains("basic.auth.user.info"), rendered)
+    assert(rendered.contains("visible-client"), rendered)
+    assert(rendered.contains("broker-url:9092"), rendered)
   }
 }
