@@ -7,11 +7,38 @@ import org.apache.avro.{Schema, SchemaCompatibility, SchemaFormatter}
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-def backwardCompatibility(a: Schema, b: Schema): List[SchemaCompatibility.Incompatibility] =
-  SchemaCompatibility.checkReaderWriterCompatibility(a, b).getResult.getIncompatibilities.asScala.toList
+/** Can `reader` read data written with `writer`?
+  *
+  * @param reader
+  *   the schema doing the reading, typically the newer one
+  * @param writer
+  *   the schema the data was written with, typically the older one
+  * @return
+  *   the incompatibilities Avro found, empty when `reader` can read `writer`'s data
+  */
+def backwardCompatibility(reader: Schema, writer: Schema): List[SchemaCompatibility.Incompatibility] =
+  SchemaCompatibility
+    .checkReaderWriterCompatibility(reader, writer)
+    .getResult
+    .getIncompatibilities
+    .asScala
+    .toList
 
-def forwardCompatibility(a: Schema, b: Schema): List[SchemaCompatibility.Incompatibility] =
-  backwardCompatibility(b, a)
+/** Can data written with `writer` be read by `reader`?
+  *
+  * The same check as `backwardCompatibility` with the roles swapped, so the argument order follows the
+  * direction the data flows: here `writer` is typically the newer schema and `reader` the older one that must
+  * keep working.
+  *
+  * @param writer
+  *   the schema the data was written with
+  * @param reader
+  *   the schema doing the reading
+  * @return
+  *   the incompatibilities Avro found, empty when `writer`'s data is readable by `reader`
+  */
+def forwardCompatibility(writer: Schema, reader: Schema): List[SchemaCompatibility.Incompatibility] =
+  backwardCompatibility(reader, writer)
 
 private def update(schema: Schema, f: Json => Json): Schema =
   jawn

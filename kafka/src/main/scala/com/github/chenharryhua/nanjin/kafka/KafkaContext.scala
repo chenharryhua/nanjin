@@ -112,7 +112,10 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     */
   def consumeBytes(topicName: String)(using F: Async[F]): ConsumeKafka[F, Array[Byte], Array[Byte]]
 
-  /** Consume Avro GenericRecords, resolving schemas from the registry and/or the optional overrides.
+  /** Consume Avro GenericRecords, decoding each side against the latest schema registered for its subject.
+    *
+    * The schema comes from the registry alone; there is no caller-supplied override. A record the schema
+    * cannot decode becomes a per-record `PullError` instead of failing the stream.
     *
     * @param topicName
     *   the topic to consume
@@ -140,7 +143,10 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
     k: Resource[F, KeySerializer[F, K]],
     v: Resource[F, ValueSerializer[F, V]])(using F: Async[F], ev: Parallel[F]): ProduceKafka[F, K, V]
 
-  /** Produce Avro GenericRecords, registering/resolving schemas via the registry and optional overrides.
+  /** Produce Avro GenericRecords, encoding each side in Confluent wire format.
+    *
+    * The write schema comes from the registry alone; there is no caller-supplied override. Producing raises
+    * `TopicSchemaAbsent` unless both the `<topic>-key` and `<topic>-value` subjects are registered.
     *
     * @param topicName
     *   the topic to produce to

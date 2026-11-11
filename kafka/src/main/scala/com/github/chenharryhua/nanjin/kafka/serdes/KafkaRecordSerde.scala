@@ -26,7 +26,11 @@ final class KafkaSerde[A] private[kafka] (val serde: Serde[A], topicName: TopicN
   def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.value, ab)
 }
 
-/** Raised by the `try*`/`optional*` deserializers when the key or value bytes are `null`. */
+/** Marks key or value bytes that were `null`.
+  *
+  * It is never thrown: the `try*` deserializers return it as the `Failure` of that side, and
+  * `optionalDeserialize` maps the same condition to `None` without surfacing it at all.
+  */
 case object DeserializeNull extends Exception("deserialize null")
 
 /** Key/value serde for a topic, offering several strategies for handling `null` and malformed bytes.
@@ -37,7 +41,7 @@ case object DeserializeNull extends Exception("deserialize null")
   *   - plain `deserialize`/`serialize`: no guarding, the underlying serde's behavior on `null`/bad bytes
   *     propagates.
   *   - `deserialize{Key,Value}`: wrap the named side in `Option` (`null` becomes `None`).
-  *   - `try*`: capture `null` (as `DeserializeNull`) and deserialization exceptions in `Try`.
+  *   - `try*`: capture `null` (as a `Failure(DeserializeNull)`) and deserialization exceptions in `Try`.
   *   - `optionalDeserialize`: capture both `null` and failures as `None`.
   */
 abstract class KafkaRecordSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], valSerde: KafkaSerde[V]) {
