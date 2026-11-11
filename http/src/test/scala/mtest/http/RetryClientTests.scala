@@ -398,6 +398,89 @@ class RetryClientTests extends CatsEffectSuite {
     }
   }
 
+  /** Serves a `Set-Cookie` on the first request and records the `Cookie` header of every request, so a test
+    * can assert both what the store accepted and what was replayed.
+    */
+  private def cookieRecordingClient(setCookie: String, seen: Ref[IO, List[Option[String]]]): Client[IO] =
+    Client[IO] { req =>
+      Resource.eval(
+        seen.update(_ :+ req.headers.get(CIString("Cookie")).map(_.head.value)).as(
+          if (req.uri.path.renderString.endsWith("/login"))
+            Response[IO](Status.Ok)
+              .withHeaders(Headers(Header.Raw(CIString(`Set-Cookie`.name.toString), setCookie)))
+          else Response[IO](Status.Ok)
+        ))
+    }
+
+  test("17.A Secure cookie is withheld from an http request and sent over https") {
+    val cookieManager = new CookieManager()
+    val seen = Ref.unsafe[IO, List[Option[String]]](Nil)
+    val wrapped = cookieBox[IO](cookieManager)(cookieRecordingClient("sid=s3cret; Path=/; Secure", seen))
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"https://secure.example/login")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://secure.example/page")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"https://secure.example/page")).use(IO.pure)
+      requests <- seen.get
+    } yield {
+      assertEquals(requests(0), None) // the login request precedes the cookie
+      assertEquals(requests(1), None) // plain http must not carry a Secure cookie
+      assertEquals(requests(2), Some("sid=s3cret"))
+    }
+  }
+
+  test("18.A Set-Cookie naming another domain is rejected by the default policy") {
+    val cookieManager = new CookieManager()
+    val seen = Ref.unsafe[IO, List[Option[String]]](Nil)
+    val wrapped =
+      cookieBox[IO](cookieManager)(cookieRecordingClient("sid=planted; Path=/; Domain=.victim.example", seen))
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://attacker.example/login")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://www.victim.example/page")).use(IO.pure)
+      requests <- seen.get
+      stored <- IO(cookieManager.getCookieStore.getCookies.asScala.toList)
+    } yield {
+      assert(stored.isEmpty, s"expected no stored cookie, got $stored")
+      assertEquals(requests(1), None)
+    }
+  }
+
+  test("19.A path-scoped cookie is not sent to a sibling path") {
+    val cookieManager = new CookieManager()
+    val seen = Ref.unsafe[IO, List[Option[String]]](Nil)
+    val wrapped = cookieBox[IO](cookieManager)(cookieRecordingClient("sid=scoped; Path=/admin", seen))
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://paths.example/admin/login")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://paths.example/public")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://paths.example/admin/report")).use(IO.pure)
+      requests <- seen.get
+    } yield {
+      assertEquals(requests(1), None) // outside the cookie's path
+      assertEquals(requests(2), Some("sid=scoped"))
+    }
+  }
+
+  test("20.A single-label host such as localhost still round-trips under the default policy") {
+    // ACCEPT_ORIGINAL_SERVER matches a cookie's domain against the setting host, and HttpCookie.domainMatches
+    // demands an embedded dot; the JDK bridges that by attributing a dotless host's cookie to <host>.local,
+    // so routing through CookieManager does not break local development.
+    val cookieManager = new CookieManager()
+    val seen = Ref.unsafe[IO, List[Option[String]]](Nil)
+    val wrapped = cookieBox[IO](cookieManager)(cookieRecordingClient("sid=local; Path=/", seen))
+
+    for {
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://localhost:8080/login")).use(IO.pure)
+      _ <- wrapped.run(Request[IO](Method.GET, uri"http://localhost:8080/page")).use(IO.pure)
+      requests <- seen.get
+      stored <- IO(cookieManager.getCookieStore.getCookies.asScala.toList)
+    } yield {
+      assertEquals(requests(1), Some("sid=local"))
+      assertEquals(stored.map(_.getDomain), List("localhost.local"))
+    }
+  }
+
   test("16.Default httpRetry does not retry a non-idempotent POST") {
     val counter = Ref.unsafe[IO, Int](0)
     // A retriable status that recklessHttpRetry would retry regardless of method (see tests 3 and 12).
