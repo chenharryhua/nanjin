@@ -380,7 +380,7 @@ Generic OAuth token responses decode these JSON fields:
 | --- | --- | --- |
 | `token_type` | `String` | Used as the authorization scheme |
 | `access_token` | `String` | Attached to business requests |
-| `expires_in` | `Option[Long]` | Lifetime in seconds; optional under the supported protocol behavior |
+| `expires_in` | `Option[Long]` | Lifetime in seconds; optional under the supported protocol behavior. Accepted as a JSON number or a numeric string, since servers send both |
 | `refresh_token` | `Option[String]` | Optional; valid client-credentials responses commonly omit it |
 
 Salesforce token responses require `access_token`, `instance_url`, and `token_type`. They also decode

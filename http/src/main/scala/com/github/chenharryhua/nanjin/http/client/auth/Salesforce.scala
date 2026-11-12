@@ -26,8 +26,9 @@ import scala.concurrent.duration.FiniteDuration
   *
   * @note
   *   Salesforce does not return an `expires_in` value, so scheduled renewal relies on a caller-provided token
-  *   lifetime. A positive lifetime schedules renewal early (skewed before expiry); a non-positive or omitted
-  *   lifetime disables scheduled renewal, leaving a rejected token to be replaced reactively.
+  *   lifetime. A lifetime of at least one second schedules renewal early (skewed before expiry); a shorter,
+  *   non-positive, or omitted lifetime disables scheduled renewal, leaving a rejected token to be replaced
+  *   reactively.
   */
 object Salesforce {
 
@@ -126,8 +127,9 @@ object Salesforce {
     * @param credential
     *   password-grant credentials
     * @param expiresIn
-    *   the assumed token lifetime. A positive value schedules renewal early (skewed before expiry); a
-    *   non-positive value disables scheduled renewal, falling back to reactive replacement on rejection.
+    *   the assumed token lifetime, used at second granularity. A value of at least one second schedules
+    *   renewal early (skewed before expiry); anything shorter, including a sub-second lifetime, disables
+    *   scheduled renewal and falls back to reactive replacement on rejection.
     */
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],

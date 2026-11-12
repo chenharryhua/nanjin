@@ -2002,4 +2002,51 @@ final class AuthLoginSuite extends CatsEffectSuite {
         }
     }
   }
+
+  test("47.expires_in sent as a numeric string is accepted and still schedules renewal") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      // RFC 6749 says expires_in is a number, but servers send it quoted. A lifetime the layer only uses to
+      // schedule renewal should not fail the exchange, so the string form decodes and skews the same way:
+      // 60 seconds renews 30 seconds in.
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val auth_app = HttpApp[IO] { _ =>
+        token_calls.updateAndGet(_ + 1).flatMap {
+          case 1 => Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":"60"}""")
+          case _ => Ok("""{"access_token":"token-2","token_type":"Bearer"}""")
+        }
+      }
+      val credential =
+        ClientCredentials(auth_endpoint = uri"/token", client_id = "id", client_secret = Secret("secret"))
+
+      auth
+        .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .login(protectedResource)
+        .use { _ =>
+          for {
+            _ <- IO.sleep(29.seconds)
+            before <- token_calls.get
+            _ <- IO.sleep(2.seconds)
+            after <- token_calls.get
+          } yield {
+            assertEquals(before, 1)
+            assertEquals(after, 2)
+          }
+        }
+    }
+  }
+
+  test("48.a non-numeric expires_in still fails the token exchange") {
+    val auth_app = HttpApp[IO] { _ =>
+      Ok("""{"access_token":"token-1","token_type":"Bearer","expires_in":"soon"}""")
+    }
+    val credential =
+      ClientCredentials(auth_endpoint = uri"/token", client_id = "id", client_secret = Secret("secret"))
+
+    auth
+      .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+      .login(protectedResource)
+      .use(_ => IO.unit)
+      .attempt
+      .map(result => assert(result.isLeft, s"expected a decode failure, got $result"))
+  }
 }
