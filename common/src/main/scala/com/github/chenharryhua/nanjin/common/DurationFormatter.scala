@@ -13,8 +13,13 @@ import scala.jdk.DurationConverters.JavaDurationOps
   *
   * A finite `ScalaDuration` is rendered as a breakdown into the largest units (e.g. `"1 hour 5 minutes"`). A
   * non-finite `ScalaDuration` (`Duration.Inf`, `Duration.MinusInf`, `Duration.Undefined`) has no such
-  * breakdown and is rendered via its own `toString` (`"Duration.Inf"`, etc.) rather than throwing. The
-  * `JavaDuration`, `Instant`, `ZonedDateTime`, and `Time` overloads are always finite by construction.
+  * breakdown and is rendered via its own `toString` (`"Duration.Inf"`, etc.) rather than throwing.
+  *
+  * The `JavaDuration`, `Instant`, `ZonedDateTime`, and `Time` overloads carry no non-finite value, but they
+  * are not total either: each converts to a `ScalaDuration` first, which holds at most `Long.MaxValue`
+  * nanoseconds (~292 years). A wider span throws `IllegalArgumentException` from the conversion instead of
+  * being formatted, so `format(Instant.EPOCH, Instant.MAX)` throws. Real timestamps are nowhere near that
+  * bound; sentinel values such as `Instant.MIN`/`Instant.MAX` are.
   */
 trait DurationFormatter {
   def format(duration: ScalaDuration): String
@@ -74,5 +79,15 @@ object DurationFormatter {
 
   val defaultFormatter: DurationFormatter = new Formatter(2)
 
-  def create(maxParts: Int): DurationFormatter = new Formatter(maxParts)
+  /** A formatter showing at most `maxParts` units, largest first.
+    *
+    * @param maxParts
+    *   must be positive. Seven units are available (day down to nano), so a larger value simply shows all of
+    *   them. Non-positive values are rejected rather than accepted silently: zero would render every duration
+    *   as `"0 second"`, and a negative value would read as "no limit".
+    */
+  def create(maxParts: Int): DurationFormatter = {
+    require(maxParts > 0, s"maxParts must be positive, but was $maxParts")
+    new Formatter(maxParts)
+  }
 }
