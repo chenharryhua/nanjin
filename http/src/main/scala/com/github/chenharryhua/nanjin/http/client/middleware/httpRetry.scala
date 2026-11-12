@@ -8,7 +8,6 @@ import cats.syntax.flatMap.given
 import cats.syntax.functor.given
 import cats.syntax.traverse.given
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
-import monocle.Monocle.focus
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.headers.`Retry-After`
@@ -18,28 +17,41 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-/** Decides whether a completed attempt should be retried, given the request and its outcome (a `Throwable`
-  * for a failed effect, or a `Response` for a completed exchange).
+/** Decides whether a completed exchange should be retried, given the request and its `Response`.
+  *
+  * The `Either` shape matches http4s' own `RetryPolicy` predicates, so instances such as
+  * `RetryPolicy.defaultRetriable` can be passed straight in, but `httpRetry` only ever calls a predicate with
+  * a `Right`: a request effect that raised is retried whenever a policy tick remains, without consulting the
+  * predicate at all. A predicate therefore cannot gate exceptions, only responses.
   */
-private type Retriable[F[_]] = (Request[F], Either[Throwable, Response[F]]) => Boolean
+type Retriable[F[_]] = (Request[F], Either[Throwable, Response[F]]) => Boolean
 
 /** Wrap a `Client` so that failed or retriable attempts are retried according to a nanjin `Policy`.
   *
   * The retry cadence comes from `f(Policy)`: e.g. `_.fixedRate(1.second).repeat.limited(3)` caps the retries,
-  * while `_.empty` disables retrying entirely. Snooze durations are interpreted in `zoneId`. Whether a given
-  * outcome is retried is decided by `retriable`, which defaults to http4s' `RetryPolicy.defaultRetriable`
-  * (connection failures and retriable statuses on idempotent methods).
+  * while `_.empty` disables retrying entirely. Snooze durations are interpreted in `zoneId`.
+  *
+  * The two kinds of outcome are treated differently:
+  *   - A request effect that raised is retried whenever a policy tick remains. `retriable` is '''not'''
+  *     consulted, so even a non-idempotent request is replayed after a connection failure, and the default
+  *     predicate's idempotency rule does not protect that path. A lost response is no proof the server
+  *     skipped the attempt, so request entities must be repeatable.
+  *   - A completed exchange is retried only when `retriable` says so. The default,
+  *     `RetryPolicy.defaultRetriable`, pairs retriable statuses with idempotent methods, so a `503` to a
+  *     `POST` is returned as-is.
   *
   * If a retriable response carries a `Retry-After` header, the wait before the next attempt is the larger of
-  * that header's delay and the policy's snooze, so the server's backpressure is respected. When the policy is
-  * exhausted the last response is returned, or the last error re-raised.
+  * that header's delay and the policy's snooze, so the server's backpressure is respected. The header applies
+  * to the attempt that follows the response carrying it; a later attempt that fails with an exception falls
+  * back to the policy's snooze. When the policy is exhausted the last response is returned, or the last error
+  * re-raised.
   *
   * @param zoneId
   *   time zone used to interpret the policy schedule.
   * @param f
   *   builds the retry policy from the `Policy` DSL.
   * @param retriable
-  *   predicate deciding which outcomes to retry; defaults to `RetryPolicy.defaultRetriable`.
+  *   predicate deciding which '''responses''' to retry; defaults to `RetryPolicy.defaultRetriable`.
   */
 def httpRetry[F[_]: Async](
   zoneId: ZoneId,
@@ -47,9 +59,12 @@ def httpRetry[F[_]: Async](
   retriable: Retriable[F] = RetryPolicy.defaultRetriable[F])(client: Client[F]): Client[F] =
   impl[F](zoneId, f(Policy), retriable)(client)
 
-/** Like `httpRetry` but using http4s' `RetryPolicy.recklesslyRetriable` predicate, which retries regardless
-  * of HTTP method (including non-idempotent ones like POST). Use with care: retrying a non-idempotent request
-  * can duplicate side effects on the server.
+/** Like `httpRetry` but using http4s' `RetryPolicy.recklesslyRetriable` predicate, which retries a retriable
+  * '''response''' regardless of HTTP method, including non-idempotent ones like POST. Use with care: retrying
+  * a non-idempotent request can duplicate side effects on the server.
+  *
+  * This widens only the response path. Raised request effects are already retried by `httpRetry` without
+  * consulting a predicate, so both variants can replay a POST that failed mid-flight.
   */
 def recklessHttpRetry[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] = {
   val g = (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex)
@@ -105,7 +120,10 @@ private def impl[F[_]: Async](
     ra.hotswap.get.use {
       case Left(ex) =>
         ra.policyTick.advance.flatMap {
-          case Some(ts) => Right(ra.focus(_.policyTick).replace(ts)).pure[F]
+          // A raised effect carries no Retry-After, so the next delay is the policy's. Carrying the previous
+          // response's header forward would keep stretching every later delay by a value the server asked
+          // for once, long after that response is gone.
+          case Some(ts) => Right(RetryAttempt(ra.request, ts, ra.hotswap, None)).pure[F]
           case None     => ex.raiseError
         }
       case Right(response) =>
