@@ -16,11 +16,20 @@ import scala.concurrent.duration.{DurationInt, DurationLong, FiniteDuration}
 /** Renew long-lived tokens this early to avoid racing an in-flight request against expiry. */
 private val SKEW: FiniteDuration = 30.seconds
 
+/** The largest lifetime a `FiniteDuration` can hold, in seconds. A duration is bounded to ±(2^63-1)
+  * nanoseconds, about 292 years, and a token endpoint reporting more than that would otherwise overflow on
+  * conversion.
+  */
+private val MAX_LIFETIME_SECONDS: Long = Long.MaxValue / 1_000_000_000L
+
 /** Schedule renewal `SKEW` early for positive long lifetimes, or halfway through a positive short lifetime.
   * Callers map a missing or non-positive `expires_in` to no scheduled renewal before invoking this function.
+  *
+  * A lifetime past `MAX_LIFETIME_SECONDS` is capped to it, so a server reporting an absurd `expires_in`
+  * yields a renewal far in the future rather than an unrepresentable duration.
   */
 private def skewed(lifetime_seconds: Long): FiniteDuration = {
-  val lifetime = lifetime_seconds.seconds
+  val lifetime = Math.min(lifetime_seconds, MAX_LIFETIME_SECONDS).seconds
   lifetime - SKEW.min(lifetime / 2L)
 }
 
