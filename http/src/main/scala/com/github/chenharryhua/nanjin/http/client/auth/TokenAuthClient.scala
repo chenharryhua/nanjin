@@ -59,9 +59,10 @@ trait Login[F[_]] {
   * `getTokenFromCredentials`).
   *
   * This coordinator does not retry token-endpoint requests. Initial-acquisition and reactive-renewal failures
-  * propagate to the operation waiting for them; a scheduled-renewal failure waits silently for another path
-  * to replace the token. Callers that need retries or failure observability configure those concerns on the
-  * supplied authentication client.
+  * propagate to the operation waiting for them. A scheduled renewal is different: nothing it raises escapes
+  * the scheduling loop, which falls back to waiting for another path to replace the token, so the loop cannot
+  * end while the client lives. Callers that need retries or failure observability configure those concerns on
+  * the supplied authentication client.
   */
 abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sClientDsl[F] {
   protected type T // token type
@@ -119,25 +120,29 @@ abstract private class TokenAuthClient[F[_]](using F: Async[F]) extends Http4sCl
           *
           * If `renewalDelay` returns `Some`, the delay races the snapshot's `changed` signal. A replacement
           * on another path wins that race and ends this iteration without renewal; if the delay wins,
-          * `renewOnSchedule` is attempted once through `replace_token`. A failed attempt is not retried here:
-          * it waits for another successful replacement to complete `changed`, after which the surrounding
-          * `foreverM` starts a new iteration and schedules that token. If `renewalDelay` returns `None`, this
-          * iteration likewise waits for the next successful replacement before continuing.
+          * `renewOnSchedule` is attempted once through `replace_token`. If `renewalDelay` returns `None`,
+          * this iteration waits for the next successful replacement before continuing.
+          *
+          * Nothing in an iteration is retried, and nothing escapes it. A failed `renewOnSchedule`, and
+          * equally a `renewalDelay` that cannot produce a delay for this token, fall back to waiting for
+          * another path to replace the token; the surrounding `foreverM` then starts a new iteration and
+          * schedules the replacement. That matters because this loop runs in the background, where a raised
+          * error would end it silently and leave the client without proactive renewal for the rest of its
+          * life.
           */
         def schedule_renewal: F[Unit] =
           token_state_ref.get.flatMap { scheduled =>
-            val wait = scheduled.changed.get
-            renewalDelay(scheduled.token) match {
-              case Some(delay) =>
-                F.race(F.sleep(delay), wait).flatMap {
-                  case Left(_) =>
-                    replace_token(scheduled.generation, renewOnSchedule)
-                      .void
-                      .handleErrorWith(_ => wait)
-                  case Right(_) => F.unit
-                }
-              case None => wait
-            }
+            val wait: F[Unit] = scheduled.changed.get
+            F.defer {
+              renewalDelay(scheduled.token) match {
+                case Some(delay) =>
+                  F.race(F.sleep(delay), wait).flatMap {
+                    case Left(_)  => replace_token(scheduled.generation, renewOnSchedule).void
+                    case Right(_) => F.unit
+                  }
+                case None => wait
+              }
+            }.handleErrorWith(_ => wait)
           }
 
         F.background[Nothing](schedule_renewal.foreverM).map { _ =>

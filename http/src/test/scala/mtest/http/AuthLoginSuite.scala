@@ -1953,4 +1953,53 @@ final class AuthLoginSuite extends CatsEffectSuite {
       }
     }
   }
+
+  test("46.a lifetime the scheduler cannot express leaves it able to schedule the next token") {
+    cats.effect.testkit.TestControl.executeEmbed {
+      // expires_in beyond the FiniteDuration range is unrepresentable, so computing this token's renewal
+      // delay fails. That must not end the scheduling loop: once a 401 replaces the token reactively, the
+      // loop has to pick the replacement up and schedule it, exactly as it does for a token that simply
+      // carried no delay (test 39).
+      val token_calls = Ref.unsafe[IO, Int](0)
+      val auth_app = HttpApp[IO] {
+        case POST -> Root / "token" =>
+          token_calls.updateAndGet(_ + 1).flatMap {
+            case 1 =>
+              Ok(s"""{"access_token":"token-1","token_type":"Bearer","expires_in":${Long.MaxValue}}""")
+            case 2 => Ok("""{"access_token":"token-2","token_type":"Bearer","expires_in":40}""")
+            case n => Ok(s"""{"access_token":"token-$n","token_type":"Bearer","expires_in":3600}""")
+          }
+        case _ => InternalServerError()
+      }
+
+      val resource_app = HttpApp[IO] { request =>
+        request.headers.get[Authorization] match {
+          case Some(header) if header.value == "Bearer token-1" =>
+            IO.pure(Response[IO](Status.Unauthorized))
+          case Some(_) => Ok("ok")
+          case None    => Forbidden("missing auth")
+        }
+      }
+
+      val credential =
+        ClientCredentials(auth_endpoint = uri"/token", client_id = "id", client_secret = Secret("secret"))
+
+      auth
+        .postClientCredentials[IO](Resource.pure(Client.fromHttpApp(auth_app)), credential)
+        .login(Client.fromHttpApp(resource_app))
+        .use { authed =>
+          for {
+            body <- authed.expect[String](uri"/resource")
+            _ <- IO.sleep(19.seconds)
+            before_schedule <- token_calls.get
+            _ <- IO.sleep(2.seconds)
+            after_schedule <- token_calls.get
+          } yield {
+            assertEquals(body, "ok")
+            assertEquals(before_schedule, 2) // the 401 replacement, not yet renewed on schedule
+            assertEquals(after_schedule, 3) // token-2's 40s lifetime renews 20s in
+          }
+        }
+    }
+  }
 }
