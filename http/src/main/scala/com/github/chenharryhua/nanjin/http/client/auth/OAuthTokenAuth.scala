@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.functor.given
-import io.circe.Codec
+import io.circe.{Decoder, HCursor}
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.headers.Authorization
@@ -37,7 +37,24 @@ abstract private class OAuthTokenAuth[F[_]](authClient: Resource[F, Client[F]])(
     access_token: String,
     expires_in: Option[Long], // in seconds
     refresh_token: Option[String])
-      derives Codec.AsObject
+
+  protected object Token {
+
+    /** RFC 6749 §5.1 specifies `expires_in` as a number, but servers are known to send it as a numeric
+      * string. Accept either: a lifetime this layer only uses to schedule renewal should not fail the whole
+      * token exchange, and a value that is neither still does.
+      */
+    private val lenient_seconds: Decoder[Long] =
+      Decoder[Long].or(Decoder[String].emap(s => s.toLongOption.toRight(s"not a number: $s")))
+
+    given Decoder[Token] = (c: HCursor) =>
+      for {
+        token_type <- c.get[String]("token_type")
+        access_token <- c.get[String]("access_token")
+        expires_in <- c.get[Option[Long]]("expires_in")(using Decoder.decodeOption(using lenient_seconds))
+        refresh_token <- c.get[Option[String]]("refresh_token")
+      } yield Token(token_type, access_token, expires_in, refresh_token)
+  }
 
   /** The replacement grants available to the reactive and proactive renewal hooks. */
   final protected class Renewals private[OAuthTokenAuth] (
