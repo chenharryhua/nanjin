@@ -276,6 +276,12 @@ object CircuitBreaker {
     * `policy` defines the scheduling cadence used to transition the breaker from open to half-open. For
     * long-lived breakers, the policy should be non-terminating so periodic probe attempts can continue
     * indefinitely.
+    *
+    * That cadence runs free from the moment the breaker is acquired; it is not a timer started when the
+    * breaker opens. Each tick promotes an open breaker to half-open and does nothing otherwise, so the open
+    * period lasts only until the next tick: with `_.fixedDelay(10.seconds)`, a breaker that opens one second
+    * before a tick probes one second later, not ten. Expect an open period anywhere in `(0, cadence]`, and
+    * pick the cadence as the '''longest''' acceptable wait rather than a guaranteed cool-down.
     */
   def apply[F[_]: Async](
     zoneId: ZoneId,

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.Show
 import cats.syntax.eq.given
+import cats.{Eq, Show}
 import io.circe.{Encoder, Json}
 
 /** A sensitive value (password, client secret, authorization code, token, ...) whose contents are masked in
@@ -55,6 +55,14 @@ object Secret {
 
   /** Masks the value for security; never renders the secret. */
   given Show[Secret] = _.toString
+
+  /** Delegates to `equals`, so `===` compares two secrets in constant time.
+    *
+    * Without this instance the only way to compare secrets under the repository's `noUniversalEquality` lint
+    * would be `a.value == b.value`, which short-circuits on the first differing character and gives the
+    * timing side channel `equals` exists to close.
+    */
+  given Eq[Secret] = Eq.fromUniversalEquals[Secret]
 
   /** Masking JSON encoder for logs and display: always emits the masked `toString`, never the secret. It lets
     * an enclosing type derive a codec safely; on any serialization path (including a wire payload) the field

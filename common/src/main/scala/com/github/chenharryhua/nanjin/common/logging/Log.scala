@@ -45,8 +45,12 @@ abstract class Log[F[_]: MonadThrow]:
    */
 
   /** Emit a record at the given level. Does nothing when the level is disabled, so `message` is only forced
-    * and encoded when it will actually be logged. Publishing failures are swallowed — logging never disrupts
-    * the surrounding effect.
+    * and encoded when it will actually be logged.
+    *
+    * Every failure on this path is swallowed — logging never disrupts the surrounding effect. That covers the
+    * level check as well as encoding and publishing, so an `enabled` implementation that fails (a
+    * configuration lookup, a remote level service) leaves the caller's effect untouched rather than failing
+    * it. A record whose level could not be determined is not emitted.
     *
     * @param message
     *   the payload to log, forced only when the level is enabled
@@ -60,8 +64,8 @@ abstract class Log[F[_]: MonadThrow]:
     level: LogLevel,
     cause: Option[Throwable]
   ): F[Unit] = {
-    def process: F[Unit] = create[S](message, level, cause).flatMap(publish).attempt.void
-    enabled(level).ifM(process, ().pure[F])
+    def process: F[Unit] = create[S](message, level, cause).flatMap(publish)
+    enabled(level).ifM(process, ().pure[F]).attempt.void
   }
 
   /** Emit a pre-built `LogEntry`, using its `level` and `cause`. Convenient when the level travels with the

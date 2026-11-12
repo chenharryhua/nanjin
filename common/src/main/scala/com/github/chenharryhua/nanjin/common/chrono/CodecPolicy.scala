@@ -67,19 +67,6 @@ private object CodecPolicy {
     hc.downField(field).as[HCursor]
 
   private val decoder_coalgebra: Coalgebra[PolicyF, HCursor] = {
-    val variant_keys: Set[String] = Set(
-      EMPTY,
-      CRONTAB,
-      JITTER,
-      FIXED_DELAY,
-      FIXED_RATE,
-      LIMITED,
-      FOLLOWED_BY,
-      MEET,
-      EXCEPT,
-      OFFSET,
-      REPEAT
-    )
 
     def empty(hc: HCursor): Result[Empty[HCursor]] =
       read_field[Boolean](hc, EMPTY).flatMap {
@@ -163,30 +150,34 @@ private object CodecPolicy {
       }
     }
 
+    /** The key a payload is recognised by, paired with the decoder for that variant.
+      *
+      * One map rather than a key set beside a dispatch match: the set of recognised keys and the decoder
+      * reached for each are the same object, so adding a variant to one cannot leave the other behind, and
+      * there is no unreachable "unsupported key" arm to carry.
+      */
+    val variant_decoders: Map[String, HCursor => Result[PolicyF[HCursor]]] = Map(
+      EMPTY -> empty,
+      CRONTAB -> crontab,
+      JITTER -> jitter,
+      FIXED_DELAY -> fixed_delay,
+      FIXED_RATE -> fixed_rate,
+      LIMITED -> limited,
+      FOLLOWED_BY -> followed_by,
+      MEET -> meet,
+      EXCEPT -> except,
+      OFFSET -> offset,
+      REPEAT -> repeat
+    )
+
     def decode_variant(hc: HCursor): Result[PolicyF[HCursor]] = {
-      val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variant_keys)
+      val present = hc.keys.getOrElse(Iterable.empty).toSet.intersect(variant_decoders.keySet)
       present.toList match {
-        case key :: Nil =>
-          key match {
-            case EMPTY       => empty(hc)
-            case CRONTAB     => crontab(hc)
-            case JITTER      => jitter(hc)
-            case FIXED_DELAY => fixed_delay(hc)
-            case FIXED_RATE  => fixed_rate(hc)
-            case LIMITED     => limited(hc)
-            case FOLLOWED_BY => followed_by(hc)
-            case MEET        => meet(hc)
-            case EXCEPT      => except(hc)
-            case OFFSET      => offset(hc)
-            case REPEAT      => repeat(hc)
-            case other       =>
-              Left(DecodingFailure(s"Unsupported policy variant key: $other", hc.history))
-          }
-        case Nil =>
-          Left(
-            DecodingFailure(
-              s"No policy variant key found. Expected one of: ${variant_keys.toList.sorted.mkString(",")}",
-              hc.history))
+        // `present` is an intersection with the key set, so every key in it has a decoder
+        case key :: Nil => variant_decoders(key)(hc)
+        case Nil        =>
+          val expected = variant_decoders.keys.toList.sorted.mkString(",")
+          Left(DecodingFailure(s"No policy variant key found. Expected one of: $expected", hc.history))
         case many =>
           Left(
             DecodingFailure(

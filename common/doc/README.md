@@ -30,6 +30,13 @@ val p4 = Policy.fixedDelay(1.second, 2.seconds, 4.seconds) // escalating delays
   .followedBy(Policy.fixedDelay(30.seconds)) // switch policy after exhaustion
   .repeat              // restart from the beginning when exhausted
 
+// Take whichever of two policies proposes the shorter snooze; exhausted when either is
+val p7 = Policy.crontab(_.hourly).repeat.meet(Policy.fixedDelay(10.minutes).repeat)
+
+// Pass a policy value where a builder function `Policy.type => Policy` is expected
+val prepared = Policy.fixedDelay(1.second).repeat
+val p8 = Policy.fresh(prepared)
+
 // Exclusions and offsets
 val p5 = Policy.crontab(_.hourly).except(localTimes.noon).offset(100.millis)
 
@@ -107,6 +114,7 @@ CircuitBreaker[IO](zoneId, maxFailures = 5, _.fixedDelay(10.seconds)).use { cb =
 Drawbacks:
 - `maxFailures` counts failures in Closed state only. A success resets the counter — there's no sliding window or rate-based opening.
 - The breaker is scoped to a `Resource` — it can't outlive the resource's lifetime. For long-lived breakers, the enclosing resource must also be long-lived.
+- The policy is a free-running cadence started when the breaker is acquired, not a timer started when it opens. Each tick promotes an open breaker to half-open, so the open period lasts only until the next tick: with `_.fixedDelay(10.seconds)` a breaker that opens one second before a tick probes one second later, not ten. Treat the cadence as the longest acceptable wait, anywhere in `(0, cadence]`, rather than a guaranteed cool-down.
 - Failure counting is per-call: concurrent failures each advance the counter, so `maxFailures` calls failing in parallel trip the breaker just as that many successive failures do. A success resets the count only when no other call changed it while that success was running, so a failure overlapping a success is never erased. Half-open admits exactly one probe at a time (single-flight).
 
 ### Retry
@@ -183,27 +191,53 @@ Drawbacks:
 
 ### Log[F]
 
-Abstract effectful logger with level-based filtering and JSON-encoded messages. Defines an SPI (create/publish/enabled) and a public API (error/warn/good/info/debug).
+Abstract effectful logger with level-based filtering and JSON-encoded messages. Implementations supply the SPI (`create`/`publish`/`enabled`); `emit` is the single public primitive and the named helpers (`error`/`warn`/`good`/`info`/`debug`) each pin a level and delegate to it.
 
 ```scala
-import com.github.chenharryhua.nanjin.common.logging.{Log, LogLevel}
+import com.github.chenharryhua.nanjin.common.logging.{Log, LogEntry, LogLevel}
 
 // Levels: Error > Warn > Good > Info > Debug
 log.error("critical failure", exception)
 log.warn("degraded state")
 log.good("operation succeeded")
 log.info("status update")
-log.debug(computeDebugInfo)  // effectful debug — swallows errors gracefully
+log.debug(expensiveDebugInfo)  // by-name: only forced when Debug is enabled
+
+// emit — for a dynamic level, or a pre-built record
+log.emit("status update", LogLevel.Info, None)
+log.emit(LogEntry("rejected", LogLevel.Warn, Some(exception)))
 ```
+
+`LogEntry[S](message, level, cause)` is a self-contained record and derives `Functor`, so `entry.map(_.render)` reshapes the payload while keeping its level and cause.
+
+`Log.noop[F]` is a logger with every level disabled, for tests and for switching logging off.
 
 Drawbacks:
 - Messages must have a `circe.Encoder` instance. Plain strings work (String has an Encoder), but custom types need deriving.
 - `good` is a non-standard log level — sits between Warn and Info. External log aggregators won't recognize it natively.
-- The `debug(F[S])` overload catches and swallows computation failures, logging them as debug-level errors. This can hide bugs if misused.
+- `emit` swallows every failure on its path — the level check, encoding, and publishing — so logging never disrupts the surrounding effect. A broken logger is therefore silent rather than loud; a record whose level could not be determined is simply not emitted.
 
 ### LogLevel
 
-Enum with `Error`, `Warn`, `Good`, `Info`, `Debug`. Provides circe codecs, Show, and Order instances. `Good` is specific to nanjin — represents "success worth noting" between Warn and Info severity.
+Enum with `Error`, `Warn`, `Good`, `Info`, `Debug`. Provides circe codecs, Show, and Order instances. `Good` is specific to nanjin — represents "success worth noting" between Warn and Info severity. Each level maps onto an `org.slf4j.event.Level`; `Good` maps to INFO like `Info`, but stays distinct so a console renderer can colour it differently.
+
+### LogLink / LogLocator
+
+`LogLink` is an opaque `String` holding a fully-formed URL into a log viewer; read it with `.value`. It carries circe codecs so a link can travel on an event (see guard's event model), where it appears as a plain JSON string.
+
+`LogLocator` turns an `Instant` into a `LogLink`, letting the core obtain a deep link to the logs around an event while a backend owns the URL construction and any time window placed around the timestamp. A locator is built once per running service and reused.
+
+```scala
+import com.github.chenharryhua.nanjin.common.logging.{LogLink, LogLocator}
+import java.time.Instant
+
+val locator: LogLocator = (timestamp: Instant) =>
+  LogLink(s"https://logs.example.com/?at=$timestamp")
+
+locator.locate(Instant.now()).value // the URL
+```
+
+See the aws module's `CloudWatchLogLocator` for the CloudWatch console implementation.
 
 ---
 
@@ -221,7 +255,6 @@ import com.github.chenharryhua.nanjin.common.Secret
 final case class DbConfig(user: String, password: Secret)
 
 val cfg = DbConfig("admin", Secret("hunter2"))
-val cfg2 = DbConfig("admin", "hunter2")   // implicit String => Secret at the call site
 
 cfg.toString        // DbConfig(admin,***) — the enclosing case class masks it too
 cfg.password.value  // "hunter2" — the single, intentional cleartext escape hatch
@@ -231,7 +264,7 @@ Why it holds where a plain `String` (or an `opaque type`) would leak:
 - `toString` and `Show` render `***`, never the value.
 - It is a real runtime class, not an `opaque type` — an opaque type erases to `String`, so a case class embedding it would print the underlying value in its default `toString`. The class masks even when nested inside other structures.
 - The JSON `Encoder` is a **masking** encoder that emits `"***"`. An enclosing type can therefore auto-derive a codec for logging, and the secret still never reaches JSON in cleartext. There is deliberately **no** `Decoder` — a secret cannot be recovered from its mask, so a masked value can't round-trip back into a real one.
-- `equals`/`hashCode` are value-based, so `Secret` still works as a map key or in comparisons.
+- `equals`/`hashCode` are value-based, so `Secret` still works as a map key. `equals` compares all code units without early exit, so its runtime does not reveal the length of the matching prefix the way `String.equals` does, and the `Eq[Secret]` instance delegates to it — compare with `===` rather than unwrapping both sides with `.value`.
 
 The raw value is reachable only through `.value`, used at trust boundaries (building a JDBC config, a token request, ...).
 
@@ -244,6 +277,7 @@ DbConfig("admin", Secret("hunter2")).asJson  // {"user":"admin","password":"***"
 Drawbacks:
 - `.value` is an unguarded escape hatch — once called, the plain `String` is subject to the usual leak paths. Keep the unwrap as close to the boundary as possible.
 - The encoder masks on **every** serialization path, including wire payloads. A request that needs the real secret must take it from `.value`; serializing the enclosing type to a wire body will send `"***"`, not the secret.
+- `hashCode` is the underlying `String`'s, so it exposes a 32-bit fingerprint of the secret wherever a hash is visible (including an enclosing case class's `hashCode`). That is the price of working as a map key.
 
 ### json — Display-Only Transforms
 
@@ -269,17 +303,6 @@ Drawbacks:
 
 ---
 
-## xml — XML/JSON Bidirectional Codec
-
-Converts between `scala.xml.Node` and `io.circe.Json`, handling attributes, mixed content, and repeated children.
-
-Drawbacks:
-- Attribute handling uses `@attr` convention in JSON — non-standard and requires consumers to know the convention.
-- Mixed content (text + elements) uses `#text` and `#children` keys which add structural noise.
-- No namespace preservation — namespaces are stripped during conversion.
-
----
-
 ## Core Utilities
 
 ### DurationFormatter
@@ -299,23 +322,12 @@ DurationFormatter.create(4).format(Duration.ofSeconds(3723))
 DurationFormatter.defaultFormatter.format(startInstant, endInstant)
 ```
 
+`create` takes the maximum number of units to show, largest first, and requires a positive value; seven units are available (day down to nano).
+
 Drawbacks:
 - English-only output. No i18n support.
 - Uses singular/plural rules (`1 day` vs `2 days`) — not suitable for machine parsing.
-
-### ChunkSize
-
-Validated positive integer opaque type with circe/Show/Order instances. Throws `IllegalArgumentException` on non-positive values.
-
-```scala
-import com.github.chenharryhua.nanjin.common.ChunkSize
-
-val cs = ChunkSize(100)       // validated at construction
-val cs2: ChunkSize = 100      // implicit conversion from Int (also validated)
-```
-
-Drawbacks:
-- Validation is eager (throws) rather than returning `Either` or `Validated`. The circe `Decoder` does use `Either` for decoding failures.
+- A non-finite Scala duration (`Duration.Inf`, ...) is rendered via its own `toString` instead of a breakdown. The `Instant`/`ZonedDateTime`/`JavaDuration`/`Time` overloads convert to a Scala duration first, which holds at most ~292 years, so a wider span throws `IllegalArgumentException` rather than formatting — reachable only with sentinels such as `Instant.MAX`.
 
 ### sequence
 
@@ -396,12 +408,14 @@ Drawbacks:
 ## Dependencies
 
 - Cats / Cats Effect / fs2
+- cats-time (java.time instances), kittens (typeclass derivation)
 - Droste (recursion schemes)
-- Monocle (optics)
+- Monocle (optics), circe-optics (`Plated` for `Json`)
 - Circe (JSON)
 - Cron4s (cron expressions)
 - Squants (units of measure)
-- scala-xml
+- Chimney (transformations)
+- Apache commons-lang3 (exception rendering)
 
 ## Artifact
 

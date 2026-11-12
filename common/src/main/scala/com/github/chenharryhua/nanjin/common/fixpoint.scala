@@ -7,10 +7,10 @@ import monocle.Traversal
 import monocle.function.Plated
 
 /** relate Monocle to Droste
+  *
+  * Import `fixpoint.given` to bring the `Plated` instances for Droste's fixpoint types into scope.
   */
-object fixpoint extends FixPointTrait
-
-sealed trait FixPointTrait {
+object fixpoint {
 
   given [G[_]: Traverse] => Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {
