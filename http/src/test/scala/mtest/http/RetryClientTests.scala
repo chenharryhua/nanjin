@@ -398,6 +398,46 @@ class RetryClientTests extends CatsEffectSuite {
     }
   }
 
+  test("21.A Retry-After does not outlive the response that sent it") {
+    TestControl.executeEmbed {
+      val counter = Ref.unsafe[IO, Int](0)
+      val timestamps = Ref.unsafe[IO, List[Long]](Nil)
+
+      // Attempt 1 asks for a 60 second wait, attempt 2 raises instead of responding, attempt 3 succeeds.
+      // The error carries no Retry-After, so the wait before attempt 3 is the policy's 1 second; keeping
+      // the header from attempt 1 would stretch it to 60 seconds again.
+      val client = Client[IO] { _ =>
+        Resource.eval(
+          for {
+            now <- IO.realTime.map(_.toMillis)
+            _ <- timestamps.update(_ :+ now)
+            n <- counter.updateAndGet(_ + 1)
+            resp <-
+              if (n == 1)
+                IO.pure(Response[IO](Status.ServiceUnavailable)
+                  .putHeaders(`Retry-After`.unsafeFromDuration(60.seconds)))
+              else if (n == 2) IO.raiseError[Response[IO]](new RuntimeException("boom"))
+              else IO.pure(Response[IO](Status.Ok))
+          } yield resp
+        )
+      }
+
+      val retryClient = httpRetry[IO](zoneId, _.fixedDelay(1.second).repeat.limited(5))(client)
+      val req = Request[IO](Method.GET, uri"/retry-after-not-sticky")
+
+      for {
+        r <- retryClient.run(req).use(IO.pure)
+        n <- counter.get
+        ts <- timestamps.get
+      } yield {
+        assertEquals(r.status, Status.Ok)
+        assertEquals(n, 3)
+        assertEquals(ts(1) - ts(0), 60000L) // the header applies to the attempt right after it
+        assertEquals(ts(2) - ts(1), 1000L) // and not to the one after the raised error
+      }
+    }
+  }
+
   /** Serves a `Set-Cookie` on the first request and records the `Cookie` header of every request, so a test
     * can assert both what the store accepted and what was replayed.
     */
