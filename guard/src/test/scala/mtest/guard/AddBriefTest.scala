@@ -6,6 +6,8 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import io.circe.Json
 import munit.CatsEffectSuite
 
+import java.util.concurrent.atomic.AtomicInteger
+
 class AddBriefTest extends CatsEffectSuite {
 
   private val guard = TaskGuard[IO]("brief")
@@ -111,5 +113,20 @@ class AddBriefTest extends CatsEffectSuite {
         val arr = brief.asArray.get
         assert(arr.isEmpty)
       }
+  }
+
+  test("7.by-name brief is evaluated at service start, not when the config is built") {
+    val probe = new AtomicInteger(0)
+    val service =
+      guard.service("deferred").updateConfig(_.addBrief(s"probe-${probe.incrementAndGet()}"))
+
+    for {
+      _ <- IO(assertEquals(probe.get(), 0, "building the config must not force the brief"))
+      events <- service.eventStream(_ => IO.unit).map(checkJson).compile.toList
+      brief = events.head.asInstanceOf[ServiceStart].brief.value
+    } yield {
+      assertEquals(probe.get(), 1, "the brief is forced once, at service start")
+      assert(brief.asArray.get.contains(Json.fromString("probe-1")))
+    }
   }
 }

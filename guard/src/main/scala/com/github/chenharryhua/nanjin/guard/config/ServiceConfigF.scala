@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.derived.derived
-import cats.effect.kernel.Resource
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.applicative.given
 import cats.syntax.apply.given
-import cats.{Applicative, Endo, Functor}
+import cats.{Endo, Functor}
 import com.github.chenharryhua.nanjin.common.chrono.{zones, Policy}
 import com.github.chenharryhua.nanjin.common.logging.{LogLevel, LogLocator}
 import higherkindness.droste.data.Fix
@@ -86,12 +86,18 @@ sealed trait ServiceConfig[F[_]] {
 
   /** Add effectful JSON metadata to service lifecycle events.
     *
-    * The value is encoded when the service starts and included with start, panic, and stop events. It is not
-    * included with metrics snapshots or reported events.
+    * The effect runs, and its result is encoded, when the service starts; the metadata is then included with
+    * start, panic, and stop events. It is not included with metrics snapshots or reported events.
     */
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F]
 
-  /** Add by-name JSON metadata to service lifecycle events. */
+  /** Add by-name JSON metadata to service lifecycle events.
+    *
+    * `a` is evaluated when the service starts, not where the config is built, so a value read from a file or
+    * the environment reflects the state at launch. A failure while evaluating it surfaces as a service-start
+    * failure. The parameter is by-name rather than plain because a plain `A` would erase to the same
+    * signature as the `F[A]` overload.
+    */
   def addBrief[A: Encoder](a: => A): ServiceConfig[F]
 
   /** Enable the embedded HTTP server and configure its Ember server builder.
@@ -120,7 +126,8 @@ sealed trait ServiceConfig[F[_]] {
     * The chart retains up to `maxPoints` recent samples per series, dropping older samples as new ones
     * arrive. The chart is served only when the HTTP server is enabled with `withHttpServer`.
     *
-    * A value of 1 or less disables the chart but leaves the HTTP server's other routes available.
+    * A value of 1 or less disables the chart but leaves the HTTP server's other routes available. A negative
+    * value is stored as zero, so the retained-sample count reported in `ServiceParams` is never negative.
     *
     * @param maxPoints
     *   maximum number of retained samples per series; 1 or less disables the chart
@@ -132,7 +139,7 @@ sealed trait ServiceConfig[F[_]] {
   /** Set in-memory history capacities for panics, errors, and metrics snapshots.
     *
     * Each history is a ring buffer exposed through the HTTP dashboard. A capacity of zero or less disables
-    * that history.
+    * that history, and is stored as zero, so the capacities reported in `ServiceParams` are never negative.
     *
     * @param panics
     *   maximum number of retained panics; zero or less disables the history
@@ -210,7 +217,7 @@ private object ServiceConfigF {
 
 private[guard] object ServiceConfig {
 
-  def apply[F[_]: Applicative](taskName: Task): ServiceConfig[F] =
+  def apply[F[_]: Sync](taskName: Task): ServiceConfig[F] =
     Impl[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
@@ -222,7 +229,7 @@ private[guard] object ServiceConfig {
       tracerProvider = Resource.pure(TracerProvider.noop[F])
     )
 
-  final private[guard] case class Impl[F[_]: Applicative] private[ServiceConfig] (
+  final private[guard] case class Impl[F[_]: Sync] private[ServiceConfig] (
     cont: Fix[ServiceConfigF],
     zoneId: ZoneId,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]],
@@ -256,10 +263,20 @@ private[guard] object ServiceConfig {
     override def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] =
       copy(briefs = (fa, briefs).mapN(_.asJson :: _))
 
-    override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
+    // `delay`, not `a.pure[F]`: `pure` takes its argument by value, so routing the by-name parameter
+    // through it forced `a` at the call site and only the encoding was ever deferred. Suspending it is why
+    // this config needs `Sync` rather than `Applicative`.
+    override def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(Sync[F].delay(a))
 
+    // A non-positive argument switches the history off, which `Capacity` represents as zero; clamping keeps
+    // that documented idiom working and keeps a negative out of `ServiceParams` JSON.
     override def withHistoryCapacity(panics: Int, errors: Int, metrics: Int): ServiceConfig[F] =
-      copy(cont = Fix(WithHistoryCapacity(Capacity(panics), Capacity(errors), Capacity(metrics), cont)))
+      copy(cont = Fix(
+        WithHistoryCapacity(
+          Capacity(panics.max(0)),
+          Capacity(errors.max(0)),
+          Capacity(metrics.max(0)),
+          cont)))
 
     override def withLog(f: LogLevel.type => LogLevel, g: LogFormat.type => LogFormat): ServiceConfig[F] =
       copy(
@@ -272,8 +289,9 @@ private[guard] object ServiceConfig {
     override def withLogLocator(logLocator: F[Option[LogLocator]]): ServiceConfig[F] =
       copy(logLocator = logLocator)
 
+    // Clamped for the same reason as `withHistoryCapacity`; the chart is off at 1 or less either way.
     override def withDashboard(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
-      copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints), cont)))
+      copy(cont = Fix(WithDashboardPolicy(f(Policy), Capacity(maxPoints.max(0)), cont)))
 
     override def withMeterProvider(meterProvider: Resource[F, MeterProvider[F]]): ServiceConfig[F] =
       copy(meterProvider = meterProvider)

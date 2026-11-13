@@ -178,6 +178,18 @@ object UpTime:
 end UpTime
 
 // ---------------- Capacity ----------------
+/** The size of a bounded, in-memory collection: a history ring buffer, or the dashboard chart's retained
+  * sample count.
+  *
+  * Deliberately unvalidated. A non-positive capacity is the "disabled" sentinel every use site understands —
+  * `History.apply` returns a no-op history for `<= 0` and `HttpServer` serves no chart for `<= 1` — and it
+  * round-trips through JSON as itself, which `ConfigCodecTest` pins. Do not add a `require` here: it breaks
+  * that sentinel contract.
+  *
+  * The builders that take a plain `Int` (`withHistoryCapacity`, `withDashboard`) nevertheless normalize a
+  * negative argument to zero, so one representation of "off" reaches `ServiceParams` JSON rather than
+  * whatever negative a caller happened to pass.
+  */
 opaque type Capacity = Int
 object Capacity:
   def apply(value: Int): Capacity = value
