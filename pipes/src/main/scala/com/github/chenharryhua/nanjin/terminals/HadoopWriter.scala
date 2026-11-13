@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.given
 import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import fs2.Chunk
 import io.circe.{Json, Printer}
@@ -56,16 +58,25 @@ private object HadoopWriter {
     * `DataFileWriter` is configured with `codecFactory` (its own block compression, independent of any
     * path-extension codec) and creates the file over a freshly created `FSDataOutputStream`. Each `write`
     * appends the chunk's records and flushes so the block is pushed to the stream.
+    *
+    * Creating the stream and the writer over it in one `F.blocking` left a failing `dfw.create` with no way
+    * to close the stream it had already opened, so the stream is created in its own step and closed by
+    * `onError` if the writer cannot be built. Two nested `Resource`s would not do: `DataFileWriter.close`
+    * closes the stream it was given, so the outer release would close it a second time. `onError` covers
+    * every exit because a `Resource` acquisition is uncancelable, leaving failure as the only way out.
     */
   def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
       .fromAutoCloseable(F.blocking {
         val path: Path = toHadoopPath(url)
-        val dfw: DataFileWriter[GenericRecord] =
-          new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
-        val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
-        dfw.create(schema, os)
+        path.getFileSystem(configuration).create(path, true)
+      }.flatMap { (os: FSDataOutputStream) =>
+        F.blocking {
+          val dfw: DataFileWriter[GenericRecord] =
+            new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
+          dfw.create(schema, os)
+        }.onError { case _ => F.blocking(os.close()) }
       })
       .map { (dfw: DataFileWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
@@ -99,28 +110,37 @@ private object HadoopWriter {
    */
 
   /** Create (overwriting) the file at `url` and return its `OutputStream`, wrapping it in a compressing
-    * stream when the path extension names a codec. Blocking; callers wrap it in `Resource`/`F.blocking`.
+    * stream when the path extension names a codec.
+    *
+    * Creating the file and wrapping it are separate steps so that a failure to resolve the codec or to build
+    * the wrapper closes the file stream instead of leaking it. The wrapper owns the file stream once built
+    * (closing the wrapper closes the stream, and a bzip2 stream closed twice throws
+    * `ClosedChannelException`), which is why the cleanup is conditional on failure rather than a second
+    * `Resource`. Unlike `HadoopReader.input_stream_r`, where the decompressor is pooled and the streams are
+    * independent, these two cannot be nested.
     */
-  private def file_output_stream(configuration: Configuration, url: Url): OutputStream = {
+  private def file_output_stream[F[_]](configuration: Configuration, url: Url)(using
+    F: Sync[F]): F[OutputStream] = {
     val path: Path = toHadoopPath(url)
-    val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
-    Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) => cc.createOutputStream(os)
-      case None     => os
+    F.blocking(path.getFileSystem(configuration).create(path, true)).flatMap { (os: FSDataOutputStream) =>
+      F.blocking(Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
+        case Some(cc) => cc.createOutputStream(os)
+        case None     => os
+      }).onError { case _ => F.blocking(os.close()) }
     }
   }
 
   /** `file_output_stream` acquired as an auto-closeable `Resource`; the shared entry point for the
     * output-stream-based sinks below.
     */
-  private def outputStreamR[F[_]](configuration: Configuration, url: Url)(using
+  private def output_stream_r[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStream] =
-    Resource.fromAutoCloseable(F.blocking(file_output_stream(configuration, url)))
+    Resource.fromAutoCloseable(file_output_stream[F](configuration, url))
 
   /** Write raw bytes: each chunk is written to the output stream and flushed. */
   def byteR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    outputStreamR[F](configuration, url).map(os =>
+    output_stream_r[F](configuration, url).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(cb: Chunk[Byte]): F[Unit] =
           F.blocking {
@@ -134,7 +154,7 @@ private object HadoopWriter {
     */
   def protobufR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
-    outputStreamR[F](configuration, url).map { os =>
+    output_stream_r[F](configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
         override def write(cgm: Chunk[GeneratedMessage]): F[Unit] =
           F.blocking {
@@ -151,12 +171,12 @@ private object HadoopWriter {
     * encoder. Unlike `avroR` this writes bare records with no object-container header, so the reader must be
     * told the schema out of band (see `HadoopReader.jacksonS`/`binAvroS`).
     */
-  private def genericRecordWriterR[F[_]](
+  private def generic_record_writer_r[F[_]](
     get_encoder: OutputStream => Encoder,
     configuration: Configuration,
     schema: Schema,
     url: Url)(using F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR[F](configuration, url).map { os =>
+    output_stream_r[F](configuration, url).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       val encoder = get_encoder(os)
       new HadoopWriter[F, GenericRecord] {
@@ -173,7 +193,7 @@ private object HadoopWriter {
     */
   def jacksonR[F[_]](configuration: Configuration, schema: Schema, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    genericRecordWriterR[F](
+    generic_record_writer_r[F](
       (os: OutputStream) => EncoderFactory.get().jsonEncoder(schema, os),
       configuration,
       schema,
@@ -184,7 +204,7 @@ private object HadoopWriter {
     */
   def binAvroR[F[_]](configuration: Configuration, schema: Schema, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    genericRecordWriterR[F](
+    generic_record_writer_r[F](
       (os: OutputStream) => EncoderFactory.get().binaryEncoder(os, null),
       configuration,
       schema,
@@ -195,7 +215,7 @@ private object HadoopWriter {
     */
   def jsonNodeR[F[_]](configuration: Configuration, url: Url, objectWriter: ObjectWriter)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
-    outputStreamR[F](configuration, url).map { os =>
+    output_stream_r[F](configuration, url).map { os =>
       new HadoopWriter[F, JsonNode] {
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
           F.blocking {
@@ -215,17 +235,20 @@ private object HadoopWriter {
   /** The file output stream wrapped in a UTF-8 `OutputStreamWriter`; the shared entry point for the
     * character-based sinks (`stringR`, `kantanR`, `circeR`).
     */
-  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(using
+  private def output_stream_writer_r[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, OutputStreamWriter] =
-    Resource.fromAutoCloseable(
-      F.blocking(new OutputStreamWriter(file_output_stream(configuration, url), StandardCharsets.UTF_8)))
+    Resource.fromAutoCloseable(file_output_stream[F](configuration, url).flatMap { os =>
+      F.blocking(new OutputStreamWriter(os, StandardCharsets.UTF_8)).onError { case _ =>
+        F.blocking(os.close())
+      }
+    })
 
   /** Write strings as text, appending the platform line separator after each element, so each written string
     * occupies its own line (round-trips with `HadoopReader.stringS`).
     */
   def stringR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR[F](configuration, url).map(writer =>
+    output_stream_writer_r[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
@@ -250,7 +273,7 @@ private object HadoopWriter {
       case Header.Implicit         => Chunk.singleton(List("implicit header"))
       case Header.Explicit(header) => Chunk.singleton(header)
     }
-    outputStreamWriterR[F](configuration, url).map { osw =>
+    output_stream_writer_r[F](configuration, url).map { osw =>
       val writer: CsvWriter[Seq[String]] = internalCsvWriterEngine.writerFor(osw, csvConfiguration)
       new HadoopWriter[F, Seq[String]] {
         override def write(css: Chunk[Seq[String]]): F[Unit] =
@@ -268,7 +291,7 @@ private object HadoopWriter {
     */
   def circeR[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, HadoopWriter[F, Json]] =
-    outputStreamWriterR[F](configuration, url).map { writer =>
+    output_stream_writer_r[F](configuration, url).map { writer =>
       val printer = Printer.noSpaces
       new HadoopWriter[F, Json] {
         override def write(cs: Chunk[Json]): F[Unit] =

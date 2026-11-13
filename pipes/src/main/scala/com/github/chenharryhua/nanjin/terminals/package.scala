@@ -6,7 +6,7 @@ import cats.syntax.apply.given
 import cats.syntax.eq.given
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
-import io.circe.{Codec, HCursor, Json}
+import io.circe.{Codec, DecodingFailure, HCursor, Json}
 import io.lemonlabs.uri.{Uri, Url}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -23,8 +23,18 @@ import java.time.LocalDate
 import scala.annotation.tailrec
 import scala.util.Try
 
-given Codec[Url] = new Codec[Url] {
-  override def apply(c: HCursor): Result[Url] = c.as[URI].map(Uri(_).toUrl)
+given codecUrl: Codec[Url] = new Codec[Url] {
+
+  /** scala-uri parses any URI but only some of them are URLs: `Urn.toUrl` throws `UriConversionException`,
+    * which circe does not catch, so a payload like `urn:isbn:0451450523` has to be turned into a
+    * `DecodingFailure` here rather than escaping the decoder as a thrown exception.
+    */
+  override def apply(c: HCursor): Result[Url] =
+    c.as[URI].flatMap { (uri: URI) =>
+      Try(Uri(uri).toUrl).toEither.left.map(ex =>
+        DecodingFailure(s"not a url: $uri. ${ex.getMessage}", c.history))
+    }
+
   override def apply(a: Url): Json = a.toJavaURI.asJson
 }
 
@@ -59,7 +69,7 @@ def extractDate(url: Url): Option[LocalDate] = {
   go(url.path.parts.toList)
 }
 
-private def default_parquet_write_builder(
+private def defaultParquetWriteBuilder(
   configuration: Configuration,
   schema: Schema,
   f: Endo[Builder[GenericRecord]]): Reader[Url, Builder[GenericRecord]] =

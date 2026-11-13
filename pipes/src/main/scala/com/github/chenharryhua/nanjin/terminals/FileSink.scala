@@ -244,7 +244,7 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
 
   override def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int] = {
     val get_writer: GetWriter[GenericRecord] =
-      Reader(schema => HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url))
+      Reader(schema => HadoopWriter.parquetR[F](defaultParquetWriteBuilder(configuration, schema, f), url))
 
     generic_record_stream_step_leg(get_writer)
   }
