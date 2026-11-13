@@ -23,6 +23,26 @@ class CompressionCoverageTest extends FunSuite {
     Xz(_.Four),
     Zstandard(_.Five))
 
+  test("0.lz4raw decodes for parquet and is rejected for the stream formats") {
+    // Lz4Raw is Parquet-only: no Hadoop codec registers .lz4raw, so a stream format declaring it wrote
+    // uncompressed bytes under an LZ4 name. A payload stored before that was corrected now fails to
+    // decode, with the narrowing decoder's own message rather than a crash.
+    val stored: Json = Json.fromString("lz4raw")
+
+    assertEquals(stored.as[ParquetCompression], Right(Lz4Raw: ParquetCompression))
+
+    List(
+      stored.as[CirceCompression].left.map(_.getMessage),
+      stored.as[TextCompression].left.map(_.getMessage),
+      stored.as[KantanCompression].left.map(_.getMessage),
+      stored.as[JacksonCompression].left.map(_.getMessage),
+      stored.as[BinaryAvroCompression].left.map(_.getMessage)
+    ).foreach { result =>
+      assert(result.isLeft, result)
+      assert(result.left.exists(_.contains("does not support: Lz4Raw")), result)
+    }
+  }
+
   test("1.fileName covers every FileFormat branch") {
     val expected = List(
       FileFormat.Unknown -> "unknown.unknown.snappy",
@@ -157,9 +177,10 @@ class CompressionCoverageTest extends FunSuite {
       BinaryAvroCompression.Bzip2,
       BinaryAvroCompression.Gzip,
       BinaryAvroCompression.Lz4,
-      BinaryAvroCompression.Lz4Raw,
       BinaryAvroCompression.Deflate(_.One)
     )
+    // Lz4Raw is Parquet-only: no Hadoop codec registers .lz4raw, so the stream formats would have written
+    // uncompressed bytes under an LZ4 name.
     val parquet = List[ParquetCompression](
       ParquetCompression.Uncompressed,
       ParquetCompression.Snappy,
@@ -171,7 +192,7 @@ class CompressionCoverageTest extends FunSuite {
       ParquetCompression.Zstandard(_.One)
     )
 
-    assertEquals(binary.size, 7)
+    assertEquals(binary.size, 6)
     assertEquals(parquet.size, 8)
     assertEquals(JacksonCompression.Deflate(_.One).productPrefix, "Deflate")
     assertEquals(CirceCompression.Deflate(_.One).productPrefix, "Deflate")

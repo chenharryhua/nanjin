@@ -543,11 +543,11 @@ factory.
 | Format | Supported compression choices |
 | --- | --- |
 | Avro object container | Uncompressed, Snappy, Bzip2, Deflate, Xz, Zstandard |
-| Binary Avro | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Lz4Raw, Deflate |
-| Jackson Avro JSON | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Lz4Raw, Deflate |
-| Circe JSON | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Lz4Raw, Deflate |
-| Kantan CSV | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Lz4Raw, Deflate |
-| Text | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Lz4Raw, Deflate |
+| Binary Avro | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
+| Jackson Avro JSON | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
+| Circe JSON | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
+| Kantan CSV | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
+| Text | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
 | Protobuf | Uncompressed, Snappy, Bzip2, Gzip, Lz4, Deflate |
 | Parquet | Uncompressed, Snappy, Gzip, Lz4, Lz4Raw, Brotli, Lzo, Zstandard |
 | Raw bytes | Any codec recognized by Hadoop's `CompressionCodecFactory` from the path suffix |
@@ -740,14 +740,21 @@ planned:
 | `index` | 1-based file index within the rotation sequence |
 | `url` | Completed file URL |
 | `recordCount` | Number of records written to that file |
-| `create` | Local opening date-time |
-| `closed` | Local closing date-time |
+| `create` | Opening date-time, ISO with offset |
+| `closed` | Closing date-time, ISO with offset |
 | `window` | Formatted elapsed duration |
-| `zoneId` | Zone used to interpret `create` and `closed` |
+| `zoneId` | Zone the sink ran in |
 | `sequenceId` | Rotation sequence UUID |
 
+`create` and `closed` carry an offset, e.g. `2024-04-07T02:30:00+10:00`. They were bare local
+date-times before, which could not identify an instant during a fall-back overlap: the same local
+reading occurs twice, and decoding always chose the earlier offset, so a file opened in the second
+pass read back an hour early. The decoder accepts both forms, so JSON written before the change still
+decodes, with the ambiguity it always had. A consumer parsing these two keys as a bare
+`LocalDateTime` breaks; one parsing them as an ISO offset date-time, or as a display string, does not.
+
 `window` is write-only in the current codec. The encoder writes it, while the decoder ignores it and
-recomputes the duration from `create`, `closed`, and `zoneId`. JSON without `window` still decodes.
+recomputes the duration from `create` and `closed`. JSON without `window` still decodes.
 
 Changing a Scala identifier is wire-safe only when it leaves all suffixes, compression names,
 filenames, partition components, enum values, subtype tags, framing, and JSON keys unchanged.
