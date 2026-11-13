@@ -4,17 +4,20 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.pipes.jackson
 import com.github.chenharryhua.nanjin.terminals.{codecUrl, CreateRotateFile, RotateFile}
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import io.circe.Json
+import kantan.csv.CsvConfiguration.Header
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import munit.CatsEffectSuite
 import org.apache.avro.generic.{GenericData, GenericRecord}
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.{Instant, ZonedDateTime}
 import java.util.UUID
+import scala.concurrent.duration.DurationInt
 
 /** Tests covering behaviors flagged during module inspection that lacked direct coverage:
   *   - the hand-written `RotateFile` circe codec wire contract,
@@ -185,5 +188,105 @@ class InspectionGapsTest extends CatsEffectSuite {
 
   test("9.Url decoder still accepts a url") {
     assertEquals(decode[Url](""""s3://bucket/key.json""""), Right(Url.parse("s3://bucket/key.json")))
+  }
+
+  // -------------------- FileSink: what an empty input stream leaves behind --------------------
+
+  /** The sinks that take their Avro schema from the first record have no schema for an empty input, so
+    * `generic_record_stream_step_leg` returns `Pull.done` and the writer is never acquired - no file is
+    * created. Every other sink acquires its writer through `Stream.resource` before reading the input, so an
+    * empty input still leaves an empty file. This is what the `FileSink` class doc describes.
+    */
+  private def existsAfterEmpty(name: String, sink: Url => Pipe[IO, Nothing, Int]): IO[Boolean] = {
+    val path = root / "empty-input" / name
+    hdp.delete(path) >>
+      Stream.empty.through(sink(path)).compile.drain >>
+      hdp.exists(path)
+  }
+
+  test("10.schema-derived sinks write no file at all for an empty input") {
+    for {
+      avro <- existsAfterEmpty("panda.avro", p => hdp.sink(p).avro)
+      binAvro <- existsAfterEmpty("panda.binavro", p => hdp.sink(p).binAvro)
+      jackson <- existsAfterEmpty("panda.jackson.json", p => hdp.sink(p).jackson)
+      parquet <- existsAfterEmpty("panda.parquet", p => hdp.sink(p).parquet)
+    } yield {
+      assert(!avro, "avro")
+      assert(!binAvro, "binAvro")
+      assert(!jackson, "jackson")
+      assert(!parquet, "parquet")
+    }
+  }
+
+  test("11.the other sinks create an empty file for an empty input") {
+    for {
+      text <- existsAfterEmpty("empty.txt", p => hdp.sink(p).text)
+      circe <- existsAfterEmpty("empty.circe.json", p => hdp.sink(p).circe)
+      bytes <- existsAfterEmpty("empty.bin", p => hdp.sink(p).bytes)
+      kantan <- existsAfterEmpty("empty.csv", p => hdp.sink(p).kantan(_.withHeader(Header.None)))
+      jsonNode <- existsAfterEmpty("empty.node.json", p => hdp.sink(p).jsonNode(objectMapper.writer()))
+      protobuf <- existsAfterEmpty("empty.proto", p => hdp.sink(p).protobuf)
+      inputStream <- existsAfterEmpty("empty.is.bin", p => hdp.sink(p).inputStream(1.kb))
+    } yield {
+      assert(text, "text")
+      assert(circe, "circe")
+      assert(bytes, "bytes")
+      assert(kantan, "kantan")
+      assert(jsonNode, "jsonNode")
+      assert(protobuf, "protobuf")
+      assert(inputStream, "inputStream")
+    }
+  }
+
+  // -------------------- FileSource.jsonNode: blank lines are not a terminator --------------------
+
+  test("13.jsonNode skips blank lines and keeps reading to end of file") {
+    // The Scaladoc used to say an empty line terminates the stream. The implementation is
+    // text(chunkSize).filter(_.nonEmpty), so a blank line is skipped and the values after it are read.
+    val path = root / "json-node" / "with-blank-lines.json"
+    val lines = List("""{"i":1}""", "", """{"i":2}""", "", """{"i":3}""")
+
+    hdp.delete(path) >>
+      Stream.emits(lines).covary[IO].through(hdp.sink(path).text).compile.drain >>
+      hdp
+        .source(path)
+        .jsonNode(10, objectMapper.reader())
+        .compile
+        .toList
+        .map { nodes =>
+          assertEquals(nodes.size, 3)
+          assertEquals(nodes.map(_.get("i").asInt()), List(1, 2, 3))
+        }
+  }
+
+  // -------------------- RotateFile: recordCounts sum to the input consumed --------------------
+
+  test("14.a finite policy halts the rotating sink, so recordCounts cover only what it consumed") {
+    // mergeHaltBoth ends the pipe when the tick stream ends, which is why the RotateFile doc says the sum
+    // is the input CONSUMED rather than the input offered. Margins are wide on purpose: 20 elements at one
+    // per 300ms needs 6s, while two 500ms ticks run out after about 1s.
+    val path = root / "finite-policy"
+    val offered = 20
+
+    val data: Stream[IO, Json] =
+      Stream.emits(1 to offered).covary[IO].map(i => Json.obj("i" -> Json.fromInt(i))).metered(300.millis)
+
+    val sink = hdp
+      .rotateSink(sydneyTime, _.fixedDelay(500.millis).repeat.limited(2))(t => path / s"${t.index}.json")
+      .circe
+
+    hdp.delete(path) >> data.through(sink).compile.toList.map { files =>
+      val written = files.map(_.recordCount).sum
+      assert(written > 0, s"nothing was written: $files")
+      assert(written < offered.toLong, s"expected the sink to halt before consuming all input: $written")
+    }
+  }
+
+  test("12.an empty input through kantan still writes the configured header row") {
+    // kantanR emits the header from an evalTap on the acquired writer, before any input is read.
+    val path = root / "empty-input" / "header.csv"
+    hdp.delete(path) >>
+      Stream.empty.through(hdp.sink(path).kantan(_.withHeader("name", "age"))).compile.drain >>
+      hdp.source(path).text(10).compile.toList.map(lines => assertEquals(lines, List("name,age")))
   }
 }
