@@ -64,6 +64,59 @@ class InspectionGapsTest extends CatsEffectSuite {
     }
   }
 
+  test("1b.RotateFile survives a fall-back overlap, which the offset-free wire form could not") {
+    // Sydney 2024-04-07: 03:00 AEDT falls back to 02:00 AEST, so 02:30 happens twice - first at
+    // 15:30Z (+11:00), then at 16:30Z (+10:00). A bare local date-time plus zoneId cannot tell them
+    // apart, and atZone always picks the earlier offset, so the second pass decoded an hour early.
+    val secondPass: ZonedDateTime =
+      ZonedDateTime.of(2024, 4, 7, 2, 30, 0, 0, sydneyTime).withLaterOffsetAtOverlap
+    assertEquals(secondPass.toInstant, Instant.parse("2024-04-06T16:30:00Z"))
+
+    val file = RotateFile(
+      create = CreateRotateFile(
+        sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
+        index = 1L,
+        time = secondPass),
+      closed = secondPass.plusMinutes(20).toInstant,
+      url = root / "overlap.json",
+      recordCount = 5L
+    )
+
+    val json = file.asJson
+    assertEquals(json.hcursor.get[String]("create"), Right("2024-04-07T02:30:00+10:00"))
+
+    json.as[RotateFile] match {
+      case Right(rf) =>
+        assertEquals(rf.create.time.toInstant, file.create.time.toInstant)
+        assertEquals(rf.closed, file.closed)
+        assertEquals(rf.window, java.time.Duration.ofMinutes(20))
+        // What the old form produced: the earlier offset, an hour off.
+        val legacy = json
+          .mapObject(_.add("create", Json.fromString("2024-04-07T02:30:00")))
+          .mapObject(_.add("closed", Json.fromString("2024-04-07T02:50:00")))
+        val legacyDecoded = legacy.as[RotateFile].toOption.get
+        assertEquals(legacyDecoded.create.time.toInstant, Instant.parse("2024-04-06T15:30:00Z"))
+        assert(
+          legacyDecoded.create.time.toInstant.isBefore(rf.create.time.toInstant),
+          "the legacy form should decode an hour early")
+      case Left(err) => fail(s"decode failed: $err")
+    }
+  }
+
+  test("1c.RotateFile still decodes a legacy payload whose times carry no offset") {
+    val legacy = sampleRotateFile.asJson
+      .mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
+      .mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
+
+    legacy.as[RotateFile] match {
+      case Right(rf) =>
+        assertEquals(rf.create.time.getZone, sydneyTime)
+        assertEquals(rf.create.time.toLocalDateTime.toString, "2023-11-14T22:13:20")
+        assertEquals(rf.window, java.time.Duration.ofSeconds(123))
+      case Left(err) => fail(s"legacy decode failed: $err")
+    }
+  }
+
   test("2.RotateFile encoder emits exactly the documented wire keys") {
     val json = sampleRotateFile.asJson
     val keys = json.asObject.map(_.keys.toSet).getOrElse(Set.empty)

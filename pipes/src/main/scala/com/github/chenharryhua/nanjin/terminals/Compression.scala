@@ -229,9 +229,13 @@ object Compression {
     override val fileExtension: String = ".lz4"
   }
 
-  case object Lz4Raw
-      extends Compression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+  /** Parquet only, deliberately. `LZ4_RAW` is a real Parquet codec, but no Hadoop codec registers the
+    * `.lz4raw` extension, and the stream formats take their codec from the extension alone. Declaring this
+    * for them made `CompressionCodecFactory` return null, so writer and reader both fell through to the raw
+    * stream: an uncompressed file under a name claiming LZ4, which round-tripped only because the reader
+    * repeated the writer's mistake. Use `Lz4` (`.lz4`) for the stream formats.
+    */
+  case object Lz4Raw extends Compression with ParquetCompression {
     override val shortName: String = "lz4raw"
     override val fileExtension: String = ".lz4raw"
   }
@@ -285,7 +289,6 @@ object BinaryAvroCompression {
   val Bzip2: BinaryAvroCompression = Compression.Bzip2
   val Gzip: BinaryAvroCompression = Compression.Gzip
   val Lz4: BinaryAvroCompression = Compression.Lz4
-  val Lz4Raw: BinaryAvroCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): BinaryAvroCompression = Compression.Deflate(f)
 }
 
@@ -295,7 +298,6 @@ object JacksonCompression {
   val Bzip2: JacksonCompression = Compression.Bzip2
   val Gzip: JacksonCompression = Compression.Gzip
   val Lz4: JacksonCompression = Compression.Lz4
-  val Lz4Raw: JacksonCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): JacksonCompression = Compression.Deflate(f)
 }
 
@@ -305,7 +307,6 @@ object CirceCompression {
   val Bzip2: CirceCompression = Compression.Bzip2
   val Gzip: CirceCompression = Compression.Gzip
   val Lz4: CirceCompression = Compression.Lz4
-  val Lz4Raw: CirceCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): CirceCompression = Compression.Deflate(f)
 }
 
@@ -315,7 +316,6 @@ object KantanCompression {
   val Bzip2: KantanCompression = Compression.Bzip2
   val Gzip: KantanCompression = Compression.Gzip
   val Lz4: KantanCompression = Compression.Lz4
-  val Lz4Raw: KantanCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): KantanCompression = Compression.Deflate(f)
 }
 
@@ -325,7 +325,6 @@ object TextCompression {
   val Bzip2: TextCompression = Compression.Bzip2
   val Gzip: TextCompression = Compression.Gzip
   val Lz4: TextCompression = Compression.Lz4
-  val Lz4Raw: TextCompression = Compression.Lz4Raw
   def Deflate(f: Level.type => Level): TextCompression = Compression.Deflate(f)
 }
 
