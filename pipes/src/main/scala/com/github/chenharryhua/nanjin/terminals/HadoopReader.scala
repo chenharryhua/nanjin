@@ -172,6 +172,12 @@ private object HadoopReader {
     * it has at least `chunkSize`, then splits off exactly `chunkSize` and carries the remainder into the next
     * chunk; on end-of-input `parser.finish()` flushes any trailing value. A parse error is thrown from within
     * the blocking step so it surfaces as a stream failure.
+    *
+    * A single 128 KiB read can parse more than `chunkSize` values, so the carry-over is drained before any
+    * further read: `go` splits the values it already holds and emits them without touching the stream. That
+    * is what keeps every emitted chunk at `chunkSize` (the last one aside) - splitting the newly parsed
+    * values instead would be asked to split at a negative index, and fs2's `Chunk.splitAt` answers that with
+    * `(empty, this)`, emitting the whole carry-over at once.
     */
   def circeS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, Json] =
@@ -180,28 +186,33 @@ private object HadoopReader {
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
       @tailrec
-      def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) = {
-        val numBytes = is.read(buffer, 0, bufferSize)
-        if (numBytes === -1) {
-          parser.finish() match {
-            case Left(ex)     => throw ex // scalafix:ok
-            case Right(value) => (existing ++ Chunk.from(value), None)
-          }
+      def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) =
+        if (existCount >= chunkSize.value) {
+          val (first, second) = existing.splitAt(chunkSize.value)
+          (first, second.some)
         } else {
-          parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
-            case Left(ex)     => throw ex // scalafix:ok
-            case Right(value) =>
-              val size = value.size
-              val jsons = Chunk.from(value)
-              if ((existCount + size) < chunkSize.value)
-                go(existing ++ jsons, existCount + size)
-              else {
-                val (first, second) = jsons.splitAt(chunkSize.value - existCount)
-                (existing ++ first, second.some)
-              }
+          val numBytes = is.read(buffer, 0, bufferSize)
+          if (numBytes === -1) {
+            parser.finish() match {
+              case Left(ex)     => throw ex // scalafix:ok
+              case Right(value) => (existing ++ Chunk.from(value), None)
+            }
+          } else {
+            parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
+              case Left(ex)     => throw ex // scalafix:ok
+              case Right(value) =>
+                val size = value.size
+                val jsons = Chunk.from(value)
+                // existCount < chunkSize here, so this split index is always positive
+                if ((existCount + size) < chunkSize.value)
+                  go(existing ++ jsons, existCount + size)
+                else {
+                  val (first, second) = jsons.splitAt(chunkSize.value - existCount)
+                  (existing ++ first, second.some)
+                }
+            }
           }
         }
-      }
 
       Stream.unfoldChunkLoopEval[F, Chunk[Json], Json](Chunk.empty)(ck => F.blocking(go(ck, ck.size)))
     }
@@ -225,6 +236,8 @@ private object HadoopReader {
     * Parsing is driven by kantan's CSV engine using `csvConfiguration` (separator, quoting, header). When the
     * configuration declares a header, the first row is dropped so only data rows are emitted. Each row is a
     * `ReadResult`; `rethrow` turns a row-level parse failure into a stream error.
+    *
+    * The bytes are decoded as UTF-8, matching what `HadoopWriter.kantanR` writes.
     */
   def kantanS[F[_]](
     configuration: Configuration,
@@ -233,7 +246,8 @@ private object HadoopReader {
     csvConfiguration: CsvConfiguration)(using F: Sync[F]): Stream[F, Seq[String]] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val cr: CsvReader[ReadResult[Seq[String]]] =
-        ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
+        ReaderEngine.internalCsvReaderEngine
+          .readerFor(new InputStreamReader(is, StandardCharsets.UTF_8), csvConfiguration)
       val reader = if (csvConfiguration.hasHeader) cr.drop(1) else cr
       Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
     }

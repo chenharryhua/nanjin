@@ -3,8 +3,11 @@ package mtest.terminals
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.pipes.jackson
+import com.github.chenharryhua.nanjin.terminals.given
 import com.github.chenharryhua.nanjin.terminals.{CreateRotateFile, RotateFile}
 import fs2.Stream
+import io.circe.Json
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -140,5 +143,48 @@ class InspectionGapsTest extends CatsEffectSuite {
           assertEquals(readBack.head.get("name").toString, "zhouzhou")
         }
     }
+  }
+
+  // -------------------- circe source: chunk sizing --------------------
+
+  /** 1,000 tiny values fit in one 128 KiB read, so a single `absorb` parses far more than `chunkSize`. Before
+    * the carry-over was drained first, the next step split the newly parsed values at a negative index, and
+    * fs2 answers that with `(empty, this)` - so the second chunk carried everything left over.
+    */
+  private def chunkSizes(name: String, chunkSize: Int): IO[List[Int]] = {
+    val path = root / "chunking" / name
+    val data: Stream[IO, Json] = Stream.emits(1 to 1000).map(i => Json.obj("i" -> Json.fromInt(i)))
+    hdp.delete(path) >>
+      data.through(hdp.sink(path).circe).compile.drain >>
+      hdp.source(path).circe(chunkSize).chunks.map(_.size).compile.toList
+  }
+
+  test("6.circe source emits exactly chunkSize values per chunk when the size divides evenly") {
+    chunkSizes("even.json", 10).map { sizes =>
+      assertEquals(sizes.sum, 1000)
+      assertEquals(sizes, List.fill(100)(10))
+    }
+  }
+
+  test("7.circe source emits a short final chunk and full chunks before it") {
+    chunkSizes("uneven.json", 7).map { sizes =>
+      assertEquals(sizes.sum, 1000)
+      assertEquals(sizes.init, List.fill(142)(7))
+      assertEquals(sizes.last, 6)
+    }
+  }
+
+  // -------------------- Url codec: a URI that is not a URL --------------------
+
+  test("8.Url decoder fails a URN instead of throwing out of the decoder") {
+    // scala-uri's Urn.toUrl throws UriConversionException, which circe does not catch, so before the
+    // decoder guarded the conversion this call threw rather than returning a Left.
+    val result = decode[Url](""""urn:isbn:0451450523"""")
+    assert(result.isLeft, result)
+    assert(result.left.exists(_.getMessage.contains("not a url")), result)
+  }
+
+  test("9.Url decoder still accepts a url") {
+    assertEquals(decode[Url](""""s3://bucket/key.json""""), Right(Url.parse("s3://bucket/key.json")))
   }
 }
