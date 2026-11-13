@@ -215,8 +215,9 @@ sealed trait FileSource[F[_]] {
 
   /** Read JSON tree values with a Jackson `ObjectReader`.
     *
-    * Use this as `hadoop.source(path).jsonNode(chunkSize, objectReader)`. Input is read as text and an empty
-    * line terminates the stream; each non-empty line is parsed into one `JsonNode`.
+    * Use this as `hadoop.source(path).jsonNode(chunkSize, objectReader)`. Input is read as text, blank lines
+    * are skipped, and every other line is parsed into one `JsonNode`. The stream ends at end of file: a blank
+    * line is not a terminator.
     *
     * @param chunkSize
     *   Maximum number of JSON values in each emitted chunk. Must be positive.

@@ -33,6 +33,11 @@ import java.io.InputStream
   * Each operation creates or overwrites the configured output when the stream is run, closes its writer when
   * the stream finishes, and emits an `Int` for each input chunk. The `Int` is the number of values or bytes
   * written in that chunk, not a final total. Use `.compile.fold(0)(_ + _)` when a total is required.
+  *
+  * An empty input is where the sinks differ. `avro`, `binAvro`, `jackson` and `parquet` take their Avro
+  * schema from the first record, so with nothing to read they never open a writer and no file is created at
+  * all - not even an empty one. Every other sink opens its writer before reading the input, so an empty input
+  * leaves an empty file (`kantan` leaves a header row, where the configuration asks for one).
   */
 sealed trait FileSink[F[_]] {
 

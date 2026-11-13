@@ -39,9 +39,12 @@ final case class CreateRotateFile(
   * The file identified by `url` contains exactly `recordCount` records written while that tick window was
   * active.
   *
-  * Invariants typically guaranteed by rotation sinks:
+  * What the rotation sinks guarantee:
   *
-  *   - the sum of `recordCount` equals the total number of input records
+  *   - the sum of `recordCount` over the emitted files equals the number of input elements the sink consumed,
+  *     which is not the same as the number of elements upstream offered: the sinks run the data against the
+  *     tick stream with `mergeHaltBoth`, so under a finite policy the pipe halts when the ticks run out and
+  *     the remaining input is never written
   *   - records in this file belong exclusively to the time window
   *   - `create.time`: the moment when the file was opened for writing
   *   - `closed`: the moment when the file was closed
