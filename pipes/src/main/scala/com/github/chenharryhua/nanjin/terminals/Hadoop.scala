@@ -37,7 +37,7 @@ sealed trait Hadoop[F[_]] {
   def exists(path: Url)(using F: Sync[F]): F[Boolean]
 
   /** Recursively list all files under the given path. */
-  def locatedFileStatus(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]]
+  def locatedFileStatuses(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]]
 
   /** Retrieve all folders that contain at least one file under the given path. Non-leaf directories that
     * contain no files are excluded.
@@ -171,7 +171,7 @@ object Hadoop {
         fs.exists(hp)
       }
 
-    override def locatedFileStatus(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]] =
+    override def locatedFileStatuses(path: Url)(using F: Sync[F]): F[List[LocatedFileStatus]] =
       F.blocking {
         val hp: Path = toHadoopPath(path)
         val fs: FileSystem = hp.getFileSystem(config)

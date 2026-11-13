@@ -56,7 +56,7 @@ private object HadoopReader {
     * filters, Hadoop `Configuration`, etc.), so the caller controls how the file is read. The reader is
     * pulled in chunks: `go` calls `reader.read()` up to `chunkSize` times, stopping early on the `null` that
     * marks end-of-file, and signals completion by returning `None`. Unlike the other readers this does not go
-    * through `inputStreamS`, so codec detection is handled by Parquet itself.
+    * through `input_stream_s`, so codec detection is handled by Parquet itself.
     */
   def parquetS[F[_]](
     readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
@@ -98,7 +98,7 @@ private object HadoopReader {
     * bracketed separately rather than left to the codec), and the returned stream is the decompressing
     * wrapper. Otherwise the raw stream is returned unchanged.
     */
-  private def inputStreamR[F[_]](configuration: Configuration, url: Url)(using
+  private def input_stream_r[F[_]](configuration: Configuration, url: Url)(using
     F: Sync[F]): Resource[F, InputStream] = {
     val path = toHadoopPath(url)
     Resource.fromAutoCloseable(F.blocking(path.getFileSystem(configuration).open(path))).flatMap { is =>
@@ -114,23 +114,23 @@ private object HadoopReader {
     }
   }
 
-  /** `inputStreamR` lifted into a single-element `Stream`, the shared entry point for every
+  /** `input_stream_r` lifted into a single-element `Stream`, the shared entry point for every
     * input-stream-based reader below.
     */
-  private def inputStreamS[F[_]](configuration: Configuration, url: Url)(using
-    F: Sync[F]): Stream[F, InputStream] = Stream.resource[F, InputStream](inputStreamR(configuration, url))
+  private def input_stream_s[F[_]](configuration: Configuration, url: Url)(using
+    F: Sync[F]): Stream[F, InputStream] = Stream.resource[F, InputStream](input_stream_r(configuration, url))
 
   /** Read an Avro object-container file (embedded schema) as a stream of `GenericData.Record`.
     *
     * `DataFileStream` reads the writer schema from the file header; `readerSchema`, when supplied, drives
     * Avro schema resolution so records are decoded against the reader's expected shape (evolution), otherwise
     * the writer schema is used as-is. The stream is chunked at `chunkSize`. `DataFileStream` holds no
-    * resources beyond the `InputStream`, which `inputStreamS` already closes, so it needs no separate
+    * resources beyond the `InputStream`, which `input_stream_s` already closes, so it needs no separate
     * bracket.
     */
   def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize, readerSchema: Option[Schema])(
     using F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, url).flatMap { is =>
+    input_stream_s[F](configuration, url).flatMap { is =>
       val dfs = new DataFileStream[GenericData.Record](
         is,
         readerSchema match {
@@ -149,7 +149,7 @@ private object HadoopReader {
     */
   def byteS[F[_]](configuration: Configuration, url: Url, bs: Information)(using
     F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
+    input_stream_s[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = bs.toBytes.toInt
 
       @tailrec
@@ -181,7 +181,7 @@ private object HadoopReader {
     */
   def circeS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, Json] =
-    inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
+    input_stream_s[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = 131072
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
@@ -224,7 +224,7 @@ private object HadoopReader {
     */
   def stringS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(using
     F: Sync[F]): Stream[F, String] =
-    inputStreamS[F](configuration, url).flatMap { is =>
+    input_stream_s[F](configuration, url).flatMap { is =>
       val reader = new InputStreamReader(is, StandardCharsets.UTF_8)
       val buffered = new BufferedReader(reader)
       val iterator = buffered.lines().iterator().asScala
@@ -244,7 +244,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize,
     csvConfiguration: CsvConfiguration)(using F: Sync[F]): Stream[F, Seq[String]] =
-    inputStreamS[F](configuration, url).flatMap { is =>
+    input_stream_s[F](configuration, url).flatMap { is =>
       val cr: CsvReader[ReadResult[Seq[String]]] =
         ReaderEngine.internalCsvReaderEngine
           .readerFor(new InputStreamReader(is, StandardCharsets.UTF_8), csvConfiguration)
@@ -266,14 +266,14 @@ private object HadoopReader {
     * count, end-of-file is detected by catching the `EOFException` thrown by `datumReader.read`, at which
     * point the records gathered so far are emitted and the stream completes (`None`).
     */
-  private def genericRecordReaderS[F[_]](
+  private def generic_record_reader_s[F[_]](
     get_decoder: InputStream => Decoder,
     configuration: Configuration,
     writerSchema: Schema,
     readerSchema: Schema,
     url: Url,
     chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, url).flatMap { is =>
+    input_stream_s[F](configuration, url).flatMap { is =>
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](writerSchema, readerSchema)
       val decoder: Decoder = get_decoder(is)
@@ -297,7 +297,7 @@ private object HadoopReader {
     }
 
   /** Read Avro records encoded as Avro JSON (the Jackson/`jsonEncoder` form, one schema-shaped JSON document
-    * per record) using `genericRecordReaderS` with a JSON `Decoder` built from `writerSchema`.
+    * per record) using `generic_record_reader_s` with a JSON `Decoder` built from `writerSchema`.
     */
   def jacksonS[F[_]](
     configuration: Configuration,
@@ -305,7 +305,7 @@ private object HadoopReader {
     readerSchema: Schema,
     url: Url,
     chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
-    genericRecordReaderS[F](
+    generic_record_reader_s[F](
       get_decoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(writerSchema, is),
       configuration = configuration,
       writerSchema = writerSchema,
@@ -314,9 +314,9 @@ private object HadoopReader {
       chunkSize = chunkSize
     )
 
-  /** Read raw binary Avro records (no object-container header, unlike `avroS`) using `genericRecordReaderS`
-    * with a binary `Decoder`. The `null` argument lets Avro allocate a fresh `BinaryDecoder` rather than
-    * reusing one.
+  /** Read raw binary Avro records (no object-container header, unlike `avroS`) using
+    * `generic_record_reader_s` with a binary `Decoder`. The `null` argument lets Avro allocate a fresh
+    * `BinaryDecoder` rather than reusing one.
     */
   def binAvroS[F[_]](
     configuration: Configuration,
@@ -324,7 +324,7 @@ private object HadoopReader {
     readerSchema: Schema,
     url: Url,
     chunkSize: ChunkSize)(using F: Sync[F]): Stream[F, GenericData.Record] =
-    genericRecordReaderS[F](
+    generic_record_reader_s[F](
       get_decoder = (is: InputStream) => DecoderFactory.get.binaryDecoder(is, null),
       configuration = configuration,
       writerSchema = writerSchema,
@@ -346,7 +346,7 @@ private object HadoopReader {
     configuration: Configuration,
     url: Url,
     chunkSize: ChunkSize)(using gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
-    inputStreamS[F](configuration, url).flatMap { is =>
+    input_stream_s[F](configuration, url).flatMap { is =>
       Stream.fromBlockingIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
 

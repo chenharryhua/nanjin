@@ -3,8 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.pipes.jackson
-import com.github.chenharryhua.nanjin.terminals.given
-import com.github.chenharryhua.nanjin.terminals.{CreateRotateFile, RotateFile}
+import com.github.chenharryhua.nanjin.terminals.{codecUrl, CreateRotateFile, RotateFile}
 import fs2.Stream
 import io.circe.Json
 import io.circe.jawn.decode

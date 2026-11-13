@@ -150,7 +150,7 @@ An `s3://` URL is normalized to `s3a://`; ensure the S3A implementation and cred
 | API | Behavior |
 | --- | --- |
 | `exists(path)` | Tests whether a file or directory exists |
-| `locatedFileStatus(path)` | Recursively lists files |
+| `locatedFileStatuses(path)` | Recursively lists files |
 | `dataFolders(path)` | Returns folders that directly contain discovered files |
 | `emptyFolders(path)` | Recursively finds empty directories |
 | `filesIn(path)` | Lists direct, non-hidden files ordered by modification time; a file path returns itself |

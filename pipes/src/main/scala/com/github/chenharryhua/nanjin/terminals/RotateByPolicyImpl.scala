@@ -199,7 +199,7 @@ final private class RotateByPolicyImpl[F[_]: Async](
   // parquet
   override def parquet(f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
     def get_writer(schema: Schema): GetWriter[GenericRecord] = Reader { url =>
-      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url)
+      HadoopWriter.parquetR[F](defaultParquetWriteBuilder(configuration, schema, f), url)
     }
 
     generic_record_stream_peek_one(get_writer)
@@ -207,7 +207,7 @@ final private class RotateByPolicyImpl[F[_]: Async](
 
   override def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
     val get_writer: GetWriter[GenericRecord] = Reader { url =>
-      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url)
+      HadoopWriter.parquetR[F](defaultParquetWriteBuilder(configuration, schema, f), url)
     }
 
     (ss: Stream[F, GenericRecord]) => persist(ss.chunks, get_writer).stream

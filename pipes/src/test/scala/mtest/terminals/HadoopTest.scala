@@ -46,7 +46,7 @@ class HadoopTest extends CatsEffectSuite {
   test("3.exist") {
     for {
       exists <- hdp.exists(p1)
-      statuses <- hdp.locatedFileStatus(path)
+      statuses <- hdp.locatedFileStatuses(path)
     } yield {
       assert(exists)
       assert(statuses.count(_.isFile) >= 4)
@@ -239,7 +239,7 @@ class HadoopTest extends CatsEffectSuite {
     }
   }
 
-  test("20.locatedFileStatus on populated directory lists files") {
+  test("20.locatedFileStatuses on populated directory lists files") {
     val root = path / "located" / "populated"
     for {
       _ <- hdp.delete(root)
@@ -247,18 +247,18 @@ class HadoopTest extends CatsEffectSuite {
         File((root / "sub" / "one.txt").toString()).createFileIfNotExists(createParents = true)
         File((root / "sub" / "two.txt").toString()).createFileIfNotExists(createParents = true)
       }
-      statuses <- hdp.locatedFileStatus(root)
+      statuses <- hdp.locatedFileStatuses(root)
     } yield {
       assert(statuses.nonEmpty)
       assert(statuses.count(_.isFile) == 2)
     }
   }
 
-  test("21.locatedFileStatus on missing path is empty") {
+  test("21.locatedFileStatuses on missing path is empty") {
     val missing = path / "located" / "missing"
     for {
       _ <- hdp.delete(missing)
-      statuses <- hdp.locatedFileStatus(missing)
+      statuses <- hdp.locatedFileStatuses(missing)
     } yield assert(statuses.isEmpty)
   }
 

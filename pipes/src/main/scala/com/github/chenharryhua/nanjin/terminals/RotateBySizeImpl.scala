@@ -195,7 +195,7 @@ final private class RotateBySizeImpl[F[_]](
   // parquet
   override def parquet(f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
     def get_writer(schema: Schema): GetWriter[GenericRecord] = Reader { url =>
-      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url)
+      HadoopWriter.parquetR[F](defaultParquetWriteBuilder(configuration, schema, f), url)
     }
 
     generic_record_stream_step_leg(get_writer)

@@ -23,7 +23,7 @@ import java.time.LocalDate
 import scala.annotation.tailrec
 import scala.util.Try
 
-given Codec[Url] = new Codec[Url] {
+given codecUrl: Codec[Url] = new Codec[Url] {
 
   /** scala-uri parses any URI but only some of them are URLs: `Urn.toUrl` throws `UriConversionException`,
     * which circe does not catch, so a payload like `urn:isbn:0451450523` has to be turned into a
@@ -69,7 +69,7 @@ def extractDate(url: Url): Option[LocalDate] = {
   go(url.path.parts.toList)
 }
 
-private def default_parquet_write_builder(
+private def defaultParquetWriteBuilder(
   configuration: Configuration,
   schema: Schema,
   f: Endo[Builder[GenericRecord]]): Reader[Url, Builder[GenericRecord]] =
