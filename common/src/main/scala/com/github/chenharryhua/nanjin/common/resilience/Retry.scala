@@ -14,7 +14,7 @@ import io.circe.syntax.given
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
+import java.time.{Duration, Instant, OffsetDateTime, ZoneId}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -123,12 +123,12 @@ object Retry {
     extension (ra: Attempt)
       // observations
 
-      /** The zoned timestamp of this failure.
+      /** The timestamp of this failure.
         *
         * Sampled when the policy advances after the operation threw, not at the exact instant of the throw.
         * It is therefore shortly after the true failure by the policy-advance latency.
         */
-      def failedAt: ZonedDateTime = ra.tick.zoned(_.acquires)
+      def failedAt: OffsetDateTime = ra.tick.offset(_.acquires)
       def cause: Throwable = ra.cause
       def ordinal: Long = ra.tick.index
       def snooze: FiniteDuration = ra.tick.snooze.toScala
@@ -181,14 +181,14 @@ object Retry {
       */
     given Encoder[Decision] = Encoder.instance { rd =>
       val tick = rd.tick
-      val failed_at = tick.zoned(_.acquires).toOffsetDateTime.asJson
+      val failed_at = tick.offset(_.acquires).asJson
       val ordinal = tick.index.asJson
       val zone_id = tick.zoneId.asJson
       if (rd.accepted)
         Json.obj(
           "retry" -> true.asJson,
           "failed_at" -> failed_at,
-          "wakeup_at" -> tick.zoned(_.conclude).toOffsetDateTime.asJson,
+          "wakeup_at" -> tick.offset(_.conclude).asJson,
           "snooze" -> DurationFormatter.defaultFormatter.format(tick.snooze).asJson,
           "ordinal" -> ordinal,
           "zone_id" -> zone_id

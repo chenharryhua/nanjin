@@ -116,7 +116,7 @@ final private class RotateBySizeImpl[F[_]](
           for {
             _ <- writeChunk(first)
             now <- Pull.eval(F.realTimeInstant) // end of current tick
-            next = current.copy(index = current.index + 1, time = now.atZone(current.time.getZone))
+            next = current.copy(index = current.index + 1, time = now.atZone(zoneId).toOffsetDateTime)
             _ <- Pull.eval(hotswap.swap(get_writer(pathBuilder(next))))
             _ <- Pull.output1[F, RotateFile](
               RotateFile(
@@ -142,7 +142,7 @@ final private class RotateBySizeImpl[F[_]](
   private def persist[A](data: Stream[F, A], get_writer: GetWriter[A]): Stream[F, RotateFile] = {
     val resources: Resource[F, (NonEmptyHotswap[F, HadoopWriter[F, A]], CreateRotateFile)] =
       Resource.eval(Tick.seed[F](zoneId)).flatMap { tick =>
-        val crf = CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.commence))
+        val crf = CreateRotateFile(tick.sequenceId, tick.index + 1, tick.offset(_.commence))
         NonEmptyHotswap(get_writer(pathBuilder(crf))).map((_, crf))
       }
 

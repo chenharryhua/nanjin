@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.terminals.{CreateRotateFile, RotateWriteEx
 import io.lemonlabs.uri.Url
 import munit.FunSuite
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{OffsetDateTime, ZoneOffset}
 import java.util.UUID
 
 class RotateWriteExceptionTest extends FunSuite {
@@ -12,7 +12,7 @@ class RotateWriteExceptionTest extends FunSuite {
   private val CREATE = CreateRotateFile(
     sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
     index = 7L,
-    time = ZonedDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneId.of("UTC")))
+    time = OffsetDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC))
   private val URL = Url.parse("s3a://bucket/output/0007.data.avro")
 
   test("1.fields and cause preserve the failing rotation context") {

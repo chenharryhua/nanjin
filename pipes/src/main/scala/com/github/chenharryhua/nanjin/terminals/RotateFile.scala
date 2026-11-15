@@ -5,9 +5,9 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
-import org.typelevel.cats.time.zoneddatetimeInstances
+import org.typelevel.cats.time.offsetdatetimeInstances
 
-import java.time.{Duration, Instant, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
+import java.time.{Duration, Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.UUID
 
 /** Instruction to create a new rotated file.
@@ -29,7 +29,7 @@ import java.util.UUID
 final case class CreateRotateFile(
   sequenceId: UUID,
   index: Long,
-  time: ZonedDateTime
+  time: OffsetDateTime
 )
 
 /** Result of a completed rotation window.
@@ -62,8 +62,9 @@ object RotateFile {
     * earlier one - which decoded any file opened in the second pass an hour early and could shrink, zero or
     * invert `window`. The encoder already knew the offset and used to discard it with `.toLocalDateTime`.
     *
-    * `zoneId` is still written and still needed: the offset alone cannot rebuild the zone the sink ran in.
-    * `OffsetDateTime` is preferred over `ZonedDateTime` because circe renders the latter as
+    * `zoneId` remains in the payload for compatibility and to interpret legacy local date-times. New
+    * `CreateRotateFile` values retain only the offset, not the original region zone. `OffsetDateTime` is
+    * preferred over `ZonedDateTime` because circe renders the latter as
     * `2024-04-07T02:30+10:00[Australia/Sydney]`, duplicating `zoneId`. This mirrors `Tick`'s wire format.
     */
   given Encoder[RotateFile] =
@@ -72,23 +73,16 @@ object RotateFile {
         "index" -> Json.fromLong(a.create.index),
         "url" -> a.url.asJson,
         "recordCount" -> Json.fromLong(a.recordCount),
-        "create" -> a.create.time.toOffsetDateTime.asJson,
-        "closed" -> a.closed.atZone(a.create.time.getZone).toOffsetDateTime.asJson,
+        "create" -> a.create.time.asJson,
+        "closed" -> a.closed.atZone(a.create.time.getOffset).asJson,
         "window" -> defaultFormatter.format(a.window).asJson,
-        "zoneId" -> a.create.time.getZone.asJson,
+        "zoneId" -> a.create.time.getOffset.asJson,
         "sequenceId" -> a.create.sequenceId.asJson
       )
 
-  /** Read a timestamp in either form: the offset-bearing one written now, or a legacy bare local date-time,
-    * which `zoneId` interprets with exactly the ambiguity it always had. The two circe decoders are mutually
-    * exclusive - a bare string fails `ISO_OFFSET_DATE_TIME` and an offset-bearing string fails
-    * `ISO_LOCAL_DATE_TIME` - so the fallback cannot mask a real failure. `zoneId` must therefore be read
-    * before the timestamps.
-    */
-  private def read_zoned(c: HCursor, key: String, zoneId: ZoneId): Decoder.Result[ZonedDateTime] =
+  private def read_offset(c: HCursor, key: String, zoneId: ZoneId): Decoder.Result[OffsetDateTime] =
     c.get[OffsetDateTime](key)
-      .map(_.atZoneSameInstant(zoneId))
-      .orElse(c.get[LocalDateTime](key).map(_.atZone(zoneId)))
+      .orElse(c.get[LocalDateTime](key).map(_.atZone(zoneId).toOffsetDateTime))
 
   given Decoder[RotateFile] =
     (c: HCursor) =>
@@ -96,8 +90,8 @@ object RotateFile {
         sid <- c.get[UUID]("sequenceId")
         idx <- c.get[Long]("index")
         zoneId <- c.get[ZoneId]("zoneId")
-        create <- read_zoned(c, "create", zoneId)
-        closed <- read_zoned(c, "closed", zoneId)
+        create <- read_offset(c, "create", zoneId)
+        closed <- read_offset(c, "closed", zoneId)
         url <- c.get[Url]("url")
         recordCount <- c.get[Long]("recordCount")
       } yield RotateFile(

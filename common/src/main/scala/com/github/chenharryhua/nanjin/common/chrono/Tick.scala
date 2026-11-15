@@ -76,6 +76,7 @@ final case class Tick(
 
   def zoned(f: this.type => Instant): ZonedDateTime = f(this).atZone(zoneId)
   def local(f: this.type => Instant): LocalDateTime = zoned(f).toLocalDateTime
+  def offset(f: this.type => Instant): OffsetDateTime = zoned(f).toOffsetDateTime
 
   // window = active  +  snooze
 
@@ -159,14 +160,14 @@ object Tick {
     (a: Tick) =>
       Json.obj(
         "index" -> Json.fromLong(a.index),
-        "commence" -> a.zoned(_.commence).toOffsetDateTime.asJson,
-        "acquires" -> a.zoned(_.acquires).toOffsetDateTime.asJson,
-        "conclude" -> a.zoned(_.conclude).toOffsetDateTime.asJson,
+        "commence" -> a.offset(_.commence).asJson,
+        "acquires" -> a.offset(_.acquires).asJson,
+        "conclude" -> a.offset(_.conclude).asJson,
         "active" -> fmt.format(a.active).asJson,
         "snooze" -> fmt.format(a.snooze).asJson,
         "window" -> fmt.format(a.window).asJson,
         "sequence_id" -> a.sequenceId.asJson,
-        "launch_time" -> a.zoned(_.launchTime).toOffsetDateTime.asJson,
+        "launch_time" -> a.offset(_.launchTime).asJson,
         "zone_id" -> a.zoneId.asJson
       )
 
