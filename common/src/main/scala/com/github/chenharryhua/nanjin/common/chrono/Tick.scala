@@ -171,33 +171,16 @@ object Tick {
         "zone_id" -> a.zoneId.asJson
       )
 
-  /** Read one timestamp back as an instant, accepting either serialized form.
-    *
-    * The current form carries the offset, so the instant is exact. A payload written before that carries only
-    * a wall-clock reading, which a zone cannot always resolve: a zone is a schedule of offsets, and during a
-    * fall-back one reading covers two instants an hour apart. Such a payload is still accepted, resolved as
-    * it always was by `atZone` choosing the earlier offset, so stored events keep decoding with their
-    * original ambiguity rather than failing.
-    *
-    * The two forms cannot be confused: a bare reading fails `ISO_OFFSET_DATE_TIME` and an offset-bearing one
-    * fails `ISO_LOCAL_DATE_TIME`.
-    */
-  private def read_instant(c: HCursor, field: String, zoneId: ZoneId): Decoder.Result[Instant] =
-    c.get[OffsetDateTime](field)
-      .map(_.toInstant)
-      .orElse(c.get[LocalDateTime](field).map(_.atZone(zoneId).toInstant))
-
   given Decoder[Tick] =
     (c: HCursor) =>
       for {
         sequenceId <- c.get[UUID]("sequence_id")
-        // read before the timestamps, which need it to resolve the legacy form
         zoneId <- c.get[ZoneId]("zone_id")
         index <- c.get[Long]("index")
-        launchTime <- read_instant(c, "launch_time", zoneId)
-        commence <- read_instant(c, "commence", zoneId)
-        acquires <- read_instant(c, "acquires", zoneId)
-        conclude <- read_instant(c, "conclude", zoneId)
+        launchTime <- c.get[OffsetDateTime]("launch_time").map(_.toInstant)
+        commence <- c.get[OffsetDateTime]("commence").map(_.toInstant)
+        acquires <- c.get[OffsetDateTime]("acquires").map(_.toInstant)
+        conclude <- c.get[OffsetDateTime]("conclude").map(_.toInstant)
       } yield Tick(
         sequenceId = sequenceId,
         launchTime = launchTime,

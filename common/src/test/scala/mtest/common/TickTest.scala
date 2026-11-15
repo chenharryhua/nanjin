@@ -7,7 +7,7 @@ import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import munit.FunSuite
 
-import java.time.{Duration, Instant, LocalDateTime, ZoneId}
+import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 
 class TickTest extends FunSuite {
@@ -161,24 +161,6 @@ class TickTest extends FunSuite {
     assertEquals(decoded.conclude, t.conclude)
     assertEquals(decoded.snooze, Duration.ofMinutes(20))
     assert(!decoded.conclude.isBefore(decoded.acquires), "the frame must not invert")
-  }
-
-  test("8c.Tick decoding still accepts the earlier offset-free form") {
-    // Payloads written before the offset was serialized carry only a wall-clock reading. They must keep
-    // decoding, resolved as they always were by atZone choosing the earlier offset for an ambiguous one.
-    val zone = ZoneId.of("Europe/Berlin")
-    val legacy =
-      s"""{"index":7,"commence":"2026-10-25T02:30:00","acquires":"2026-10-25T02:00:00",
-         |"conclude":"2026-10-25T02:30:00","sequence_id":"$uuid",
-         |"launch_time":"2026-10-25T02:20:00","zone_id":"Europe/Berlin"}""".stripMargin
-
-    val decoded = decode[Tick](legacy).toOption.get
-    assertEquals(decoded.zoneId, zone)
-    assertEquals(decoded.index, 7L)
-    // the earlier offset, +02:00, is what atZone picks for the ambiguous readings
-    assertEquals(decoded.commence, Instant.parse("2026-10-25T00:30:00Z"))
-    assertEquals(decoded.conclude, Instant.parse("2026-10-25T00:30:00Z"))
-    assertEquals(decoded.local(_.commence), LocalDateTime.parse("2026-10-25T02:30:00"))
   }
 
   test("9.Show[Tick] renders the toString form") {
