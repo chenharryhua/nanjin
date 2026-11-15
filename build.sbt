@@ -13,9 +13,9 @@ Global / parallelExecution := false
 // ==========================
 val avroV = "1.12.2"
 val avro4sV = "5.0.15"
-val awsV = "2.57.13"
+val awsV = "2.59.1"
 val catsCoreV = "2.13.0"
-val chimneyV = "2.1.0"
+val chimneyV = "2.1.1"
 val circeV = "0.14.17"
 val circeOpticsV = "0.15.1"
 val confluentV = "8.4.1"
@@ -33,7 +33,7 @@ val jacksonScalaV = "2.23.0"
 val jettyV = "12.1.15"
 val http4sV = "0.23.38"
 val log4catsV = "2.8.0"
-val logbackV = "1.6.6"
+val logbackV = "1.6.7"
 val lz4V = "1.14.0"
 val metricsV = "4.2.40"
 val monocleV = "3.3.0"
@@ -405,7 +405,7 @@ lazy val kafka = (project in file("kafka"))
       "at.yawk.lz4"       % "lz4-java"          % lz4V, // Snyk by kafka-schema-registry-client
       "org.xerial.snappy" % "snappy-java"       % snappyV, // Snyk by kafka-schema-registry-client
       "io.opentelemetry"  % "opentelemetry-api" % "1.68.0", // Snyk by kafka-client
-      "com.github.luben"  % "zstd-jni"          % "1.5.7-26" // Snyk by kafka-schema-registry-client
+      "com.github.luben"  % "zstd-jni"          % "1.5.7-28" // Snyk by kafka-schema-registry-client
     ) ++ testLib)
   .settings(dependencyOverrides ++= jackson_override)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
