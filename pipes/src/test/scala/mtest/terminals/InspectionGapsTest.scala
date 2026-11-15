@@ -15,7 +15,7 @@ import munit.CatsEffectSuite
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import squants.information.InformationConversions.InformationConversions
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
 
@@ -34,7 +34,7 @@ class InspectionGapsTest extends CatsEffectSuite {
     val create = CreateRotateFile(
       sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
       index = 7L,
-      time = ZonedDateTime.ofInstant(Instant.ofEpochSecond(1_700_000_000L), zone)
+      time = OffsetDateTime.ofInstant(Instant.ofEpochSecond(1_700_000_000L), zone)
     )
     RotateFile(
       create = create,
@@ -56,10 +56,10 @@ class InspectionGapsTest extends CatsEffectSuite {
         assertEquals(rf.recordCount, original.recordCount)
         assertEquals(rf.create.index, original.create.index)
         assertEquals(rf.create.sequenceId, original.create.sequenceId)
-        // Times survive the LocalDateTime+zoneId round-trip to the same instant.
+        // The serialized offset preserves the same instant.
         assertEquals(rf.create.time.toInstant, original.create.time.toInstant)
         assertEquals(rf.closed, original.closed)
-        assertEquals(rf.create.time.getZone, original.create.time.getZone)
+        assertEquals(rf.create.time.getOffset, original.create.time.getOffset)
       case Left(err) => fail(s"decode failed: $err")
     }
   }
@@ -76,7 +76,7 @@ class InspectionGapsTest extends CatsEffectSuite {
       create = CreateRotateFile(
         sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
         index = 1L,
-        time = secondPass),
+        time = secondPass.toOffsetDateTime),
       closed = secondPass.plusMinutes(20).toInstant,
       url = root / "overlap.json",
       recordCount = 5L
@@ -94,6 +94,7 @@ class InspectionGapsTest extends CatsEffectSuite {
         val legacy = json
           .mapObject(_.add("create", Json.fromString("2024-04-07T02:30:00")))
           .mapObject(_.add("closed", Json.fromString("2024-04-07T02:50:00")))
+          .mapObject(_.add("zoneId", sydneyTime.asJson))
         val legacyDecoded = legacy.as[RotateFile].toOption.get
         assertEquals(legacyDecoded.create.time.toInstant, Instant.parse("2024-04-06T15:30:00Z"))
         assert(
@@ -107,10 +108,13 @@ class InspectionGapsTest extends CatsEffectSuite {
     val legacy = sampleRotateFile.asJson
       .mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
       .mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
+      .mapObject(_.add("zoneId", sydneyTime.asJson))
 
     legacy.as[RotateFile] match {
       case Right(rf) =>
-        assertEquals(rf.create.time.getZone, sydneyTime)
+        assertEquals(
+          rf.create.time.toInstant,
+          LocalDateTime.parse("2023-11-14T22:13:20").atZone(sydneyTime).toInstant)
         assertEquals(rf.create.time.toLocalDateTime.toString, "2023-11-14T22:13:20")
         assertEquals(rf.window, java.time.Duration.ofSeconds(123))
       case Left(err) => fail(s"legacy decode failed: $err")

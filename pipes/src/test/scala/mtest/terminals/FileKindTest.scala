@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.terminals.*
 import io.circe.syntax.EncoderOps
 import munit.FunSuite
 
-import java.time.{LocalDateTime, ZoneId, ZonedDateTime}
+import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 import java.util.UUID
 
 class FileKindTest extends FunSuite {
@@ -24,7 +24,7 @@ class FileKindTest extends FunSuite {
   private val CREATE = CreateRotateFile(
     sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
     index = 7L,
-    time = ZonedDateTime.of(TIME, ZoneId.of("UTC")))
+    time = OffsetDateTime.of(TIME, ZoneOffset.UTC))
 
   test("1.every FileKind carries its format and expected uncompressed file name") {
     CASES.foreach { case (kind, format, file_name) =>
