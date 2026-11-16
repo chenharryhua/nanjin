@@ -17,7 +17,7 @@ import scala.concurrent.duration.*
 // Fixed delay between ticks
 val p1 = Policy.fixedDelay(5.seconds)
 
-// Fixed rate (wall-clock aligned)
+// Fixed rate (cadence anchored to the tick sequence)
 val p2 = Policy.fixedRate(1.minute)
 
 // Cron expression
@@ -25,7 +25,7 @@ val p3 = Policy.crontab(_.hourly)
 
 // Combinators
 val p4 = Policy.fixedDelay(1.second, 2.seconds, 4.seconds) // escalating delays
-  .limited(10)           // at most 10 ticks
+  .repeat.limited(10)    // repeat the delays for up to 10 ticks
   .jitter(0.millis, 500.millis)  // random jitter per tick
   .followedBy(Policy.fixedDelay(30.seconds)) // switch policy after exhaustion
   .repeat              // restart from the beginning when exhausted
@@ -45,9 +45,9 @@ val p5 = Policy.crontab(_.hourly).except(localTimes.noon).offset(100.millis)
 val p6 = Policy.crontab(_.daily.midnight).repeat.except(localTimes.midnight) // never ticks
 ```
 
-Drawbacks:
-- Internally uses Droste's `Fix` recursion scheme — not exposed to users but adds a transitive dependency.
-- `fixedRate` catch-up behavior (skipping missed ticks) can surprise users who expect strict 1:1 tick emission.
+`fixedRate` maintains cadence from the previous tick's conclusion, rather than aligning to calendar
+boundaries. After an overrun it advances to the first boundary strictly after the current time; missed
+boundaries do not produce individual ticks.
 
 ### Tick
 
@@ -60,10 +60,11 @@ commence  -->  acquires  -->  conclude
     |----------- window ---------|
 ```
 
-Each `Tick` evolves deterministically via `nextTick`. Ticks are JSON-serializable and zone-aware.
+Each `Tick` evolves deterministically via `nextTick`. Its timestamps are stored as unambiguous
+`java.time.Instant` values; local and zoned representations are derived using its zone. Ticks are
+JSON-serializable and zone-aware.
 
 Drawbacks:
-- All instants are stored as `java.time.Instant` internally. Conversion to local/zoned representations is derived, which adds a small overhead per access.
 - Invariants (ordering, monotonicity) are not runtime-enforced — they rely on correct construction.
 
 ### tickStream
@@ -73,19 +74,19 @@ fs2 streams driven by policies:
 ```scala
 import com.github.chenharryhua.nanjin.common.chrono.tickStream
 
-// Sleep first, then emit (strict schedule)
-tickStream.tickScheduled[IO](zoneId, _.fixedDelay(5.seconds))
+// Sleep first, then emit
+tickStream.tickScheduled[IO](zoneId, _.fixedDelay(5.seconds).repeat)
 
-// Emit first, then sleep to next (at-least schedule)
-tickStream.tickFuture[IO](zoneId, _.crontab(_.hourly))
+// Emit first, then sleep until the next boundary
+tickStream.tickFuture[IO](zoneId, _.crontab(_.hourly).repeat)
 
 // Test helper — no real sleeping, jittered clock
-tickStream.testPolicy[IO](_.fixedDelay(1.second).limited(5))
+tickStream.testPolicy[IO](_.fixedDelay(1.second).repeat.limited(5))
 ```
 
-Drawbacks:
-- `tickScheduled` blocks the stream during sleep — downstream can't cancel mid-sleep without fiber cancellation.
-- `tickFuture` may emit late ticks if downstream processing overruns the cadence; it doesn't skip.
+`tickScheduled` waits before emitting; the sleep is cancelable. `tickFuture` emits before waiting, so
+downstream processing can delay the next tick. Whether missed schedule boundaries are skipped depends on
+the policy: `fixedRate` skips elapsed boundaries and cron selects the next match after the current time.
 
 ### Named constants
 
@@ -104,17 +105,19 @@ State machine (Closed → Open → HalfOpen → Closed) protecting effectful com
 ```scala
 import com.github.chenharryhua.nanjin.common.resilience.CircuitBreaker
 
-CircuitBreaker[IO](zoneId, maxFailures = 5, _.fixedDelay(10.seconds)).use { cb =>
-  cb.protect(riskyCall)     // throws RejectedException when open
-  cb.attempt(riskyCall)     // returns Either when open
-  cb.state                  // inspect current state
+CircuitBreaker[IO](zoneId, maxFailures = 5, _.fixedDelay(10.seconds).repeat).use { cb =>
+  for {
+    _ <- cb.protect(riskyCall)       // raises RejectedException when open
+    result <- cb.attempt(riskyCall)  // returns Either, including rejection
+    state <- cb.state
+  } yield (result, state)
 }
 ```
 
 Drawbacks:
 - `maxFailures` counts failures in Closed state only. A success resets the counter — there's no sliding window or rate-based opening.
 - The breaker is scoped to a `Resource` — it can't outlive the resource's lifetime. For long-lived breakers, the enclosing resource must also be long-lived.
-- The policy is a free-running cadence started when the breaker is acquired, not a timer started when it opens. Each tick promotes an open breaker to half-open, so the open period lasts only until the next tick: with `_.fixedDelay(10.seconds)` a breaker that opens one second before a tick probes one second later, not ten. Treat the cadence as the longest acceptable wait, anywhere in `(0, cadence]`, rather than a guaranteed cool-down.
+- The policy is a free-running cadence started when the breaker is acquired, not a timer started when it opens. Each tick promotes an open breaker to half-open, so the open period lasts only until the next tick: with `_.fixedDelay(10.seconds).repeat` a breaker that opens one second before a tick allows a probe one second later, not ten. Treat the cadence as the longest acceptable wait, anywhere in `(0, cadence]`, rather than a guaranteed cool-down. A finite policy eventually stops producing ticks, so a breaker opened after exhaustion remains open.
 - Failure counting is per-call: concurrent failures each advance the counter, so `maxFailures` calls failing in parallel trip the breaker just as that many successive failures do. A success resets the count only when no other call changed it while that success was running, so a failure overlapping a success is never erased. Half-open admits exactly one probe at a time (single-flight).
 
 ### Retry
@@ -124,12 +127,12 @@ Policy-driven retry with a single decision function. Three transitions: `followP
 ```scala
 import com.github.chenharryhua.nanjin.common.resilience.Retry
 
-Retry[IO](zoneId, _.withPolicy(_.fixedDelay(1.second).limited(10)).withDecision { attempt =>
+Retry[IO](zoneId, _.withPolicy(_.fixedDelay(1.second).repeat.limited(10)).withDecision { attempt =>
   IO {
     attempt.cause match {
+      case _ if attempt.elapsed > 2.minutes => attempt.giveUp // enough time spent
       case _: RateLimitException  => attempt.retryAfter(30.seconds) // server said back off
       case _: TransientException if attempt.ordinal < 5 => attempt.followPolicy
-      case _ if attempt.elapsed > 2.minutes => attempt.giveUp // enough time spent
       case _ => attempt.giveUp
     }
   }
@@ -142,7 +145,7 @@ The `Attempt` provides:
 - `ordinal: Long` — failure count (1-based)
 - `elapsed: FiniteDuration` — real wall-clock time since first failure (includes sleep + execution, not just accumulated policy delays)
 - `snooze: FiniteDuration` — the delay the policy proposes
-- `failedAt: ZonedDateTime` — timestamp of the failure
+- `failedAt: OffsetDateTime` — sampled when the policy advances after the failure
 
 A decision function that *fails* instead of returning a transition stops the retry and raises
 `Retry.DecisionFailure`, which carries both errors and modifies neither:
@@ -158,7 +161,7 @@ retry(action).recover {
 Drawbacks:
 - Only retries on `Throwable`. For retrying on "bad" successful values (e.g., HTTP 503 response), wrap in an exception or use a domain-specific retry (see `httpRetry`).
 - The `Retry[F]` instance is reusable, but `elapsed` tracks time within a single `retry(fa)` call — not across multiple calls to the same instance.
-- `retryAfter` overrides the current sleep but doesn't change the policy progression. The next attempt still uses the policy's next scheduled delay.
+- `retryAfter` overrides the current sleep without changing the remaining policy steps, but it changes the current tick's conclusion. Subsequent timing can therefore shift for policies such as `fixedRate`, which use the previous conclusion as their cadence anchor.
 - A failing decision function replaces the operation's exception with `DecisionFailure`, so code matching on the operation's exception type must unwrap it. Return `giveUp` to stop retrying and propagate the operation failure unchanged.
 - `DecisionFailure` attaches nothing to either original throwable, so logs show the operation failure's class and message (from the `DecisionFailure` message) but not its stack trace. Read `operationFailure` when you need the trace.
 
