@@ -126,16 +126,20 @@ class PostgresTest extends CatsEffectSuite {
     val observer = PostgresObserver[IO](session(c)).withTranslator(_.skipMetricsSnapshot)
     for {
       _ <- freshDb(c)
-      events <- service
+      input <- service
         .eventStream(agent => agent.adhoc.report)
+        .compile
+        .toList
+      events <- fs2.Stream.emits(input).covary[IO]
         .through(observer.observe("event_stream"))
         .compile
         .toList
       rows <- readRows(c)
     } yield {
-      assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-      // the skipped snapshot translates to nothing, so fewer rows than events land in the table
-      assert(rows.size < events.size)
+      assert(input.exists(_.isInstanceOf[MetricsSnapshot]))
+      assert(input.exists(!_.isInstanceOf[MetricsSnapshot]))
+      assertEquals(events, input)
+      assertEquals(rows.size, input.count(!_.isInstanceOf[MetricsSnapshot]))
     }
   }
 

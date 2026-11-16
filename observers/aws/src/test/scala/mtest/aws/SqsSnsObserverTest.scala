@@ -5,6 +5,7 @@ import cats.effect.kernel.{Ref, Resource}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.sns.SnsObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import munit.CatsEffectSuite
@@ -51,13 +52,19 @@ class SqsSnsObserverTest extends CatsEffectSuite {
   }
 
   test("2.SqsObserver with skipAll translator sends nothing") {
-    Ref.of[IO, List[String]](Nil).flatMap { sent =>
-      val sqs = SqsObserver(recording_sqs(sent)).withTranslator(_.skipAll)
-      service
+    for {
+      input <- service.compile.toList
+      sent <- Ref.of[IO, List[String]](Nil)
+      sqs = SqsObserver(recording_sqs(sent)).withTranslator(_.skipAll)
+      events <- fs2.Stream.emits(input).covary[IO]
         .through(sqs.observe(SqsUrl.Fifo("https://q.example.com/test.fifo"), "group"))
         .compile
-        .drain *> sent.get
-    }.map { bodies =>
+        .toList
+      bodies <- sent.get
+    } yield {
+      assert(input.exists(_.isInstanceOf[ServiceStart]))
+      assert(input.exists(_.isInstanceOf[ServiceStop]))
+      assertEquals(events, input)
       assert(bodies.isEmpty)
     }
   }
@@ -139,13 +146,19 @@ class SqsSnsObserverTest extends CatsEffectSuite {
   }
 
   test("4.SnsObserver with skipAll translator publishes nothing") {
-    Ref.of[IO, List[String]](Nil).flatMap { sent =>
-      val sns = SnsObserver(recording_sns(sent)).withTranslator(_.skipAll)
-      service
+    for {
+      input <- service.compile.toList
+      sent <- Ref.of[IO, List[String]](Nil)
+      sns = SnsObserver(recording_sns(sent)).withTranslator(_.skipAll)
+      events <- fs2.Stream.emits(input).covary[IO]
         .through(sns.observe(SnsArn("arn:aws:sns:region:123456789012:topic")))
         .compile
-        .drain *> sent.get
-    }.map { messages =>
+        .toList
+      messages <- sent.get
+    } yield {
+      assert(input.exists(_.isInstanceOf[ServiceStart]))
+      assert(input.exists(_.isInstanceOf[ServiceStop]))
+      assertEquals(events, input)
       assert(messages.isEmpty)
     }
   }

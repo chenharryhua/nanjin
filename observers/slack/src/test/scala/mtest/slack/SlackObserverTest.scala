@@ -95,13 +95,17 @@ class SlackObserverTest extends CatsEffectSuite {
         .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(100.millis).repeat.limited(1)))
         .eventStream(_.adhoc.report)
 
-    Ref.of[IO, List[Captured]](Nil).flatMap { sent =>
-      val slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipMetricsSnapshot)
-      reporting.through(slack.observe(webhook)).compile.toList.flatMap(evts => sent.get.map(_ -> evts))
-    }.map { case (captured, events) =>
-      assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-      // the metrics snapshot was translated to nothing, so fewer POSTs than events
-      assert(captured.size < events.size)
+    for {
+      input <- reporting.compile.toList
+      sent <- Ref.of[IO, List[Captured]](Nil)
+      slack = SlackObserver[IO](recording(sent)).withTranslator(_.skipMetricsSnapshot)
+      events <- fs2.Stream.emits(input).covary[IO].through(slack.observe(webhook)).compile.toList
+      captured <- sent.get
+    } yield {
+      assert(input.exists(_.isInstanceOf[MetricsSnapshot]))
+      assert(input.exists(!_.isInstanceOf[MetricsSnapshot]))
+      assertEquals(events, input)
+      assertEquals(captured.size, input.count(!_.isInstanceOf[MetricsSnapshot]))
     }
   }
 

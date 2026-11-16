@@ -6,6 +6,7 @@ import cats.effect.kernel.{Ref, Resource}
 import com.github.chenharryhua.nanjin.aws.{Email, SimpleEmailService}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import munit.CatsEffectSuite
 import scalatags.Text.all.{pre, stringFrag}
@@ -148,27 +149,26 @@ class EmailHeartbeatTest extends CatsEffectSuite {
   }
 
   test("5.translator that drops an event kind exercises the None arm") {
-    val program =
-      Ref.of[IO, List[String]](Nil).flatMap { sent =>
-        val mail =
-          EmailObserver(recording_client(sent))
-            .withZoneId(sydneyTime)
-            .withTranslator(_.skipMetricsSnapshot)
-            .observe(Email("from@test.com"), NonEmptyList.one(Email("to@test.com")), "none")
-
-        // adhoc.report emits a MetricsSnapshot, which the translator maps to None, driving the
-        // `case None => F.unit` arm. Other events still translate normally.
-        TaskGuard[IO]("aws")
-          .service("none")
-          .eventStream(agent => agent.adhoc.report)
-          .through(mail)
-          .compile
-          .drain *> sent.get
-      }
-
-    program.map { bodies =>
-      // the observer still sends (the finalizer heartbeat at minimum) despite the dropped snapshot.
-      assert(bodies.nonEmpty)
+    for {
+      input <- TaskGuard[IO]("aws")
+        .service("none")
+        .eventStream(agent => agent.adhoc.report)
+        .compile
+        .toList
+      sent <- Ref.of[IO, List[String]](Nil)
+      mail = EmailObserver(recording_client(sent))
+        .withZoneId(sydneyTime)
+        .withTranslator(_.skipMetricsSnapshot)
+        .observe(Email("from@test.com"), NonEmptyList.one(Email("to@test.com")), "none")
+      events <- fs2.Stream.emits(input).covary[IO].through(mail).compile.toList
+      bodies <- sent.get
+    } yield {
+      assert(input.exists(_.isInstanceOf[MetricsSnapshot]))
+      assert(input.exists(!_.isInstanceOf[MetricsSnapshot]))
+      assertEquals(events, input)
+      assert(bodies.exists(_.contains("Start Service")))
+      assert(bodies.exists(_.contains("Stop Service")))
+      assert(bodies.forall(!_.contains("Metrics Report")))
     }
   }
 

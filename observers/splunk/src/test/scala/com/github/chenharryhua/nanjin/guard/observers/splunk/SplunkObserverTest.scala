@@ -154,15 +154,20 @@ class SplunkObserverTest extends CatsEffectSuite {
     val observer = SplunkObserver[IO](client).withTranslator(_.skipMetricsSnapshot)
 
     for {
-      events <- service
+      input <- service
         .eventStream(agent => agent.adhoc.report)
+        .compile
+        .toList
+      events <- fs2.Stream.emits(input).covary[IO]
         .through(observer.observe(hec()))
         .compile
         .toList
       posted <- envelopes.get
     } yield {
-      assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-      assert(posted.size < events.size)
+      assert(input.exists(_.isInstanceOf[MetricsSnapshot]))
+      assert(input.exists(!_.isInstanceOf[MetricsSnapshot]))
+      assertEquals(events, input)
+      assertEquals(posted.size, input.count(!_.isInstanceOf[MetricsSnapshot]))
     }
   }
 }

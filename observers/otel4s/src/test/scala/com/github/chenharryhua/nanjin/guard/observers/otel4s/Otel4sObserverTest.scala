@@ -102,18 +102,22 @@ class Otel4sObserverTest extends CatsEffectSuite {
       .use { testkit =>
         val observer = Otel4sObserver(testkit.loggerProvider).withTranslator(_.skipMetricsSnapshot)
         for {
-          events <- service
+          input <- service
             .eventStream(_.adhoc.report)
+            .compile
+            .toList
+          events <- fs2.Stream.emits(input).covary[IO]
             .through(observer.observe("otel4s-observer-test"))
             .compile
             .toList
           records <- testkit.finishedLogs
-        } yield (events, records)
+        } yield (input, events, records)
       }
-      .map { case (events, records) =>
-        assert(events.exists(_.isInstanceOf[MetricsSnapshot]))
-        // the snapshot event still flows through the pipe but is not emitted as a record
-        assert(records.size < events.size)
+      .map { case (input, events, records) =>
+        assert(input.exists(_.isInstanceOf[MetricsSnapshot]))
+        assert(input.exists(!_.isInstanceOf[MetricsSnapshot]))
+        assertEquals(events, input)
+        assertEquals(records.size, input.count(!_.isInstanceOf[MetricsSnapshot]))
       }
   }
 
@@ -166,23 +170,26 @@ class Otel4sObserverTest extends CatsEffectSuite {
         val original = Otel4sObserver(testkit.loggerProvider)
         val skipped = original.withTranslator(_.skipAll)
         for {
-          skipped_events <- service
+          input <- service
             .eventStream(_ => IO.unit)
+            .compile
+            .toList
+          skipped_events <- fs2.Stream.emits(input).covary[IO]
             .through(skipped.observe("skipped"))
             .compile
             .toList
           after_skipped <- testkit.finishedLogs
-          original_events <- service
-            .eventStream(_ => IO.unit)
+          original_events <- fs2.Stream.emits(input).covary[IO]
             .through(original.observe("original"))
             .compile
             .toList
           after_original <- testkit.finishedLogs
         } yield {
-          assert(skipped_events.nonEmpty)
+          assert(input.nonEmpty)
+          assertEquals(skipped_events, input)
           assertEquals(after_skipped, Nil)
-          assert(original_events.nonEmpty)
-          assert(after_original.nonEmpty)
+          assertEquals(original_events, input)
+          assertEquals(after_original.size, input.size)
         }
       }
   }
