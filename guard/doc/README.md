@@ -70,7 +70,7 @@ restart policy and HTTP dashboard only to the invoice worker:
 
 ```scala
 import cats.effect.IO
-import com.comcast.ip4s.port
+import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import io.circe.Json
 
@@ -94,7 +94,7 @@ val invoiceWorker =
     .service("invoice-worker")
     .updateConfig(
       _.withRestartPolicy(5.minutes, _.fixedDelay(10.seconds).repeat.limited(5))
-        .withHttpServer(_.withPort(port"8080"))
+        .withHttpServer(_.withHost(ip"127.0.0.1").withPort(port"8080"))
         .withDashboard(120, _.fixedDelay(5.seconds).repeat)
     )
 
@@ -146,13 +146,23 @@ The available `LogFormat` cases are `ConsolePlainText`, `ConsoleJson`, `ConsoleJ
 | OpenTelemetry meter and tracer providers | No-op providers |
 
 When `withHttpServer` enables the server, Guard starts from Ember's default builder with host
-`0.0.0.0` and port `1026`, then applies the supplied transformation. Use an explicit host and port
-when those defaults are inappropriate.
+`0.0.0.0` and port `1026`, then applies the supplied transformation. The routes have no
+authentication or authorization: anyone who can reach them can stop the service, change log
+thresholds, and read service parameters and JVM details, including input arguments. Bind to loopback
+for local use, as in the example, or restrict access to the server and use an authenticating proxy.
 
 `withDashboard` does not enable the HTTP server by itself. A `maxPoints` value of one or less disables
 the live chart while leaving other HTTP routes available. Each `withHistoryCapacity` value of zero
 or less disables that individual history. At service start, `addBrief` values are encoded, JSON nulls
 are removed, and duplicate JSON values are collapsed.
+
+The HTTP health endpoint uses health-check gauges from the latest retained metrics snapshot, not a
+live scrape. With no retained snapshot, it reports `healthy: true` even if checks would fail. Metrics
+history is disabled by default, and the default empty report policy produces no periodic snapshots.
+Configure metrics history and periodic or ad-hoc reports, and account for snapshot staleness. A
+pending restart is detected from panic history, which is also disabled by default. The endpoint returns
+HTTP 503 during a detected pending restart; otherwise it returns HTTP 200 with the dependency verdict
+in the `healthy` field, even when it is `false`.
 
 ### Resource-backed providers
 
@@ -487,10 +497,10 @@ Keys in serialized batch results:
 | `result` | final value of a successful `MonadicBatch`; omitted when the chain fails |
 
 The exact dynamic batch key includes its mode and, for independent jobs, its kind. A monadic batch
-serializes its final value under `result` only on success. On failure, the throwable remains
-available as the log entry's cause rather than appearing in the report body. Monadic per-job
-outcomes are `JobState[Json]`: `renderOutcome` or `render` can supply a JSON payload, while
-unrendered jobs retain `Json.Null` under their outcome tag.
+serializes its final value under `result` only on success. Inspect the returned `result` for the
+failure throwable: an untracked failure has no job log, and serialized failed job entries can include
+abbreviated exception messages. Monadic per-job outcomes are `JobState[Json]`: `renderOutcome` or
+`render` can supply a JSON payload, while unrendered jobs retain `Json.Null` under their outcome tag.
 
 ## Metrics
 
@@ -630,11 +640,15 @@ Guard turns the currently registered Dropwizard metrics into `MetricsSnapshot` e
 | `ServiceConfig.withReportPolicy` | Schedules full snapshots that are published to the service event channel, written to the log sink, and retained in configured history |
 | `agent.adhoc.report` | Immediately publishes one full snapshot through the same paths |
 | `agent.adhoc.snapshots(policy)` | Returns snapshots on a caller-owned stream; defaults to `ScrapeMode.Cheap` and does not publish them to the service event channel |
-| `agent.adhoc.meteredCounts(policy)` | Streams count deltas for meters and timers |
+| `agent.adhoc.meteredCounts(policy)` | Streams counts for meters and timers, then deltas between samples |
 
 `ScrapeMode.Cheap` reads counters, meters, histograms, and timers but skips gauges. `ScrapeMode.Full`
 also evaluates gauges and is used for configured periodic reports and `agent.adhoc.report`. Snapshot
 scraping omits zero-valued counters and gauges whose encoded value is `Json.Null`.
+
+The first `meteredCounts` emission contains the counts accumulated since each instrument was
+acquired, not a one-interval delta. Later emissions contain differences from the previous sample;
+an instrument first seen in a later sample likewise contributes its accumulated count.
 
 The default report policy is empty, so no periodic snapshots are published until
 `withReportPolicy` is configured. On-demand reporting remains available through `agent.adhoc`.
@@ -709,6 +723,10 @@ def supervised(worker: IO[Unit]): IO[Unit] =
 This policy waits five seconds between restart attempts. If the service runs continuously for
 strictly longer than one minute before failing, the watchdog resets the policy to its initial
 position before requesting the next restart tick.
+
+When the policy is exhausted, the worker failure is reported as `ServiceStop(ByException)` and the
+event stream normally completes rather than raising that failure. The example drains and discards
+that event, so callers that need to detect failure must inspect the stop reason instead.
 
 ### Supervision loop
 
