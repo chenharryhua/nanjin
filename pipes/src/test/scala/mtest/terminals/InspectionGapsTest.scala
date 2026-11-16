@@ -15,7 +15,7 @@ import munit.CatsEffectSuite
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import squants.information.InformationConversions.InformationConversions
 
-import java.time.{Instant, LocalDateTime, OffsetDateTime, ZonedDateTime}
+import java.time.{Instant, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
 
@@ -34,7 +34,7 @@ class InspectionGapsTest extends CatsEffectSuite {
     val create = CreateRotateFile(
       sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
       index = 7L,
-      time = OffsetDateTime.ofInstant(Instant.ofEpochSecond(1_700_000_000L), zone)
+      time = ZonedDateTime.ofInstant(Instant.ofEpochSecond(1_700_000_000L), zone)
     )
     RotateFile(
       create = create,
@@ -56,10 +56,10 @@ class InspectionGapsTest extends CatsEffectSuite {
         assertEquals(rf.recordCount, original.recordCount)
         assertEquals(rf.create.index, original.create.index)
         assertEquals(rf.create.sequenceId, original.create.sequenceId)
-        // The serialized offset preserves the same instant.
+        // The serialized zone preserves the same instant and region.
         assertEquals(rf.create.time.toInstant, original.create.time.toInstant)
         assertEquals(rf.closed, original.closed)
-        assertEquals(rf.create.time.getOffset, original.create.time.getOffset)
+        assertEquals(rf.create.time.getZone, original.create.time.getZone)
       case Left(err) => fail(s"decode failed: $err")
     }
   }
@@ -76,49 +76,33 @@ class InspectionGapsTest extends CatsEffectSuite {
       create = CreateRotateFile(
         sequenceId = UUID.fromString("12345678-90ab-cdef-1234-567890abcdef"),
         index = 1L,
-        time = secondPass.toOffsetDateTime),
+        time = secondPass),
       closed = secondPass.plusMinutes(20).toInstant,
       url = root / "overlap.json",
       recordCount = 5L
     )
 
     val json = file.asJson
-    assertEquals(json.hcursor.get[String]("create"), Right("2024-04-07T02:30:00+10:00"))
+    assertEquals(
+      json.hcursor.get[String]("create"),
+      Right("2024-04-07T02:30:00+10:00[Australia/Sydney]"))
 
     json.as[RotateFile] match {
       case Right(rf) =>
         assertEquals(rf.create.time.toInstant, file.create.time.toInstant)
+        assertEquals(rf.create.time.getZone, file.create.time.getZone)
         assertEquals(rf.closed, file.closed)
         assertEquals(rf.window, java.time.Duration.ofMinutes(20))
-        // What the old form produced: the earlier offset, an hour off.
-        val legacy = json
-          .mapObject(_.add("create", Json.fromString("2024-04-07T02:30:00")))
-          .mapObject(_.add("closed", Json.fromString("2024-04-07T02:50:00")))
-          .mapObject(_.add("zoneId", sydneyTime.asJson))
-        val legacyDecoded = legacy.as[RotateFile].toOption.get
-        assertEquals(legacyDecoded.create.time.toInstant, Instant.parse("2024-04-06T15:30:00Z"))
-        assert(
-          legacyDecoded.create.time.toInstant.isBefore(rf.create.time.toInstant),
-          "the legacy form should decode an hour early")
       case Left(err) => fail(s"decode failed: $err")
     }
   }
 
-  test("1c.RotateFile still decodes a legacy payload whose times carry no offset") {
+  test("1c.RotateFile rejects a legacy payload whose timestamps lack a zone") {
     val legacy = sampleRotateFile.asJson
       .mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
       .mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
-      .mapObject(_.add("zoneId", sydneyTime.asJson))
 
-    legacy.as[RotateFile] match {
-      case Right(rf) =>
-        assertEquals(
-          rf.create.time.toInstant,
-          LocalDateTime.parse("2023-11-14T22:13:20").atZone(sydneyTime).toInstant)
-        assertEquals(rf.create.time.toLocalDateTime.toString, "2023-11-14T22:13:20")
-        assertEquals(rf.window, java.time.Duration.ofSeconds(123))
-      case Left(err) => fail(s"legacy decode failed: $err")
-    }
+    assert(legacy.as[RotateFile].isLeft)
   }
 
   test("2.RotateFile encoder emits exactly the documented wire keys") {
@@ -127,7 +111,7 @@ class InspectionGapsTest extends CatsEffectSuite {
     // These keys are a persisted wire contract; a rename is a breaking change.
     assertEquals(
       keys,
-      Set("index", "url", "recordCount", "create", "closed", "window", "zoneId", "sequenceId"))
+      Set("index", "url", "recordCount", "create", "closed", "window", "sequenceId"))
   }
 
   test("3.RotateFile window is write-only: encoded as a string, derived (not read) on decode") {

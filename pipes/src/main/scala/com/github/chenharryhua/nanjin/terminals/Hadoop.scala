@@ -347,7 +347,7 @@ object Hadoop {
       using F: Async[F]): RotateByPolicy[F] = {
       val crfs: Stream[F, CreateRotateFile] =
         tickStream.tickFuture[F](zoneId, f).map { tick =>
-          CreateRotateFile(tick.sequenceId, tick.index, tick.offset(_.acquires))
+          CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
         }
       new RotateByPolicyImpl[F](config, pathBuilder, crfs)
     }

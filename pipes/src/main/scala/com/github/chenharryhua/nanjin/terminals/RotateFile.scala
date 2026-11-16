@@ -5,9 +5,9 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
-import org.typelevel.cats.time.offsetdatetimeInstances
+import org.typelevel.cats.time.zoneddatetimeInstances
 
-import java.time.{Duration, Instant, LocalDateTime, OffsetDateTime, ZoneId}
+import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
 
 /** Instruction to create a new rotated file.
@@ -29,7 +29,7 @@ import java.util.UUID
 final case class CreateRotateFile(
   sequenceId: UUID,
   index: Long,
-  time: OffsetDateTime
+  time: ZonedDateTime
 )
 
 /** Result of a completed rotation window.
@@ -74,24 +74,18 @@ object RotateFile {
         "url" -> a.url.asJson,
         "recordCount" -> Json.fromLong(a.recordCount),
         "create" -> a.create.time.asJson,
-        "closed" -> a.closed.atZone(a.create.time.getOffset).asJson,
+        "closed" -> a.closed.atZone(a.create.time.getZone).asJson,
         "window" -> defaultFormatter.format(a.window).asJson,
-        "zoneId" -> a.create.time.getOffset.asJson,
         "sequenceId" -> a.create.sequenceId.asJson
       )
-
-  private def read_offset(c: HCursor, key: String, zoneId: ZoneId): Decoder.Result[OffsetDateTime] =
-    c.get[OffsetDateTime](key)
-      .orElse(c.get[LocalDateTime](key).map(_.atZone(zoneId).toOffsetDateTime))
 
   given Decoder[RotateFile] =
     (c: HCursor) =>
       for {
         sid <- c.get[UUID]("sequenceId")
         idx <- c.get[Long]("index")
-        zoneId <- c.get[ZoneId]("zoneId")
-        create <- read_offset(c, "create", zoneId)
-        closed <- read_offset(c, "closed", zoneId)
+        create <- c.get[ZonedDateTime]("create")
+        closed <- c.get[ZonedDateTime]("closed")
         url <- c.get[Url]("url")
         recordCount <- c.get[Long]("recordCount")
       } yield RotateFile(
