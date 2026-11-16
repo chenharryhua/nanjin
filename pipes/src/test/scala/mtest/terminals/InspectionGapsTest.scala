@@ -85,7 +85,8 @@ class InspectionGapsTest extends CatsEffectSuite {
     val json = file.asJson
     assertEquals(
       json.hcursor.get[String]("create"),
-      Right("2024-04-07T02:30:00+10:00[Australia/Sydney]"))
+      Right("2024-04-07T02:30:00+10:00"))
+    assertEquals(json.hcursor.get[String]("zone_id"), Right("Australia/Sydney"))
 
     json.as[RotateFile] match {
       case Right(rf) =>
@@ -97,12 +98,28 @@ class InspectionGapsTest extends CatsEffectSuite {
     }
   }
 
-  test("1c.RotateFile rejects a legacy payload whose timestamps lack a zone") {
+  test("1c.RotateFile rejects timestamps without an offset") {
     val legacy = sampleRotateFile.asJson
       .mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
       .mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
 
     assert(legacy.as[RotateFile].isLeft)
+  }
+
+  test("1d.RotateFile preserves both offsets when a window crosses a fall-back transition") {
+    val start = ZonedDateTime.of(2024, 4, 7, 2, 50, 0, 0, sydneyTime).withEarlierOffsetAtOverlap
+    val end = start.plusMinutes(20)
+    val file = sampleRotateFile.copy(
+      create = sampleRotateFile.create.copy(time = start),
+      closed = end.toInstant)
+    val json = file.asJson
+
+    assertEquals(json.hcursor.get[String]("create"), Right("2024-04-07T02:50:00+11:00"))
+    assertEquals(json.hcursor.get[String]("closed"), Right("2024-04-07T02:10:00+10:00"))
+    assertEquals(json.hcursor.get[String]("zone_id"), Right("Australia/Sydney"))
+    val decoded = json.as[RotateFile]
+    assertEquals(decoded, Right(file))
+    assertEquals(decoded.map(_.window), Right(java.time.Duration.ofMinutes(20)))
   }
 
   test("2.RotateFile encoder emits exactly the documented wire keys") {
@@ -111,7 +128,7 @@ class InspectionGapsTest extends CatsEffectSuite {
     // These keys are a persisted wire contract; a rename is a breaking change.
     assertEquals(
       keys,
-      Set("index", "url", "recordCount", "create", "closed", "window", "sequenceId"))
+      Set("index", "url", "record_count", "create", "closed", "zone_id", "window", "sequence_id"))
   }
 
   test("3.RotateFile window is write-only: encoded as a string, derived (not read) on decode") {
