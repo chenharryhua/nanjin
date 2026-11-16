@@ -7,7 +7,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
 import org.typelevel.cats.time.zoneddatetimeInstances
 
-import java.time.{Duration, Instant, ZonedDateTime}
+import java.time.{Duration, Instant, OffsetDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 
 /** Instruction to create a new rotated file.
@@ -69,25 +69,28 @@ object RotateFile {
     */
   given Encoder[RotateFile] =
     (a: RotateFile) =>
+      val zoneId: ZoneId = a.create.time.getZone
       Json.obj(
         "index" -> Json.fromLong(a.create.index),
         "url" -> a.url.asJson,
-        "recordCount" -> Json.fromLong(a.recordCount),
-        "create" -> a.create.time.asJson,
-        "closed" -> a.closed.atZone(a.create.time.getZone).asJson,
+        "record_count" -> Json.fromLong(a.recordCount),
+        "create" -> a.create.time.toOffsetDateTime.asJson,
+        "closed" -> a.closed.atZone(zoneId).toOffsetDateTime.asJson,
+        "zone_id" -> zoneId.asJson,
         "window" -> defaultFormatter.format(a.window).asJson,
-        "sequenceId" -> a.create.sequenceId.asJson
+        "sequence_id" -> a.create.sequenceId.asJson
       )
 
   given Decoder[RotateFile] =
     (c: HCursor) =>
       for {
-        sid <- c.get[UUID]("sequenceId")
+        sid <- c.get[UUID]("sequence_id")
         idx <- c.get[Long]("index")
-        create <- c.get[ZonedDateTime]("create")
-        closed <- c.get[ZonedDateTime]("closed")
+        zoneId <- c.get[ZoneId]("zone_id")
+        create <- c.get[OffsetDateTime]("create").map(_.atZoneSameInstant(zoneId))
+        closed <- c.get[OffsetDateTime]("closed").map(_.atZoneSameInstant(zoneId))
         url <- c.get[Url]("url")
-        recordCount <- c.get[Long]("recordCount")
+        recordCount <- c.get[Long]("record_count")
       } yield RotateFile(
         create = CreateRotateFile(
           sequenceId = sid,
