@@ -204,8 +204,10 @@ val fetchSchemas = registry.fetchOptionalAvroSchema
 ```
 
 The API can register `ParsedSchema` values, fetch Avro, JSON Schema, or Protobuf pairs, and delete both
-subjects. Optional fetch methods return `None` when a subject is absent or has another schema type.
-`fetchAvroSchema` requires both key and value Avro subjects.
+subjects. Optional fetch methods return `None` when a subject is absent, has another schema type, or
+its lookup fails (for example, because of a network or authentication error). `None` therefore does
+not prove that a subject is absent. `fetchAvroSchema` requires both key and value Avro subjects and
+propagates lookup errors.
 
 Registry calls use the blocking pool because Confluent's client is synchronous. Deleting subjects is
 destructive. A failed deletion, including an absent subject, is represented by an empty
@@ -357,12 +359,14 @@ The generic connector reads and writes raw Kafka bytes around Avro `GenericRecor
 depend entirely on Schema Registry: there is no caller-supplied schema override.
 
 - `consumeGenericRecord(topic)` returns values as `Either[PullError, GenericData.Record]`. Each side's
-  bytes are decoded against the latest registered schema for its subject. A malformed or
-  non-conforming record (including one written under an older, now-incompatible schema) becomes a
-  per-record `PullError` rather than terminating the stream.
+  bytes are decoded against the latest registered schema for its subject. The schema id in the
+  record is ignored; the writer schema is not resolved. Detected decoding failures become per-record
+  `PullError` values, but bytes written with an incompatible schema can also decode incorrectly
+  without an error. Use this connector only when the latest schemas match the records being read.
 - `produceGenericRecord(topic)` fetches the write schema from Schema Registry before producing. If the
-  `<topic>-key` or `<topic>-value` subject is not registered, it raises `TopicSchemaAbsent`; register
-  the schema first.
+  `<topic>-key` or `<topic>-value` Avro schema is unavailable, it raises `TopicSchemaAbsent`. This
+  can also indicate a registry lookup failure or a different schema type, not just a missing subject.
+  The generic consumer requires both schemas in the same way.
 - `ProduceGenericRecord.jackson` parses Avro's JSON representation against the fetched schema before
   producing.
 
@@ -532,10 +536,11 @@ schema, and the consumer decodes against the latest registered schema for each s
 
 ## Resource and operational guidance
 
-- Keep credentials and JAAS strings outside source code. `Show[KafkaSettings]` redacts the value of
-  any property whose key looks sensitive (JAAS, password, `user.info`, token, secret, credential) and
-  still names the key, so a rendered settings value is safe to log; reading `properties` directly
-  bypasses that.
+- Keep credentials and JAAS strings outside source code. `Show[KafkaSettings]` redacts consumer,
+  producer, Streams, and Serde property values when their keys contain JAAS, password, `user.info`,
+  token, secret, or credential; admin properties are not rendered. This heuristic does not cover every
+  sensitive property (for example, `ssl.keystore.key`), so do not assume rendered settings are safe
+  to log. Reading `properties` directly bypasses redaction.
 - Configure TLS and Schema Registry authentication explicitly for non-local deployments.
 - Keep producers, consumers, admin clients, and Kafka Streams instances inside their `Resource` or
   `Stream` scopes so close operations and background fibers are finalized.
@@ -545,8 +550,8 @@ schema, and the consumer decodes against the latest registered schema for each s
   per-record commits, batched commits, or manual partition commits deliberately.
 - Use unique consumer group ids for independent readers and integration tests. Reusing a group resumes
   from its committed offsets.
-- Use `attemptConsume` or `consumeGenericRecord` when malformed records should remain data rather than
-  terminate the stream. Inspect every `Left`; do not silently discard poison records.
+- Use `attemptConsume` or `consumeGenericRecord` to handle detected deserialization failures as data.
+  Inspect every `Left`; do not silently discard poison records.
 - Bound application shutdown and startup with `withCloseTimeout` and `withStartupTimeout` when an
   infinite wait is unacceptable.
 - Treat topic deletion, schema deletion, and group-offset deletion as destructive operations.
