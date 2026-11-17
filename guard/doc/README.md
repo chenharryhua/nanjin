@@ -1,9 +1,10 @@
 # Guard execution guide
 
-The Guard module runs application effects as supervised services. This guide covers four parts of
+The Guard module runs application effects as supervised services. This guide covers five parts of
 that runtime:
 
 - **Configuration** defines inherited task defaults and service-specific runtime settings.
+- **HTTP service** exposes service controls, health, metrics, and an optional live dashboard.
 - **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
   progress metrics, lifecycle logs, or OpenTelemetry spans.
 - **Metrics** registers scoped instruments, publishes snapshots, and optionally mirrors numeric
@@ -19,6 +20,11 @@ that runtime:
   - [Configuration reference](#configuration-reference)
   - [Defaults and boundaries](#defaults-and-boundaries)
   - [Resource-backed providers](#resource-backed-providers)
+- [HTTP service](#http-service)
+  - [Enabling the server](#enabling-the-server)
+  - [Routes](#routes)
+  - [Health checks](#health-checks)
+  - [Live dashboard](#live-dashboard)
 - [Batch execution](#batch-execution)
   - [Choosing a façade](#choosing-a-façade)
   - [Usage examples](#usage-examples)
@@ -145,24 +151,9 @@ The available `LogFormat` cases are `ConsolePlainText`, `ConsoleJson`, `ConsoleJ
 | Panic, error, and metrics history | Disabled |
 | OpenTelemetry meter and tracer providers | No-op providers |
 
-When `withHttpServer` enables the server, Guard starts from Ember's default builder with host
-`0.0.0.0` and port `1026`, then applies the supplied transformation. The routes have no
-authentication or authorization: anyone who can reach them can stop the service, change log
-thresholds, and read service parameters and JVM details, including input arguments. Bind to loopback
-for local use, as in the example, or restrict access to the server and use an authenticating proxy.
-
-`withDashboard` does not enable the HTTP server by itself. A `maxPoints` value of one or less disables
-the live chart while leaving other HTTP routes available. Each `withHistoryCapacity` value of zero
-or less disables that individual history. At service start, `addBrief` values are encoded, JSON nulls
-are removed, and duplicate JSON values are collapsed.
-
-The HTTP health endpoint uses health-check gauges from the latest retained metrics snapshot, not a
-live scrape. With no retained snapshot, it reports `healthy: true` even if checks would fail. Metrics
-history is disabled by default, and the default empty report policy produces no periodic snapshots.
-Configure metrics history and periodic or ad-hoc reports, and account for snapshot staleness. A
-pending restart is detected from panic history, which is also disabled by default. The endpoint returns
-HTTP 503 during a detected pending restart; otherwise it returns HTTP 200 with the dependency verdict
-in the `healthy` field, even when it is `false`.
+Each `withHistoryCapacity` value of zero or less disables that individual history. At service start,
+`addBrief` values are encoded, JSON nulls are removed, and duplicate JSON values are collapsed. See
+[HTTP service](#http-service) for server defaults, exposure, and health-check behavior.
 
 ### Resource-backed providers
 
@@ -182,6 +173,88 @@ for configuration inheritance and service startup,
 for the public configuration API, and
 [`ServiceParams.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceParams.scala)
 for evaluated runtime settings and defaults.
+
+## HTTP service
+
+Guard can run an embedded Ember server alongside the service event stream. It provides operational
+routes and, optionally, a live metrics dashboard. The server is disabled by default and is released
+when the event stream terminates; watchdog restarts do not create a new server.
+
+### Enabling the server
+
+Use `withHttpServer` to enable the data routes and customize the Ember builder. Guard supplies a
+default host of `0.0.0.0` and port `1026` before applying the builder transformation. The
+[configuration example](#complete-configuration-example) binds to `127.0.0.1:8080`, enables
+snapshot and panic histories, and configures the dashboard. While that service is running:
+
+```shell
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/params
+curl http://127.0.0.1:8080/metrics/report
+```
+
+**The server provides no authentication or authorization.** Anyone who can reach it can stop the
+service, change log thresholds, and read service parameters and JVM details, including input
+arguments. Bind to loopback for local use, or restrict direct access and use an authenticating
+proxy. The all-interfaces default can be useful for containers but must not be exposed unprotected.
+
+### Routes
+
+These routes are available whenever the HTTP server is enabled, even without the dashboard:
+
+| Method and path | Behavior |
+| --- | --- |
+| `GET /health` | Health verdict; see [Health checks](#health-checks) |
+| `GET /panics` | Service status and retained restart panic history |
+| `GET /errors` | Retained error-level `ReportedEvent` history |
+| `GET /params` | Service parameters and current log thresholds |
+| `GET /metrics/jvm` | JVM information, including input arguments and deadlocked thread details |
+| `GET /metrics/report` | Full on-demand metrics snapshot rendered as HTML; does not publish an event or add to history |
+| `GET /metrics/history` | Retained metrics snapshots rendered as HTML |
+| `GET /log/level` | Current local logger and event-channel thresholds |
+| `POST /log/logger/{level}` | Change the local `ReportedEvent` threshold |
+| `POST /log/channel/{level}` | Change the event-channel `ReportedEvent` threshold |
+| `POST /stop` | Stop the service with `StopReason.Maintenance` |
+
+Log levels are `Debug`, `Info`, `Good`, `Warn`, and `Error`, matched case-insensitively. A
+successful threshold change returns the previous and current settings; an invalid level returns
+HTTP 400. Threshold changes apply to the running service, not its immutable configuration.
+
+Panic, error, and metrics histories are independent bounded in-memory buffers configured with
+`withHistoryCapacity`; they are disabled by default and lost when the service event stream ends.
+Periodic reports or `agent.adhoc.report` populate metrics history when enabled.
+
+### Health checks
+
+`GET /health` also has aliases `/health_check`, `/healthCheck`, `/healthcheck`, `/healthz`, and
+`/healthcheck/status`. It returns HTTP 503 while a retained panic has a restart scheduled in the
+future. Otherwise it returns HTTP 200 with a JSON `healthy` field, including when that field is
+`false`; clients must inspect the body as well as the status.
+
+The dependency verdict uses health-check gauges from the latest retained metrics snapshot, not a
+live scrape. With no retained snapshot or no boolean health-check values, it reports `healthy: true`
+even if checks would fail. Metrics and panic histories are disabled by default, and the default
+report policy produces no periodic snapshots. Configure both histories and periodic or ad-hoc
+reports as appropriate, and account for snapshot staleness. Disabled panic history also prevents the
+endpoint from detecting a pending restart.
+
+### Live dashboard
+
+`withDashboard(maxPoints, policy)` adds `GET /dashboard`, its static assets, and the WebSocket feed
+at `/dashboard/ws`, but only when the HTTP server is also enabled and `maxPoints > 1`. Otherwise
+the data routes remain available without dashboard routes. The policy controls the sampling
+schedule; use a repeating policy for ongoing updates.
+
+The feed charts meter and timer counts. Its first sample contains counts accumulated since instrument
+acquisition; later samples are deltas. Slow WebSocket clients can lose older points, and the history
+to live transition can repeat a point. Series labels combine the scope label and metric name, so
+same-named live instruments in the same scope can share a label. The dashboard page loads Chart.js,
+Luxon, and the Chart.js Luxon adapter from a CDN.
+
+See [`HttpServer.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/dashboard/HttpServer.scala),
+[`HttpDataRouter.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/dashboard/HttpDataRouter.scala),
+and [`HttpWsRouter.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/dashboard/HttpWsRouter.scala)
+for server and route behavior.
 
 ## Batch execution
 
