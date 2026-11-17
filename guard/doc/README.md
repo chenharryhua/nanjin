@@ -1,9 +1,10 @@
 # Guard execution guide
 
-The Guard module runs application effects as supervised services. This guide covers six parts of
+The Guard module runs application effects as supervised services. This guide covers seven parts of
 that runtime:
 
 - **Configuration** defines inherited task defaults and service-specific runtime settings.
+- **Agent** gives supervised application code access to service-scoped facilities.
 - **Logging** emits structured application messages to a local sink and the service event stream.
 - **HTTP service** exposes service controls, health, metrics, and an optional live dashboard.
 - **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
@@ -21,6 +22,10 @@ that runtime:
   - [Configuration reference](#configuration-reference)
   - [Defaults and boundaries](#defaults-and-boundaries)
   - [Resource-backed providers](#resource-backed-providers)
+- [Agent façade](#agent-façade)
+  - [Running with an agent](#running-with-an-agent)
+  - [Agent capabilities](#agent-capabilities)
+  - [Scope and lifetime](#scope-and-lifetime)
 - [Logging](#logging)
   - [Writing messages](#writing-messages)
   - [Thresholds and delivery](#thresholds-and-delivery)
@@ -178,6 +183,80 @@ for configuration inheritance and service startup,
 for the public configuration API, and
 [`ServiceParams.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceParams.scala)
 for evaluated runtime settings and defaults.
+
+## Agent façade
+
+`Agent[F]` is the application-facing view of a running service. `ServiceGuard` supplies it to the
+service callback; applications do not construct it themselves. It brings logging, metrics,
+batches, scheduling, resilience, and tracing together under the same service identity.
+
+### Running with an agent
+
+```scala
+import cats.effect.IO
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+
+val worker =
+  TaskGuard[IO]("billing")
+    .service("invoice-worker")
+    .updateConfig(_.withReportedEventThreshold(_.Info))
+
+val events = worker.eventStream { agent =>
+  val invoices = agent.withDomain("invoices")
+  invoices.metricsHub("processing").counter("processed").use { counter =>
+    invoices.logger.info("processing invoice") >>
+      counter.inc(1) >>
+      invoices.adhoc.report
+  }
+}
+
+val run: IO[Unit] = events.compile.drain
+```
+
+Compiling the returned event stream runs the service. This example drains and discards events;
+attach an observer or consume them explicitly to deliver or inspect them. When the callback
+completes, the service stops. A callback failure is handled by the
+[watchdog](#watchdog); after restart exhaustion, inspect `ServiceStop(ByException)` rather than
+assuming the event stream raises the worker's error.
+
+`eventStream` accepts an `Agent[F] => F[Unit]`. `eventStreamS` drains the stream returned by its
+callback. `eventStreamR` acquires and immediately releases the returned resource; for a resource
+that must remain open until cancellation, use `eventStream` and run the resource with a long-lived
+`use` effect.
+
+### Agent capabilities
+
+| API | Purpose |
+| --- | --- |
+| `logger`, `withDomain` | Write structured messages and scope messages, metrics, and batches by domain; see [Logging](#logging) |
+| `metricsHub`, `metricsHubS`, `facilitate`, `facilitateS` | Register scoped metrics as resources or streams; see [Metrics](#metrics) |
+| `adhoc` | Publish an immediate snapshot or stream snapshots and metered counts |
+| `batch`, `batchMetered`, `batchTraced` | Run named jobs with optional metrics, logs, or spans; see [Batch execution](#batch-execution) |
+| `tickScheduled`, `tickFuture` | Stream policy ticks using the service time zone |
+| `retry`, `circuitBreaker` | Acquire scoped retry and circuit-breaker facilities |
+| `tracer`, `tracerProvider` | Access the service's OpenTelemetry tracer and provider |
+| `zoneId` | Access the configured service time zone |
+
+`tickScheduled` waits before emitting each tick; `tickFuture` emits a future tick before waiting.
+Both follow the supplied policy, so finite policies stop. `retry` and `circuitBreaker` return
+`Resource` values: use them within their scope, and keep a circuit breaker open across the calls
+that should share its state. A long-lived breaker needs a repeating policy to continue allowing
+probes after opening. See the [common scheduling and resilience guide](../../common/doc/README.md)
+for policy, retry, and circuit-breaker behavior.
+
+### Scope and lifetime
+
+`withDomain` creates a view of the same service, not a new service or registry. The domain is
+included in reported events and in metric and batch scopes. Metric resources acquired inside the
+callback are released when their scope ends; the watchdog reruns the callback after a restart, so
+resources acquired there are acquired again. The service-level event channel, metric registry, and
+configured telemetry providers are shared across restart attempts and released with the enclosing
+event stream.
+
+See [`Agent.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/Agent.scala) and
+[`ServiceGuard.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/ServiceGuard.scala)
+for the façade and its service callbacks.
 
 ## Logging
 
