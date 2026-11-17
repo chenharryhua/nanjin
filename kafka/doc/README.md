@@ -364,7 +364,7 @@ depend entirely on Schema Registry: there is no caller-supplied schema override.
   `PullError` values, but bytes written with an incompatible schema can also decode incorrectly
   without an error. Use this connector only when the latest schemas match the records being read.
 - `produceGenericRecord(topic)` fetches the write schema from Schema Registry before producing. If the
-  `<topic>-key` or `<topic>-value` Avro schema is unavailable, it raises `TopicSchemaAbsent`. This
+  `<topic>-key` or `<topic>-value` Avro schema is unavailable, it raises `TopicSchemaUnavailable`. This
   can also indicate a registry lookup failure or a different schema type, not just a missing subject.
   The generic consumer requires both schemas in the same way.
 - `ProduceGenericRecord.jackson` parses Avro's JSON representation against the fetched schema before

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{OptionalAvroSchemaPair, TopicName}
-import com.github.chenharryhua.nanjin.kafka.TopicSchemaAbsent
+import com.github.chenharryhua.nanjin.kafka.TopicSchemaUnavailable
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.Schema
@@ -57,7 +57,7 @@ class ConsumeGenericRecordTest extends CatsEffectSuite {
     val c = consumer(OptionalAvroSchemaPair(Some(AvroSchema(stringSchema)), None))
     c.schema.attempt.map { result =>
       assert(result.isLeft)
-      assert(result.swap.toOption.exists(_.isInstanceOf[TopicSchemaAbsent]))
+      assert(result.swap.toOption.exists(_.isInstanceOf[TopicSchemaUnavailable]))
     }
   }
 }

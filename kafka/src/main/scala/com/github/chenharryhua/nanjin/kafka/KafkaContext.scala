@@ -146,7 +146,7 @@ sealed trait KafkaContext[F[_]] extends UpdateConfig[KafkaSettings, KafkaContext
   /** Produce Avro GenericRecords, encoding each side in Confluent wire format.
     *
     * The write schema comes from the registry alone; there is no caller-supplied override. Producing raises
-    * `TopicSchemaAbsent` unless both the `<topic>-key` and `<topic>-value` subjects are registered.
+    * `TopicSchemaUnavailable` unless both the `<topic>-key` and `<topic>-value` schemas are available.
     *
     * @param topicName
     *   the topic to produce to

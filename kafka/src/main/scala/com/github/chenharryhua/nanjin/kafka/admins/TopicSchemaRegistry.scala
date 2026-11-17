@@ -29,8 +29,8 @@ import scala.jdk.CollectionConverters.*
   *
   * ==Optional vs required==
   * `fetchAvroSchema` requires both key and value schemas to be present. The `fetchOptional*` variants return
-  * `None` for a side whose schema is absent or is not of the requested type, which suits topics whose key
-  * and/or value is a primitive (and therefore has no registered schema).
+  * `None` for a side whose schema is absent, is not of the requested type, or whose lookup fails, which suits
+  * topics whose key and/or value is a primitive (and therefore has no registered schema).
   *
   * All calls run on the blocking pool, since the underlying Confluent client is synchronous.
   */
@@ -39,13 +39,13 @@ sealed trait TopicSchemaRegistry[F[_]] {
   /** Fetch the latest key and value Avro schemas; both must be present. */
   def fetchAvroSchema: F[(AvroSchema, AvroSchema)]
 
-  /** Fetch the latest key/value Avro schemas, each `None` if absent or not Avro. */
+  /** Fetch the latest key/value Avro schemas, each `None` if absent, not Avro, or lookup fails. */
   def fetchOptionalAvroSchema: F[OptionalAvroSchemaPair]
 
-  /** Fetch the latest key/value JSON schemas, each `None` if absent or not JSON. */
+  /** Fetch the latest key/value JSON schemas, each `None` if absent, not JSON, or lookup fails. */
   def fetchOptionalJsonSchema: F[OptionalJsonSchemaPair]
 
-  /** Fetch the latest key/value Protobuf schemas, each `None` if absent or not Protobuf. */
+  /** Fetch the latest key/value Protobuf schemas, each `None` if absent, not Protobuf, or lookup fails. */
   def fetchOptionalProtobufSchema: F[OptionalProtobufSchemaPair]
 
   /** Register key and/or value schemas for this topic, returning the assigned registry ids.

@@ -6,9 +6,9 @@ import scala.util.control.NoStackTrace
 final case class SchemaRegistryUrlAbsent(configKey: String)
     extends IllegalStateException(s"Fatal error: $configKey is absent") with NoStackTrace
 
-/** Raised when a required schema (key or value) cannot be found for a topic. */
-final case class TopicSchemaAbsent(missing: String)
-    extends IllegalStateException(s"$missing") with NoStackTrace
+/** Raised when a required key or value schema for a topic is unavailable. */
+final case class TopicSchemaUnavailable(message: String)
+    extends IllegalStateException(message) with NoStackTrace
 
 /** Raised when a consumer is assigned an empty partition-offset map. */
 final case class EmptyTopicPartitionMap(topicName: TopicName)

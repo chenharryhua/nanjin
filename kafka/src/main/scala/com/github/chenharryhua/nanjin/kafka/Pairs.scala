@@ -14,17 +14,17 @@ final case class ProtobufSchemaPair(key: ProtobufSchema, value: ProtobufSchema)
 
 final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
-private def missingSchema(message: String): Nothing =
-  throw TopicSchemaAbsent(message) // scalafix:ok
+private def unavailableSchema(message: String): Nothing =
+  throw TopicSchemaUnavailable(message) // scalafix:ok
 
 /** The JSON schemas registered for a topic's key and value subjects, either of which may be absent. */
 final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema]) {
 
-  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
+  /** Both schemas, or `TopicSchemaUnavailable` naming the side that is unavailable. */
   def toSchemaPair: JsonSchemaPair = (key, value) match {
-    case (None, None)       => missingSchema("both key and value schema are absent")
-    case (None, Some(_))    => missingSchema("key schema is absent")
-    case (Some(_), None)    => missingSchema("value schema is absent")
+    case (None, None)       => unavailableSchema("both key and value schemas are unavailable")
+    case (None, Some(_))    => unavailableSchema("key schema is unavailable")
+    case (Some(_), None)    => unavailableSchema("value schema is unavailable")
     case (Some(k), Some(v)) => JsonSchemaPair(k, v)
   }
 }
@@ -32,11 +32,11 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
 /** The Protobuf schemas registered for a topic's key and value subjects, either of which may be absent. */
 final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema]) {
 
-  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
+  /** Both schemas, or `TopicSchemaUnavailable` naming the side that is unavailable. */
   def toSchemaPair: ProtobufSchemaPair = (key, value) match {
-    case (None, None)       => missingSchema("both key and value schema are absent")
-    case (None, Some(_))    => missingSchema("key schema is absent")
-    case (Some(_), None)    => missingSchema("value schema is absent")
+    case (None, None)       => unavailableSchema("both key and value schemas are unavailable")
+    case (None, Some(_))    => unavailableSchema("key schema is unavailable")
+    case (Some(_), None)    => unavailableSchema("value schema is unavailable")
     case (Some(k), Some(v)) => ProtobufSchemaPair(k, v)
   }
 }
@@ -48,11 +48,11 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   */
 final case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema]) {
 
-  /** Both schemas, or `TopicSchemaAbsent` naming the side that is missing. */
+  /** Both schemas, or `TopicSchemaUnavailable` naming the side that is unavailable. */
   def toSchemaPair: AvroSchemaPair = (key, value) match {
-    case (None, None)       => missingSchema("both key and value schema are absent")
-    case (None, Some(_))    => missingSchema("key schema is absent")
-    case (Some(_), None)    => missingSchema("value schema is absent")
+    case (None, None)       => unavailableSchema("both key and value schemas are unavailable")
+    case (None, Some(_))    => unavailableSchema("key schema is unavailable")
+    case (Some(_), None)    => unavailableSchema("value schema is unavailable")
     case (Some(k), Some(v)) => AvroSchemaPair(k, v)
   }
 }
