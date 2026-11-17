@@ -1,9 +1,10 @@
 # Guard execution guide
 
-The Guard module runs application effects as supervised services. This guide covers five parts of
+The Guard module runs application effects as supervised services. This guide covers six parts of
 that runtime:
 
 - **Configuration** defines inherited task defaults and service-specific runtime settings.
+- **Logging** emits structured application messages to a local sink and the service event stream.
 - **HTTP service** exposes service controls, health, metrics, and an optional live dashboard.
 - **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
   progress metrics, lifecycle logs, or OpenTelemetry spans.
@@ -20,6 +21,10 @@ that runtime:
   - [Configuration reference](#configuration-reference)
   - [Defaults and boundaries](#defaults-and-boundaries)
   - [Resource-backed providers](#resource-backed-providers)
+- [Logging](#logging)
+  - [Writing messages](#writing-messages)
+  - [Thresholds and delivery](#thresholds-and-delivery)
+  - [Local formats](#local-formats)
 - [HTTP service](#http-service)
   - [Enabling the server](#enabling-the-server)
   - [Routes](#routes)
@@ -173,6 +178,89 @@ for configuration inheritance and service startup,
 for the public configuration API, and
 [`ServiceParams.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/config/ServiceParams.scala)
 for evaluated runtime settings and defaults.
+
+## Logging
+
+The `Agent` passed to a service exposes `logger: Log[F]`. Logging creates `ReportedEvent`s that
+can be written to a local sink and published on the service event stream. These are separate paths
+with independent thresholds.
+
+### Writing messages
+
+```scala
+import cats.effect.IO
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import io.circe.Json
+
+val loggingService =
+  TaskGuard[IO]("billing")
+    .service("invoice-worker")
+    .updateConfig(
+      _.withLog(_.Info, _.ConsoleJson)
+        .withReportedEventThreshold(_.Warn)
+    )
+
+val runWithLogging: IO[Unit] =
+  loggingService
+    .eventStream { agent =>
+      val log = agent.withDomain("invoices").logger
+      log.info(Json.obj("action" -> Json.fromString("started"))) >>
+        log.warn("invoice needs review", new RuntimeException("validation failed"))
+    }
+    .compile
+    .drain
+```
+
+`debug`, `info`, `good`, `warn`, and `error` accept any message with a Circe `Encoder`; `warn` and
+`error` also accept a throwable. Use `emit` with a `LogEntry` or explicit level for a dynamically
+chosen severity. Messages are by-name and are not evaluated or encoded when neither threshold
+accepts their level.
+
+Each `ReportedEvent` carries the encoded message, level, optional stack trace, timestamp, service
+identity, domain, and correlation identifier. The default domain is `main`; `withDomain` returns a
+view with a different domain while sharing the service resources and thresholds. An optional
+`withLogLocator` supplies links to a log backend for service, reported, and metrics events.
+
+### Thresholds and delivery
+
+Levels increase in the order `Debug`, `Info`, `Good`, `Warn`, `Error`. `withLog(level, format)`
+enables the local sink and sets its `ReportedEvent` threshold; `withReportedEventThreshold(level)`
+sets the event-channel threshold. Both thresholds default to `Error`, and the local sink is disabled
+until a format is configured. In the example, the info message goes only to the local sink; the
+warning goes to both paths. Compiling the event stream with `drain` discards its events: attach an
+observer or otherwise consume them when they must be delivered elsewhere.
+
+These thresholds do not filter service lifecycle events or metrics snapshots. An enabled local sink
+also renders those events. The HTTP server can change the two `ReportedEvent` thresholds for the
+running service; see [Routes](#routes). A downstream `EventPipe.logLevel` can further filter
+reported events without filtering other event types.
+
+Logging is best-effort: `Log.emit` suppresses errors from checking the level, encoding, and
+publishing, so a successful logging effect does not guarantee delivery. The local sink is written
+before the event channel; a local write failure can prevent that message from reaching the channel.
+Do not use the logger as a durable audit record. Error-level reported events are also kept in the
+configured bounded error history when publication reaches that step.
+
+### Local formats
+
+| Format | Output |
+| --- | --- |
+| `ConsolePlainText` | ANSI-formatted text |
+| `ConsoleJson` | Compact presentation JSON |
+| `ConsoleJsonMultiLine` | Indented presentation JSON |
+| `ConsoleJsonVerbose` | Indented JSON encoding of the full event |
+| `Slf4jJson` | Compact presentation JSON through the SLF4J logger named after the service |
+
+Console output prefixes each rendered event with its timestamp and service name, so it is not a
+standalone JSON document or JSON Lines stream. `Slf4jJson` maps `Good` to SLF4J `INFO`; the SLF4J
+backend's own configuration can further filter output. Avoid logging sensitive payloads or
+exception details unless the destinations are appropriate for them.
+
+See [`Log.scala`](../../common/src/main/scala/com/github/chenharryhua/nanjin/common/logging/Log.scala),
+[`ReportedEventHandler.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/ReportedEventHandler.scala),
+and [`EventLogSink.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/EventLogSink.scala)
+for the logging API and delivery paths.
 
 ## HTTP service
 
