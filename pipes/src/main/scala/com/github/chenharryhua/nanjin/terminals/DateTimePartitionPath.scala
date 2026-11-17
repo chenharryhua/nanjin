@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import java.time.{LocalDate, LocalDateTime}
 import scala.util.matching.Regex
 
-object partitionPath:
+object DateTimePartitionPath:
 
   private case class Field(name: String, width: Int, min: Int, max: Int):
     private val pattern: Regex = s"(?i)^$name=(\\d{$width})$$".r
@@ -48,4 +48,4 @@ object partitionPath:
   def hour(str: String): Option[Int] = Hour.parse(str)
   def minute(str: String): Option[Int] = Minute.parse(str)
 
-end partitionPath
+end DateTimePartitionPath

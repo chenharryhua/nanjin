@@ -278,22 +278,22 @@ object Hadoop {
       }
 
     override def latestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-      import partitionPath.{day, month, year}
+      import DateTimePartitionPath.{day, month, year}
       best[Int](path, NonEmptyList.of(year, month, day))
     }
 
     override def latestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-      import partitionPath.{day, hour, month, year}
+      import DateTimePartitionPath.{day, hour, month, year}
       best[Int](path, NonEmptyList.of(year, month, day, hour))
     }
 
     override def earliestYmd(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-      import partitionPath.{day, month, year}
+      import DateTimePartitionPath.{day, month, year}
       best(path, NonEmptyList.of[String => Option[Int]](year, month, day))(using F, Ordering[Int].reverse)
     }
 
     override def earliestYmdh(path: Url)(using F: Sync[F]): F[Option[Url]] = {
-      import partitionPath.{day, hour, month, year}
+      import DateTimePartitionPath.{day, hour, month, year}
       best(path, NonEmptyList.of[String => Option[Int]](year, month, day, hour))(using
         F,
         Ordering[Int].reverse)

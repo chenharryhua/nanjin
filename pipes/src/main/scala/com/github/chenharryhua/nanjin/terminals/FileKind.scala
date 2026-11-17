@@ -21,7 +21,7 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   }
 
   final def ymdFileName(crf: CreateRotateFile): String = {
-    val ymd = partitionPath.ymd(crf.time.toLocalDate)
+    val ymd = DateTimePartitionPath.ymd(crf.time.toLocalDate)
     s"$ymd/${fileName(crf)}"
   }
 }
