@@ -447,7 +447,7 @@ lazy val pipes = (project in file("pipes"))
       // snyk
       "com.google.guava"     % "guava"                  % guavaV, // Snyk by hadoop-client
       "io.airlift"           % "aircompressor"          % "2.0.3", // Snyk by parquet-hadoop
-      "io.netty"             % "netty-all"              % "4.2.20.Final", // Snyk by hadoop-client
+      "io.netty"             % "netty-all"              % "4.2.21.Final", // Snyk by hadoop-client
       "org.apache.kerby"     % "kerby-asn1"             % "2.1.2", // Snyk by hadoop-client
       "org.apache.commons"   % "commons-configuration2" % "2.15.1", // Snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-server"           % jettyV, // Snyk by hadoop-client
