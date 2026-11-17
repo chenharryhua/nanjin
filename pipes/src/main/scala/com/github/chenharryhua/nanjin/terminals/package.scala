@@ -53,11 +53,11 @@ def extractDate(url: Url): Option[LocalDate] = {
   def go(ps: List[String]): Option[LocalDate] =
     ps match {
       case head :: next =>
-        partitionPath.year(head) match {
+        DateTimePartitionPath.year(head) match {
           case Some(year) =>
             next match {
               case month :: day :: _ =>
-                (partitionPath.month(month), partitionPath.day(day)).flatMapN { case (m, d) =>
+                (DateTimePartitionPath.month(month), DateTimePartitionPath.day(day)).flatMapN { case (m, d) =>
                   Try(LocalDate.of(year, m, d)).toOption
                 }
               case _ => None

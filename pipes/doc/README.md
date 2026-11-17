@@ -676,20 +676,20 @@ consuming before a longer input stream finishes.
 
 ## Partition paths and retention
 
-`partitionPath` formats Hive-style directory names:
+`DateTimePartitionPath` formats Hive-style directory names:
 
 ```scala
-import com.github.chenharryhua.nanjin.terminals.partitionPath
+import com.github.chenharryhua.nanjin.terminals.DateTimePartitionPath
 
 import java.time.{LocalDate, LocalDateTime}
 
-partitionPath.ymd(LocalDate.of(2026, 1, 2))
+DateTimePartitionPath.ymd(LocalDate.of(2026, 1, 2))
 // Year=2026/Month=01/Day=02
 
-partitionPath.ymdh(LocalDateTime.of(2026, 1, 2, 3, 4))
+DateTimePartitionPath.ymdh(LocalDateTime.of(2026, 1, 2, 3, 4))
 // Year=2026/Month=01/Day=02/Hour=03
 
-partitionPath.ymdhm(LocalDateTime.of(2026, 1, 2, 3, 4))
+DateTimePartitionPath.ymdhm(LocalDateTime.of(2026, 1, 2, 3, 4))
 // Year=2026/Month=01/Day=02/Hour=03/Minute=04
 ```
 
@@ -790,7 +790,7 @@ filenames, partition components, enum values, subtype tags, framing, and JSON ke
 | Blocking readers and writers | [`HadoopReader.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/HadoopReader.scala), [`HadoopWriter.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/HadoopWriter.scala) |
 | Compression and formats | [`Compression.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/Compression.scala), [`FileFormat.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/FileFormat.scala), [`FileKind.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/FileKind.scala) |
 | Rotation | [`RotateSink.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/RotateSink.scala), [`RotateFile.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/RotateFile.scala) |
-| Partition paths | [`partitionPath.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/partitionPath.scala) |
+| Partition paths | [`DateTimePartitionPath.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/DateTimePartitionPath.scala) |
 | Retention results | [`RetentionStatus.scala`](../src/main/scala/com/github/chenharryhua/nanjin/terminals/RetentionStatus.scala) |
 
 From the repository root:

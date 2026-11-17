@@ -3,7 +3,7 @@ package mtest.terminals
 import better.files.*
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.RetentionStatus.{Removed, Retained}
-import com.github.chenharryhua.nanjin.terminals.partitionPath.*
+import com.github.chenharryhua.nanjin.terminals.DateTimePartitionPath.*
 import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
