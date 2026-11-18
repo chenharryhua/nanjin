@@ -20,8 +20,8 @@ import org.apache.kafka.clients.producer.RecordMetadata
   *
   * The producer counterpart of `ConsumeGenericRecord`: it takes Avro `GenericRecord`s, encodes the key and
   * value to `Array[Byte]` (Confluent wire format, via `PushGenericRecord`), and produces them. Before the
-  * first produce it fetches the write schema from the schema registry (raising `TopicSchemaAbsent` if the key
-  * or value subject is not registered). Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
+  * first produce it fetches the write schema from the schema registry (raising `TopicSchemaUnavailable` if the key
+  * or value schema is unavailable). Obtain an instance via `KafkaContext.produceGenericRecord(...)`.
   */
 final class ProduceGenericRecord[F[_]] private[kafka] (
   topicName: TopicName,
@@ -40,8 +40,8 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F] =
     new ProduceGenericRecord[F](topicName, srClient, serdeSettings, f(producerSettings))
 
-  /** Fetch the write schema from the schema registry. Raises `TopicSchemaAbsent` if the key or value subject
-    * is not registered.
+  /** Fetch the write schema from the schema registry. Raises `TopicSchemaUnavailable` if the key or value schema
+    * is unavailable.
     */
   private lazy val fetchSchema: F[AvroSchemaPair] =
     TopicSchemaRegistry[F](srClient, topicName)

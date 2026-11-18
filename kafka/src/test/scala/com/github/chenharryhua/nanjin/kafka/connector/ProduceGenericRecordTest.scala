@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.config.SerdeSettings
-import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicSchemaAbsent}
+import com.github.chenharryhua.nanjin.kafka.{TopicName, TopicSchemaUnavailable}
 import fs2.kafka.{ProducerSettings, Serializer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
@@ -58,11 +58,11 @@ class ProduceGenericRecordTest extends CatsEffectSuite {
     }
   }
 
-  test("4.schema raises TopicSchemaAbsent when the registry is missing a subject") {
+  test("4.schema raises TopicSchemaUnavailable when the registry is missing a subject") {
     // only the key subject is registered; the value subject is absent
     val client = new MockSchemaRegistryClient
     client.register(s"${topic.value}-key", new AvroSchema(stringSchema))
     val p = producer(client)
-    interceptIO[TopicSchemaAbsent](p.schema)
+    interceptIO[TopicSchemaUnavailable](p.schema)
   }
 }
