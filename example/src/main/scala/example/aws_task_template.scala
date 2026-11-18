@@ -32,7 +32,7 @@ object aws_task_template {
           .limited(3)
           .followedBy(_.fixedRate(2.hours).limited(12))
           .followedBy(_.crontab(_.daily.tenAM)))
-      .addBrief(ecs.containerMetadata[IO]) // attach ECS container metadata to every event
+      .addBrief(ecs.containerMetadata[IO]) // include available ECS container metadata in lifecycle events
       .withHistoryCapacity(32, 32, 32)
   )
 
