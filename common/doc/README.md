@@ -78,13 +78,13 @@ import com.github.chenharryhua.nanjin.common.chrono.tickStream
 tickStream.tickScheduled[IO](zoneId, _.fixedDelay(5.seconds).repeat)
 
 // Emit first, then sleep until the next boundary
-tickStream.tickFuture[IO](zoneId, _.crontab(_.hourly).repeat)
+tickStream.tickEager[IO](zoneId, _.crontab(_.hourly).repeat)
 
 // Test helper — no real sleeping, jittered clock
 tickStream.testPolicy[IO](_.fixedDelay(1.second).repeat.limited(5))
 ```
 
-`tickScheduled` waits before emitting; the sleep is cancelable. `tickFuture` emits before waiting, so
+`tickScheduled` waits before emitting; the sleep is cancelable. `tickEager` emits before waiting, so
 downstream processing can delay the next tick. Whether missed schedule boundaries are skipped depends on
 the policy: `fixedRate` skips elapsed boundaries and cron selects the next match after the current time.
 

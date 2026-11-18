@@ -27,9 +27,9 @@ class TickStreamSpec extends CatsEffectSuite {
     }
   }
 
-  test("2.tickFuture emits first tick immediately and sleeps afterward") {
+  test("2.tickEager emits first tick immediately and sleeps afterward") {
     IO(LocalTime.now()).flatMap { start =>
-      takeTicks(tickStream.tickFuture[IO](zoneId, _.fixedDelay(2.seconds).repeat), 3).map { ticks =>
+      takeTicks(tickStream.tickEager[IO](zoneId, _.fixedDelay(2.seconds).repeat), 3).map { ticks =>
         val elapsed = JDuration.between(start, LocalTime.now())
         assert(ticks.nonEmpty)
         assert(ticks.head.index == 1)
@@ -52,10 +52,10 @@ class TickStreamSpec extends CatsEffectSuite {
   test("4.empty policy produces no ticks") {
     for {
       scheduled <- takeTicks(tickStream.tickScheduled[IO](zoneId, _.empty), 1)
-      future <- takeTicks(tickStream.tickFuture[IO](zoneId, _.empty), 1)
+      eager <- takeTicks(tickStream.tickEager[IO](zoneId, _.empty), 1)
     } yield {
       assert(scheduled.isEmpty)
-      assert(future.isEmpty)
+      assert(eager.isEmpty)
     }
   }
 

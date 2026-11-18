@@ -233,12 +233,12 @@ that must remain open until cancellation, use `eventStream` and run the resource
 | `metricsHub`, `metricsHubS`, `facilitate`, `facilitateS` | Register scoped metrics as resources or streams; see [Metrics](#metrics) |
 | `adhoc` | Publish an immediate snapshot or stream snapshots and metered counts |
 | `batch`, `batchMetered`, `batchTraced` | Run named jobs with optional metrics, logs, or spans; see [Batch execution](#batch-execution) |
-| `tickScheduled`, `tickFuture` | Stream policy ticks using the service time zone |
+| `tickScheduled`, `tickEager` | Stream policy ticks using the service time zone |
 | `retry`, `circuitBreaker` | Acquire scoped retry and circuit-breaker facilities |
 | `tracer`, `tracerProvider` | Access the service's OpenTelemetry tracer and provider |
 | `zoneId` | Access the configured service time zone |
 
-`tickScheduled` waits before emitting each tick; `tickFuture` emits a future tick before waiting.
+`tickScheduled` waits before emitting each tick; `tickEager` emits each tick before waiting for its conclusion.
 Both follow the supplied policy, so finite policies stop. `retry` and `circuitBreaker` return
 `Resource` values: use them within their scope, and keep a circuit breaker open across the calls
 that should share its state. A long-lived breaker needs a repeating policy to continue allowing

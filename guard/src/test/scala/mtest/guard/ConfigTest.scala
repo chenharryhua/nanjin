@@ -16,7 +16,7 @@ class ConfigTest extends CatsEffectSuite {
   test("1.tick") {
     TaskGuard[IO]("tick")
       .service("tick")
-      .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).repeat.limited(5)))
+      .eventStreamS(_.tickEager(_.fixedDelay(1.seconds).repeat.limited(5)))
       .compile
       .drain
   }
