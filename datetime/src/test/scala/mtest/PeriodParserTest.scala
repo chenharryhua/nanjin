@@ -91,7 +91,13 @@ class PeriodParserTest extends FunSuite {
     assertEquals(period("2147483647 years").toOption, Some(Period.ofYears(Int.MaxValue)))
   }
 
-  test("9.malformed homebrew input returns validation errors") {
+  test("9.out-of-range homebrew counts return validation errors") {
+    List("2147483648 years", "2147483648 months", "2147483648 days").foreach { input =>
+      assert(period(input).isInvalid, s"expected out-of-range period to be invalid: $input")
+    }
+  }
+
+  test("10.malformed homebrew input returns validation errors") {
     val invalid = List(
       "",
       "years",
