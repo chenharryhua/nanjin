@@ -749,9 +749,10 @@ planned:
 `create` and `closed` carry an offset, e.g. `2024-04-07T02:30:00+10:00`. They were bare local
 date-times before, which could not identify an instant during a fall-back overlap: the same local
 reading occurs twice, and decoding always chose the earlier offset, so a file opened in the second
-pass read back an hour early. The decoder accepts both forms, so JSON written before the change still
-decodes, with the ambiguity it always had. A consumer parsing these two keys as a bare
-`LocalDateTime` breaks; one parsing them as an ISO offset date-time, or as a display string, does not.
+pass read back an hour early. The current decoder requires offsets and rejects JSON using the old
+offset-free form; those payloads must be migrated before decoding. A consumer parsing these two keys
+as a bare `LocalDateTime` breaks; one parsing them as an ISO offset date-time, or as a display string,
+does not.
 
 `window` is write-only in the current codec. The encoder writes it, while the decoder ignores it and
 recomputes the duration from `create` and `closed`. JSON without `window` still decodes.

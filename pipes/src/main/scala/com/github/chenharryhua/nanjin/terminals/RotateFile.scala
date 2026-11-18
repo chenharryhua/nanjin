@@ -62,9 +62,9 @@ object RotateFile {
     * earlier one - which decoded any file opened in the second pass an hour early and could shrink, zero or
     * invert `window`. The encoder already knew the offset and used to discard it with `.toLocalDateTime`.
     *
-    * `zoneId` remains in the payload for compatibility and to interpret legacy local date-times. New
-    * `CreateRotateFile` values retain only the offset, not the original region zone. `OffsetDateTime` is
-    * preferred over `ZonedDateTime` because circe renders the latter as
+    * `zoneId` remains in the payload to restore the original region zone after decoding. New `CreateRotateFile`
+    * values retain only the offset, not the original region zone. `OffsetDateTime` is preferred over
+    * `ZonedDateTime` because circe renders the latter as
     * `2024-04-07T02:30+10:00[Australia/Sydney]`, duplicating `zoneId`. This mirrors `Tick`'s wire format.
     */
   given Encoder[RotateFile] =
