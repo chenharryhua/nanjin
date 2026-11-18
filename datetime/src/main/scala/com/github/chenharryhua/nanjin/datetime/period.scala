@@ -59,17 +59,16 @@ object period {
 
   /** Runs the homebrew `ymd` grammar, reporting the failing input offset(s) as messages on the invalid side.
     */
-  private def homebrew(str: String): Validated[NonEmptyList[String], Period] = {
-    try {
+  private def homebrew(str: String): Validated[NonEmptyList[String], Period] =
+    try
       ymd.parse(str) match {
         case Left(value)  => Validated.Invalid(value._2.map(_.offset.toString))
         case Right(value) => Validated.Valid(value._2)
       }
-    } catch {
+    catch {
       case _: NumberFormatException =>
         Validated.Invalid(NonEmptyList.one(s"""Period component in "$str" is outside the Int range"""))
     }
-  }
 
   /** Parses the ISO-8601 form via `Period.parse`, capturing the exception message on failure. */
   private def standard(str: String): Validated[NonEmptyList[String], Period] =
