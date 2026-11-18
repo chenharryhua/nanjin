@@ -21,8 +21,8 @@ filter or transform events before producing them. On stream finalization, a stop
 for each service still running. Per-event producer failures are logged and swallowed; a failure
 while producing a synthesized final stop can still fail stream finalization.
 
-See the [Kafka module](../../kafka/doc/README.md) for producer configuration and the
-[Guard event-system guide](../../guard/doc/README.md#event-system) for event types and filtering.
+See the [Kafka module](../../../kafka/doc/README.md) for producer configuration and the
+[Guard event-system guide](../../../guard/doc/README.md#event-system) for event types and filtering.
 
 ## Artifact
 

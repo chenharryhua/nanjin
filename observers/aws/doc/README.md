@@ -6,7 +6,7 @@ observers consume a Guard `Stream[F, Event]` as an FS2 pipe and pass the origina
 
 The AWS client resources come from `nj-aws`; configure their region and credentials using the AWS SDK
 provider chain or your application's preferred credential source. See the [Guard event-system
-guide](../../guard/doc/README.md#event-system) for the event model and `EventPipe` filters.
+guide](../../../guard/doc/README.md#event-system) for the event model and `EventPipe` filters.
 Examples assume an existing Guard event stream named `events`; client resources and endpoint values
 are supplied by the application.
 
@@ -106,7 +106,7 @@ val export = service.eventStreamS { agent =>
 
 `scrape` defaults to standard 60-second storage resolution and a 15-second maximum buffering
 interval. CloudWatch publish failures are swallowed. See
-[the example observers](../../example/src/main/scala/example/observers.scala) for construction
+[the example observers](../../../example/src/main/scala/example/observers.scala) for construction
 examples.
 
 ## Artifact
