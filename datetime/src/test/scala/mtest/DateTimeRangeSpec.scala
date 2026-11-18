@@ -193,7 +193,7 @@ final class DateTimeRangeSpec extends FunSuite {
       """
         |{
         |  "zone_id": "UTC",
-        |  "start": "2024-01-01T10:00:00",
+        |  "start": "2024-01-01T10:00:00Z",
         |  "end": null
         |}
         |""".stripMargin
