@@ -22,6 +22,10 @@ import scala.concurrent.duration.DurationInt
   * sandbox token endpoint; use `login.salesforce.com/services/oauth2/token` for production. `Secret` masks
   * values when rendered, while `logBody = false` prevents the authentication client's form logger from
   * exposing the client secret and password sent on the wire.
+  *
+  * The authentication client retries token requests up to five times, including the `POST` exchange. This can
+  * replay a request after a transport failure, so use this policy only if retrying the token exchange is
+  * acceptable.
   */
 object salesforce_client {
   // Auth-only client: never logs the secret-bearing form body. Token exchange is POST, so retry is
