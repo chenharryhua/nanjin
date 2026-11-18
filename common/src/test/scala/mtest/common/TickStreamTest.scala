@@ -68,7 +68,7 @@ class TickStreamTest extends CatsEffectSuite {
 
   test("6.tickImmediate - fixed delay") {
     tickStream
-      .tickFuture[IO](saltaTime, _.fixedDelay(1.seconds).repeat.limited(3))
+      .tickEager[IO](saltaTime, _.fixedDelay(1.seconds).repeat.limited(3))
       .compile
       .toList
       .map { ticks =>

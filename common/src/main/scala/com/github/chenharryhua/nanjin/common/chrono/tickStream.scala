@@ -37,7 +37,7 @@ object tickStream {
     * This is an at-least schedule: if downstream work overruns the requested cadence, the stream emits the
     * next tick as soon as it can and then sleeps only for the remaining gap.
     */
-  def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
+  def tickEager[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(using F: Async[F]): Stream[F, Tick] =
     seed_policy_tick(zoneId, f).flatMap { seed =>
       val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
         Pull.loop[F, Tick, PolicyTick[F]] { policyTick =>

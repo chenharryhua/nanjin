@@ -91,14 +91,15 @@ sealed trait Agent[F[_]] {
     */
   def tickScheduled(f: Policy.type => Policy): Stream[F, Tick]
 
-  /** Create a stream of future ticks in the agent's time zone.
+  /** Create a stream that emits each tick before waiting for its conclusion, in the agent's time zone.
     *
-    * Use this when consumers need the next tick values without the scheduled stream's active timing behavior.
+    * Downstream processing can use the interval before the tick concludes; if processing overruns it, the
+    * next tick is emitted as soon as possible.
     *
     * @param f
     *   Function that builds the tick policy.
     */
-  def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
+  def tickEager(f: Policy.type => Policy): Stream[F, Tick]
 
   /** Logger that writes messages to the log sink and publishes to the event channel.
     *
@@ -191,8 +192,8 @@ final private class GeneralAgent[F[_]: Async](
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickScheduled[F](zoneId, f)
 
-  override def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
-    tickStream.tickFuture[F](zoneId, f)
+  override def tickEager(f: Policy.type => Policy): Stream[F, Tick] =
+    tickStream.tickEager[F](zoneId, f)
 
   /** The scope stamped on everything created under `label`: metric identities, batch job reports, and batch
     * span attributes. The domain comes from `reportedEventHandler`, so a `withDomain` agent scopes its

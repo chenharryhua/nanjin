@@ -346,7 +346,7 @@ object Hadoop {
     override def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(
       using F: Async[F]): RotateByPolicy[F] = {
       val crfs: Stream[F, CreateRotateFile] =
-        tickStream.tickFuture[F](zoneId, f).map { tick =>
+        tickStream.tickEager[F](zoneId, f).map { tick =>
           CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
         }
       new RotateByPolicyImpl[F](config, pathBuilder, crfs)
