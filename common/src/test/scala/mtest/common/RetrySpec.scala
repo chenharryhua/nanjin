@@ -320,16 +320,16 @@ class RetrySpec extends CatsEffectSuite {
     prom
   }
 
-  test("14.Retry: decision can observe failedAt") {
-    val zoneId = ZoneId.systemDefault()
+  test("14.Retry: failedAt preserves the configured zone") {
+    val zoneId = ZoneId.of("Europe/Berlin")
 
     val prom = for {
-      observedFailedAt <- Ref.of[IO, Option[java.time.Instant]](None)
+      observedFailedAt <- Ref.of[IO, Option[java.time.ZonedDateTime]](None)
       start <- IO.realTimeInstant
       retry <- Retry[IO](
         zoneId,
         _.withPolicy(_.fixedDelay(20.millis).repeat.limited(2)).withDecision { tv =>
-          observedFailedAt.set(Some(tv.failedAt.toInstant)) >> IO.pure(tv.giveUp)
+          observedFailedAt.set(Some(tv.failedAt)) >> IO.pure(tv.giveUp)
         }
       )
       _ <- retry(IO.raiseError[String](new RuntimeException("failed-at"))).attempt
@@ -338,8 +338,9 @@ class RetrySpec extends CatsEffectSuite {
     } yield {
       assert(failedAt.nonEmpty)
       val ts = failedAt.get
-      assert(!ts.isBefore(start), s"failedAt should be >= start, got $ts < $start")
-      assert(!ts.isAfter(end), s"failedAt should be <= end, got $ts > $end")
+      assertEquals(ts.getZone, zoneId)
+      assert(!ts.toInstant.isBefore(start), s"failedAt should be >= start, got $ts < $start")
+      assert(!ts.toInstant.isAfter(end), s"failedAt should be <= end, got $ts > $end")
     }
 
     prom

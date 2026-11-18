@@ -96,12 +96,15 @@ class InspectionGapsTest extends CatsEffectSuite {
     }
   }
 
-  test("1c.RotateFile rejects timestamps without an offset") {
-    val legacy = sampleRotateFile.asJson
-      .mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
-      .mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
+  test("1c.RotateFile rejects create and closed timestamps without offsets") {
+    val json = sampleRotateFile.asJson
+    val createWithoutOffset =
+      json.mapObject(_.add("create", Json.fromString("2023-11-14T22:13:20")))
+    val closedWithoutOffset =
+      json.mapObject(_.add("closed", Json.fromString("2023-11-14T22:15:23")))
 
-    assert(legacy.as[RotateFile].isLeft)
+    assert(createWithoutOffset.as[RotateFile].isLeft, "create without an offset should not decode")
+    assert(closedWithoutOffset.as[RotateFile].isLeft, "closed without an offset should not decode")
   }
 
   test("1d.RotateFile preserves both offsets when a window crosses a fall-back transition") {

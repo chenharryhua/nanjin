@@ -145,7 +145,7 @@ The `Attempt` provides:
 - `ordinal: Long` — failure count (1-based)
 - `elapsed: FiniteDuration` — real wall-clock time since first failure (includes sleep + execution, not just accumulated policy delays)
 - `snooze: FiniteDuration` — the delay the policy proposes
-- `failedAt: OffsetDateTime` — sampled when the policy advances after the failure
+- `failedAt: ZonedDateTime` — sampled when the policy advances after the failure
 
 A decision function that *fails* instead of returning a transition stops the retry and raises
 `Retry.DecisionFailure`, which carries both errors and modifies neither:
