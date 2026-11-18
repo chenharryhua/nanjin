@@ -1,10 +1,11 @@
 # Guard execution guide
 
-The Guard module runs application effects as supervised services. This guide covers seven parts of
+The Guard module runs application effects as supervised services. This guide covers eight parts of
 that runtime:
 
 - **Configuration** defines inherited task defaults and service-specific runtime settings.
 - **Agent** gives supervised application code access to service-scoped facilities.
+- **Event system** defines the event stream, its event types, and filtering and translation.
 - **Logging** emits structured application messages to a local sink and the service event stream.
 - **HTTP service** exposes service controls, health, metrics, and an optional live dashboard.
 - **Batch execution** groups named effects, records their timing and outcomes, and optionally adds
@@ -26,6 +27,10 @@ that runtime:
   - [Running with an agent](#running-with-an-agent)
   - [Agent capabilities](#agent-capabilities)
   - [Scope and lifetime](#scope-and-lifetime)
+- [Event system](#event-system)
+  - [Event model](#event-model)
+  - [Filtering events](#filtering-events)
+  - [Translating events](#translating-events)
 - [Logging](#logging)
   - [Writing messages](#writing-messages)
   - [Thresholds and delivery](#thresholds-and-delivery)
@@ -257,6 +262,65 @@ event stream.
 See [`Agent.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/Agent.scala) and
 [`ServiceGuard.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/service/ServiceGuard.scala)
 for the façade and its service callbacks.
+
+## Event system
+
+`ServiceGuard.eventStream`, `eventStreamS`, and `eventStreamR` all produce a `Stream[F, Event]`.
+Compiling the stream runs the service and emits its lifecycle, reported-log, and metrics events;
+draining it without an observer consumes and discards those events. Events can be processed directly
+as a stream or passed through an observer.
+
+### Event model
+
+Every event carries a `ServiceIdentity`, an authoritative `ZonedDateTime` timestamp in the
+service's configured time zone, an optional `LogLink`, and a derived `upTime` measured from the
+service launch. `Event` has five variants:
+
+| Event | When it is emitted | Notable data |
+| --- | --- | --- |
+| `ServiceStart` | Initial start and every restart | User-provided `brief` metadata and the start tick (index `0` for the initial start) |
+| `ServicePanic` | A failure for which the restart policy supplies another tick | Stack trace and retry tick, including the delay before restart |
+| `ServiceStop` | Service completion, cancellation, or exhausted restart policy | `StopReason`: `Successfully`, `ByCancellation`, `Maintenance`, or `ByException` |
+| `ReportedEvent` | A user log message accepted by the event-channel threshold | JSON message, level, domain, correlation ID, and optional stack trace |
+| `MetricsSnapshot` | A periodic report or explicit `agent.adhoc.report` | Full metrics snapshot and an `Adhoc` or `Periodic` index |
+
+`ReportedEvent` publication is independently controlled from the local log sink; see
+[Thresholds and delivery](#thresholds-and-delivery). Periodic and explicit snapshots are published
+to the event stream, while the dashboard's on-demand metrics view does not publish an event.
+
+### Filtering events
+
+`EventPipe` provides reusable, composable filters. Apply one directly to a stream using its Boolean
+view:
+
+```scala
+import com.github.chenharryhua.nanjin.guard.event.EventPipe
+
+val pipe = EventPipe.logLevel(_.Warn) && EventPipe.noAdhoc
+val selected = events.filter(pipe.filter)
+```
+
+`logLevel` filters only `ReportedEvent`s; `noAdhoc` drops only on-demand metrics snapshots.
+`cronFilter`, `localTimeFilter`, `indexFilter`, and `windowFilter` select periodic metrics snapshots;
+other event types pass through, and these four filters also pass `Adhoc` snapshots. Combine pipes
+with `&&` to require both filters to keep an event. Pipes filter rather than transform: returning
+`Some` keeps the original event, while `None` drops it.
+
+### Translating events
+
+`Translator[F, A]` dispatches each event variant to its own handler and returns `F[Option[A]]`;
+`None` means the handler skipped the event. Translators can filter with an `EventPipe`, skip an
+event type, or provide custom handlers. Observers expose this through `withTranslator`, for example:
+
+```scala
+observer.withTranslator(_.filter(pipe))
+observer.withTranslator(_.skipMetricsSnapshot)
+```
+
+See [`Event.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/event/Event.scala),
+[`EventPipe.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/event/EventPipe.scala),
+and [`Translator.scala`](../src/main/scala/com/github/chenharryhua/nanjin/guard/translator/Translator.scala)
+for the event model and processing APIs.
 
 ## Logging
 
