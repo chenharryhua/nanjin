@@ -344,12 +344,12 @@ throwing an arithmetic exception.
 ```json
 {
   "zone_id": "UTC",
-  "start": "2026-01-02T03:04:05",
+  "start": "2026-01-02T03:04:05Z",
   "end": null
 }
 ```
 
-Bounds are local date-time strings in the declared zone, or JSON null when open. `LocalTimeRange`
+Bounds are offset date-time strings, or JSON null when open. `LocalTimeRange`
 derives an object codec with fields `start` and `duration`; the duration uses ISO-8601 text such as
 `PT8H`.
 
@@ -365,11 +365,9 @@ The following serialized forms are externally observable and should remain stabl
 | SQL `Date` | ISO local-date string |
 | `FiniteDuration` | ISO Java-duration string |
 
-`DateTimeRange` JSON stores local date-times plus a zone id, not the original instant or offset. This
-normally reconstructs the same instant. During a daylight-saving overlap, one local time has two
-valid offsets; decoding uses Java's default `LocalDateTime.atZone` resolution and may choose a
-different occurrence than the original instant. Store an explicit instant separately when overlap
-identity must be exact.
+`DateTimeRange` JSON stores offset date-times plus a zone id, preserving each bound's instant even
+during a daylight-saving overlap. Offset-free local date-time bounds from previous codec versions are
+not accepted by the decoder.
 
 Other time-zone rules:
 

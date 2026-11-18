@@ -116,18 +116,60 @@ class DateTimeRangeEdgeTest extends FunSuite {
   test("7.JSON decoder preserves one-sided bounds") {
     val start_only = Json.obj(
       "zone_id" -> ZONE.asJson,
-      "start" -> LocalDateTime.ofInstant(START, ZONE).asJson,
+      "start" -> START.atZone(ZONE).toOffsetDateTime.asJson,
       "end" -> Json.Null)
     val end_only = Json.obj(
       "zone_id" -> ZONE.asJson,
       "start" -> Json.Null,
-      "end" -> LocalDateTime.ofInstant(END, ZONE).asJson)
+      "end" -> END.atZone(ZONE).toOffsetDateTime.asJson)
 
     assertEquals(start_only.as[DateTimeRange].toOption, Some(DateTimeRange(ZONE).withStartTime(START)))
     assertEquals(end_only.as[DateTimeRange].toOption, Some(DateTimeRange(ZONE).withEndTime(END)))
   }
 
-  test("8.negative and zero-width ranges retain signed duration semantics") {
+  test("8.JSON round-trips both occurrences of an overlapping local time") {
+    val zone = ZoneId.of("Europe/Paris")
+    val earlier = DateTimeRange(zone).withStartTime(Instant.parse("2024-10-27T00:30:00Z"))
+    val later = DateTimeRange(zone).withStartTime(Instant.parse("2024-10-27T01:30:00Z"))
+
+    val earlierJson = earlier.asJson
+    val laterJson = later.asJson
+
+    assertEquals(earlierJson.hcursor.get[String]("start"), Right("2024-10-27T02:30:00+02:00"))
+    assertEquals(laterJson.hcursor.get[String]("start"), Right("2024-10-27T02:30:00+01:00"))
+    assertEquals(earlierJson.as[DateTimeRange], Right(earlier))
+    assertEquals(laterJson.as[DateTimeRange], Right(later))
+  }
+
+  test("9.JSON round-trips instants across the spring-forward transition") {
+    val zone = ZoneId.of("Europe/Paris")
+    val range = DateTimeRange(zone)
+      .withStartTime(Instant.parse("2024-03-31T00:30:00Z"))
+      .withEndTime(Instant.parse("2024-03-31T01:30:00Z"))
+
+    val json = range.asJson
+
+    assertEquals(json.hcursor.get[String]("start"), Right("2024-03-31T01:30:00+01:00"))
+    assertEquals(json.hcursor.get[String]("end"), Right("2024-03-31T03:30:00+02:00"))
+    assertEquals(json.as[DateTimeRange], Right(range))
+  }
+
+  test("10.decoder rejects legacy offset-free local date-times") {
+    val zone = ZoneId.of("Europe/Paris")
+    val overlap = Json.obj(
+      "zone_id" -> zone.asJson,
+      "start" -> LocalDateTime.parse("2024-10-27T02:30:00").asJson,
+      "end" -> Json.Null)
+    val gap = Json.obj(
+      "zone_id" -> zone.asJson,
+      "start" -> LocalDateTime.parse("2024-03-31T02:30:00").asJson,
+      "end" -> Json.Null)
+
+    assert(overlap.as[DateTimeRange].isLeft)
+    assert(gap.as[DateTimeRange].isLeft)
+  }
+
+  test("11.negative and zero-width ranges retain signed duration semantics") {
     val negative = DateTimeRange(ZONE).withStartTime(END).withEndTime(START)
     val zero = DateTimeRange(ZONE).withStartTime(START).withEndTime(START)
 

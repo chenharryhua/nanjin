@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import cats.data.Cont
 import cats.syntax.apply.given
 import cats.syntax.functor.given
 import cats.syntax.partialOrder.given
 import cats.syntax.semigroupk.given
 import cats.syntax.show.showInterpolator
-import cats.{Eval, PartialOrder, Show}
+import cats.{PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -247,29 +246,24 @@ object DateTimeRange {
   /** `Show` renders the same text as `toString`. */
   given Show[DateTimeRange] = Show.fromToString[DateTimeRange]
 
-  /** JSON object `{ zone_id, start, end }`, where bounds are the zoned `LocalDateTime` (null when unset).
-    * Paired with the `Decoder` below for a round trip.
+  /** JSON object `{ zone_id, start, end }`, where bounds are offset date-times (null when unset). Paired with
+    * the `Decoder` below for a round trip.
     */
   given Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
       Json.obj(
         "zone_id" -> a.zoneId.asJson,
-        "start" -> a.zonedStartTime.map(_.toLocalDateTime).asJson,
-        "end" -> a.zonedEndTime.map(_.toLocalDateTime).asJson)
+        "start" -> a.zonedStartTime.map(_.toOffsetDateTime).asJson,
+        "end" -> a.zonedEndTime.map(_.toOffsetDateTime).asJson)
 
-  /** Reads the `{ zone_id, start, end }` shape produced by the `Encoder`, interpreting the `LocalDateTime`
-    * bounds in the decoded zone.
+  /** Reads the `{ zone_id, start, end }` shape produced by the `Encoder`. Offset date-times preserve each
+    * bound instant.
     */
   given Decoder[DateTimeRange] =
     (c: HCursor) =>
       for {
         zoneId <- c.get[ZoneId]("zone_id")
-        start <- c.get[Option[LocalDateTime]]("start")
-        end <- c.get[Option[LocalDateTime]]("end")
-      } yield Cont
-        .pure[DateTimeRange, DateTimeRange](DateTimeRange(zoneId))
-        .map(dtr => start.fold(dtr)(dtr.withStartTime))
-        .map(dtr => end.fold(dtr)(dtr.withEndTime))
-        .run(Eval.now)
-        .value
+        start <- c.get[Option[OffsetDateTime]]("start").map(_.map(_.toInstant))
+        end <- c.get[Option[OffsetDateTime]]("end").map(_.map(_.toInstant))
+      } yield DateTimeRange(start, end, zoneId)
 }
