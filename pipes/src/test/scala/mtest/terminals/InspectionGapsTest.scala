@@ -83,9 +83,7 @@ class InspectionGapsTest extends CatsEffectSuite {
     )
 
     val json = file.asJson
-    assertEquals(
-      json.hcursor.get[String]("create"),
-      Right("2024-04-07T02:30:00+10:00"))
+    assertEquals(json.hcursor.get[String]("create"), Right("2024-04-07T02:30:00+10:00"))
     assertEquals(json.hcursor.get[String]("zone_id"), Right("Australia/Sydney"))
 
     json.as[RotateFile] match {
@@ -109,9 +107,8 @@ class InspectionGapsTest extends CatsEffectSuite {
   test("1d.RotateFile preserves both offsets when a window crosses a fall-back transition") {
     val start = ZonedDateTime.of(2024, 4, 7, 2, 50, 0, 0, sydneyTime).withEarlierOffsetAtOverlap
     val end = start.plusMinutes(20)
-    val file = sampleRotateFile.copy(
-      create = sampleRotateFile.create.copy(time = start),
-      closed = end.toInstant)
+    val file =
+      sampleRotateFile.copy(create = sampleRotateFile.create.copy(time = start), closed = end.toInstant)
     val json = file.asJson
 
     assertEquals(json.hcursor.get[String]("create"), Right("2024-04-07T02:50:00+11:00"))

@@ -93,8 +93,8 @@ sealed trait Agent[F[_]] {
 
   /** Create a stream that emits each tick before waiting for its conclusion, in the agent's time zone.
     *
-    * Downstream processing can use the interval before the tick concludes; if processing overruns it, the next
-    * tick is emitted as soon as possible.
+    * Downstream processing can use the interval before the tick concludes; if processing overruns it, the
+    * next tick is emitted as soon as possible.
     *
     * @param f
     *   Function that builds the tick policy.

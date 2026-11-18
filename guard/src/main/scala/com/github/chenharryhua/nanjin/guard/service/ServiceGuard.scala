@@ -93,8 +93,8 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
 
   /** Convenience adapter for application logic expressed as a `Resource`.
     *
-    * The resource is evaluated with `use_` (discarding its value) and its effect is supervised by `eventStream`,
-    * so completion and failure follow the same lifecycle semantics.
+    * The resource is evaluated with `use_` (discarding its value) and its effect is supervised by
+    * `eventStream`, so completion and failure follow the same lifecycle semantics.
     */
   def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event]
 }
