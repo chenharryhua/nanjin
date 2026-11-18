@@ -84,16 +84,17 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
     */
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event]
 
-  /** Run application logic as a `Stream` and produce an event stream.
+  /** Convenience adapter for application logic expressed as a `Stream`.
     *
-    * The inner stream is compiled to drain; completion or failure triggers the same lifecycle as
-    * `eventStream`.
+    * The inner stream is compiled to drain and its effect is supervised by `eventStream`, so completion and
+    * failure follow the same lifecycle semantics.
     */
   def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event]
 
-  /** Hold a `Resource` open for the service lifetime and produce an event stream.
+  /** Convenience adapter for application logic expressed as a `Resource`.
     *
-    * The resource is acquired on start and released on stop or cancellation.
+    * The resource is evaluated with `use_` (discarding its value) and its effect is supervised by `eventStream`,
+    * so completion and failure follow the same lifecycle semantics.
     */
   def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event]
 }
