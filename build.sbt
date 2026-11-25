@@ -455,7 +455,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"    % "jetty-security"         % jettyV, // Snyk by hadoop-client
       "org.eclipse.jetty"    % "jetty-client"           % jettyV, // Snyk by hadoop-client
       "org.bouncycastle"     % "bcprov-jdk18on"         % "1.87", // Snyk by hadoop-client
-      "org.apache.zookeeper" % "zookeeper"              % "3.9.7", // Snyk by hadoop-client
+      "org.apache.zookeeper" % "zookeeper"              % "3.10.0", // Snyk by hadoop-client
       "org.xerial.snappy"    % "snappy-java"            % snappyV // Snyk by hadoop-client
     ) ++ testLib
   )
